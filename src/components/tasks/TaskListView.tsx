@@ -7,7 +7,7 @@ import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, D
 import { 
   ChevronDown, Plus, Paperclip, X, MessageSquare, Check, Pin, Edit2, Tag, 
   MoreHorizontal, Play, Clock, AlertTriangle, Hourglass, Trash2, 
-  CheckCircle2, ListChecks, Repeat2, Copy, ChevronsUpDown, Sparkles, Layers, Users, Calendar, Flag, GripVertical
+  CheckCircle2, ListChecks, Copy, ChevronsUpDown, Sparkles, Layers, Users, Calendar, Flag, Repeat, GripVertical
 } from 'lucide-react';
 import { Task, TaskStatus, Priority, User, Workspace } from '../../types';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker } from './TaskSelects';
@@ -69,6 +69,7 @@ const TaskListView = React.memo(function TaskListView({
   openPromptModal, openDialog
 }: TaskListViewProps) {
   const { t, locale } = useTranslation();
+  const isVietnamese = locale === 'vi';
   
   // View density mode: 'comfortable' | 'compact'
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
@@ -643,11 +644,19 @@ const TaskListView = React.memo(function TaskListView({
                                                   {task.title}
                                                 </span>
 
-                                                {task.isPinned && <Pin className="w-3 h-3 text-amber-500 fill-amber-400 shrink-0" />}
-                                                {task.recurrence?.frequency && task.recurrence.frequency !== 'none' && (
-                                                  <span className="flex shrink-0 items-center gap-1 rounded-md border border-indigo-200/60 bg-indigo-50 px-1.5 py-0.5 text-[9px] font-extrabold text-indigo-700 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-300" title={`Lặp lại mỗi ${task.recurrence.interval} ${task.recurrence.frequency}`}>
-                                                    <Repeat2 className="h-2.5 w-2.5" />
-                                                    <span>{task.recurrence.frequency}</span>
+                                                {task.isPinned && (
+                                                  <span title={isVietnamese ? 'Đã ghim' : 'Pinned'} className="inline-flex items-center text-amber-500 shrink-0">
+                                                    <Pin className="w-3 h-3 text-amber-500 fill-amber-400" />
+                                                  </span>
+                                                )}
+                                                {task.isMilestone && (
+                                                  <span title={isVietnamese ? 'Cột mốc quan trọng' : 'Project Milestone'} className="inline-flex items-center text-purple-500 shrink-0">
+                                                    <Flag className="w-3 h-3 fill-purple-400 text-purple-500" />
+                                                  </span>
+                                                )}
+                                                {task.recurrence && task.recurrence.frequency !== 'none' && (
+                                                  <span title={isVietnamese ? 'Lặp lại định kỳ' : 'Recurring'} className="inline-flex items-center text-indigo-500 shrink-0">
+                                                    <Repeat className="w-3 h-3 text-indigo-500" />
                                                   </span>
                                                 )}
                                                  

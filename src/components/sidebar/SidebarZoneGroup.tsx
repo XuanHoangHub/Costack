@@ -204,30 +204,30 @@ export function SidebarZoneGroup({
             isDragOverZoneHeader
               ? 'border-sky-400 bg-sky-500/25 ring-2 ring-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.5)] scale-108'
               : hasActiveChild
-                ? `${zoneColor.border} ${zoneColor.bg} text-white ring-1 ${zoneColor.border}`
-                : 'border-white/[0.08] bg-white/[0.03] text-zinc-400 hover:border-white/20 hover:bg-white/[0.08] hover:text-white'
+                ? `${zoneColor.border} ${zoneColor.bg} text-slate-900 dark:text-white ring-1 ${zoneColor.border}`
+                : 'border-slate-200/80 bg-slate-50/80 text-slate-600 hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-zinc-400 dark:hover:border-white/20 dark:hover:bg-white/[0.08] dark:hover:text-white'
           }`}
         >
           {/* Zone Accent Dot */}
-          <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${zoneColor.dot} ring-2 ring-[#09090b] shadow-sm`} />
+          <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${zoneColor.dot} ring-2 ring-white dark:ring-[#09090b] shadow-sm`} />
 
           {/* Emoji */}
           <span className="text-sm select-none">{zone.emoji || '📁'}</span>
 
           {/* Unread badge if any */}
           {totalUnreadCount > 0 && (
-            <span className="absolute -bottom-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-rose-500 text-white font-black text-[8px] flex items-center justify-center ring-2 ring-[#09090b] shadow-sm">
+            <span className="absolute -bottom-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-rose-500 text-white font-black text-[8px] flex items-center justify-center ring-2 ring-white dark:ring-[#09090b] shadow-sm">
               {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
             </span>
           )}
 
           {/* Hover Flyout Card */}
-          <div className="pointer-events-none absolute left-full top-1/2 z-[130] ml-3.5 flex -translate-y-1/2 min-w-[220px] max-w-[280px] flex-col gap-2 rounded-2xl border border-white/12 bg-[#0c0d12]/98 p-3 text-left opacity-0 shadow-[0_20px_50px_rgba(0,0,0,0.85)] backdrop-blur-2xl transition-all duration-150 group-hover/zone:opacity-100 group-hover/zone:pointer-events-auto scale-95 group-hover/zone:scale-100 origin-left">
+          <div className="pointer-events-none absolute left-full top-1/2 z-[130] ml-3.5 flex -translate-y-1/2 min-w-[220px] max-w-[280px] flex-col gap-2 rounded-2xl border border-slate-200 dark:border-white/12 bg-white/98 dark:bg-[#0c0d12]/98 p-3 text-left opacity-0 shadow-[0_12px_36px_rgba(15,23,42,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.85)] backdrop-blur-2xl transition-all duration-150 group-hover/zone:opacity-100 group-hover/zone:pointer-events-auto scale-95 group-hover/zone:scale-100 origin-left">
             {/* Flyout Header */}
-            <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/[0.08]">
+            <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-white/[0.08]">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-base">{zone.emoji || '📁'}</span>
-                <span className="font-bold text-xs text-white truncate">{zone.name}</span>
+                <span className="font-bold text-xs text-slate-900 dark:text-white truncate">{zone.name}</span>
               </div>
               <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${zoneColor.badge}`}>
                 {zone.itemIds.length} {isVi ? 'mục' : 'items'}
@@ -345,7 +345,7 @@ export function SidebarZoneGroup({
         className={`group relative flex items-center justify-between rounded-xl px-2 py-1.5 transition-all duration-150 border ${
           isDragOverZoneHeader
             ? 'border-sky-400 bg-sky-500/20 ring-2 ring-sky-400 shadow-[0_0_16px_rgba(56,189,248,0.35)] scale-[1.01]'
-            : 'border-transparent hover:border-white/[0.08] hover:bg-white/[0.04]'
+            : 'border-transparent hover:border-slate-200/80 hover:bg-slate-100/60 dark:hover:border-white/[0.08] dark:hover:bg-white/[0.04]'
         }`}
       >
         {/* Clickable Area to Toggle Collapse */}
@@ -362,7 +362,7 @@ export function SidebarZoneGroup({
           className="flex flex-1 items-center gap-2 min-w-0 cursor-pointer"
         >
           {/* Chevron Indicator */}
-          <div className="flex h-4 w-4 shrink-0 items-center justify-center text-zinc-500 group-hover:text-zinc-300 transition-transform">
+          <div className="flex h-4 w-4 shrink-0 items-center justify-center text-slate-400 group-hover:text-slate-700 dark:text-zinc-500 dark:group-hover:text-zinc-300 transition-transform">
             {isCollapsed ? (
               <ChevronRight className="h-3.5 w-3.5" />
             ) : (
@@ -376,7 +376,7 @@ export function SidebarZoneGroup({
           </div>
 
           {/* Zone Title */}
-          <span className="truncate text-xs font-bold uppercase tracking-wider text-zinc-300 group-hover:text-white transition-colors">
+          <span className="truncate text-xs font-bold uppercase tracking-wider text-slate-700 group-hover:text-slate-950 dark:text-zinc-300 dark:group-hover:text-white transition-colors">
             {zone.name}
           </span>
 
@@ -401,7 +401,7 @@ export function SidebarZoneGroup({
               e.stopPropagation();
               setShowMenu((v) => !v);
             }}
-            className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 hover:text-white hover:bg-white/[0.08] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+            className="flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:text-slate-800 hover:bg-slate-100 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-white/[0.08] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
             aria-label="Tùy chọn vùng"
             title={isVi ? 'Tùy chọn Vùng' : 'Zone Options'}
           >
@@ -416,7 +416,7 @@ export function SidebarZoneGroup({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: -4 }}
                 transition={{ duration: 0.12 }}
-                className="absolute right-0 top-full mt-1 z-50 w-44 rounded-xl border border-white/12 bg-[#0d0e14] p-1.5 shadow-[0_12px_30px_rgba(0,0,0,0.8)] backdrop-blur-xl"
+                className="absolute right-0 top-full mt-1 z-50 w-44 rounded-xl border border-slate-200 dark:border-white/12 bg-white/98 dark:bg-[#0d0e14] p-1.5 shadow-[0_12px_30px_rgba(15,23,42,0.12)] dark:shadow-[0_12px_30px_rgba(0,0,0,0.8)] backdrop-blur-xl"
               >
                 <button
                   type="button"
@@ -425,9 +425,9 @@ export function SidebarZoneGroup({
                     setShowMenu(false);
                     onEditZone(zone);
                   }}
-                  className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                  className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 hover:text-slate-950 hover:bg-slate-100 dark:text-zinc-300 dark:hover:text-white dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
                 >
-                  <Edit3 className="h-3.5 w-3.5 text-sky-400" />
+                  <Edit3 className="h-3.5 w-3.5 text-blue-600 dark:text-sky-400" />
                   <span>{isVi ? 'Chỉnh sửa Vùng' : 'Edit Zone'}</span>
                 </button>
 
@@ -441,9 +441,9 @@ export function SidebarZoneGroup({
                           setShowMenu(false);
                           onMoveZone(zone.id, 'up');
                         }}
-                        className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                        className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 hover:text-slate-950 hover:bg-slate-100 dark:text-zinc-300 dark:hover:text-white dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
                       >
-                        <ArrowUp className="h-3.5 w-3.5 text-zinc-400" />
+                        <ArrowUp className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-400" />
                         <span>{isVi ? 'Di chuyển lên' : 'Move Up'}</span>
                       </button>
                     )}
@@ -455,16 +455,16 @@ export function SidebarZoneGroup({
                           setShowMenu(false);
                           onMoveZone(zone.id, 'down');
                         }}
-                        className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                        className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 hover:text-slate-950 hover:bg-slate-100 dark:text-zinc-300 dark:hover:text-white dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
                       >
-                        <ArrowDown className="h-3.5 w-3.5 text-zinc-400" />
+                        <ArrowDown className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-400" />
                         <span>{isVi ? 'Di chuyển xuống' : 'Move Down'}</span>
                       </button>
                     )}
                   </>
                 )}
 
-                <div className="my-1 border-t border-white/[0.08]" />
+                <div className="my-1 border-t border-slate-100 dark:border-white/[0.08]" />
 
                 <button
                   type="button"
@@ -473,7 +473,7 @@ export function SidebarZoneGroup({
                     setShowMenu(false);
                     onDeleteZone(zone.id);
                   }}
-                  className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                  className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:text-rose-300 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   <span>{isVi ? 'Xóa Vùng' : 'Delete Zone'}</span>

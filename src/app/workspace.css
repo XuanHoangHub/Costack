@@ -3,32 +3,32 @@
   --cu-sidebar-width: 232px;
   --cu-sidebar-collapsed: 64px;
   --cu-header-height: 60px;
-  --cu-bg: #f6f7f9;
-  --cu-bg-subtle: #f6f7f9;
+  --cu-bg: #ffffff;
+  --cu-bg-subtle: #ffffff;
   --cu-surface: #ffffff;
-  --cu-surface-2: #f1f3f6;
-  --cu-surface-3: #e7ebf0;
-  --cu-border: #e5e9f0;
-  --cu-border-strong: #cbd3df;
-  --cu-text-primary: #202938;
-  --cu-text-secondary: #526176;
-  --cu-text-muted: #66758a;
-  --cu-text-tertiary: #66758a;
-  --cu-primary: #3165e8;
-  --cu-primary-hover: #2453c9;
-  --cu-primary-subtle: #edf3ff;
+  --cu-surface-2: #f8fafc;
+  --cu-surface-3: #f1f5f9;
+  --cu-border: #e2e8f0;
+  --cu-border-strong: #cbd5e1;
+  --cu-text-primary: #0f172a;
+  --cu-text-secondary: #475569;
+  --cu-text-muted: #64748b;
+  --cu-text-tertiary: #94a3b8;
+  --cu-primary: #2563eb;
+  --cu-primary-hover: #1d4ed8;
+  --cu-primary-subtle: #eff6ff;
   --cu-radius-md: 10px;
   --cu-radius-lg: 12px;
   --cu-radius-xl: 16px;
   --cu-radius-2xl: 18px;
-  --cu-shadow-xs: 0 1px 2px #1b294008;
-  --cu-shadow-sm: 0 2px 6px #1b29400a;
-  --cu-shadow-md: 0 8px 24px #1b29400d;
-  --cu-shadow-primary: 0 2px 4px #2453c91a;
-  --sidebar-bg: #171c26;
-  --sidebar-text: #e8edf7;
-  --sidebar-muted: #a6b1c3;
-  --sidebar-signal: #a8c2ff;
+  --cu-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --cu-shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.06);
+  --cu-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --cu-shadow-primary: 0 4px 12px rgba(37, 99, 235, 0.2);
+  --sidebar-bg: #ffffff;
+  --sidebar-text: #0f172a;
+  --sidebar-muted: #64748b;
+  --sidebar-signal: #2563eb;
   background: var(--cu-bg);
   color: var(--cu-text-primary);
   font-size: 14px;
@@ -37,21 +37,24 @@
   -webkit-font-smoothing: antialiased;
 }
 .dark .apexa-app-shell.apexa-design-system {
-  --cu-bg: #11151b;
-  --cu-bg-subtle: #11151b;
-  --cu-surface: #191f28;
-  --cu-surface-2: #222a35;
-  --cu-surface-3: #2e3947;
-  --cu-border: #303947;
-  --cu-border-strong: #465366;
-  --cu-text-primary: #edf1f7;
-  --cu-text-secondary: #b7c2d3;
-  --cu-text-muted: #9aa9be;
-  --cu-text-tertiary: #9aa9be;
-  --cu-primary: #7ca6ff;
-  --cu-primary-hover: #90b4ff;
-  --cu-primary-subtle: #253656;
-  --sidebar-bg: #151a22;
+  --cu-bg: #000000;
+  --cu-bg-subtle: #0a0a0a;
+  --cu-surface: #121212;
+  --cu-surface-2: #181818;
+  --cu-surface-3: #222222;
+  --cu-border: rgba(255, 255, 255, 0.09);
+  --cu-border-strong: rgba(255, 255, 255, 0.18);
+  --cu-text-primary: #ffffff;
+  --cu-text-secondary: #d4d4d8;
+  --cu-text-muted: #a0a0a0;
+  --cu-text-tertiary: #a0a0a0;
+  --cu-primary: #3b82f6;
+  --cu-primary-hover: #60a5fa;
+  --cu-primary-subtle: rgba(59, 130, 246, 0.15);
+  --sidebar-bg: #09090b;
+  --sidebar-text: #eef0f7;
+  --sidebar-muted: #9298ab;
+  --sidebar-signal: #38bdf8;
 }
 
 /* Readable type without making every label a heading. */
@@ -86,18 +89,57 @@
 .apexa-app-shell.apexa-design-system .apexa-desktop-sidebar,
 .apexa-app-shell.apexa-design-system .apexa-mobile-drawer { background: var(--sidebar-bg) !important; box-shadow: none !important; }
 .apexa-app-shell.apexa-design-system .apexa-header-sidebar::after { display: none; }
-.apexa-app-shell.apexa-design-system .apexa-desktop-sidebar { padding: 14px 10px !important; }
+.apexa-app-shell.apexa-design-system .apexa-desktop-sidebar {
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  border-left: none !important;
+  border-right: 1px solid var(--sidebar-border) !important;
+  background: var(--sidebar-bg) !important;
+  box-shadow: none !important;
+}
 .apexa-app-shell.apexa-design-system .apexa-sidebar-navigation { padding-top: 5px; }
-.apexa-app-shell.apexa-design-system .apexa-nav-item { border-radius: 9px !important; min-height: 40px; }
-.apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] { background: #ffffff0e !important; border-color: #ffffff12 !important; }
-.apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] .apexa-nav-item-icon { background: transparent !important; color: #9abaff !important; }
+.apexa-app-shell.apexa-design-system .apexa-nav-item { border-radius: 12px !important; min-height: 40px; }
+.apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] {
+  background: #eff6ff !important;
+  border-color: #bfdbfe !important;
+  color: #1d4ed8 !important;
+}
+.apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] .apexa-nav-item-icon {
+  background: transparent !important;
+  color: #1d4ed8 !important;
+}
+.apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] > span:not([class*="absolute"]) {
+  color: #1d4ed8 !important;
+  font-weight: 700 !important;
+}
+.dark .apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] {
+  background: #ffffff0e !important;
+  border-color: #ffffff12 !important;
+  color: #ffffff !important;
+}
+.dark .apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] .apexa-nav-item-icon {
+  background: transparent !important;
+  color: #9abaff !important;
+}
+.dark .apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] > span:not([class*="absolute"]) {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
 .apexa-app-shell.apexa-design-system .apexa-nav-item > span:first-of-type { font-weight: 500; letter-spacing: 0; }
-.apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] > span:first-of-type { font-weight: 600; }
-.apexa-app-shell.apexa-design-system .apexa-nav-active-marker { width: 3px; background: #82aaff !important; box-shadow: none; }
-.apexa-app-shell.apexa-design-system .apexa-nav-feature-badge { background: #ffffff08 !important; border: 0 !important; color: #a6b1c3 !important; font-size: 9px; font-weight: 500; }
-.apexa-app-shell.apexa-design-system .apexa-sidebar-section-label { margin-top: 14px; color: #8d9aaf; font-size: 10px; font-weight: 500; letter-spacing: .08em; padding: 8px 12px 5px; }
-.apexa-app-shell.apexa-design-system .apexa-app-header { min-height: 60px; background: var(--cu-surface); border-bottom: 1px solid var(--cu-border); box-shadow: none; }
-.apexa-app-shell.apexa-design-system .apexa-header-content { gap: 16px; }
+.apexa-app-shell.apexa-design-system .apexa-nav-active-marker { width: 3px; background: #2563eb !important; box-shadow: none; }
+.dark .apexa-app-shell.apexa-design-system .apexa-nav-active-marker { background: #82aaff !important; }
+.apexa-app-shell.apexa-design-system .apexa-nav-feature-badge { background: #f1f5f9 !important; border: 1px solid #e2e8f0 !important; color: #475569 !important; font-size: 9px; font-weight: 500; }
+.dark .apexa-app-shell.apexa-design-system .apexa-nav-feature-badge { background: #ffffff08 !important; border: 0 !important; color: #a6b1c3 !important; }
+.apexa-app-shell.apexa-design-system .apexa-sidebar-section-label { margin-top: 14px; color: var(--sidebar-muted); font-size: 10px; font-weight: 600; letter-spacing: .08em; padding: 8px 12px 5px; }
+.apexa-app-shell.apexa-design-system .apexa-app-header { min-height: 60px; background: var(--cu-surface); border-bottom: none !important; box-shadow: none; }
+.apexa-app-shell.apexa-design-system .apexa-header-sidebar { border-bottom: none !important; }
+.apexa-app-shell.apexa-design-system .apexa-header-content { gap: 16px; border-bottom: 1px solid var(--cu-border) !important; }
+.dark .apexa-app-shell.apexa-design-system .apexa-header-content { border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important; }
 .apexa-app-shell.apexa-design-system .apexa-header-context { max-width: 38%; }
 .apexa-app-shell.apexa-design-system .apexa-header-actions { gap: 8px; padding-right: 0; }
 .apexa-app-shell.apexa-design-system .apexa-header-icon-button { box-shadow: none; border-color: var(--cu-border); border-radius: 9px; }
@@ -168,7 +210,8 @@
 .apexa-task-dialog :where(button, input, select, textarea):focus-visible { outline: none; }
 .apexa-task-dialog .apexa-task-properties { border-color: var(--task-panel-border); }
 .apexa-task-dialog .apexa-task-properties .truncate { min-width: 0; }
-.apexa-task-dialog .apexa-task-detail-header { min-height: 60px; box-shadow: none; }
+.apexa-task-dialog .apexa-task-detail-header { min-height: 60px; box-shadow: none; overflow: hidden; max-width: 100%; }
+.apexa-task-dialog .apexa-task-detail-header > div:first-child { min-width: 0; overflow: hidden; }
 
 
 @media (min-width: 768px) and (max-width: 1199px) {

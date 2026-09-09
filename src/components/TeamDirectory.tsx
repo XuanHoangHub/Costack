@@ -27,6 +27,9 @@ import { setUserPresenceStatus } from '../hooks/useUserPresence';
 import { renderSpaceIcon } from './EmojiIconPicker';
 import TeamManagement, { DepartmentRow, TeamMemberRow, TeamRow } from './team/TeamManagement';
 import { TeamCommandCenter, TeamIntegrations } from './team/TeamCommandCenter';
+import WorkspaceContactsTab from './contacts/WorkspaceContactsTab';
+import ManualAddMemberModal from './workspace/ManualAddMemberModal';
+import ConfirmModal from './ConfirmModal';
 
 interface TeamDirectoryProps {
   members: User[];
@@ -100,8 +103,8 @@ export default function TeamDirectory({
   const { t, locale, isVietnamese } = useTranslation();
   const isVi = locale === 'vi' || isVietnamese;
 
-  // Streamlined 4 Core Views: 'overview' | 'directory' | 'teams' | 'org_chart'
-  const [teamOSView, setTeamOSView] = useState<'overview' | 'directory' | 'teams' | 'org_chart'>('overview');
+  // Streamlined 5 Core Views: 'overview' | 'directory' | 'teams' | 'org_chart' | 'contacts'
+  const [teamOSView, setTeamOSView] = useState<'overview' | 'directory' | 'teams' | 'org_chart' | 'contacts'>('overview');
   const [directoryViewMode, setDirectoryViewMode] = useState<'grid' | 'table'>('grid');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -262,8 +265,40 @@ export default function TeamDirectory({
   const [selectedMember, setSelectedMember] = useState<User | null>(null);
   const [detailActiveTab, setDetailActiveTab] = useState<'overview' | 'settings'>('overview');
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showManualAddModal, setShowManualAddModal] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<User | null>(null);
+  const [contactsCount, setContactsCount] = useState<number>(0);
   const [showAddExistingDropdown, setShowAddExistingDropdown] = useState(false);
   const [scopeTab, setScopeTab] = useState<'workspace' | 'all'>('workspace');
+
+  // Load and listen for workspace contacts count
+  useEffect(() => {
+    let isMounted = true;
+    const loadContactsCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from('workspace_contacts')
+          .select('id', { count: 'exact', head: true })
+          .eq('workspace_id', activeWorkspaceId);
+        if (!error && typeof count === 'number' && isMounted) {
+          setContactsCount(count);
+        }
+      } catch (_) {}
+    };
+    loadContactsCount();
+
+    const channel = supabase
+      .channel(`contacts-count-${activeWorkspaceId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'workspace_contacts', filter: `workspace_id=eq.${activeWorkspaceId}` }, () => {
+        loadContactsCount();
+      })
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      void supabase.removeChannel(channel);
+    };
+  }, [activeWorkspaceId]);
 
   // Member editing form states
   const [editName, setEditName] = useState('');
@@ -441,10 +476,17 @@ export default function TeamDirectory({
     setShowAddExistingDropdown(false);
   };
 
-  const handleRemoveFromWorkspace = async (member: User) => {
+  const promptRemoveFromWorkspace = (member: User) => {
     if (!isOwner || member.id === me?.id || !member.userId) return;
     if (membershipRoles[member.userId] === 'owner') return;
-    if (!window.confirm(isVi ? `Xác nhận xoá ${member.name} khỏi workspace ${currentWorkspaceName}?` : `Remove ${member.name} from ${currentWorkspaceName}?`)) return;
+    setMemberToRemove(member);
+  };
+
+  const confirmRemoveFromWorkspace = async () => {
+    if (!memberToRemove || !memberToRemove.userId) return;
+    const member = memberToRemove;
+    setMemberToRemove(null);
+
     const { error } = await supabase
       .from('workspace_memberships')
       .delete()
@@ -692,6 +734,22 @@ export default function TeamDirectory({
               </div>
             )}
 
+            {/* Manual add member button */}
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => {
+                  (window as any).playSystemSound?.('click');
+                  setShowManualAddModal(true);
+                }}
+                className="px-3.5 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-xs hover:border-indigo-400"
+                title={isVi ? "Thêm tài khoản thủ công hoặc từ hệ thống" : "Manually add member profile"}
+              >
+                <Plus className="w-4 h-4 text-indigo-500" />
+                <span>{isVi ? 'Thêm thủ công' : 'Manual Add'}</span>
+              </button>
+            )}
+
             {/* Main Invite button */}
             <button
               type="button"
@@ -708,7 +766,7 @@ export default function TeamDirectory({
           </div>
         </div>
 
-        {/* 2. PRIMARY NAVIGATION: 4 Core Focused Views */}
+        {/* 2. PRIMARY NAVIGATION: 5 Core Focused Views */}
         <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between flex-wrap gap-3">
           <nav className="inline-flex rounded-xl bg-slate-100/90 dark:bg-slate-800/70 p-1 border border-slate-200/60 dark:border-slate-800 gap-1 flex-wrap">
             {[
@@ -716,6 +774,7 @@ export default function TeamDirectory({
               { id: 'directory', label: isVi ? 'Thành viên' : 'Members', icon: Users, count: totalWorkspaceCount },
               { id: 'teams', label: isVi ? 'Phòng ban & Nhóm' : 'Departments & Teams', icon: Building2, count: dbTeams.length },
               { id: 'org_chart', label: isVi ? 'Sơ đồ tổ chức' : 'Org Chart', icon: GitBranch },
+              { id: 'contacts', label: isVi ? 'Danh bạ đối tác' : 'Contacts', icon: Phone, count: contactsCount > 0 ? contactsCount : undefined },
             ].map(tab => {
               const isActive = teamOSView === tab.id;
               const Icon = tab.icon;
@@ -1294,7 +1353,7 @@ export default function TeamDirectory({
                         {isOwner && !isCurrentUser && scopeTab === 'workspace' && member.userId && membershipRoles[member.userId] !== 'owner' && (
                           <button
                             type="button"
-                            onClick={() => handleRemoveFromWorkspace(member)}
+                            onClick={() => promptRemoveFromWorkspace(member)}
                             className="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-slate-400 hover:text-rose-500 rounded-lg transition-colors cursor-pointer"
                             title={isVi ? "Xoá khỏi workspace" : "Remove from workspace"}
                           >
@@ -1430,7 +1489,7 @@ export default function TeamDirectory({
                               {isOwner && !isCurrentUser && scopeTab === 'workspace' && member.userId && membershipRoles[member.userId] !== 'owner' && (
                                 <button
                                   type="button"
-                                  onClick={() => handleRemoveFromWorkspace(member)}
+                                  onClick={() => promptRemoveFromWorkspace(member)}
                                   className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                                   title={isVi ? "Xoá khỏi workspace" : "Remove"}
                                 >
@@ -1684,6 +1743,16 @@ export default function TeamDirectory({
             })}
           </div>
         </div>
+      )}
+
+      {/* 5. VIEW TAB: CONTACTS & PARTNERS */}
+      {teamOSView === 'contacts' && (
+        <WorkspaceContactsTab
+          workspaceId={activeWorkspaceId}
+          currentWorkspaceName={currentWorkspaceName}
+          canAdminister={isOwner}
+          onAddSyncLog={onAddSyncLog}
+        />
       )}
 
       {/* 6. MEMBER DETAIL DRAWER / MODAL */}
@@ -2131,20 +2200,33 @@ export default function TeamDirectory({
                       />
                     </div>
 
-                    <div className="pt-4 flex justify-end gap-2.5 border-t border-slate-100 dark:border-slate-800">
-                      <button
-                        type="button"
-                        onClick={() => setDetailActiveTab('overview')}
-                        className="px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded-xl text-xs font-bold transition-all cursor-pointer"
-                      >
-                        {isVi ? 'Hủy bỏ' : 'Discard'}
-                      </button>
-                      <button
-                        type="submit"
-                        className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-500/20 transition-all cursor-pointer"
-                      >
-                        {isVi ? 'Lưu thông tin hồ sơ' : 'Save Profile'}
-                      </button>
+                    <div className="pt-4 flex items-center justify-between gap-2.5 border-t border-slate-100 dark:border-slate-800">
+                      {isOwner && selectedMember.id !== me?.id && selectedMember.userId && membershipRoles[selectedMember.userId] !== 'owner' ? (
+                        <button
+                          type="button"
+                          onClick={() => promptRemoveFromWorkspace(selectedMember)}
+                          className="px-3.5 py-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                        >
+                          <UserMinus className="w-3.5 h-3.5" />
+                          <span>{isVi ? 'Xóa khỏi Workspace' : 'Remove from Workspace'}</span>
+                        </button>
+                      ) : <div />}
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setDetailActiveTab('overview')}
+                          className="px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                        >
+                          {isVi ? 'Hủy bỏ' : 'Discard'}
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-500/20 transition-all cursor-pointer"
+                        >
+                          {isVi ? 'Lưu thông tin hồ sơ' : 'Save Profile'}
+                        </button>
+                      </div>
                     </div>
                   </form>
                 )}
@@ -2160,6 +2242,40 @@ export default function TeamDirectory({
         onClose={() => setShowInviteModal(false)}
         onSendInvites={handleSendInvites}
         workspaceName={currentWorkspaceName}
+        onOpenManualAdd={() => {
+          setShowInviteModal(false);
+          setShowManualAddModal(true);
+        }}
+      />
+
+      {/* 8. MANUAL ADD MEMBER MODAL */}
+      <ManualAddMemberModal
+        isOpen={showManualAddModal}
+        onClose={() => setShowManualAddModal(false)}
+        workspaceId={activeWorkspaceId}
+        workspaceName={currentWorkspaceName}
+        allMembers={members}
+        onMemberAdded={() => {
+          fetchHierarchy();
+        }}
+        onAddSyncLog={onAddSyncLog}
+      />
+
+      {/* 9. CONFIRM REMOVE MEMBER MODAL */}
+      <ConfirmModal
+        isOpen={!!memberToRemove}
+        title={isVi ? 'Xóa thành viên khỏi Workspace' : 'Remove Member from Workspace'}
+        description={isVi 
+          ? `Bạn có chắc chắn muốn xóa thành viên "${memberToRemove?.name}" khỏi không gian "${currentWorkspaceName}"? Họ sẽ mất quyền truy cập vào danh mục, dự án và tài liệu của không gian này.`
+          : `Are you sure you want to remove "${memberToRemove?.name}" from "${currentWorkspaceName}"? They will lose access to all projects, documents, and tasks in this workspace.`
+        }
+        itemName={memberToRemove?.name}
+        confirmText={isVi ? 'Xóa thành viên' : 'Remove Member'}
+        cancelText={isVi ? 'Hủy' : 'Cancel'}
+        isDestructive={true}
+        type="danger"
+        onConfirm={confirmRemoveFromWorkspace}
+        onCancel={() => setMemberToRemove(null)}
       />
     </div>
   );

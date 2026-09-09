@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -189,7 +189,7 @@ export default function TaskDetailsPanel({
     return false;
   });
 
-  const togglePropertiesSidebar = () => {
+  const togglePropertiesSidebar = useCallback(() => {
     setIsPropertiesSidebarOpen(prev => {
       const nextVal = !prev;
       if (typeof window !== 'undefined') {
@@ -197,7 +197,7 @@ export default function TaskDetailsPanel({
       }
       return nextVal;
     });
-  };
+  }, []);
   // Redesign state variables
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiGeneratingResponse, setAiGeneratingResponse] = useState(false);
@@ -1059,67 +1059,6 @@ export default function TaskDetailsPanel({
                 <button 
                   type="button" 
                   onClick={() => onToggleFieldVisibility('space')}
-                  className="opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 cursor-pointer shrink-0 -mr-1"
-                  title={isVietnamese ? "Ẩn trường" : "Hide field"}
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Recurrence (Lặp lại định kỳ) */}
-        {(isShown('Recurrence') || isShown('recurrence') || (task.recurrence && task.recurrence.frequency !== 'none')) && (
-          <div className="py-1.5 px-2 -mx-1 rounded-xl flex items-center justify-between min-h-[38px] group/row relative hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
-            <span className="w-28 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
-              <RefreshCw className="w-3.5 h-3.5 text-purple-500" /> {isVietnamese ? 'Lặp lại' : 'Recurrence'}
-            </span>
-            <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
-              {task.recurrence && task.recurrence.frequency !== 'none' ? (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200/70 dark:border-purple-800/60 text-purple-700 dark:text-purple-300 text-xs font-semibold shadow-3xs">
-                  <RefreshCw className="w-3 h-3 text-purple-500 shrink-0" />
-                  <span className="truncate">
-                    {task.recurrence.frequency === 'daily' ? (isVietnamese ? 'Hằng ngày' : 'Daily') :
-                     task.recurrence.frequency === 'weekly' ? (isVietnamese ? 'Hằng tuần' : 'Weekly') :
-                     (isVietnamese ? 'Hằng tháng' : 'Monthly')}
-                    {(task.recurrence.interval || 1) > 1 ? ` (${task.recurrence.interval})` : ''}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onUpdateTask({ ...task, recurrence: undefined });
-                      onAddSyncLog(isVietnamese ? 'Đã bỏ lặp lại công việc' : 'Removed task recurrence');
-                    }}
-                    className="ml-0.5 p-0.5 text-purple-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-full transition-colors cursor-pointer"
-                    title={isVietnamese ? 'Bỏ lặp lại' : 'Remove recurrence'}
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ) : (
-                <Select 
-                  value="none"
-                  onChange={v => {
-                    if (v !== 'none') {
-                      onUpdateTask({ ...task, recurrence: { frequency: v as any, interval: 1 } });
-                      onAddSyncLog(isVietnamese ? `Thiết lập lặp lại: ${v}` : `Set recurrence: ${v}`);
-                    }
-                  }}
-                  size="sm"
-                  ariaLabel={isVietnamese ? "Tần suất lặp lại" : "Recurrence frequency"}
-                  options={[
-                    { value: 'none', label: isVietnamese ? 'Không lặp lại' : 'None' },
-                    { value: 'daily', label: isVietnamese ? 'Hằng ngày' : 'Daily' },
-                    { value: 'weekly', label: isVietnamese ? 'Hằng tuần' : 'Weekly' },
-                    { value: 'monthly', label: isVietnamese ? 'Hằng tháng' : 'Monthly' },
-                  ]} 
-                />
-              )}
-              {onToggleFieldVisibility && (
-                <button 
-                  type="button" 
-                  onClick={() => onToggleFieldVisibility('recurrence')}
                   className="opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 cursor-pointer shrink-0 -mr-1"
                   title={isVietnamese ? "Ẩn trường" : "Hide field"}
                 >
@@ -2334,19 +2273,19 @@ export default function TaskDetailsPanel({
           <div className="flex-1 flex flex-col min-w-0 h-full relative z-10 bg-white dark:bg-[#121212]">
             
             {/* ── Header Bar ── */}
-            <div className="apexa-task-detail-header shrink-0 px-4 sm:px-6 py-2.5 sm:py-3 border-b border-slate-200/80 dark:border-white/[0.08] flex items-center justify-between gap-3 bg-white dark:bg-[#121212] select-none">
+            <div className="apexa-task-detail-header shrink-0 px-3 sm:px-5 md:px-6 py-2.5 sm:py-3 border-b border-slate-200/80 dark:border-white/[0.08] flex items-center justify-between gap-2 sm:gap-3 bg-white dark:bg-[#121212] select-none min-w-0 w-full overflow-hidden">
               
               {/* Left: Path Breadcrumb */}
-              <div className="flex flex-1 min-w-0 items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                <div className="relative">
+              <div className="flex items-center gap-1 sm:gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 min-w-0 flex-1 overflow-hidden">
+                <div className="relative shrink min-w-0 max-w-[130px] sm:max-w-[170px] md:max-w-[210px]">
                   <button
                     type="button"
                     onClick={() => setShowSpaceDropdown(!showSpaceDropdown)}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer text-slate-600 dark:text-slate-300 group"
+                    className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer text-slate-600 dark:text-slate-300 group w-full min-w-0"
                     title={isVietnamese ? 'Đổi không gian làm việc' : 'Change workspace / space'}
                   >
                     <Folder className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 transition-colors shrink-0" />
-                    <span className="truncate max-w-[120px] md:max-w-[180px] font-semibold">{spaceName}</span>
+                    <span className="truncate font-semibold text-xs">{spaceName}</span>
                     <ChevronDown className={`w-3 h-3 text-slate-400 group-hover:text-slate-600 transition-transform shrink-0 ${showSpaceDropdown ? 'rotate-180' : ''}`} />
                   </button>
 
@@ -2418,33 +2357,35 @@ export default function TaskDetailsPanel({
 
                 {listName ? (
                   <>
-                    <span className="text-slate-300 dark:text-slate-600 shrink-0">/</span>
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer shrink-0">
+                    <span className="text-slate-300 dark:text-slate-600 shrink-0 select-none">/</span>
+                    <div 
+                      className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer shrink min-w-0 max-w-[110px] sm:max-w-[150px]"
+                      title={listName}
+                    >
                       <List className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate max-w-[100px] md:max-w-[140px] font-medium">{listName}</span>
+                      <span className="truncate font-medium text-xs">{listName}</span>
                     </div>
                   </>
                 ) : null}
 
-                <span className="text-slate-300 dark:text-slate-600 shrink-0">/</span>
-
-                {/* Task Title Pill in Breadcrumb */}
+                {/* Task Title Pill in Breadcrumb - shown only on md+ viewports to prevent crowding */}
+                <span className="text-slate-300 dark:text-slate-600 shrink-0 select-none hidden md:inline">/</span>
                 <div 
                   onClick={() => setEditingTitle(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100/80 dark:bg-white/[0.06] text-slate-800 dark:text-white hover:bg-slate-200/70 dark:hover:bg-white/[0.1] transition-colors cursor-pointer min-w-0 group"
+                  className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100/80 dark:bg-white/[0.06] text-slate-800 dark:text-white hover:bg-slate-200/70 dark:hover:bg-white/[0.1] transition-colors cursor-pointer min-w-0 max-w-[160px] lg:max-w-[260px] group shrink"
                   title={isVietnamese ? `Tên công việc: "${task.title}" (Nhấp để chỉnh sửa)` : `Task: "${task.title}" (Click to edit)`}
                 >
                   <CheckSquare className="w-3.5 h-3.5 text-indigo-500 shrink-0 group-hover:scale-110 transition-transform" />
-                  <span className="font-bold truncate max-w-[140px] sm:max-w-[220px] md:max-w-[340px]">
+                  <span className="font-bold truncate text-xs">
                     {task.title || (isVietnamese ? 'Chưa đặt tên' : 'Untitled')}
                   </span>
                 </div>
               </div>
 
               {/* Right: Actions Row */}
-              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-                <span className="text-[10px] text-slate-400 dark:text-slate-505 hidden sm:inline-block font-semibold pr-1 select-none">
-                  Đã tạo {new Date(task.createdAt || Date.now()).toLocaleDateString('vi-VN', { day: 'numeric', month: 'short' })}
+              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 ml-auto pl-1">
+                <span className="text-[10.5px] text-slate-400 dark:text-slate-500 hidden xl:inline-block font-medium pr-1 select-none whitespace-nowrap">
+                  {isVietnamese ? 'Đã tạo' : 'Created'} {new Date(task.createdAt || Date.now()).toLocaleDateString(isVietnamese ? 'vi-VN' : 'en-US', { day: 'numeric', month: 'short' })}
                 </span>
 
                 {/* Share Button & Popover */}
@@ -2452,10 +2393,11 @@ export default function TaskDetailsPanel({
                   <button 
                     type="button" 
                     onClick={() => setShowSharePopover(!showSharePopover)}
-                    className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/[0.08] text-[11px] font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer shadow-3xs sm:mr-1"
+                    className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/[0.08] text-[11px] font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer shadow-3xs"
+                    title={isVietnamese ? 'Chia sẻ công việc' : 'Share task'}
                   >
-                    <Share2 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                    <span className="hidden sm:inline">{isVietnamese ? 'Chia sẻ' : 'Share'}</span>
+                    <Share2 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
+                    <span className="hidden lg:inline">{isVietnamese ? 'Chia sẻ' : 'Share'}</span>
                   </button>
 
                   {showSharePopover && (
@@ -2707,7 +2649,7 @@ export default function TaskDetailsPanel({
                     ) : (
                       <PanelRightOpen className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                     )}
-                    <span className="hidden sm:inline text-[11px] font-bold">
+                    <span className="hidden lg:inline text-[11px] font-bold">
                       {isPropertiesSidebarOpen ? (isVietnamese ? 'Thu gọn' : 'Collapse') : (isVietnamese ? 'Thuộc tính' : 'Properties')}
                     </span>
                   </button>
@@ -2867,43 +2809,6 @@ export default function TaskDetailsPanel({
                         }}
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium cursor-pointer border border-slate-200/80 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 transition-all ${task.dueDate ? 'text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50/50 dark:bg-indigo-950/30' : 'text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900'}`} 
                       />
-
-                      {/* Recurrence Pill with Bỏ lặp lại button */}
-                      {task.recurrence && task.recurrence.frequency !== 'none' ? (
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200/70 dark:border-purple-800/60 text-purple-700 dark:text-purple-300 text-xs font-semibold shadow-3xs">
-                          <RefreshCw className="w-3 h-3 text-purple-500 animate-spin-slow" />
-                          <span>
-                            {task.recurrence.frequency === 'daily' ? (isVietnamese ? 'Hằng ngày' : 'Daily') :
-                             task.recurrence.frequency === 'weekly' ? (isVietnamese ? 'Hằng tuần' : 'Weekly') :
-                             (isVietnamese ? 'Hằng tháng' : 'Monthly')}
-                            {(task.recurrence.interval || 1) > 1 ? ` (${task.recurrence.interval})` : ''}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onUpdateTask({ ...task, recurrence: undefined });
-                              onAddSyncLog(isVietnamese ? 'Đã bỏ lặp lại công việc' : 'Removed task recurrence');
-                            }}
-                            className="ml-0.5 p-0.5 text-purple-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-full transition-colors cursor-pointer"
-                            title={isVietnamese ? 'Bỏ lặp lại' : 'Remove recurrence'}
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onUpdateTask({ ...task, recurrence: { frequency: 'daily', interval: 1 } });
-                            onAddSyncLog(isVietnamese ? 'Đã bật lặp lại hằng ngày' : 'Set daily recurrence');
-                          }}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-medium text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 border border-dashed border-slate-200/80 dark:border-slate-800 hover:border-purple-300 transition-all cursor-pointer"
-                          title={isVietnamese ? 'Bật lặp lại hằng ngày' : 'Set daily recurrence'}
-                        >
-                          <RefreshCw className="w-3 h-3 text-purple-400" />
-                          <span className="hidden md:inline">{isVietnamese ? '+ Lặp lại' : '+ Repeat'}</span>
-                        </button>
-                      )}
 
                       {/* Open Full Sidebar button */}
                       <button

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function GlobalError({
   reset,
@@ -8,6 +9,7 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const router = useRouter();
   return (
     <html lang="vi">
       <head>
@@ -77,7 +79,7 @@ export default function GlobalError({
                 <span>🔄 Thử tải lại ngay</span>
               </button>
               <button 
-                onClick={() => { if (typeof window !== 'undefined') window.location.href = '/'; }} 
+                onClick={() => router.push('/')} 
                 style={{ 
                   flex: '1 1 150px',
                   height: 52,

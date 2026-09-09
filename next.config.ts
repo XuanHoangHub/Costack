@@ -143,6 +143,17 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      { source: '/pricing', destination: '/#pricing', permanent: false },
+      { source: '/features', destination: '/#features', permanent: false },
+      { source: '/solutions', destination: '/#solutions', permanent: false },
+      { source: '/how-it-works', destination: '/#how-it-works', permanent: false },
+      { source: '/faq', destination: '/#faq', permanent: false },
+      { source: '/ai', destination: '/#ai', permanent: false },
+      { source: '/product', destination: '/#product', permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;

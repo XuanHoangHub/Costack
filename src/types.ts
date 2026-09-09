@@ -247,6 +247,27 @@ export interface WorkspaceMembership {
   updatedAt?: string;
 }
 
+export type ContactCategory = 'client' | 'partner' | 'vendor' | 'contractor' | 'other';
+
+export interface WorkspaceContact {
+  id: string;
+  workspaceId: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+  jobTitle?: string;
+  category: ContactCategory;
+  status: 'active' | 'archived';
+  avatarUrl?: string;
+  notes?: string;
+  address?: string;
+  tags?: string[];
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface NotificationSettings {
   enableAll: boolean;
   enableSound: boolean;

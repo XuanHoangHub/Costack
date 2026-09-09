@@ -200,9 +200,11 @@ export function Sidebar({
                       "group relative flex items-center w-full rounded-[var(--ax-radius-md)]",
                       "transition-all duration-150",
                       "cursor-pointer select-none",
-                      collapsed ? "justify-center h-10 w-10 mx-auto" : "gap-2.5 h-9 px-2.5",
+                      collapsed ? "justify-center h-10 w-10 mx-auto rounded-[14px]" : "gap-2.5 h-9 px-2.5",
                       isActive
-                        ? "bg-white/[0.12] text-white"
+                        ? (collapsed
+                            ? "bg-blue-500/20 text-sky-300 border border-sky-400/30 font-semibold shadow-xs"
+                            : "bg-white/[0.12] text-white")
                         : "text-white/60 hover:text-white/90 hover:bg-white/[0.06]",
                     ].join(" ")}
                     aria-current={isActive ? "page" : undefined}

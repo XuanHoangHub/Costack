@@ -49,6 +49,7 @@ import { PricingModal } from '../components/PricingModal';
 import ThemeSwitch from '../components/ThemeSwitch';
 import LanguageDropdown from '../components/LanguageDropdown';
 import PromptModal, { PromptModalConfig } from '../components/PromptModal';
+import AcceptInviteModal from '../components/workspace/AcceptInviteModal';
 import dynamic from 'next/dynamic';
 
 const ComponentLoading = () => (
@@ -207,7 +208,7 @@ export default function App() {
   useThemeSync();
   // Mount exactly one account Presence channel for Chat, profiles and directories.
   useUserPresence();
-  const { t, locale } = useTranslation();
+  const { t, locale, setLocale } = useTranslation();
   const { applyEntitlement, entitlement } = useBillingEntitlement();
   const authStoreUser = useAuthStore((s) => s.currentUser);
   const { config: runtimeConfig } = useRuntimeConfig();
@@ -1834,13 +1835,16 @@ export default function App() {
     });
   }, [pomodoroActive, notificationSettings, addToast, setNotificationsList, activeWorkspaceId]);
 
+  const [inviteTokenParam, setInviteTokenParam] = useState<string | null>(null);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const inviteToken = params.get('invite_token');
       if (inviteToken) {
+        setInviteTokenParam(inviteToken);
         setActiveTab('inbox');
-        triggerToast('info', 'Workspace Invitation', 'You have a pending workspace invitation in your Inbox!');
+        triggerToast('info', 'Workspace Invitation', 'You have a pending workspace invitation ready to review!');
       }
     }
   }, [setActiveTab, triggerToast]);
@@ -3718,6 +3722,12 @@ export default function App() {
     } else {
       delete base.assigneeIds;
     }
+    if (task?.reminder) {
+      base.reminder = task.reminder;
+    }
+    if (task?.isMilestone !== undefined) {
+      base.isMilestone = task.isMilestone;
+    }
     return embedTaskRelationships(base, extractTaskRelationships(task));
   };
 
@@ -3784,7 +3794,8 @@ export default function App() {
             space_id: newTask.spaceId || null,
             list_id: newTask.listId || null,
             custom_fields: buildTaskCustomFields(newTask),
-            recurrence: newTask.recurrence || null
+            recurrence: newTask.recurrence || null,
+            attachments: newTask.attachments || []
           };
 
           const { error } = await supabase.from('tasks').insert([payload]);
@@ -3905,7 +3916,8 @@ export default function App() {
             space_id: updated.spaceId || null,
             list_id: updated.listId || null,
             custom_fields: buildTaskCustomFields(updated),
-            recurrence: updated.recurrence || null
+            recurrence: updated.recurrence || null,
+            attachments: updated.attachments || []
           };
 
           const { error } = await supabase.from('tasks').update(payload).eq('id', updated.id);
@@ -4538,7 +4550,7 @@ export default function App() {
 
   return (
     <div
-      className="apexa-app-shell fixed inset-0 flex h-full w-full select-none flex-col overflow-hidden font-sans text-[var(--cu-text-primary)] bg-white dark:bg-[var(--cu-bg)]"
+      className="apexa-app-shell apexa-design-system fixed inset-0 flex h-full w-full select-none flex-col md:flex-row overflow-hidden font-sans text-[var(--cu-text-primary)] bg-white dark:bg-[var(--cu-bg)]"
       data-density={uiDensity}
     >
       <a href="#apexa-main-content" className="apexa-skip-link">
@@ -4549,88 +4561,279 @@ export default function App() {
       <div className="liquid-blob blob-1 animate-liquid-1 pointer-events-none opacity-30" />
       <div className="liquid-blob blob-2 animate-liquid-2 pointer-events-none opacity-20" />
 
-      {/* Apexa Top Header */}
-      <header className="apexa-app-header cu-header relative z-40 flex shrink-0 items-center transition-all duration-200">
-        {/* Mobile header trigger & workspace badge (< md screens) */}
-        <div className="flex md:hidden items-center gap-2 pl-3 py-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => setIsMobileSidebarOpen(true)}
-            aria-label={locale === 'vi' ? 'Mở trình đơn điều hướng' : 'Open navigation menu'}
-            aria-expanded={isMobileSidebarOpen}
-            aria-controls="apexa-mobile-navigation"
-            className="cu-touch-target inline-flex items-center justify-center rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all border border-slate-200/60 dark:border-slate-800 shadow-3xs"
-            title="Mở trình đơn điều hướng"
-          >
-            <Menu className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
-            aria-expanded={showWorkspaceMenu}
-            aria-haspopup="menu"
-            className="apexa-mobile-workspace flex min-h-11 max-w-[150px] cursor-pointer select-none items-center gap-2 rounded-full border border-slate-200/80 bg-slate-100/70 px-3 py-1 shadow-3xs dark:border-slate-700/80 dark:bg-slate-800/60"
-          >
-            <div 
-              className="w-4.5 h-4.5 rounded-md flex items-center justify-center text-white font-black text-[9px] shrink-0 overflow-hidden shadow-3xs"
-              style={!currentWorkspace?.logoUrl ? {
-                background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
-                            currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
-                            currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
-                            'linear-gradient(135deg, #2563EB, #0284C7)',
-              } : undefined}
+      {/* Modern Unified Desktop Sidebar Navigation */}
+      <aside 
+        data-collapsed={isMainSidebarCollapsed}
+        className={`apexa-desktop-sidebar cu-sidebar relative z-30 hidden shrink-0 cursor-default flex-col transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:flex h-full border-r border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[#09090b] ${
+          isMainSidebarCollapsed 
+            ? 'w-[68px]' 
+            : 'w-[var(--cu-sidebar-width)]'
+        }`}
+      >
+        {/* Row 1: Workspace Switcher Header (Height h-14, matching the top header on the right) */}
+        <div className={`flex h-14 shrink-0 items-center transition-all ${
+          isMainSidebarCollapsed ? 'justify-center px-2' : 'justify-between px-2.5 gap-1.5'
+        }`}>
+          {isMainSidebarCollapsed ? (
+            <button
+              type="button" 
+              onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
+              aria-expanded={showWorkspaceMenu}
+              aria-label={currentWorkspace?.name || 'Apexa'}
+              title={`${currentWorkspace?.name || 'Apexa'} — ${locale === 'vi' ? 'Nhấp để đổi không gian làm việc' : 'Click to switch workspace'}`}
+              className="group relative flex h-10 w-10 items-center justify-center rounded-[14px] border border-slate-200/90 dark:border-white/15 bg-white dark:bg-white/[0.06] text-white font-black text-xs shadow-xs hover:scale-105 hover:border-blue-400 dark:hover:border-sky-400 active:scale-95 transition-all cursor-pointer overflow-hidden select-none"
             >
-              {currentWorkspace?.logoUrl ? (
-                <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
-              ) : (
-                <span>{currentWorkspace?.initial || 'A'}</span>
-              )}
-            </div>
-            <span className="font-extrabold text-slate-800 dark:text-slate-100 text-[11px] truncate">
-              {currentWorkspace?.name || 'Avaxa'}
-            </span>
-          </button>
+              <div 
+                className="w-full h-full flex items-center justify-center rounded-[13px] overflow-hidden"
+                style={!currentWorkspace?.logoUrl ? {
+                  background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #38bdf8, #0284c7)' :
+                              currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #34d399, #059669)' :
+                              currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #f43f5e, #be123c)' :
+                              'linear-gradient(135deg, #2563eb, #0284c7)',
+                } : undefined}
+              >
+                {currentWorkspace?.logoUrl ? (
+                  <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
+                ) : (
+                  <ApexaAiIcon className="w-5 h-5" variant="white" />
+                )}
+              </div>
+            </button>
+          ) : (
+            <>
+              {/* Compact Switcher Pill Button */}
+              <button
+                type="button" 
+                className="apexa-workspace-trigger group flex min-w-0 flex-1 cursor-pointer select-none items-center justify-between rounded-xl border border-slate-200/80 bg-slate-50/80 hover:bg-slate-100/80 hover:border-slate-300 dark:border-white/[0.08] dark:bg-white/[0.04] dark:hover:border-white/[0.16] dark:hover:bg-white/[0.08] px-2.5 py-1.5 text-left shadow-2xs transition-all duration-200 active:scale-[0.99]"
+                onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
+                aria-expanded={showWorkspaceMenu}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <div 
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-black text-[10px] shadow-xs shrink-0 select-none overflow-hidden border border-black/5 dark:border-white/10"
+                    style={!currentWorkspace?.logoUrl ? {
+                      background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #38bdf8, #0284c7)' :
+                                  currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #34d399, #059669)' :
+                                  currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #f43f5e, #be123c)' :
+                                  'linear-gradient(135deg, #2563eb, #0284c7)',
+                    } : undefined}
+                  >
+                    {currentWorkspace?.logoUrl ? (
+                      <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
+                    ) : (
+                      <ApexaAiIcon className="w-4 h-4" variant="white" />
+                    )}
+                  </div>
+                  <span className="font-sans font-extrabold text-slate-800 dark:text-white text-[12.5px] tracking-tight truncate flex-1">
+                    {currentWorkspace?.name || 'Apexa'}
+                  </span>
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 group-hover:text-slate-700 dark:group-hover:text-white transition-transform duration-200 group-hover:translate-y-0.5 ml-1" />
+              </button>
+
+              {/* Modern Sidebar Collapse Button */}
+              <button 
+                type="button"
+                onClick={() => {
+                  setIsMainSidebarCollapsed(true);
+                  (window as any).playSystemSound?.('click');
+                }} 
+                className="group relative flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-slate-50/80 text-slate-500 hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-slate-400 dark:hover:border-white/20 dark:hover:bg-white/[0.08] dark:hover:text-white active:scale-90 transition-all duration-200 cursor-pointer shadow-xs"
+                title={locale === 'vi' ? 'Thu gọn thanh bên (Ctrl+\)' : 'Collapse sidebar (Ctrl+\)'}
+                aria-label={locale === 'vi' ? 'Thu gọn thanh bên' : 'Collapse sidebar'}
+              >
+                <ChevronsLeft className="w-4 h-4 transition-transform duration-200 ease-out group-hover:-translate-x-0.5 text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white" />
+              </button>
+            </>
+          )}
         </div>
 
-        {/* Left header switcher section (desktop) */}
-        <div className={`apexa-header-sidebar hidden md:flex items-center shrink-0 transition-all duration-200 ease-in-out relative border-r border-white/[0.08] bg-[#09090b] dark:bg-[#09090b] ${
-          isMainSidebarCollapsed ? 'w-[var(--cu-sidebar-collapsed)] px-2 py-2 justify-center' : 'w-[var(--cu-sidebar-width)] px-2.5 py-2 justify-between'
-        }`}>
-          <div className="flex items-center gap-1.5 relative flex-1 min-w-0 justify-between">
-            {isMainSidebarCollapsed ? (
-              <div className="flex items-center justify-center mx-auto">
-                <button
-                  type="button" 
-                  onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
-                  className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-[11px] shadow-sm shrink-0 select-none overflow-hidden hover:scale-105 hover:border-sky-400/60 transition-all cursor-pointer border border-white/15"
-                  style={!currentWorkspace?.logoUrl ? {
-                    background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #38bdf8, #0284c7)' :
-                                currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #34d399, #059669)' :
-                                currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #f43f5e, #be123c)' :
-                                'linear-gradient(135deg, #2563eb, #0284c7)',
-                  } : undefined}
-                  title={`${currentWorkspace?.name || 'Apexa'} — Nhấp để đổi không gian làm việc`}
-                >
-                  {currentWorkspace?.logoUrl ? (
-                    <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
-                  ) : (
-                    <ApexaAiIcon className="w-4.5 h-4.5" variant="white" />
-                  )}
-                </button>
+        {/* Row 2: Super Admin Control Center */}
+        {isApexaSuperAdmin(currentUser?.id) && (
+          <div className="shrink-0 px-2 pt-0.5 pb-1">
+            <a
+              href="/admin"
+              className={`group flex items-center rounded-xl border transition-all ${
+                isMainSidebarCollapsed 
+                  ? 'h-10 w-10 mx-auto justify-center p-0 rounded-[14px] border-sky-300/80 dark:border-sky-500/30 bg-sky-50/90 dark:bg-sky-500/20 text-sky-600 dark:text-sky-300 hover:scale-105 hover:bg-sky-100 dark:hover:bg-sky-500/30 shadow-xs' 
+                  : 'h-[38px] w-full gap-2.5 px-2.5 py-1.5 border-sky-500/25 bg-sky-500/10 text-sky-700 dark:text-sky-200 hover:border-sky-400/50 hover:bg-sky-500/20 hover:text-sky-900 dark:hover:text-white'
+              }`}
+              title="Apexa Control Center (Admin)"
+            >
+              <div className={`relative flex shrink-0 items-center justify-center rounded-lg transition-all ${
+                isMainSidebarCollapsed ? '' : 'h-6.5 w-6.5 bg-sky-500/20 text-sky-600 dark:text-sky-300'
+              }`}>
+                <ShieldCheck className={isMainSidebarCollapsed ? "h-5 w-5" : "h-4 w-4"} />
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-[#0c0d12] animate-pulse shadow-sm" />
               </div>
+              {!isMainSidebarCollapsed && (
+                <div className="flex min-w-0 flex-1 items-center justify-between">
+                  <span className="truncate text-[13px] font-semibold text-slate-800 dark:text-white">
+                    {locale === 'vi' ? 'Trung tâm điều khiển' : 'Control Center'}
+                  </span>
+                  <span className="shrink-0 rounded-md px-1.5 py-0.5 text-[8px] font-black uppercase text-sky-700 bg-sky-50 dark:text-sky-300 dark:bg-sky-500/20 border border-sky-200 dark:border-sky-400/30">Admin</span>
+                </div>
+              )}
+            </a>
+          </div>
+        )}
+
+        {/* Row 3: Subtle Divider */}
+        <div className={`h-px bg-slate-200/80 dark:bg-white/[0.08] my-1 shrink-0 ${isMainSidebarCollapsed ? 'w-8 mx-auto' : 'mx-2.5'}`} />
+
+        {/* Row 4: Scrollable Navigation List */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar space-y-0.5 px-2 w-full">
+          {/* Root Modules */}
+          {rootOrderedItems.map((item) => {
+            const isActive = item.id === 'tasks'
+              ? (activeTab === 'tasks' && activeSpaceId === null && activeListId === null)
+              : (activeTab === item.id);
+
+            return (
+              <NavItem
+                key={item.id}
+                icon={item.icon}
+                label={item.label}
+                shortLabel={getShortLabel(item.label)}
+                shortcut={item.shortcut}
+                description={item.description}
+                isActive={isActive}
+                count={item.count}
+                badge={item.badge}
+                collapsed={isMainSidebarCollapsed}
+                isDragging={draggedItemId === item.id}
+                onDragStart={(e) => handleDragStart(e, item.id)}
+                onDragOver={(e) => handleDragOver(e, item.id)}
+                onDragLeave={handleDragLeave}
+                onDragEnd={handleDragEnd}
+                onDrop={(e) => handleDrop(e, item.id)}
+                onClick={() => handleNavItemClick(item.id, item.label)}
+                dragIndicator={dragOverItemId === item.id && dragOverSide ? (
+                  <div
+                    className={`absolute left-1 right-1 h-1 z-30 pointer-events-none rounded-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 shadow-[0_0_12px_rgba(56,189,248,0.9)] transition-all ${
+                      dragOverSide === 'top' 
+                        ? '-top-0.5' 
+                        : '-bottom-0.5'
+                    }`}
+                  >
+                    <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-sky-300 ring-2 ring-blue-500 shadow-[0_0_8px_rgba(56,189,248,1)]" />
+                  </div>
+                ) : undefined}
+              />
+            );
+          })}
+
+          {/* Custom Workspace Zones */}
+          {sidebarZones.map((zone, zIdx) => (
+            <SidebarZoneGroup
+              key={zone.id}
+              zone={zone}
+              collapsed={isMainSidebarCollapsed}
+              activeTab={activeTab}
+              activeSpaceId={activeSpaceId}
+              activeListId={activeListId}
+              sidebarItemsMeta={sidebarItemsMeta}
+              draggedItemId={draggedItemId}
+              dragOverItemId={dragOverItemId}
+              dragOverSide={dragOverSide}
+              onDragStart={handleDragStart}
+              onDragOverItem={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDragEnd={handleDragEnd}
+              onDropOnItem={handleDrop}
+              onDropOnZone={handleDropOnZone}
+              onItemClick={handleNavItemClick}
+              onEditZone={(z) => {
+                setEditingZone(z);
+                setShowZoneModal(true);
+              }}
+              onDeleteZone={(zId) => {
+                deleteSidebarZone(zId);
+                triggerToast('info', locale === 'vi' ? 'Đã xóa Vùng' : 'Zone Deleted', locale === 'vi' ? 'Các module đã quay lại thanh bên' : 'Modules moved back to root');
+              }}
+              onMoveZone={handleMoveZone}
+              isFirstZone={zIdx === 0}
+              isLastZone={zIdx === sidebarZones.length - 1}
+              getShortLabel={getShortLabel}
+            />
+          ))}
+
+          {/* Create New Zone Button */}
+          <div className="pt-1 pb-1">
+            {isMainSidebarCollapsed ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingZone(null);
+                  setShowZoneModal(true);
+                }}
+                title={locale === 'vi' ? 'Tạo Vùng mới (+ Zone)' : 'Create New Zone'}
+                className="flex h-10 w-10 mx-auto items-center justify-center rounded-[14px] border border-dashed border-slate-300/90 dark:border-white/20 bg-slate-50/70 dark:bg-white/[0.02] text-slate-500 dark:text-zinc-400 hover:border-blue-400/80 hover:bg-blue-50/60 hover:text-blue-600 dark:hover:border-sky-400/50 dark:hover:bg-sky-500/15 dark:hover:text-sky-300 active:scale-92 transition-all cursor-pointer group shadow-3xs"
+              >
+                <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />
+              </button>
             ) : (
-              <>
-                {/* Compact Switcher Pill Button */}
-                <button
-                  type="button" 
-                  className="apexa-workspace-trigger group flex min-w-0 flex-1 cursor-pointer select-none items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 text-left shadow-2xs transition-all duration-200 hover:border-white/[0.16] hover:bg-white/[0.08] active:scale-[0.99]"
-                  onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
-                  aria-expanded={showWorkspaceMenu}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingZone(null);
+                  setShowZoneModal(true);
+                }}
+                className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-xl border border-dashed border-slate-200/80 bg-slate-50/60 text-slate-600 hover:border-blue-400/60 hover:bg-blue-50/50 hover:text-blue-600 dark:border-white/12 dark:bg-white/[0.02] dark:text-zinc-400 dark:hover:border-sky-500/40 dark:hover:bg-sky-500/10 dark:hover:text-sky-300 transition-all cursor-pointer group text-left"
+              >
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-slate-200/60 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 dark:bg-white/[0.06] dark:text-zinc-400 dark:group-hover:bg-sky-500/20 dark:group-hover:text-sky-300 transition-colors">
+                  <Plus className="h-3 w-3" />
+                </div>
+                <span className="text-xs font-semibold tracking-tight truncate">
+                  {locale === 'vi' ? 'Tạo Vùng mới' : 'New Zone'}
+                </span>
+                <span className="ml-auto text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 dark:bg-white/[0.04] dark:text-zinc-500 dark:group-hover:bg-sky-500/20 dark:group-hover:text-sky-300 transition-colors">
+                  + Zone
+                </span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Row 5: Collapsed Bottom Expand Button */}
+        {isMainSidebarCollapsed && (
+          <div className="shrink-0 py-2.5 flex flex-col items-center gap-1.5 w-full border-t border-slate-200/70 dark:border-white/[0.08]">
+            <button
+              type="button"
+              onClick={() => {
+                setIsMainSidebarCollapsed(false);
+                (window as any).playSystemSound?.('click');
+              }}
+              title={locale === 'vi' ? 'Mở rộng thanh bên (Ctrl+\)' : 'Expand sidebar (Ctrl+\)'}
+              className="group relative flex h-10 w-10 items-center justify-center rounded-[14px] border border-slate-200/90 dark:border-white/12 bg-slate-50/80 dark:bg-white/[0.04] text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-sky-300 hover:border-blue-300 dark:hover:border-sky-400/40 hover:bg-blue-50/60 dark:hover:bg-sky-500/10 active:scale-92 transition-all cursor-pointer shadow-3xs"
+              aria-label={locale === 'vi' ? 'Mở rộng thanh bên' : 'Expand sidebar'}
+            >
+              <ChevronsRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 text-slate-500 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-sky-300" />
+            </button>
+          </div>
+        )}
+
+        {/* Workspace Dropdown Menu */}
+        <AnimatePresence>
+          {showWorkspaceMenu && (
+            <>
+              <div className="fixed inset-0 z-[140]" onClick={() => setShowWorkspaceMenu(false)} />
+              <motion.div
+                initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                transition={{ duration: 0.16, ease: "easeOut" }}
+                className={`fixed top-14 mt-1 w-[280px] p-3.5 bg-white/98 border border-slate-200/90 rounded-3xl shadow-[0_20px_50px_rgba(15,23,42,0.14)] dark:bg-[#09090b]/98 dark:border-white/15 dark:shadow-[0_25px_60px_rgba(0,0,0,0.8)] backdrop-blur-2xl z-[150] space-y-3 text-left origin-top-left ${
+                  isMainSidebarCollapsed ? 'left-[74px]' : 'left-3'
+                }`}
+              >
+                {/* Active Workspace Hero Card */}
+                <div className="relative p-3 rounded-2xl bg-gradient-to-br from-blue-50/80 via-slate-50 to-indigo-50/60 border border-blue-200/60 dark:from-blue-950/60 dark:via-slate-900 dark:to-slate-900/90 dark:border-blue-500/35 shadow-xs group overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 dark:bg-blue-500/15 rounded-full blur-xl pointer-events-none" />
+                  
+                  <div className="flex items-center gap-3">
                     <div 
-                      className="w-6 h-6 rounded-lg flex items-center justify-center text-white font-black text-[10px] shadow-xs shrink-0 select-none overflow-hidden border border-white/10"
+                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black text-base shadow-md shadow-blue-500/25 shrink-0 select-none overflow-hidden ring-2 ring-white/60 dark:ring-white/20 transition-transform duration-300 group-hover:scale-[1.03]"
                       style={!currentWorkspace?.logoUrl ? {
                         background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #38bdf8, #0284c7)' :
                                     currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #34d399, #059669)' :
@@ -4641,202 +4844,175 @@ export default function App() {
                       {currentWorkspace?.logoUrl ? (
                         <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
                       ) : (
-                        <ApexaAiIcon className="w-3.5 h-3.5" variant="white" />
+                        <ApexaAiIcon className="w-6 h-6" variant="white" />
                       )}
                     </div>
-                    <span className="font-sans font-extrabold text-white text-[12.5px] tracking-tight truncate flex-1">
-                      {currentWorkspace?.name || 'Apexa'}
-                    </span>
-                  </div>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 group-hover:text-white transition-transform duration-200 group-hover:translate-y-0.5 ml-1" />
-                </button>
 
-                {/* Modern Sidebar Collapse Button */}
-                <button 
+                    <div className="leading-tight min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-slate-900 dark:text-white text-[14px] truncate tracking-tight">
+                          {currentWorkspace?.name || 'Apexa'}
+                        </span>
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0" title="Không gian đang hoạt động">
+                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        </span>
+                      </div>
+                      
+                      <div className="mt-1 flex items-center gap-1">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-500/20 dark:text-sky-300 dark:border-blue-400/30 shadow-2xs">
+                          <Sparkles className="w-2.5 h-2.5 text-blue-500 dark:text-sky-400 fill-blue-500/30 dark:fill-sky-400/30" />
+                          {currentUser?.isPremium ? 'Premium Pro' : 'Free plan'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Settings & People actions */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowWorkspaceMenu(false);
+                      setActiveTab('settings');
+                      setActiveSettingsTab('general');
+                    }}
+                    className="flex items-center justify-center gap-2 py-2 px-3 rounded-2xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:border-slate-300 hover:text-slate-900 dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-100 dark:hover:bg-white/[0.12] dark:hover:border-white/20 dark:hover:text-white cursor-pointer transition-all duration-150 shadow-xs group/btn"
+                  >
+                    <Settings className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 group-hover/btn:rotate-45 transition-transform" />
+                    <span>Cài đặt</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowWorkspaceMenu(false);
+                      setActiveTab('settings');
+                      setActiveSettingsTab('people');
+                    }}
+                    className="flex items-center justify-center gap-2 py-2 px-3 rounded-2xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:border-slate-300 hover:text-slate-900 dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-100 dark:hover:bg-white/[0.12] dark:hover:border-white/20 dark:hover:text-white cursor-pointer transition-all duration-150 shadow-xs group/btn"
+                  >
+                    <Users className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 group-hover/btn:scale-110 transition-transform" />
+                    <span>Thành viên</span>
+                  </button>
+                </div>
+
+                {/* Workspaces list subsection */}
+                {workspaces.filter(w => w.id !== activeWorkspaceId).length > 0 && (
+                  <>
+                    <div className="border-t border-slate-100 dark:border-white/10 my-1" />
+                    <div className="space-y-1.5">
+                      <div className="px-1 flex items-center justify-between text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        <span>Không gian khác</span>
+                        <span className="px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-[9px] font-extrabold text-slate-600 dark:bg-white/10 dark:border-white/10 dark:text-slate-200">
+                          {workspaces.filter(w => w.id !== activeWorkspaceId).length}
+                        </span>
+                      </div>
+                      <div className="max-h-[160px] overflow-y-auto custom-scrollbar space-y-1 pr-0.5">
+                        {workspaces.filter(w => w.id !== activeWorkspaceId).map(w => (
+                          <button
+                            key={w.id}
+                            type="button"
+                            onClick={() => {
+                              setShowWorkspaceMenu(false);
+                              handleWorkspaceChange(w.id);
+                            }}
+                            className="w-full flex items-center gap-2.5 p-2 rounded-2xl text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-transparent hover:border-slate-200/80 dark:text-slate-200 dark:hover:text-white dark:hover:bg-white/[0.08] dark:hover:border-white/10 cursor-pointer transition-all duration-150 text-left group/ws"
+                          >
+                            <div 
+                              className="w-7 h-7 rounded-xl flex items-center justify-center text-white font-black text-[11px] shrink-0 overflow-hidden shadow-xs ring-1 ring-black/5 dark:ring-white/10 group-hover/ws:scale-105 transition-transform"
+                              style={!w.logoUrl ? {
+                                background: w.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
+                                            w.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
+                                            w.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
+                                            'linear-gradient(135deg, #2563EB, #0284c7)',
+                              } : undefined}
+                            >
+                              {w.logoUrl ? (
+                                <img src={w.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
+                              ) : (
+                                <span>{w.initial || w.name.charAt(0).toUpperCase()}</span>
+                              )}
+                            </div>
+                            <span className="truncate flex-1 font-bold text-slate-800 dark:text-slate-200 group-hover/ws:text-slate-950 dark:group-hover/ws:text-white transition-colors">{w.name}</span>
+                            <ChevronRight className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover/ws:opacity-100 group-hover/ws:translate-x-0 -translate-x-1 transition-all shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="border-t border-slate-100 dark:border-white/10 my-1" />
+
+                {/* Create workspace button */}
+                <button
                   type="button"
                   onClick={() => {
-                    setIsMainSidebarCollapsed(true);
-                    (window as any).playSystemSound?.('click');
-                  }} 
-                  className="group relative flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-slate-400 hover:border-white/20 hover:bg-white/[0.08] hover:text-white active:scale-90 transition-all duration-200 cursor-pointer shadow-xs hover:shadow-[0_0_12px_rgba(255,255,255,0.05)]"
-                  title={locale === 'vi' ? 'Thu gọn thanh bên (Ctrl+\)' : 'Collapse sidebar (Ctrl+\)'}
-                  aria-label={locale === 'vi' ? 'Thu gọn thanh bên' : 'Collapse sidebar'}
+                    setShowWorkspaceMenu(false);
+                    setShowAddWorkspaceModal(true);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl border-2 border-dashed border-blue-300/80 hover:border-blue-500 bg-blue-50/50 hover:bg-blue-50 text-xs font-black text-blue-600 hover:text-blue-700 dark:border-sky-400/40 dark:hover:border-sky-400 dark:bg-sky-500/10 dark:hover:bg-sky-500/20 dark:text-sky-300 dark:hover:text-white cursor-pointer transition-all duration-200 shadow-xs hover:shadow-md group/create"
                 >
-                  <ChevronsLeft className="w-4 h-4 transition-transform duration-200 ease-out group-hover:-translate-x-0.5 text-slate-400 group-hover:text-white" />
+                  <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-sky-400/20 border border-blue-200 dark:border-sky-400/30 flex items-center justify-center group-hover/create:scale-110 transition-transform">
+                    <Plus className="w-3.5 h-3.5 font-bold text-blue-600 dark:text-sky-300 group-hover/create:text-blue-700 dark:group-hover/create:text-white" />
+                  </div>
+                  <span>Tạo không gian</span>
                 </button>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+      </aside>
 
-              </>
-            )}
-
-            {/* Workspace Dropdown Menu */}
-            <AnimatePresence>
-              {showWorkspaceMenu && (
-                <>
-                  <div className="fixed inset-0 z-[110]" onClick={() => setShowWorkspaceMenu(false)} />
-                  <motion.div
-                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    transition={{ duration: 0.18, type: "spring", stiffness: 420, damping: 28 }}
-                    className={`absolute top-full mt-2.5 w-[280px] p-3.5 bg-[#09090b]/98 border border-white/15 rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.8)] backdrop-blur-2xl z-[120] space-y-3 text-left origin-top-left ${isMainSidebarCollapsed ? 'left-1' : 'left-3'}`}
-                  >
-                    {/* Active Workspace Hero Card */}
-                    <div className="relative p-3 rounded-2xl bg-gradient-to-br from-blue-950/60 via-slate-900 to-slate-900/90 border border-blue-500/35 shadow-xs group overflow-hidden">
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/15 rounded-full blur-xl pointer-events-none" />
-                      
-                      <div className="flex items-center gap-3">
-                        <div 
-                          className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black text-base shadow-md shadow-blue-500/25 shrink-0 select-none overflow-hidden ring-2 ring-white/20 transition-transform duration-300 group-hover:scale-[1.03]"
-                          style={!currentWorkspace?.logoUrl ? {
-                            background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #38bdf8, #0284c7)' :
-                                        currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #34d399, #059669)' :
-                                        currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #f43f5e, #be123c)' :
-                                        'linear-gradient(135deg, #2563eb, #0284c7)',
-                          } : undefined}
-                        >
-                          {currentWorkspace?.logoUrl ? (
-                            <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
-                          ) : (
-                            <ApexaAiIcon className="w-6 h-6" variant="white" />
-                          )}
-                        </div>
-
-                        <div className="leading-tight min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-white text-[14px] truncate tracking-tight">
-                              {currentWorkspace?.name || 'Apexa'}
-                            </span>
-                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 shrink-0" title="Không gian đang hoạt động">
-                              <Check className="w-2.5 h-2.5 stroke-[3]" />
-                            </span>
-                          </div>
-                          
-                          <div className="mt-1 flex items-center gap-1">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-500/20 text-sky-300 border border-blue-400/30 shadow-2xs">
-                              <Sparkles className="w-2.5 h-2.5 text-sky-400 fill-sky-400/30" />
-                              {currentUser?.isPremium ? 'Premium Pro' : 'Free plan'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Quick Settings & People actions */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowWorkspaceMenu(false);
-                          setActiveTab('settings');
-                          setActiveSettingsTab('general');
-                        }}
-                        className="flex items-center justify-center gap-2 py-2 px-3 rounded-2xl border border-white/10 bg-white/[0.06] text-xs font-bold text-slate-100 hover:bg-white/[0.12] hover:border-white/20 hover:text-white cursor-pointer transition-all duration-150 shadow-xs group/btn"
-                      >
-                        <Settings className="w-3.5 h-3.5 text-sky-400 group-hover/btn:rotate-45 transition-transform" />
-                        <span>Cài đặt</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowWorkspaceMenu(false);
-                          setActiveTab('settings');
-                          setActiveSettingsTab('people');
-                        }}
-                        className="flex items-center justify-center gap-2 py-2 px-3 rounded-2xl border border-white/10 bg-white/[0.06] text-xs font-bold text-slate-100 hover:bg-white/[0.12] hover:border-white/20 hover:text-white cursor-pointer transition-all duration-150 shadow-xs group/btn"
-                      >
-                        <Users className="w-3.5 h-3.5 text-sky-400 group-hover/btn:scale-110 transition-transform" />
-                        <span>Thành viên</span>
-                      </button>
-                    </div>
-
-                    {/* Workspaces list subsection */}
-                    {workspaces.filter(w => w.id !== activeWorkspaceId).length > 0 && (
-                      <>
-                        <div className="border-t border-white/10 my-1" />
-                        <div className="space-y-1.5">
-                          <div className="px-1 flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                            <span>Không gian khác</span>
-                            <span className="px-2 py-0.5 rounded-full bg-white/10 border border-white/10 text-[9px] font-extrabold text-slate-200">
-                              {workspaces.filter(w => w.id !== activeWorkspaceId).length}
-                            </span>
-                          </div>
-                          <div className="max-h-[160px] overflow-y-auto custom-scrollbar space-y-1 pr-0.5">
-                            {workspaces.filter(w => w.id !== activeWorkspaceId).map(w => (
-                              <button
-                                key={w.id}
-                                type="button"
-                                onClick={() => {
-                                  setShowWorkspaceMenu(false);
-                                  handleWorkspaceChange(w.id);
-                                }}
-                                className="w-full flex items-center gap-2.5 p-2 rounded-2xl text-xs font-bold text-slate-200 hover:text-white hover:bg-white/[0.08] border border-transparent hover:border-white/10 cursor-pointer transition-all duration-150 text-left group/ws"
-                              >
-                                <div 
-                                  className="w-7 h-7 rounded-xl flex items-center justify-center text-white font-black text-[11px] shrink-0 overflow-hidden shadow-xs ring-1 ring-white/10 group-hover/ws:scale-105 transition-transform"
-                                  style={!w.logoUrl ? {
-                                    background: w.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
-                                                w.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
-                                                w.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
-                                                'linear-gradient(135deg, #2563EB, #0284c7)',
-                                  } : undefined}
-                                >
-                                  {w.logoUrl ? (
-                                    <img src={w.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
-                                  ) : (
-                                    <span>{w.initial || w.name.charAt(0).toUpperCase()}</span>
-                                  )}
-                                </div>
-                                <span className="truncate flex-1 font-bold text-slate-200 group-hover/ws:text-white transition-colors">{w.name}</span>
-                                <ChevronRight className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover/ws:opacity-100 group-hover/ws:translate-x-0 -translate-x-1 transition-all shrink-0" />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    <div className="border-t border-white/10 my-1" />
-
-                    {/* Create workspace button */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowWorkspaceMenu(false);
-                        setShowAddWorkspaceModal(true);
-                      }}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl border-2 border-dashed border-sky-400/40 hover:border-sky-400 bg-sky-500/10 hover:bg-sky-500/20 text-xs font-black text-sky-300 hover:text-white cursor-pointer transition-all duration-200 shadow-xs hover:shadow-md group/create"
-                    >
-                      <div className="w-5 h-5 rounded-full bg-sky-400/20 border border-sky-400/30 flex items-center justify-center group-hover/create:scale-110 transition-transform">
-                        <Plus className="w-3.5 h-3.5 font-bold text-sky-300 group-hover/create:text-white" />
-                      </div>
-                      <span>Tạo không gian</span>
-                    </button>
-                  </motion.div>
-                </>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* Right side Header section */}
-        <div className="apexa-header-content flex min-w-0 flex-1 items-center justify-between px-3 py-2 sm:px-5">
-          <div className="apexa-header-context flex min-w-0 items-center gap-2">
-            {/* Sidebar toggle button (expand) when collapsed on desktop */}
-            {isMainSidebarCollapsed && (
-              <button 
-                type="button"
-                onClick={() => {
-                  setIsMainSidebarCollapsed(false);
-                  (window as any).playSystemSound?.('click');
-                }} 
-                className="hidden md:flex group relative h-8.5 w-8.5 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-slate-100/70 dark:bg-white/[0.03] text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/20 hover:bg-slate-200/80 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white active:scale-90 transition-all duration-200 cursor-pointer shadow-xs hover:shadow-[0_0_12px_rgba(255,255,255,0.05)] mr-0.5"
-                title={locale === 'vi' ? 'Mở rộng thanh bên (Ctrl+\)' : 'Expand sidebar (Ctrl+\)'}
-                aria-label={locale === 'vi' ? 'Mở rộng thanh bên' : 'Expand sidebar'}
+      {/* Right Main Stage (Header + Content) */}
+      <div className="apexa-main-stage flex flex-1 flex-col h-full min-w-0 overflow-hidden">
+        {/* Apexa Top Header */}
+        <header className="apexa-app-header cu-header relative z-20 flex shrink-0 items-center h-14 transition-all duration-200 border-b border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[#09090b]">
+          {/* Mobile header trigger & workspace badge (< md screens) */}
+          <div className="flex md:hidden items-center gap-2 pl-3 py-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsMobileSidebarOpen(true)}
+              aria-label={locale === 'vi' ? 'Mở trình đơn điều hướng' : 'Open navigation menu'}
+              aria-expanded={isMobileSidebarOpen}
+              aria-controls="apexa-mobile-navigation"
+              className="cu-touch-target inline-flex items-center justify-center rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all border border-slate-200/60 dark:border-slate-800 shadow-3xs"
+              title="Mở trình đơn điều hướng"
+            >
+              <Menu className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
+              aria-expanded={showWorkspaceMenu}
+              aria-haspopup="menu"
+              className="apexa-mobile-workspace flex min-h-11 max-w-[150px] cursor-pointer select-none items-center gap-2 rounded-full border border-slate-200/80 bg-slate-100/70 px-3 py-1 shadow-3xs dark:border-slate-700/80 dark:bg-slate-800/60"
+            >
+              <div 
+                className="w-4.5 h-4.5 rounded-md flex items-center justify-center text-white font-black text-[9px] shrink-0 overflow-hidden shadow-3xs"
+                style={!currentWorkspace?.logoUrl ? {
+                  background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
+                              currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
+                              currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
+                              'linear-gradient(135deg, #2563EB, #0284C7)',
+                } : undefined}
               >
-                <ChevronsRight className="w-4 h-4 transition-transform duration-200 ease-out group-hover:translate-x-0.5 text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white" />
-              </button>
-            )}
+                {currentWorkspace?.logoUrl ? (
+                  <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
+                ) : (
+                  <span>{currentWorkspace?.initial || 'A'}</span>
+                )}
+              </div>
+              <span className="font-extrabold text-slate-800 dark:text-slate-100 text-[11px] truncate">
+                {currentWorkspace?.name || 'Avaxa'}
+              </span>
+            </button>
+          </div>
 
+          {/* Right side Header section */}
+          <div className="apexa-header-content flex self-stretch min-w-0 flex-1 items-center justify-between px-3 py-2 sm:px-5">
+          <div className="apexa-header-context flex min-w-0 items-center gap-2">
             {/* Modern Breadcrumb Navigation */}
             {(() => {
               const selectedSpace = spaces.find(space => space.id === activeSpaceId);
@@ -5724,161 +5900,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Below Header row wrapper container */}
-      <div className="apexa-workspace-frame relative flex min-h-0 flex-1 flex-row overflow-hidden">
 
-      {/* Modern Black Aesthetic Sidebar Navigation */}
-      <aside className={`apexa-desktop-sidebar cu-sidebar relative z-20 hidden shrink-0 cursor-default flex-col justify-between transition-all duration-200 ease-in-out md:flex ${
-        isMainSidebarCollapsed 
-          ? 'w-[var(--cu-sidebar-collapsed)] px-2 py-3' 
-          : 'w-[var(--cu-sidebar-width)] px-2.5 py-3'
-      }`}>
-        
-        <div className="h-full flex flex-col justify-between overflow-hidden gap-2">
-          {/* Super Admin Control Center (Only for Super Admin) */}
-          {isApexaSuperAdmin(currentUser?.id) && (
-            <div className="shrink-0 space-y-1">
-              <a
-                href="/admin"
-                className={`group flex items-center rounded-xl border border-sky-500/25 bg-sky-500/10 text-sky-200 transition-all hover:border-sky-400/50 hover:bg-sky-500/20 hover:text-white ${
-                  isMainSidebarCollapsed ? 'h-9 w-9 mx-auto justify-center p-0' : 'h-[38px] gap-2.5 px-2.5 py-1.5 w-full'
-                }`}
-                title="Apexa Control Center (Admin)"
-              >
-                <div className="relative flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-lg bg-sky-500/20 text-sky-300 transition-all">
-                  <ShieldCheck className="h-4 w-4" />
-                  <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 ring-1 ring-[#09090b] animate-pulse" />
-                </div>
-                {!isMainSidebarCollapsed && (
-                  <div className="flex min-w-0 flex-1 items-center justify-between">
-                    <span className="truncate text-[13px] font-semibold text-white">
-                      {locale === 'vi' ? 'Trung tâm điều khiển' : 'Control Center'}
-                    </span>
-                    <span className="shrink-0 rounded-md px-1.5 py-0.5 text-[8px] font-black uppercase text-sky-300 bg-sky-500/20 border border-sky-400/30">Admin</span>
-                  </div>
-                )}
-              </a>
-            </div>
-          )}
-
-          {/* Scrollable Navigation List */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar space-y-0.5 pr-0.5">
-            {/* Root Modules */}
-            {rootOrderedItems.map((item) => {
-              const isActive = item.id === 'tasks'
-                ? (activeTab === 'tasks' && activeSpaceId === null && activeListId === null)
-                : (activeTab === item.id);
-
-              return (
-                <NavItem
-                  key={item.id}
-                  icon={item.icon}
-                  label={item.label}
-                  shortLabel={getShortLabel(item.label)}
-                  shortcut={item.shortcut}
-                  description={item.description}
-                  isActive={isActive}
-                  count={item.count}
-                  badge={item.badge}
-                  collapsed={isMainSidebarCollapsed}
-                  isDragging={draggedItemId === item.id}
-                  onDragStart={(e) => handleDragStart(e, item.id)}
-                  onDragOver={(e) => handleDragOver(e, item.id)}
-                  onDragLeave={handleDragLeave}
-                  onDragEnd={handleDragEnd}
-                  onDrop={(e) => handleDrop(e, item.id)}
-                  onClick={() => handleNavItemClick(item.id, item.label)}
-                  dragIndicator={dragOverItemId === item.id && dragOverSide ? (
-                    <div
-                      className={`absolute left-1 right-1 h-1 z-30 pointer-events-none rounded-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 shadow-[0_0_12px_rgba(56,189,248,0.9)] transition-all ${
-                        dragOverSide === 'top' 
-                          ? '-top-0.5' 
-                          : '-bottom-0.5'
-                      }`}
-                    >
-                      <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-sky-300 ring-2 ring-blue-500 shadow-[0_0_8px_rgba(56,189,248,1)]" />
-                    </div>
-                  ) : undefined}
-                />
-              );
-            })}
-
-            {/* Custom Workspace Zones */}
-            {sidebarZones.map((zone, zIdx) => (
-              <SidebarZoneGroup
-                key={zone.id}
-                zone={zone}
-                collapsed={isMainSidebarCollapsed}
-                activeTab={activeTab}
-                activeSpaceId={activeSpaceId}
-                activeListId={activeListId}
-                sidebarItemsMeta={sidebarItemsMeta}
-                draggedItemId={draggedItemId}
-                dragOverItemId={dragOverItemId}
-                dragOverSide={dragOverSide}
-                onDragStart={handleDragStart}
-                onDragOverItem={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDragEnd={handleDragEnd}
-                onDropOnItem={handleDrop}
-                onDropOnZone={handleDropOnZone}
-                onItemClick={handleNavItemClick}
-                onEditZone={(z) => {
-                  setEditingZone(z);
-                  setShowZoneModal(true);
-                }}
-                onDeleteZone={(zId) => {
-                  deleteSidebarZone(zId);
-                  triggerToast('info', locale === 'vi' ? 'Đã xóa Vùng' : 'Zone Deleted', locale === 'vi' ? 'Các module đã quay lại thanh bên' : 'Modules moved back to root');
-                }}
-                onMoveZone={handleMoveZone}
-                isFirstZone={zIdx === 0}
-                isLastZone={zIdx === sidebarZones.length - 1}
-                getShortLabel={getShortLabel}
-              />
-            ))}
-
-            {/* Create New Zone Button */}
-            <div className="pt-1 pb-0.5">
-              {isMainSidebarCollapsed ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingZone(null);
-                    setShowZoneModal(true);
-                  }}
-                  title={locale === 'vi' ? 'Tạo Vùng mới (+ Zone)' : 'Create New Zone'}
-                  className="flex h-10 w-10 mx-auto items-center justify-center rounded-[13px] border border-dashed border-white/15 bg-white/[0.02] text-zinc-400 hover:border-sky-400/50 hover:bg-sky-500/10 hover:text-sky-300 transition-all cursor-pointer group"
-                >
-                  <Plus className="h-4 w-4 group-hover:scale-115 transition-transform" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingZone(null);
-                    setShowZoneModal(true);
-                  }}
-                  className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-xl border border-dashed border-white/12 bg-white/[0.02] text-zinc-400 hover:border-sky-500/40 hover:bg-sky-500/10 hover:text-sky-300 transition-all cursor-pointer group text-left"
-                >
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-zinc-400 group-hover:bg-sky-500/20 group-hover:text-sky-300 transition-colors">
-                    <Plus className="h-3 w-3" />
-                  </div>
-                  <span className="text-xs font-semibold tracking-tight truncate">
-                    {locale === 'vi' ? 'Tạo Vùng mới' : 'New Zone'}
-                  </span>
-                  <span className="ml-auto text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-white/[0.04] text-zinc-500 group-hover:bg-sky-500/20 group-hover:text-sky-300 transition-colors">
-                    + Zone
-                  </span>
-                </button>
-              )}
-            </div>
-          </div>
-
-
-
-        </div>
-      </aside>
 
       {/* Main workspace layout wrapper */}
       <div className="apexa-content-shell relative flex min-h-0 flex-1 flex-col overflow-hidden bg-white dark:bg-transparent">
@@ -6206,6 +6228,7 @@ export default function App() {
         })()}
 
       </div>
+      </div>
 
       {/* ── ADD SPACE MODAL ── */}
       <AnimatePresence>
@@ -6223,7 +6246,7 @@ export default function App() {
               animate={{ scale: 1, y: 0, opacity: 1 }} 
               exit={{ scale: 0.95, y: 14, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 420, damping: 30 }}
-              className="relative w-full max-w-[480px] rounded-3xl bg-[#09090b]/98 border border-white/10 overflow-hidden z-10 text-left font-sans select-none shadow-[0_30px_90px_rgba(0,0,0,0.85)] backdrop-blur-2xl max-h-[90vh] flex flex-col"
+              className="relative w-full max-w-[480px] rounded-3xl bg-white dark:bg-[#09090b]/98 border border-slate-200/90 dark:border-white/10 overflow-hidden z-10 text-left font-sans select-none shadow-[0_25px_60px_-15px_rgba(15,23,42,0.18)] dark:shadow-[0_30px_90px_rgba(0,0,0,0.85)] backdrop-blur-2xl max-h-[90vh] flex flex-col"
             >
               {/* Top Accent Light Line */}
               <div 
@@ -6246,7 +6269,7 @@ export default function App() {
                 <button 
                   type="button"
                   onClick={() => setShowAddSpaceModal(false)} 
-                  className="absolute top-4 sm:top-5 right-4 sm:right-5 w-7 h-7 rounded-xl bg-white/[0.05] text-zinc-400 hover:text-white hover:bg-white/[0.1] flex items-center justify-center transition-all cursor-pointer z-20"
+                  className="absolute top-4 sm:top-5 right-4 sm:right-5 w-7 h-7 rounded-xl bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 dark:bg-white/[0.05] dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/[0.1] flex items-center justify-center transition-all cursor-pointer z-20"
                   aria-label="Đóng cửa sổ"
                 >
                   <X className="w-4 h-4" />
@@ -6259,10 +6282,10 @@ export default function App() {
                       <Sparkles className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="text-base font-extrabold text-white tracking-tight">
+                      <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
                         {t('createSpace') || (locale === 'vi' ? 'Tạo Không gian mới' : 'Create Space')}
                       </h3>
-                      <p className="text-[11px] font-medium text-zinc-400 mt-0.5">
+                      <p className="text-[11px] font-medium text-slate-500 dark:text-zinc-400 mt-0.5">
                         {locale === 'vi' ? 'Không gian làm việc & quản lý dự án' : 'Workspaces & team project hubs'}
                       </p>
                     </div>
@@ -6270,15 +6293,15 @@ export default function App() {
 
                   {/* ── Template Presets (Compact Chips) ── */}
                   <div className="space-y-1.5">
-                    <span className="text-[9.5px] font-black uppercase text-zinc-400 tracking-wider block">
+                    <span className="text-[9.5px] font-black uppercase text-slate-400 dark:text-zinc-400 tracking-wider block">
                       {t('spaceTemplateTitle') || (locale === 'vi' ? 'Mẫu gợi ý' : 'Quick Templates')}
                     </span>
                     <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
                       {[
-                        { name: locale === 'vi' ? 'Phát triển phần mềm' : 'Software Development', icon: 'Laptop', color: 'indigo', desc: 'Sprint & Code', iconBg: 'bg-blue-500/15 text-sky-400' },
-                        { name: locale === 'vi' ? 'Marketing & Chiến dịch' : 'Marketing & Campaign', icon: 'Rocket', color: 'rose', desc: 'Content & Ads', iconBg: 'bg-rose-500/15 text-rose-400' },
-                        { name: locale === 'vi' ? 'Thiết kế UX/UI' : 'UX/UI Design', icon: 'Palette', color: 'sky', desc: 'Design System', iconBg: 'bg-sky-500/15 text-sky-300' },
-                        { name: locale === 'vi' ? 'Vận hành & HR' : 'Operations & HR', icon: 'Zap', color: 'emerald', desc: 'Tuyển dụng & Ops', iconBg: 'bg-emerald-500/15 text-emerald-400' }
+                        { name: locale === 'vi' ? 'Phát triển phần mềm' : 'Software Development', icon: 'Laptop', color: 'indigo', desc: 'Sprint & Code', iconBg: 'bg-blue-500/15 text-blue-600 dark:text-sky-400' },
+                        { name: locale === 'vi' ? 'Marketing & Chiến dịch' : 'Marketing & Campaign', icon: 'Rocket', color: 'rose', desc: 'Content & Ads', iconBg: 'bg-rose-500/15 text-rose-600 dark:text-rose-400' },
+                        { name: locale === 'vi' ? 'Thiết kế UX/UI' : 'UX/UI Design', icon: 'Palette', color: 'sky', desc: 'Design System', iconBg: 'bg-sky-500/15 text-sky-600 dark:text-sky-300' },
+                        { name: locale === 'vi' ? 'Vận hành & HR' : 'Operations & HR', icon: 'Zap', color: 'emerald', desc: 'Tuyển dụng & Ops', iconBg: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' }
                       ].map((tpl) => {
                         const isActive = newSpaceName === tpl.name;
                         return (
@@ -6293,8 +6316,8 @@ export default function App() {
                             }}
                             className={`group p-2 sm:p-2.5 rounded-xl border text-left transition-all duration-150 cursor-pointer flex items-center gap-2.5 ${
                               isActive
-                                ? 'border-sky-500/50 bg-sky-500/10 text-white ring-1 ring-sky-500/20'
-                                : 'border-white/[0.08] bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06] text-zinc-300'
+                                ? 'border-blue-500/60 bg-blue-50/80 text-blue-950 ring-1 ring-blue-500/25 dark:border-sky-500/50 dark:bg-sky-500/10 dark:text-white dark:ring-sky-500/20'
+                                : 'border-slate-200/80 bg-slate-50/70 hover:border-slate-300 hover:bg-slate-100/70 text-slate-700 dark:border-white/[0.08] dark:bg-white/[0.03] dark:hover:border-white/20 dark:hover:bg-white/[0.06] dark:text-zinc-300'
                             }`}
                           >
                             <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${tpl.iconBg}`}>
@@ -6309,8 +6332,8 @@ export default function App() {
                               })()}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <span className="block text-[11px] font-bold text-white truncate leading-tight">{tpl.name}</span>
-                              <span className="block text-[9px] font-medium text-zinc-400 truncate mt-0.5">{tpl.desc}</span>
+                              <span className="block text-[11px] font-bold text-slate-900 dark:text-white truncate leading-tight">{tpl.name}</span>
+                              <span className="block text-[9px] font-medium text-slate-500 dark:text-zinc-400 truncate mt-0.5">{tpl.desc}</span>
                             </div>
                           </button>
                         );
@@ -6319,7 +6342,7 @@ export default function App() {
                   </div>
 
                   {/* ── Space Name & Identity Card ── */}
-                  <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-3">
+                  <div className="p-3 rounded-2xl bg-slate-50/70 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08] space-y-3">
                     <div className="flex items-center gap-3">
                       {/* Icon Picker Trigger */}
                       <div className="shrink-0">
@@ -6331,7 +6354,7 @@ export default function App() {
 
                       {/* Space Name Input */}
                       <div className="flex-1 min-w-0">
-                        <label className="text-[9.5px] font-black uppercase text-zinc-400 tracking-wider block mb-1">
+                        <label className="text-[9.5px] font-black uppercase text-slate-500 dark:text-zinc-400 tracking-wider block mb-1">
                           {t('spaceName') || (locale === 'vi' ? 'Tên Space' : 'Space Name')} *
                         </label>
                         <input 
@@ -6340,7 +6363,7 @@ export default function App() {
                           value={newSpaceName} 
                           onChange={e => setNewSpaceName(e.target.value)} 
                           placeholder={locale === 'vi' ? 'Ví dụ: Kỹ thuật, Marketing, HR...' : 'e.g. Engineering, Marketing, HR'} 
-                          className="w-full px-3 py-1.5 text-xs font-bold rounded-xl border border-white/10 bg-white/[0.04] focus:bg-black/50 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-white outline-none transition-all placeholder:text-zinc-500"
+                          className="w-full px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.04] focus:bg-white dark:focus:bg-black/50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-white outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
                         />
                       </div>
                     </div>
@@ -6352,13 +6375,13 @@ export default function App() {
                         value={newSpaceDescription} 
                         onChange={e => setNewSpaceDescription(e.target.value)} 
                         placeholder={locale === 'vi' ? 'Mô tả ngắn về mục đích không gian này (không bắt buộc)...' : 'Brief description of this space (optional)...'} 
-                        className="w-full px-3 py-1.5 text-[11px] font-medium rounded-xl border border-white/[0.06] bg-white/[0.02] focus:bg-black/50 focus:border-sky-500 text-zinc-200 outline-none transition-all placeholder:text-zinc-600"
+                        className="w-full px-3 py-1.5 text-[11px] font-medium rounded-xl border border-slate-200/80 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] focus:bg-white dark:focus:bg-black/50 focus:border-blue-500 text-slate-800 dark:text-zinc-200 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-600"
                       />
                     </div>
 
                     {/* Color Swatches */}
-                    <div className="flex items-center justify-between pt-1 border-t border-white/[0.06]">
-                      <span className="text-[9.5px] font-bold text-zinc-400">
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-200/70 dark:border-white/[0.06]">
+                      <span className="text-[9.5px] font-bold text-slate-500 dark:text-zinc-400">
                         {locale === 'vi' ? 'Màu chủ đề' : 'Color theme'}
                       </span>
                       <div className="flex items-center gap-2">
@@ -6376,7 +6399,7 @@ export default function App() {
                             onClick={() => setNewSpaceColor(col.key)}
                             className={`w-5 h-5 rounded-full transition-all flex items-center justify-center cursor-pointer ${
                               newSpaceColor === col.key 
-                                ? 'ring-2 ring-white ring-offset-2 ring-offset-[#09090b] scale-110' 
+                                ? 'ring-2 ring-blue-500 dark:ring-white ring-offset-2 ring-offset-white dark:ring-offset-[#09090b] scale-110' 
                                 : 'opacity-60 hover:opacity-100 hover:scale-105'
                             }`}
                             style={{ backgroundColor: col.hex }}
@@ -6393,16 +6416,16 @@ export default function App() {
                   {/* ── Settings: Permissions & Privacy ── */}
                   <div className="space-y-1.5">
                     {/* Permission Row */}
-                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08]">
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/70 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08]">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-7 h-7 rounded-lg bg-sky-500/15 text-sky-400 flex items-center justify-center shrink-0">
+                        <div className="w-7 h-7 rounded-lg bg-sky-500/15 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
                           <Users className="w-3.5 h-3.5" />
                         </div>
                         <div className="text-left min-w-0">
-                          <span className="block text-[11.5px] font-bold text-zinc-100 leading-tight truncate">
+                          <span className="block text-[11.5px] font-bold text-slate-900 dark:text-zinc-100 leading-tight truncate">
                             {t('defaultPermission') || (locale === 'vi' ? 'Quyền thành viên' : 'Default Permission')}
                           </span>
-                          <span className="block text-[9.5px] font-medium text-zinc-400 mt-0.5 truncate">
+                          <span className="block text-[9.5px] font-medium text-slate-500 dark:text-zinc-400 mt-0.5 truncate">
                             {locale === 'vi' ? 'Quyền ban đầu cho thành viên' : 'Initial role for members'}
                           </span>
                         </div>
@@ -6412,7 +6435,7 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => setShowSpacePermissionMenu(!showSpacePermissionMenu)}
-                          className="flex items-center gap-1.5 bg-white/[0.06] border border-white/10 rounded-lg text-[11px] px-2.5 py-1 text-zinc-200 font-bold outline-none hover:bg-white/10 hover:border-white/20 cursor-pointer shadow-3xs transition-all"
+                          className="flex items-center gap-1.5 bg-white dark:bg-white/[0.06] border border-slate-200 dark:border-white/10 rounded-lg text-[11px] px-2.5 py-1 text-slate-700 dark:text-zinc-200 font-bold outline-none hover:bg-slate-100 dark:hover:bg-white/10 hover:border-slate-300 dark:hover:border-white/20 cursor-pointer shadow-xs transition-all"
                         >
                           <span>
                             {newSpacePermission === 'Full edit' ? (locale === 'vi' ? 'Toàn quyền sửa' : 'Full edit') :
@@ -6420,7 +6443,7 @@ export default function App() {
                              newSpacePermission === 'Read only' ? (locale === 'vi' ? 'Chỉ xem' : 'Read only') :
                              (locale === 'vi' ? 'Chỉ bình luận' : 'Comment only')}
                           </span>
-                          <ChevronDown className={`w-3 h-3 text-zinc-400 transition-transform duration-150 ${showSpacePermissionMenu ? 'rotate-180' : ''}`} />
+                          <ChevronDown className={`w-3 h-3 text-slate-400 dark:text-zinc-400 transition-transform duration-150 ${showSpacePermissionMenu ? 'rotate-180' : ''}`} />
                         </button>
 
                         <AnimatePresence>
@@ -6432,7 +6455,7 @@ export default function App() {
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: -4, scale: 0.96 }}
                                 transition={{ duration: 0.12 }}
-                                className="absolute right-0 top-full mt-1.5 w-48 p-1 bg-[#121217] border border-white/15 rounded-xl shadow-2xl backdrop-blur-xl z-50 space-y-0.5 text-left"
+                                className="absolute right-0 top-full mt-1.5 w-48 p-1 bg-white dark:bg-[#121217] border border-slate-200 dark:border-white/15 rounded-xl shadow-xl backdrop-blur-xl z-50 space-y-0.5 text-left"
                               >
                                 {[
                                   { value: 'Full edit', labelEn: 'Full edit', labelVi: 'Toàn quyền sửa', descEn: 'Full access', descVi: 'Toàn quyền quản lý' },
@@ -6451,19 +6474,19 @@ export default function App() {
                                       }}
                                       className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-all cursor-pointer ${
                                         isSelected 
-                                          ? 'bg-blue-600/20 text-sky-400 font-bold' 
-                                          : 'hover:bg-white/[0.06] text-zinc-300 font-medium'
+                                          ? 'bg-blue-50 text-blue-600 font-bold dark:bg-blue-600/20 dark:text-sky-400' 
+                                          : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] text-slate-700 dark:text-zinc-300 font-medium'
                                       }`}
                                     >
                                       <div>
                                         <div className="text-[11px] leading-tight">
                                           {locale === 'vi' ? opt.labelVi : opt.labelEn}
                                         </div>
-                                        <div className="text-[8.5px] text-zinc-400 mt-0.5">
+                                        <div className="text-[8.5px] text-slate-400 dark:text-zinc-400 mt-0.5">
                                           {locale === 'vi' ? opt.descVi : opt.descEn}
                                         </div>
                                       </div>
-                                      {isSelected && <Check className="w-3 h-3 text-sky-400 shrink-0 ml-2 stroke-[3]" />}
+                                      {isSelected && <Check className="w-3 h-3 text-blue-600 dark:text-sky-400 shrink-0 ml-2 stroke-[3]" />}
                                     </button>
                                   );
                                 })}
@@ -6475,16 +6498,16 @@ export default function App() {
                     </div>
 
                     {/* Private Toggle */}
-                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08]">
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/70 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08]">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${newSpaceIsPrivate ? 'bg-amber-500/15 text-amber-400' : 'bg-white/[0.06] text-zinc-400'}`}>
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${newSpaceIsPrivate ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-slate-200/70 dark:bg-white/[0.06] text-slate-500 dark:text-zinc-400'}`}>
                           <Lock className="w-3.5 h-3.5" />
                         </div>
                         <div className="text-left min-w-0">
-                          <span className="block text-[11.5px] font-bold text-zinc-100 leading-tight truncate">
+                          <span className="block text-[11.5px] font-bold text-slate-900 dark:text-zinc-100 leading-tight truncate">
                             {t('makePrivateSpace') || (locale === 'vi' ? 'Không gian riêng tư' : 'Private Space')}
                           </span>
-                          <span className="block text-[9.5px] font-medium text-zinc-400 mt-0.5 truncate">
+                          <span className="block text-[9.5px] font-medium text-slate-500 dark:text-zinc-400 mt-0.5 truncate">
                             {locale === 'vi' ? 'Chỉ bạn và người được mời xem được' : 'Only invited members can access'}
                           </span>
                         </div>
@@ -6494,7 +6517,7 @@ export default function App() {
                         type="button"
                         onClick={() => setNewSpaceIsPrivate(!newSpaceIsPrivate)}
                         className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-200 outline-none shrink-0 ${
-                          newSpaceIsPrivate ? 'bg-blue-600' : 'bg-zinc-800 border border-white/10'
+                          newSpaceIsPrivate ? 'bg-blue-600' : 'bg-slate-200 dark:bg-zinc-800 border border-slate-300 dark:border-white/10'
                         }`}
                         aria-pressed={newSpaceIsPrivate}
                         aria-label="Bật chế độ riêng tư"
@@ -6509,11 +6532,11 @@ export default function App() {
                   </div>
 
                   {/* ── Footer Actions ── */}
-                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200/80 dark:border-white/10">
                     <button 
                       type="button" 
                       onClick={() => setShowAddSpaceModal(false)}
-                      className="h-8.5 px-4 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white hover:bg-white/[0.06] transition-all cursor-pointer"
+                      className="h-8.5 px-4 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/[0.06] transition-all cursor-pointer"
                     >
                       {t('cancel') || (locale === 'vi' ? 'Hủy' : 'Cancel')}
                     </button>
@@ -6763,6 +6786,17 @@ export default function App() {
         addSyncLog={addSyncLog}
       />
 
+      {/* Workspace Invitation Acceptance Modal */}
+      {inviteTokenParam && (
+        <AcceptInviteModal
+          token={inviteTokenParam}
+          onClose={() => setInviteTokenParam(null)}
+          onAccept={handleAcceptWorkspaceInvite}
+          onDecline={handleDeclineWorkspaceInvite}
+          triggerToast={triggerToast}
+        />
+      )}
+
       {/* Modern UI/UX Prompt Modal */}
       {promptModalConfig && (
         <PromptModal {...promptModalConfig} />
@@ -6853,7 +6887,6 @@ export default function App() {
         />
       )}
 
-      </div>
     </div>
   );
 }

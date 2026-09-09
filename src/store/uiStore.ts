@@ -169,7 +169,7 @@ export const useUiStore = create<UiState>()(
       presencePreference: 'online',
       blurIntensity: 'default',
       isDarkMode: false,
-      themePreference: 'system',
+      themePreference: 'light',
       accentPreset: 'indigo',
       dateFormat: 'short',
       uiDensity: 'comfortable',

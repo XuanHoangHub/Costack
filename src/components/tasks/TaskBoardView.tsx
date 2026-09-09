@@ -23,7 +23,7 @@ import {
   useSortable, 
   verticalListSortingStrategy 
 } from '@dnd-kit/sortable';
-import { Plus, Calendar, MessageSquare, Check, Pin, Paperclip, ChevronDown, Play, Pause, Clock, GripVertical, User as UserIcon, Repeat2, Hourglass, Copy, Flag, MoreHorizontal, Trash2, Edit2, X } from 'lucide-react';
+import { Plus, Calendar, MessageSquare, Check, Pin, Paperclip, ChevronDown, Play, Pause, Clock, GripVertical, User as UserIcon, Hourglass, Copy, Flag, Repeat, MoreHorizontal, Trash2, Edit2, X } from 'lucide-react';
 import { Task, User, TaskStatus, Priority, Workspace } from '../../types';
 import SignedImage from '../SignedImage';
 import { useTranslation } from '../../contexts/TranslationContext';
@@ -88,6 +88,9 @@ function KanbanCard({
   isDraggingRef,
   onAddTask
 }: any) {
+  const { locale } = useTranslation();
+  const isVietnamese = locale === 'vi';
+
   const {
     attributes,
     listeners,
@@ -211,7 +214,31 @@ function KanbanCard({
                 </div>
                 
                 {/* Badges */}
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {task.isPinned && (
+                    <span 
+                      title={isVietnamese ? 'Đã ghim' : 'Pinned'} 
+                      className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 text-amber-600 dark:text-amber-400"
+                    >
+                      <Pin className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                    </span>
+                  )}
+                  {task.isMilestone && (
+                    <span 
+                      title={isVietnamese ? 'Cột mốc quan trọng' : 'Project Milestone'} 
+                      className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200/80 text-purple-600 dark:text-purple-400"
+                    >
+                      <Flag className="w-2.5 h-2.5 fill-purple-500 text-purple-500" />
+                    </span>
+                  )}
+                  {task.recurrence && task.recurrence.frequency !== 'none' && (
+                    <span 
+                      title={isVietnamese ? 'Lặp lại định kỳ' : 'Recurring'} 
+                      className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/80 text-indigo-600 dark:text-indigo-400"
+                    >
+                      <Repeat className="w-2.5 h-2.5 text-indigo-500" />
+                    </span>
+                  )}
                   {workspaces.find((w: any) => w.id === (task.workspaceId || 'w2')) && (() => {
                     const ws = workspaces.find((w: any) => w.id === (task.workspaceId || 'w2'));
                     return (
@@ -227,11 +254,11 @@ function KanbanCard({
                     'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'
                   }`}>
                     <Flag className={`w-2.5 h-2.5 shrink-0 ${
-                      task.priority === 'urgent' ? 'fill-rose-500 text-rose-500' :
-                      task.priority === 'high' ? 'fill-orange-500 text-orange-500' :
-                      task.priority === 'medium' ? 'fill-blue-500 text-blue-500' :
-                      'fill-slate-400 text-slate-400'
-                    }`} />
+                    task.priority === 'urgent' ? 'fill-rose-500 text-rose-500' :
+                    task.priority === 'high' ? 'fill-orange-500 text-orange-500' :
+                    task.priority === 'medium' ? 'fill-blue-500 text-blue-500' :
+                    'fill-slate-400 text-slate-400'
+                  }`} />
                     {dynamicPriorityMeta[task.priority]?.label || task.priority}
                   </span>
                 </div>
@@ -367,9 +394,6 @@ function KanbanCard({
                       <Paperclip className="w-3 h-3 text-slate-400" />
                       {task.attachments.length}
                     </span>
-                  )}
-                  {task.recurrence?.frequency && task.recurrence.frequency !== 'none' && (
-                    <span title={`Lặp lại ${task.recurrence.frequency}`} className="flex items-center gap-0.5 text-indigo-500"><Repeat2 className="h-3 w-3" /></span>
                   )}
                   {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
                     <span title="Đang chờ công việc khác" className="flex items-center gap-0.5 text-amber-500"><Hourglass className="h-3 w-3" /></span>

@@ -4342,7 +4342,7 @@ export default function SpacePage({
             ...taskData,
             spaceId: taskData.spaceId || activeSpaceId || undefined,
             listId: taskData.listId || activeListId || undefined,
-            isPinned: false
+            isPinned: taskData.isPinned ?? false,
           });
           (window as any).playSystemSound?.('success');
           if (!createAnother) {
@@ -4355,6 +4355,8 @@ export default function SpacePage({
         members={members}
         customFields={customFields}
         activeWorkspaceId={activeWorkspaceId}
+        allTasks={tasks}
+        triggerToast={triggerToast}
       />
 
       {/* AI Urgency Suggestion Modal */}

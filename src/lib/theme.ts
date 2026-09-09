@@ -4,7 +4,7 @@ export const THEME_STORAGE_KEY = 'apexa_theme_mode';
 export const LEGACY_THEME_STORAGE_KEY = 'apexa_dark_mode';
 
 export function getStoredThemePreference(): ThemePreference {
-  if (typeof window === 'undefined') return 'system';
+  if (typeof window === 'undefined') return 'light';
 
   try {
     const saved = localStorage.getItem(THEME_STORAGE_KEY);
@@ -18,7 +18,7 @@ export function getStoredThemePreference(): ThemePreference {
     // Storage can be unavailable in privacy-restricted browser contexts.
   }
 
-  return 'system';
+  return 'light';
 }
 
 export function resolveTheme(preference: ThemePreference): boolean {

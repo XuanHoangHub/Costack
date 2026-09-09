@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   Activity, AlertCircle, ArrowDownRight, ArrowUpRight, BarChart2, BarChart3, Bot,
-  Building2, Camera, Check, CheckCircle2, CircleDollarSign, Clock3, CreditCard, Download,
+  Building2, Camera, Check, CheckCircle2, CircleDollarSign, Clock3, Copy, CreditCard, Download,
   FileText, Landmark, Layers, LayoutDashboard, LoaderCircle, Pencil, PieChart as PieChartIcon, Plus,
   Receipt, ReceiptText, RefreshCw, RotateCcw, ScanLine, Search, Send, Settings2, ShieldCheck,
   SlidersHorizontal, Sparkles, Tag, Target, Trash2, TrendingDown, TrendingUp, User, Users,
@@ -20,6 +20,11 @@ import { Card } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
 import { CategoryManagerModal, type FinanceCategory } from "@/components/finance/CategoryManagerModal";
 import { ReceiptScannerModal } from "@/components/finance/ReceiptScannerModal";
+import { AccountBankIcon } from "@/components/finance/AccountBankIcon";
+import { AccountManagerModal, type AccountFormData } from "@/components/finance/AccountManagerModal";
+import { DebtDetailModal } from "@/components/finance/DebtDetailModal";
+import { DebtFormModal, type DebtFormData } from "@/components/finance/DebtFormModal";
+import { DebtPaymentModal, type PaymentSubmitPayload } from "@/components/finance/DebtPaymentModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { callAiApi } from "@/lib/aiClient";
@@ -42,6 +47,7 @@ export interface FinanceProfile {
   currency: Currency;
   enabledTabs: FinanceTab[];
 }
+
 
 export const DEFAULT_TABS_BY_ENTITY: Record<EntityType, FinanceTab[]> = {
   individual: ["overview", "cashbook", "reports", "ai-agent"],
@@ -119,7 +125,7 @@ export const MODULE_METADATA: Array<{
   },
 ];
 
-interface BankAccount { id: string; bank: string; branch: string; number: string; balance: number; type: string }
+interface BankAccount { id: string; bank: string; branch: string; number: string; balance: number; type: string; color?: string }
 interface Transaction {
   id: string; code: string; type: "income" | "expense"; category: string;
   amount: number; date: string; accountId: string; account: string;
@@ -135,6 +141,7 @@ interface Invoice {
 interface DebtRecord {
   id: string; partnerName: string; type: "receivable" | "payable";
   totalAmount: number; paidAmount: number; remainingAmount: number; dueDate: string;
+  phone?: string; email?: string;
   status: "normal" | "due_soon" | "overdue";
 }
 interface PaymentRecord {
@@ -233,6 +240,20 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
   const [overviewPeriod, setOverviewPeriod] = useState<"6m" | "12m" | "all">("6m");
   const [reportsChartTab, setReportsChartTab] = useState<"pl" | "expense" | "income" | "budget" | "debt">("pl");
 
+  // Quản lý tài khoản & lọc
+  const [accountToEdit, setAccountToEdit] = useState<BankAccount | null>(null);
+  const [accountToDelete, setAccountToDelete] = useState<BankAccount | null>(null);
+  const [selectedAccountFilter, setSelectedAccountFilter] = useState<string | "all">("all");
+
+  // Quản lý công nợ & lọc
+  const [selectedDebtDetail, setSelectedDebtDetail] = useState<DebtRecord | null>(null);
+  const [debtToEdit, setDebtToEdit] = useState<DebtRecord | null>(null);
+  const [debtToDelete, setDebtToDelete] = useState<DebtRecord | null>(null);
+  const [debtSearch, setDebtSearch] = useState("");
+  const [debtTypeFilter, setDebtTypeFilter] = useState<"all" | "receivable" | "payable">("all");
+  const [debtStatusFilter, setDebtStatusFilter] = useState<"all" | "unpaid" | "partial" | "paid" | "overdue" | "due_soon">("all");
+  const [debtSortBy, setDebtSortBy] = useState<"due_asc" | "due_desc" | "amount_desc" | "amount_asc" | "name_asc">("due_asc");
+
   const [profileForm, setProfileForm] = useState(DEFAULT_PROFILE);
   const [accountForm, setAccountForm] = useState({ bank: "", number: "", branch: "", type: "Tài khoản thanh toán", balance: "" });
   const [txForm, setTxForm] = useState({ accountId: "", date: today(), category: "", amount: "", partner: "", note: "" });
@@ -253,10 +274,10 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
       setUserId(authData.user.id);
       const [pr, ar, tr, ir, dr, br, pyr, cr] = await Promise.all([
         supabase.from("finance_profiles").select("entity_type,display_name,currency,enabled_tabs").eq("workspace_id", workspaceId).maybeSingle(),
-        supabase.from("finance_accounts").select("id,bank,branch,account_number,balance,account_type").eq("workspace_id", workspaceId).order("created_at"),
+        supabase.from("finance_accounts").select("id,bank,branch,account_number,balance,account_type,color").eq("workspace_id", workspaceId).order("created_at"),
         supabase.from("finance_transactions").select("id,code,transaction_type,category,amount,transaction_date,account_id,account_label,partner,note,status").eq("workspace_id", workspaceId).order("transaction_date", { ascending: false }).order("created_at", { ascending: false }),
         supabase.from("finance_invoices").select("id,code,invoice_type,partner_name,tax_code,subtotal,vat_rate,vat_amount,total,paid_amount,issue_date,due_date,status,signed").eq("workspace_id", workspaceId).order("issue_date", { ascending: false }),
-        supabase.from("finance_debts").select("id,partner_name,debt_type,total_amount,paid_amount,due_date,status").eq("workspace_id", workspaceId).order("due_date"),
+        supabase.from("finance_debts").select("id,partner_name,debt_type,total_amount,paid_amount,due_date,status,contact_phone,contact_email").eq("workspace_id", workspaceId).order("due_date"),
         supabase.from("finance_budgets").select("id,department,category,allocated_amount,spent_amount,period_label,manager,status").eq("workspace_id", workspaceId).order("created_at", { ascending: false }),
         supabase.from("finance_payments").select("id,debt_id,invoice_id,amount,payment_date,payment_method,reference_code,note,created_at").eq("workspace_id", workspaceId).order("payment_date", { ascending: false }).order("created_at", { ascending: false }),
         supabase.from("finance_categories").select("id,workspace_id,name,type,color,icon,description,sort_order").eq("workspace_id", workspaceId).order("sort_order").order("created_at"),
@@ -278,7 +299,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
         enabledTabs: loadedTabs.length > 0 ? loadedTabs : DEFAULT_TABS_BY_ENTITY[entityType],
       } : DEFAULT_PROFILE;
       setProfile(nextProfile); setProfileForm(nextProfile);
-      setAccounts((ar.data || []).map(r => ({ id: r.id, bank: r.bank, branch: r.branch, number: r.account_number, balance: numberValue(r.balance), type: r.account_type })));
+      setAccounts((ar.data || []).map(r => ({ id: r.id, bank: r.bank, branch: r.branch, number: r.account_number, balance: numberValue(r.balance), type: r.account_type, color: r.color || "#005432" })));
       setTransactions((tr.data || []).map(r => ({ id: r.id, code: r.code, type: r.transaction_type as Transaction["type"], category: r.category, amount: numberValue(r.amount), date: r.transaction_date, accountId: r.account_id, account: r.account_label, partner: r.partner, note: r.note, status: r.status as Transaction["status"] })));
       setInvoices((ir.data || []).map(r => {
         const total = numberValue(r.total);
@@ -301,7 +322,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
           signed: r.signed,
         };
       }));
-      setDebts((dr.data || []).map(r => ({ id: r.id, partnerName: r.partner_name, type: r.debt_type as DebtRecord["type"], totalAmount: numberValue(r.total_amount), paidAmount: numberValue(r.paid_amount), remainingAmount: numberValue(r.total_amount) - numberValue(r.paid_amount), dueDate: r.due_date, status: dueStatus(r.due_date) })));
+      setDebts((dr.data || []).map(r => ({ id: r.id, partnerName: r.partner_name, type: r.debt_type as DebtRecord["type"], totalAmount: numberValue(r.total_amount), paidAmount: numberValue(r.paid_amount), remainingAmount: numberValue(r.total_amount) - numberValue(r.paid_amount), dueDate: r.due_date, status: dueStatus(r.due_date), phone: r.contact_phone || "", email: r.contact_email || "" })));
       setBudgets((br.data || []).map(r => ({ id: r.id, department: r.department, category: r.category, allocatedAmount: numberValue(r.allocated_amount), spentAmount: numberValue(r.spent_amount), period: r.period_label, manager: r.manager, status: r.status as BudgetCategory["status"] })));
       setPayments((pyr.data || []).map(r => ({ id: r.id, debtId: r.debt_id, invoiceId: r.invoice_id, amount: numberValue(r.amount), date: r.payment_date, method: r.payment_method as PaymentRecord["method"], reference: r.reference_code || "", note: r.note || "", createdAt: r.created_at })));
       setCategories((cr.data || []).map(r => ({ id: r.id, workspaceId: r.workspace_id, name: r.name, type: r.type as FinanceCategory["type"], color: r.color || "#6366f1", icon: r.icon || "Tag", description: r.description || "", sortOrder: r.sort_order || 0 })));
@@ -414,7 +435,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
       value: Math.max(0, acc.balance),
       balance: acc.balance,
       percent: ((Math.max(0, acc.balance) / total) * 100).toFixed(1),
-      color: CHART_COLORS[idx % CHART_COLORS.length],
+      color: acc.color || CHART_COLORS[idx % CHART_COLORS.length],
     }));
   }, [accounts, metrics.cash]);
 
@@ -459,13 +480,91 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
     const now = new Date();
     const threshold = transactionPeriod === "30d" ? new Date(now.getTime() - 30 * 86_400_000) : transactionPeriod === "90d" ? new Date(now.getTime() - 90 * 86_400_000) : null;
     return transactions.filter(transaction => {
+      if (selectedAccountFilter !== "all" && transaction.accountId !== selectedAccountFilter) return false;
       if (transactionFilter !== "all" && transaction.type !== transactionFilter) return false;
       const transactionDate = new Date(`${transaction.date}T00:00:00`);
       if (threshold && transactionDate < threshold) return false;
       if (transactionPeriod === "year" && transactionDate.getFullYear() !== now.getFullYear()) return false;
       return !q || [transaction.code, transaction.category, transaction.partner, transaction.account, transaction.note].some(value => value.toLocaleLowerCase("vi").includes(q));
     });
-  }, [search, transactionFilter, transactionPeriod, transactions]);
+  }, [search, selectedAccountFilter, transactionFilter, transactionPeriod, transactions]);
+
+  // Bộ lọc & phân loại công nợ
+  const filteredDebts = useMemo(() => {
+    let result = [...debts];
+
+    if (debtTypeFilter !== "all") {
+      result = result.filter(d => d.type === debtTypeFilter);
+    }
+
+    if (debtStatusFilter === "unpaid") {
+      result = result.filter(d => d.paidAmount === 0);
+    } else if (debtStatusFilter === "partial") {
+      result = result.filter(d => d.paidAmount > 0 && d.remainingAmount > 0);
+    } else if (debtStatusFilter === "paid") {
+      result = result.filter(d => d.remainingAmount <= 0);
+    } else if (debtStatusFilter === "overdue") {
+      result = result.filter(d => d.status === "overdue" && d.remainingAmount > 0);
+    } else if (debtStatusFilter === "due_soon") {
+      result = result.filter(d => d.status === "due_soon" && d.remainingAmount > 0);
+    }
+
+    if (debtSearch.trim()) {
+      const q = debtSearch.trim().toLowerCase();
+      result = result.filter(d =>
+        d.partnerName.toLowerCase().includes(q) ||
+        (d.phone && d.phone.toLowerCase().includes(q)) ||
+        (d.email && d.email.toLowerCase().includes(q))
+      );
+    }
+
+    result.sort((a, b) => {
+      if (debtSortBy === "due_asc") return a.dueDate.localeCompare(b.dueDate);
+      if (debtSortBy === "due_desc") return b.dueDate.localeCompare(a.dueDate);
+      if (debtSortBy === "amount_desc") return b.totalAmount - a.totalAmount;
+      if (debtSortBy === "amount_asc") return a.totalAmount - b.totalAmount;
+      if (debtSortBy === "name_asc") return a.partnerName.localeCompare(b.partnerName);
+      return 0;
+    });
+
+    return result;
+  }, [debts, debtTypeFilter, debtStatusFilter, debtSearch, debtSortBy]);
+
+  // Các chỉ số tổng hợp công nợ
+  const debtMetrics = useMemo(() => {
+    const receivables = debts.filter(d => d.type === "receivable");
+    const payables = debts.filter(d => d.type === "payable");
+    const overdueDebts = debts.filter(d => d.status === "overdue" && d.remainingAmount > 0);
+    const dueSoonDebts = debts.filter(d => d.status === "due_soon" && d.remainingAmount > 0);
+    const settledDebts = debts.filter(d => d.remainingAmount <= 0);
+
+    const totalReceivable = receivables.reduce((s, d) => s + d.totalAmount, 0);
+    const remainingReceivable = receivables.reduce((s, d) => s + d.remainingAmount, 0);
+    const totalPayable = payables.reduce((s, d) => s + d.totalAmount, 0);
+    const remainingPayable = payables.reduce((s, d) => s + d.remainingAmount, 0);
+    const totalOverdue = overdueDebts.reduce((s, d) => s + d.remainingAmount, 0);
+    const totalDueSoon = dueSoonDebts.reduce((s, d) => s + d.remainingAmount, 0);
+
+    const recoveryRate = totalReceivable > 0
+      ? Math.round(((totalReceivable - remainingReceivable) / totalReceivable) * 100)
+      : 100;
+
+    return {
+      receivablesCount: receivables.length,
+      payablesCount: payables.length,
+      totalReceivable,
+      remainingReceivable,
+      totalPayable,
+      remainingPayable,
+      overdueCount: overdueDebts.length,
+      totalOverdue,
+      dueSoonCount: dueSoonDebts.length,
+      totalDueSoon,
+      settledCount: settledDebts.length,
+      recoveryRate,
+    };
+  }, [debts]);
+
 
   const forecast = useMemo(() => {
     const horizon = new Date(); horizon.setDate(horizon.getDate() + 30); horizon.setHours(23, 59, 59, 999);
@@ -508,11 +607,75 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
       return { error: queryError };
     }, "Đã cập nhật hồ sơ & module", "Cấu hình tính năng đã được đồng bộ theo workspace.");
   };
-  const saveAccount = async (e: React.FormEvent) => {
-    e.preventDefault(); if (!userId || !accountForm.bank.trim() || !accountForm.number.trim() || !Number.isFinite(Number(accountForm.balance))) return;
-    const saved = await mutate(async () => { const { error: queryError } = await supabase.from("finance_accounts").insert({ workspace_id: workspaceId, bank: accountForm.bank.trim(), account_number: accountForm.number.trim(), branch: accountForm.branch.trim(), account_type: accountForm.type.trim(), balance: Number(accountForm.balance), created_by: userId }); return { error: queryError }; }, "Đã thêm tài khoản", "Số dư mở sổ đã được ghi nhận.");
-    if (saved) setAccountForm({ bank: "", number: "", branch: "", type: "Tài khoản thanh toán", balance: "" });
+  const handleSaveAccount = async (data: AccountFormData) => {
+    if (!userId || !data.bank.trim() || !data.number.trim() || !Number.isFinite(Number(data.balance))) return;
+    const isEdit = Boolean(data.id);
+    const balanceNum = Number(data.balance);
+
+    const saved = await mutate(async () => {
+      if (isEdit && data.id) {
+        const { error: queryError } = await supabase
+          .from("finance_accounts")
+          .update({
+            bank: data.bank.trim(),
+            account_number: data.number.trim(),
+            branch: data.branch.trim(),
+            account_type: data.type.trim(),
+            balance: balanceNum,
+            color: data.color || "#005432",
+          })
+          .eq("workspace_id", workspaceId)
+          .eq("id", data.id);
+        return { error: queryError };
+      } else {
+        const { error: queryError } = await supabase
+          .from("finance_accounts")
+          .insert({
+            workspace_id: workspaceId,
+            bank: data.bank.trim(),
+            account_number: data.number.trim(),
+            branch: data.branch.trim(),
+            account_type: data.type.trim(),
+            balance: balanceNum,
+            color: data.color || "#005432",
+            created_by: userId,
+          });
+        return { error: queryError };
+      }
+    }, isEdit ? "Đã cập nhật tài khoản" : "Đã thêm tài khoản mới", `${data.bank} - ${data.number} đã được lưu thành công.`);
+
+    if (saved) {
+      setAccountToEdit(null);
+    }
   };
+
+  const handleDeleteAccount = async () => {
+    const acc = accountToDelete;
+    if (!acc) return;
+    setAccountToDelete(null);
+    await mutate(async () => {
+      const { error: queryError } = await supabase
+        .from("finance_accounts")
+        .delete()
+        .eq("workspace_id", workspaceId)
+        .eq("id", acc.id);
+      return { error: queryError };
+    }, "Đã xóa tài khoản", `Tài khoản ${acc.bank} (${acc.number}) đã được xóa khỏi hệ thống.`);
+  };
+
+  const saveAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handleSaveAccount({
+      bank: accountForm.bank,
+      number: accountForm.number,
+      branch: accountForm.branch,
+      type: accountForm.type,
+      balance: accountForm.balance,
+      color: "#005432",
+    });
+    setAccountForm({ bank: "", number: "", branch: "", type: "Tài khoản thanh toán", balance: "" });
+  };
+
   const saveTransaction = async (e: React.FormEvent) => {
     e.preventDefault(); const amount = Number(txForm.amount);
     if (!txForm.accountId || !txForm.category.trim() || !Number.isFinite(amount) || amount <= 0) { toast("error", "Thiếu thông tin", "Chọn tài khoản, hạng mục và nhập số tiền hợp lệ."); return; }
@@ -606,13 +769,93 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
     const saved = await mutate(async () => { const { error: queryError } = await supabase.from("finance_invoices").insert({ workspace_id: workspaceId, code, invoice_type: invoiceForm.type, partner_name: invoiceForm.partnerName.trim(), tax_code: invoiceForm.taxCode.trim(), subtotal, vat_rate: vatRate, vat_amount: vat, total: subtotal + vat, issue_date: invoiceForm.date, due_date: invoiceForm.dueDate || null, status: "pending_verification", signed: false, created_by: userId }); return { error: queryError }; }, "Đã tạo hóa đơn", `${code} đang chờ kiểm tra và ký số.`);
     if (saved) setInvoiceForm({ type: "out", partnerName: "", taxCode: "", subtotal: "", vatRate: "10", date: today(), dueDate: "" });
   };
-  const saveDebt = async (e: React.FormEvent) => {
-    e.preventDefault(); if (!userId) return; const total = Number(debtForm.totalAmount); const paid = Number(debtForm.paidAmount || 0);
-    if (!debtForm.partnerName.trim() || total < 0 || paid < 0 || paid > total) return;
-    const daysLate = Math.max(0, Math.floor((new Date(`${today()}T00:00:00`).getTime() - new Date(`${debtForm.dueDate}T00:00:00`).getTime()) / 86_400_000));
+  const handleSaveDebt = async (data: DebtFormData) => {
+    if (!userId || !data.partnerName.trim()) return;
+    const total = Number(data.totalAmount);
+    const paid = Number(data.paidAmount || 0);
+    if (!Number.isFinite(total) || total < 0 || paid < 0 || paid > total) return;
+    const isEdit = Boolean(data.id);
+
+    const daysLate = Math.max(0, Math.floor((new Date(`${today()}T00:00:00`).getTime() - new Date(`${data.dueDate}T00:00:00`).getTime()) / 86_400_000));
     const aging = daysLate === 0 ? "current" : daysLate <= 30 ? "1-30" : daysLate <= 60 ? "31-60" : "over-60";
-    const saved = await mutate(async () => { const { error: queryError } = await supabase.from("finance_debts").insert({ workspace_id: workspaceId, partner_name: debtForm.partnerName.trim(), debt_type: debtForm.type, total_amount: total, paid_amount: paid, due_date: debtForm.dueDate, aging_bucket: aging, contact_phone: debtForm.phone.trim(), contact_email: debtForm.email.trim(), status: dueStatus(debtForm.dueDate), created_by: userId }); return { error: queryError }; }, "Đã ghi nhận công nợ", "Khoản phải thu/phải trả đã được đồng bộ.");
-    if (saved) setDebtForm({ type: "receivable", partnerName: "", totalAmount: "", paidAmount: "", dueDate: today(), phone: "", email: "" });
+
+    const payload = {
+      partner_name: data.partnerName.trim(),
+      debt_type: data.type,
+      total_amount: total,
+      paid_amount: paid,
+      due_date: data.dueDate,
+      aging_bucket: aging,
+      contact_phone: data.phone.trim(),
+      contact_email: data.email.trim(),
+      status: dueStatus(data.dueDate),
+    };
+
+    const saved = await mutate(async () => {
+      if (isEdit && data.id) {
+        const { error: queryError } = await supabase
+          .from("finance_debts")
+          .update(payload)
+          .eq("workspace_id", workspaceId)
+          .eq("id", data.id);
+        return { error: queryError };
+      } else {
+        const { error: queryError } = await supabase
+          .from("finance_debts")
+          .insert({
+            ...payload,
+            workspace_id: workspaceId,
+            created_by: userId,
+          });
+        return { error: queryError };
+      }
+    }, isEdit ? "Đã cập nhật công nợ" : "Đã ghi nhận công nợ mới", `${data.partnerName}: ${formatMoney(total)}.`);
+
+    if (saved) {
+      setDebtToEdit(null);
+      if (selectedDebtDetail && selectedDebtDetail.id === data.id) {
+        setSelectedDebtDetail(prev => prev ? {
+          ...prev,
+          partnerName: data.partnerName.trim(),
+          type: data.type,
+          totalAmount: total,
+          paidAmount: paid,
+          remainingAmount: total - paid,
+          dueDate: data.dueDate,
+          phone: data.phone.trim(),
+          email: data.email.trim(),
+        } : null);
+      }
+    }
+  };
+
+  const handleDeleteDebt = async () => {
+    const debt = debtToDelete;
+    if (!debt) return;
+    setDebtToDelete(null);
+    setSelectedDebtDetail(null);
+    await mutate(async () => {
+      const { error: queryError } = await supabase
+        .from("finance_debts")
+        .delete()
+        .eq("workspace_id", workspaceId)
+        .eq("id", debt.id);
+      return { error: queryError };
+    }, "Đã xóa khoản công nợ", `Khoản nợ của ${debt.partnerName} đã được xóa.`);
+  };
+
+  const saveDebt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handleSaveDebt({
+      type: debtForm.type,
+      partnerName: debtForm.partnerName,
+      totalAmount: debtForm.totalAmount,
+      paidAmount: debtForm.paidAmount,
+      dueDate: debtForm.dueDate,
+      phone: debtForm.phone,
+      email: debtForm.email,
+    });
+    setDebtForm({ type: "receivable", partnerName: "", totalAmount: "", paidAmount: "", dueDate: today(), phone: "", email: "" });
   };
   const saveBudget = async (e: React.FormEvent) => {
     e.preventDefault(); if (!userId) return; const allocated = Number(budgetForm.allocatedAmount); const spent = Number(budgetForm.spentAmount || 0);
@@ -625,7 +868,6 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
   const openPayment = (target: PaymentTarget) => {
     setPaymentTarget(target);
     setPaymentForm({ amount: "", date: today(), method: "bank_transfer", reference: "", note: "" });
-    setModal("payment");
   };
 
   const verifyInvoice = async (invoice: Invoice) => {
@@ -635,10 +877,9 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
     }, "Đã xác thực hóa đơn", `${invoice.code} đã sẵn sàng ghi nhận thanh toán.`);
   };
 
-  const savePayment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePaymentSubmit = async (payload: PaymentSubmitPayload) => {
     if (!paymentTarget) return;
-    const amount = Number(paymentForm.amount);
+    const amount = payload.amount;
     const remaining = paymentTarget.record.remainingAmount;
     if (!Number.isFinite(amount) || amount <= 0 || amount > remaining) {
       toast("error", "Số tiền không hợp lệ", `Nhập số tiền lớn hơn 0 và không vượt quá ${formatMoney(remaining)}.`);
@@ -646,23 +887,89 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
     }
     const settled = Math.abs(amount - remaining) < 0.01;
     const label = paymentTarget.kind === "invoice" ? paymentTarget.record.code : paymentTarget.record.partnerName;
+
     const saved = await mutate(async () => {
-      const { error: queryError } = await supabase.rpc("record_finance_payment", {
+      // 1. Ghi nhận thanh toán đối soát
+      const { error: paymentError } = await supabase.rpc("record_finance_payment", {
         p_workspace_id: workspaceId,
         p_debt_id: paymentTarget.kind === "debt" ? paymentTarget.record.id : null,
         p_invoice_id: paymentTarget.kind === "invoice" ? paymentTarget.record.id : null,
         p_amount: amount,
-        p_payment_date: paymentForm.date,
-        p_payment_method: paymentForm.method,
-        p_reference_code: paymentForm.reference.trim(),
-        p_note: paymentForm.note.trim(),
+        p_payment_date: payload.date,
+        p_payment_method: payload.method,
+        p_reference_code: payload.reference,
+        p_note: payload.note,
       });
-      return { error: queryError };
+      if (paymentError) return { error: paymentError };
+
+      // 2. Tự động đồng bộ Sổ thu chi nếu bật
+      if (payload.syncCashbook && payload.accountId) {
+        let txType: "income" | "expense" = "income";
+        let category = "Thu hồi công nợ";
+        let notePrefix = "Thu hồi công nợ";
+
+        if (paymentTarget.kind === "debt") {
+          const debtRec = paymentTarget.record as DebtRecord;
+          if (debtRec.type === "receivable") {
+            txType = "income";
+            category = "Thu hồi công nợ";
+            notePrefix = `Thu nợ: ${debtRec.partnerName}`;
+          } else {
+            txType = "expense";
+            category = "Thanh toán công nợ";
+            notePrefix = `Trả nợ: ${debtRec.partnerName}`;
+          }
+        } else {
+          const invRec = paymentTarget.record as Invoice;
+          if (invRec.type === "out") {
+            txType = "income";
+            category = "Doanh thu bán hàng";
+            notePrefix = `Thu tiền HĐ ${invRec.code} - ${invRec.partnerName}`;
+          } else {
+            txType = "expense";
+            category = "Chi phí mua hàng";
+            notePrefix = `Thanh toán HĐ ${invRec.code} - ${invRec.partnerName}`;
+          }
+        }
+
+        const txCode = `${txType === "income" ? "PT" : "PC"}-${Date.now().toString().slice(-9)}`;
+        await supabase.rpc("record_finance_transaction", {
+          p_workspace_id: workspaceId,
+          p_account_id: payload.accountId,
+          p_code: txCode,
+          p_transaction_type: txType,
+          p_category: category,
+          p_amount: amount,
+          p_transaction_date: payload.date,
+          p_partner: paymentTarget.kind === "debt" ? (paymentTarget.record as DebtRecord).partnerName : (paymentTarget.record as Invoice).partnerName,
+          p_receiver_or_payer: paymentTarget.kind === "debt" ? (paymentTarget.record as DebtRecord).partnerName : (paymentTarget.record as Invoice).partnerName,
+          p_address: "",
+          p_debit_account: txType === "income" ? "1121 - Tiền gửi ngân hàng" : "642 - Chi phí",
+          p_credit_account: txType === "income" ? "511 - Doanh thu" : "1121 - Tiền gửi ngân hàng",
+          p_note: payload.note ? `${notePrefix} (${payload.note})` : notePrefix,
+        });
+      }
+
+      return { error: null };
     }, settled ? "Đã hoàn tất thanh toán" : "Đã ghi nhận thanh toán một phần", `${label}: ${formatMoney(amount)}.`);
+
     if (saved) {
       setPaymentTarget(null);
-      setPaymentForm({ amount: "", date: today(), method: "bank_transfer", reference: "", note: "" });
+      setSelectedDebtDetail(null);
     }
+  };
+
+  const savePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!paymentTarget) return;
+    await handlePaymentSubmit({
+      amount: Number(paymentForm.amount),
+      date: paymentForm.date,
+      method: paymentForm.method,
+      reference: paymentForm.reference,
+      note: paymentForm.note,
+      syncCashbook: false,
+    });
   };
 
   const exportCsv = () => {
@@ -673,7 +980,21 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
       rows = [["Mã", "Loại", "Ngày", "Hạn thanh toán", "Đối tác", "MST", `Trước thuế (${profile.currency})`, "VAT (%)", `Tổng (${profile.currency})`, `Đã thanh toán (${profile.currency})`, `Còn lại (${profile.currency})`, "Trạng thái"], ...invoices.map(invoice => [invoice.code, invoice.type, invoice.date, invoice.dueDate || "", invoice.partnerName, invoice.taxCode, invoice.subtotal, invoice.vatRate, invoice.total, invoice.paidAmount, invoice.remainingAmount, invoice.status])];
     } else if (activeTab === "debts") {
       section = "debts";
-      rows = [["Loại", "Đối tác", "Hạn", `Tổng (${profile.currency})`, `Đã thanh toán (${profile.currency})`, `Còn lại (${profile.currency})`, "Trạng thái"], ...debts.map(debt => [debt.type, debt.partnerName, debt.dueDate, debt.totalAmount, debt.paidAmount, debt.remainingAmount, debt.status])];
+      rows = [
+        ["Loại công nợ", "Đối tác", "Số điện thoại", "Email", "Hạn thanh toán", `Tổng công nợ (${profile.currency})`, `Đã thanh toán (${profile.currency})`, `Còn lại (${profile.currency})`, "Trạng thái", "Tuổi nợ"],
+        ...debts.map(debt => [
+          debt.type === "receivable" ? "Phải thu" : "Phải trả",
+          debt.partnerName,
+          debt.phone || "",
+          debt.email || "",
+          debt.dueDate,
+          debt.totalAmount,
+          debt.paidAmount,
+          debt.remainingAmount,
+          debt.remainingAmount <= 0 ? "Đã tất toán" : debt.status === "overdue" ? "Quá hạn" : debt.status === "due_soon" ? "Sắp đến hạn" : "Bình thường",
+          debt.remainingAmount <= 0 ? "Tất toán" : debt.status === "overdue" ? "Quá hạn" : "Trong hạn"
+        ])
+      ];
     } else if (activeTab === "budgets") {
       section = "budgets";
       rows = [["Bộ phận", "Hạng mục", "Kỳ", `Hạn mức (${profile.currency})`, `Đã dùng (${profile.currency})`, "Quản lý", "Trạng thái"], ...budgets.map(budget => [budget.department, budget.category, budget.period, budget.allocatedAmount, budget.spentAmount, budget.manager, budget.status])];
@@ -681,16 +1002,28 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
       rows = [["Mã", "Loại", "Ngày", "Hạng mục", `Số tiền (${profile.currency})`, "Tài khoản", "Đối tác", "Trạng thái"], ...filteredTransactions.map(transaction => [transaction.code, transaction.type, transaction.date, transaction.category, transaction.amount, transaction.account, transaction.partner, transaction.status])];
     }
     const csv = `\uFEFF${rows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n")}`;
-    const link = document.createElement("a"); const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    link.href = url; link.download = `apexa-finance-${section}-${workspaceId}-${today()}.csv`; link.click(); URL.revokeObjectURL(url);
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `apexa-finance-${section}-${today()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const sendAi = async () => {
     const question = aiInput.trim(); if (!question || aiLoading) return;
     setAiMessages(m => [...m, { sender: "user", text: question }]); setAiInput(""); setAiLoading(true);
     try {
-      const prompt = `Chỉ phân tích số liệu thật dưới đây, không giả định dữ liệu thiếu. Đơn vị ${profile.currency}. Tiền: ${metrics.cash}; Thu: ${metrics.income}; Chi: ${metrics.expense}; Ròng: ${metrics.net}; Phải thu: ${metrics.receivable}; Phải trả: ${metrics.payable}; Quá hạn: ${metrics.overdue}; Ngân sách: ${metrics.budget}; Đã dùng: ${metrics.spent}. Câu hỏi: ${question}`;
-      const response = await callAiApi("/api/ai/chat", { message: prompt }); if (!response.ok) throw new Error("Dịch vụ AI chưa sẵn sàng.");
+      const snapshot = `Chỉ phân tích số liệu thật dưới đây, không giả định dữ liệu thiếu. Đơn vị ${profile.currency}. Tiền: ${metrics.cash}; Thu: ${metrics.income}; Chi: ${metrics.expense}; Ròng: ${metrics.net}; Phải thu: ${metrics.receivable}; Phải trả: ${metrics.payable}; Quá hạn: ${metrics.overdue}; Ngân sách: ${metrics.budget}; Đã dùng: ${metrics.spent}.`;
+      const recentMessages = aiMessages.slice(-10);
+      const history = recentMessages.map(m => ({
+        role: m.sender === "user" ? "user" : "model",
+        parts: [{ text: m.text }],
+      }));
+      const prompt = `${snapshot}\nCâu hỏi: ${question}`;
+      const response = await callAiApi("/api/ai/chat", { message: prompt, history }); if (!response.ok) throw new Error("Dịch vụ AI chưa sẵn sàng.");
       const payload = await response.json(); const reply = payload.reply || payload.text; if (!reply) throw new Error("Không nhận được nội dung phân tích.");
       setAiMessages(m => [...m, { sender: "ai", text: reply }]);
     } catch (cause) { setAiMessages(m => [...m, { sender: "ai", text: cause instanceof Error ? cause.message : "Không thể phân tích lúc này." }]); }
@@ -721,7 +1054,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
     } else if (activeTab === "invoices" && enabledModuleSet.has("invoices")) {
       setModal("invoice");
     } else if (activeTab === "debts" && enabledModuleSet.has("debts")) {
-      setModal("debt");
+      setDebtToEdit({ id: "", type: "receivable", partnerName: "", totalAmount: 0, paidAmount: 0, remainingAmount: 0, dueDate: today(), status: "normal" });
     } else if (activeTab === "budgets" && enabledModuleSet.has("budgets")) {
       setModal("budget");
     } else if (enabledModuleSet.has("cashbook")) {
@@ -729,7 +1062,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
     } else if (enabledModuleSet.has("invoices")) {
       setModal("invoice");
     } else if (enabledModuleSet.has("debts")) {
-      setModal("debt");
+      setDebtToEdit({ id: "", type: "receivable", partnerName: "", totalAmount: 0, paidAmount: 0, remainingAmount: 0, dueDate: today(), status: "normal" });
     } else if (enabledModuleSet.has("budgets")) {
       setModal("budget");
     } else {
@@ -860,7 +1193,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
               accounts={accountDistribution}
               totalCash={metrics.cash}
               formatMoney={formatMoney}
-              onAddAccount={() => setModal("account")}
+              onAddAccount={() => setAccountToEdit({ id: "", bank: "", number: "", branch: "", balance: 0, type: "Tài khoản thanh toán", color: "#005432" })}
             />
           </section>
 
@@ -894,13 +1227,137 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
             </section>
           )}
 
-          {noData && <Card padding="none"><EmptyState icon={Landmark} title="Workspace chưa có dữ liệu tài chính" description="Bắt đầu bằng một tài khoản tiền hoặc ngân hàng. Apexa không tạo số liệu mẫu; mọi số liệu hiển thị đến trực tiếp từ cơ sở dữ liệu." action={<Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setModal("account")}>Thêm tài khoản đầu tiên</Button>} /></Card>}
+          {noData && <Card padding="none"><EmptyState icon={Landmark} title="Workspace chưa có dữ liệu tài chính" description="Bắt đầu bằng một tài khoản tiền hoặc ngân hàng. Apexa không tạo số liệu mẫu; mọi số liệu hiển thị đến trực tiếp từ cơ sở dữ liệu." action={<Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setAccountToEdit({ id: "", bank: "", number: "", branch: "", balance: 0, type: "Tài khoản thanh toán", color: "#005432" })}>Thêm tài khoản đầu tiên</Button>} /></Card>}
         </div>}
 
         {/* TAB 2: SỔ THU CHI */}
         {activeTab === "cashbook" && <div className="mx-auto max-w-[1500px] space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">{accounts.map(a => <Card key={a.id} padding="md"><div className="flex items-start justify-between"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-500"><CreditCard className="h-4 w-4" /></div><Badge variant="success">Đang dùng</Badge></div><p className="mt-4 truncate text-sm font-black text-[var(--cu-text-primary)]">{a.bank}</p><p className="mt-0.5 truncate text-[11px] text-[var(--cu-text-tertiary)]">{a.number} · {a.branch || a.type}</p><p className="mt-3 text-lg font-black tracking-tight text-[var(--cu-text-primary)]">{formatMoney(a.balance)}</p></Card>)}<button onClick={() => setModal("account")} className="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--cu-border-strong)] bg-[var(--cu-surface)] text-[var(--cu-text-tertiary)] transition hover:border-indigo-500 hover:text-indigo-500"><Plus className="h-5 w-5" /><span className="mt-2 text-xs font-bold">Thêm tài khoản</span></button></div>
-          <Card padding="none" className="overflow-hidden"><SectionHeader title="Sổ thu chi" subtitle={`${filteredTransactions.length}/${transactions.length} chứng từ`} aside={<div className="flex flex-wrap items-center justify-end gap-2"><Select ariaLabel="Lọc loại giao dịch" value={transactionFilter} onChange={v => setTransactionFilter(v as typeof transactionFilter)} className="w-32" options={[{ value: "all", label: "Tất cả loại" }, { value: "income", label: "Khoản thu" }, { value: "expense", label: "Khoản chi" }]} /><Select ariaLabel="Lọc thời gian giao dịch" value={transactionPeriod} onChange={v => setTransactionPeriod(v as typeof transactionPeriod)} className="w-32" options={[{ value: "all", label: "Mọi thời gian" }, { value: "30d", label: "30 ngày" }, { value: "90d", label: "90 ngày" }, { value: "year", label: "Năm nay" }]} /><div className="relative"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cu-text-tertiary)]" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm chứng từ…" className={`${INPUT} w-52 pl-9`} /></div><Button variant="secondary" size="sm" onClick={() => setModal("categories")} leftIcon={<Tag className="h-3.5 w-3.5" />}>Danh mục</Button><Button variant="secondary" size="sm" onClick={() => setModal("receipt-scan")} leftIcon={<Camera className="h-3.5 w-3.5 text-rose-500" />}>Quét HĐ AI</Button><Button size="sm" onClick={() => openTransaction()} leftIcon={<Plus className="h-4 w-4" />}>Ghi thu/chi</Button></div>} />{filteredTransactions.length ? <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0"><TransactionTable rows={filteredTransactions} formatMoney={formatMoney} saving={saving} onEdit={openTransaction} onDelete={setTransactionToDelete} /></div> : <EmptyState icon={CircleDollarSign} title={transactions.length ? "Không có giao dịch phù hợp" : "Chưa có giao dịch"} description={transactions.length ? "Thử thay đổi từ khóa hoặc bộ lọc loại và thời gian." : "Ghi nhận khoản thu hoặc chi đầu tiên. Số dư tài khoản được cập nhật nguyên tử trên hệ thống."} action={!transactions.length ? <Button size="sm" onClick={() => openTransaction()}>Ghi giao dịch</Button> : undefined} />} </Card>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {accounts.map(a => {
+              const isSelected = selectedAccountFilter === a.id;
+              return (
+                <Card
+                  key={a.id}
+                  padding="md"
+                  className={`relative group transition-all duration-200 cursor-pointer ${
+                    isSelected
+                      ? "border-indigo-500 shadow-md ring-1 ring-indigo-500 bg-indigo-500/[0.03]"
+                      : "hover:border-[var(--cu-border-strong)]"
+                  }`}
+                  onClick={() => setSelectedAccountFilter(prev => prev === a.id ? "all" : a.id)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <AccountBankIcon bank={a.bank} color={a.color} size="md" />
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[var(--cu-surface-2)] text-[var(--cu-text-secondary)]">
+                        {a.type || "Thanh toán"}
+                      </span>
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAccountToEdit(a);
+                          }}
+                          className="p-1 rounded-lg text-[var(--cu-text-tertiary)] hover:bg-[var(--cu-surface-2)] hover:text-indigo-500"
+                          title="Chỉnh sửa tài khoản"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAccountToDelete(a)}
+                          className="p-1 rounded-lg text-[var(--cu-text-tertiary)] hover:bg-rose-500/10 hover:text-rose-500"
+                          title="Xóa tài khoản"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <p className="truncate text-sm font-black text-[var(--cu-text-primary)]" title={a.bank}>{a.bank}</p>
+                    <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[var(--cu-text-tertiary)]" onClick={e => e.stopPropagation()}>
+                      <span className="truncate font-mono font-medium">{a.number}</span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(a.number);
+                            toast("info", "Đã sao chép số tài khoản", a.number);
+                          } catch {}
+                        }}
+                        className="hover:text-indigo-500 p-0.5"
+                        title="Sao chép số tài khoản"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </button>
+                      {a.branch && <span className="truncate">· {a.branch}</span>}
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-[var(--cu-border)] flex items-center justify-between">
+                    <p className="text-base font-black tracking-tight text-[var(--cu-text-primary)]">
+                      {formatMoney(a.balance)}
+                    </p>
+                    {isSelected && (
+                      <Badge variant="info">Đang lọc sổ</Badge>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setAccountToEdit({ id: "", bank: "", number: "", branch: "", balance: 0, type: "Tài khoản thanh toán", color: "#005432" })}
+              className="flex min-h-[140px] flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--cu-border-strong)] bg-[var(--cu-surface)] text-[var(--cu-text-tertiary)] transition hover:border-indigo-500 hover:text-indigo-500 hover:bg-indigo-500/[0.03]"
+            >
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-500">
+                <Plus className="h-5 w-5" />
+              </div>
+              <span className="mt-2 text-xs font-bold">Thêm tài khoản / Quỹ</span>
+            </button>
+          </div>
+
+          <Card padding="none" className="overflow-hidden">
+            <SectionHeader
+              title="Sổ thu chi"
+              subtitle={`${filteredTransactions.length}/${transactions.length} chứng từ${selectedAccountFilter !== "all" ? ` · Lọc theo tài khoản: ${accounts.find(a => a.id === selectedAccountFilter)?.bank || ""}` : ""}`}
+              aside={
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {selectedAccountFilter !== "all" && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAccountFilter("all")}
+                      className="inline-flex items-center gap-1 rounded-xl bg-indigo-500/10 px-2.5 py-1 text-xs font-bold text-indigo-500 hover:bg-indigo-500/20"
+                    >
+                      <span>Xóa lọc tài khoản</span>
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                  <Select ariaLabel="Lọc loại giao dịch" value={transactionFilter} onChange={v => setTransactionFilter(v as typeof transactionFilter)} className="w-32" options={[{ value: "all", label: "Tất cả loại" }, { value: "income", label: "Khoản thu" }, { value: "expense", label: "Khoản chi" }]} />
+                  <Select ariaLabel="Lọc thời gian giao dịch" value={transactionPeriod} onChange={v => setTransactionPeriod(v as typeof transactionPeriod)} className="w-32" options={[{ value: "all", label: "Mọi thời gian" }, { value: "30d", label: "30 ngày" }, { value: "90d", label: "90 ngày" }, { value: "year", label: "Năm nay" }]} />
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cu-text-tertiary)]" />
+                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm chứng từ…" className={`${INPUT} w-52 pl-9`} />
+                  </div>
+                  <Button variant="secondary" size="sm" onClick={() => setModal("categories")} leftIcon={<Tag className="h-3.5 w-3.5" />}>Danh mục</Button>
+                  <Button variant="secondary" size="sm" onClick={() => setModal("receipt-scan")} leftIcon={<Camera className="h-3.5 w-3.5 text-rose-500" />}>Quét HĐ AI</Button>
+                  <Button size="sm" onClick={() => openTransaction()} leftIcon={<Plus className="h-4 w-4" />}>Ghi thu/chi</Button>
+                </div>
+              }
+            />
+            {filteredTransactions.length ? (
+              <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                <TransactionTable rows={filteredTransactions} formatMoney={formatMoney} saving={saving} onEdit={openTransaction} onDelete={setTransactionToDelete} />
+              </div>
+            ) : (
+              <EmptyState
+                icon={CircleDollarSign}
+                title={transactions.length ? "Không có giao dịch phù hợp" : "Chưa có giao dịch"}
+                description={transactions.length ? "Thử thay đổi từ khóa hoặc bộ lọc loại và thời gian." : "Ghi nhận khoản thu hoặc chi đầu tiên. Số dư tài khoản được cập nhật nguyên tử trên hệ thống."}
+                action={!transactions.length ? <Button size="sm" onClick={() => openTransaction()}>Ghi giao dịch</Button> : undefined}
+              />
+            )}
+          </Card>
         </div>}
 
         {/* TAB 3: HÓA ĐƠN */}
@@ -913,34 +1370,278 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
         })}</DataList>}
 
         {/* TAB 4: CÔNG NỢ */}
-        {activeTab === "debts" && <div className="mx-auto max-w-[1300px] space-y-4">
-          {debts.length > 0 && (
+        {activeTab === "debts" && (
+          <div className="mx-auto max-w-[1400px] space-y-4">
+            {/* KPI Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Phải thu */}
+              <Card padding="md" className="flex items-center gap-3.5">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
+                  <ArrowDownRight className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Nợ phải thu ({debtMetrics.receivablesCount} đối tác)</p>
+                  <p className="mt-0.5 truncate text-lg font-black text-emerald-500">{formatMoney(debtMetrics.remainingReceivable)}</p>
+                  <p className="text-[10px] text-[var(--cu-text-tertiary)] mt-0.5">Tổng: {formatMoney(debtMetrics.totalReceivable)}</p>
+                </div>
+              </Card>
+
+              {/* Phải trả */}
+              <Card padding="md" className="flex items-center gap-3.5">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500">
+                  <ArrowUpRight className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Nợ phải trả ({debtMetrics.payablesCount} chủ nợ)</p>
+                  <p className="mt-0.5 truncate text-lg font-black text-rose-500">{formatMoney(debtMetrics.remainingPayable)}</p>
+                  <p className="text-[10px] text-[var(--cu-text-tertiary)] mt-0.5">Tổng: {formatMoney(debtMetrics.totalPayable)}</p>
+                </div>
+              </Card>
+
+              {/* Quá hạn */}
+              <Card padding="md" className="flex items-center gap-3.5">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500">
+                  <AlertCircle className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Quá hạn ({debtMetrics.overdueCount} khoản)</p>
+                  <p className="mt-0.5 truncate text-lg font-black text-rose-500">{formatMoney(debtMetrics.totalOverdue)}</p>
+                  <p className="text-[10px] text-rose-500/80 font-bold mt-0.5">Cần thu hồi gấp</p>
+                </div>
+              </Card>
+
+              {/* Sắp đến hạn */}
+              <Card padding="md" className="flex items-center gap-3.5">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
+                  <Clock3 className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Đến hạn 7 ngày ({debtMetrics.dueSoonCount} khoản)</p>
+                  <p className="mt-0.5 truncate text-lg font-black text-amber-500">{formatMoney(debtMetrics.totalDueSoon)}</p>
+                  <p className="text-[10px] text-emerald-500 font-bold mt-0.5">Đã tất toán: {debtMetrics.settledCount} khoản</p>
+                </div>
+              </Card>
+            </div>
+
+            {/* Biểu đồ phân tích tuổi nợ */}
+            {debts.length > 0 && (
+              <Card padding="none" className="overflow-hidden">
+                <SectionHeader title="Phân tích cơ cấu & tuổi nợ" subtitle="Đối chiếu phải thu, phải trả theo các kỳ hạn" />
+                <div className="grid gap-6 p-5 lg:grid-cols-[1fr_320px]">
+                  <div className="h-[180px] sm:h-[220px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={debtAgingData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cu-border)" />
+                        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--cu-text-tertiary)" }} />
+                        <YAxis axisLine={false} tickLine={false} width={60} tickFormatter={compactMoney} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
+                        <Tooltip content={<CustomFinanceTooltip formatMoney={formatMoney} />} />
+                        <Bar dataKey="receivable" name="Phải thu" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                        <Bar dataKey="payable" name="Phải trả" fill="#f43f5e" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex flex-col justify-center gap-3 rounded-2xl border border-[var(--cu-border)] bg-[var(--cu-surface-2)]/40 p-4">
+                    <div className="flex items-center justify-between"><span className="text-xs font-bold text-[var(--cu-text-tertiary)]">Tổng nợ phải thu:</span><span className="text-xs font-black text-emerald-500">{formatMoney(debtMetrics.remainingReceivable)}</span></div>
+                    <div className="flex items-center justify-between"><span className="text-xs font-bold text-[var(--cu-text-tertiary)]">Tổng nợ phải trả:</span><span className="text-xs font-black text-rose-500">{formatMoney(debtMetrics.remainingPayable)}</span></div>
+                    <div className="flex items-center justify-between"><span className="text-xs font-bold text-[var(--cu-text-tertiary)]">Công nợ quá hạn:</span><span className="text-xs font-black text-amber-500">{formatMoney(debtMetrics.totalOverdue)}</span></div>
+                    <div className="mt-2 border-t border-[var(--cu-border)] pt-2 text-[11px] text-[var(--cu-text-tertiary)]">Tỷ lệ Phải thu / Phải trả: <strong className="text-[var(--cu-text-primary)]">{debtMetrics.remainingPayable > 0 ? (debtMetrics.remainingReceivable / debtMetrics.remainingPayable).toFixed(2) + "×" : "An toàn"}</strong></div>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Bảng danh sách công nợ có tìm kiếm, bộ lọc & thao tác */}
             <Card padding="none" className="overflow-hidden">
-              <SectionHeader title="Phân tích cơ cấu & tuổi nợ" subtitle="Đối chiếu phải thu, phải trả theo các kỳ hạn" />
-              <div className="grid gap-6 p-5 lg:grid-cols-[1fr_320px]">
-                <div className="h-[180px] sm:h-[220px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={debtAgingData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cu-border)" />
-                      <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--cu-text-tertiary)" }} />
-                      <YAxis axisLine={false} tickLine={false} width={60} tickFormatter={compactMoney} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
-                      <Tooltip content={<CustomFinanceTooltip formatMoney={formatMoney} />} />
-                      <Bar dataKey="receivable" name="Phải thu" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={36} />
-                      <Bar dataKey="payable" name="Phải trả" fill="#f43f5e" radius={[6, 6, 0, 0]} maxBarSize={36} />
-                    </BarChart>
-                  </ResponsiveContainer>
+              <SectionHeader
+                title="Danh sách theo dõi công nợ"
+                subtitle={`${filteredDebts.length}/${debts.length} khoản công nợ · ${formatMoney(debtMetrics.remainingReceivable)} phải thu · ${formatMoney(debtMetrics.remainingPayable)} phải trả`}
+                aside={
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {/* Bộ lọc phân loại Tab */}
+                    <div className="flex rounded-xl bg-[var(--cu-surface-2)] p-1 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setDebtTypeFilter("all")}
+                        className={`px-3 py-1 rounded-lg font-bold transition ${debtTypeFilter === "all" ? "bg-[var(--cu-surface)] text-[var(--cu-text-primary)] shadow-sm" : "text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"}`}
+                      >
+                        Tất cả ({debts.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDebtTypeFilter("receivable")}
+                        className={`px-3 py-1 rounded-lg font-bold transition ${debtTypeFilter === "receivable" ? "bg-emerald-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"}`}
+                      >
+                        Phải thu ({debtMetrics.receivablesCount})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDebtTypeFilter("payable")}
+                        className={`px-3 py-1 rounded-lg font-bold transition ${debtTypeFilter === "payable" ? "bg-rose-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"}`}
+                      >
+                        Phải trả ({debtMetrics.payablesCount})
+                      </button>
+                    </div>
+
+                    {/* Bộ lọc trạng thái */}
+                    <Select
+                      ariaLabel="Lọc trạng thái nợ"
+                      value={debtStatusFilter}
+                      onChange={v => setDebtStatusFilter(v as typeof debtStatusFilter)}
+                      className="w-36"
+                      options={[
+                        { value: "all", label: "Tất cả trạng thái" },
+                        { value: "unpaid", label: "Chưa thanh toán" },
+                        { value: "partial", label: "Thanh toán một phần" },
+                        { value: "due_soon", label: "Sắp đến hạn" },
+                        { value: "overdue", label: "Quá hạn" },
+                        { value: "paid", label: "Đã tất toán" },
+                      ]}
+                    />
+
+                    {/* Sắp xếp */}
+                    <Select
+                      ariaLabel="Sắp xếp"
+                      value={debtSortBy}
+                      onChange={v => setDebtSortBy(v as typeof debtSortBy)}
+                      className="w-36"
+                      options={[
+                        { value: "due_asc", label: "Hạn gần nhất" },
+                        { value: "due_desc", label: "Hạn xa nhất" },
+                        { value: "amount_desc", label: "Nợ lớn nhất" },
+                        { value: "amount_asc", label: "Nợ nhỏ nhất" },
+                        { value: "name_asc", label: "Tên đối tác (A-Z)" },
+                      ]}
+                    />
+
+                    {/* Tìm kiếm */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cu-text-tertiary)]" />
+                      <input
+                        value={debtSearch}
+                        onChange={e => setDebtSearch(e.target.value)}
+                        placeholder="Tìm đối tác, SĐT..."
+                        className={`${INPUT} w-44 pl-9`}
+                      />
+                    </div>
+
+                    <Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setDebtToEdit({ id: "", type: "receivable", partnerName: "", totalAmount: 0, paidAmount: 0, remainingAmount: 0, dueDate: today(), status: "normal" })}>
+                      Thêm công nợ
+                    </Button>
+                  </div>
+                }
+              />
+
+              {filteredDebts.length > 0 ? (
+                <div className="divide-y divide-[var(--cu-border)]">
+                  {filteredDebts.map(debt => {
+                    const isSettled = debt.remainingAmount <= 0;
+                    const isDueSoon = debt.status === "due_soon" && !isSettled;
+                    const isOverdue = debt.status === "overdue" && !isSettled;
+                    const progress = debt.totalAmount > 0 ? Math.min(100, Math.round((debt.paidAmount / debt.totalAmount) * 100)) : 100;
+
+                    const badgeVariant = isSettled ? "success" : isOverdue ? "danger" : isDueSoon ? "warning" : "default";
+                    const badgeText = isSettled ? "Đã tất toán" : isOverdue ? "Quá hạn" : isDueSoon ? "Sắp đến hạn" : debt.paidAmount > 0 ? "Một phần" : "Chưa trả";
+
+                    return (
+                      <div
+                        key={debt.id}
+                        className="px-5 py-4 transition hover:bg-[var(--cu-surface-2)]/45 cursor-pointer group"
+                        onClick={() => setSelectedDebtDetail(debt)}
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="flex items-start gap-3 min-w-48 flex-1">
+                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${debt.type === "receivable" ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"}`}>
+                              {debt.type === "receivable" ? <ArrowDownRight className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-xs font-black text-[var(--cu-text-primary)] group-hover:text-indigo-500 transition-colors">
+                                  {debt.partnerName}
+                                </p>
+                                <Badge variant={badgeVariant}>{badgeText}</Badge>
+                              </div>
+                              <p className="mt-0.5 truncate text-[11px] text-[var(--cu-text-tertiary)]">
+                                {debt.type === "receivable" ? "Phải thu" : "Phải trả"} · Hạn: {new Date(`${debt.dueDate}T00:00:00`).toLocaleDateString("vi-VN")}
+                                {debt.phone && ` · SĐT: ${debt.phone}`}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="min-w-36 text-left sm:text-right">
+                            <p className="text-sm font-black text-[var(--cu-text-primary)]">
+                              {formatMoney(debt.remainingAmount)}
+                            </p>
+                            <p className="text-[10px] font-semibold text-[var(--cu-text-tertiary)]">
+                              còn lại trên {formatMoney(debt.totalAmount)}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                            {debt.remainingAmount > 0 && (
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                disabled={saving}
+                                onClick={() => setPaymentTarget({ kind: "debt", record: debt })}
+                              >
+                                Ghi thanh toán
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedDebtDetail(debt)}
+                            >
+                              Chi tiết
+                            </Button>
+                            <button
+                              type="button"
+                              onClick={() => setDebtToEdit(debt)}
+                              className="p-1.5 rounded-lg text-[var(--cu-text-tertiary)] hover:bg-[var(--cu-surface-2)] hover:text-indigo-500"
+                              title="Sửa công nợ"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDebtToDelete(debt)}
+                              className="p-1.5 rounded-lg text-[var(--cu-text-tertiary)] hover:bg-rose-500/10 hover:text-rose-500"
+                              title="Xóa công nợ"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div className="mt-3 sm:pl-[52px]">
+                          <div className="flex items-center justify-between text-[10px] font-bold text-[var(--cu-text-tertiary)] mb-1">
+                            <span>Đã thanh toán {formatMoney(debt.paidAmount)} ({progress}%)</span>
+                            <span>Hạn: {new Date(`${debt.dueDate}T00:00:00`).toLocaleDateString("vi-VN")}</span>
+                          </div>
+                          <div className="h-2 overflow-hidden rounded-full bg-[var(--cu-surface-2)]">
+                            <div
+                              className={`h-full rounded-full transition-all ${isSettled ? "bg-emerald-500" : isOverdue ? "bg-rose-500" : debt.paidAmount > 0 ? "bg-amber-500" : "bg-indigo-500"}`}
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="flex flex-col justify-center gap-3 rounded-2xl border border-[var(--cu-border)] bg-[var(--cu-surface-2)]/40 p-4">
-                  <div className="flex items-center justify-between"><span className="text-xs font-bold text-[var(--cu-text-tertiary)]">Tổng nợ phải thu:</span><span className="text-xs font-black text-emerald-500">{formatMoney(metrics.receivable)}</span></div>
-                  <div className="flex items-center justify-between"><span className="text-xs font-bold text-[var(--cu-text-tertiary)]">Tổng nợ phải trả:</span><span className="text-xs font-black text-rose-500">{formatMoney(metrics.payable)}</span></div>
-                  <div className="flex items-center justify-between"><span className="text-xs font-bold text-[var(--cu-text-tertiary)]">Công nợ quá hạn:</span><span className="text-xs font-black text-amber-500">{formatMoney(metrics.overdue)}</span></div>
-                  <div className="mt-2 border-t border-[var(--cu-border)] pt-2 text-[11px] text-[var(--cu-text-tertiary)]">Tỷ lệ Phải thu / Phải trả: <strong className="text-[var(--cu-text-primary)]">{metrics.payable > 0 ? (metrics.receivable / metrics.payable).toFixed(2) + "×" : "An toàn"}</strong></div>
-                </div>
-              </div>
+              ) : (
+                <EmptyState
+                  icon={Clock3}
+                  title={debts.length ? "Không có công nợ phù hợp" : "Chưa có khoản công nợ nào"}
+                  description={debts.length ? "Thử thay đổi từ khóa hoặc bộ lọc trạng thái." : "Ghi nhận khoản phải thu từ khách hàng hoặc khoản phải trả cho nhà cung cấp."}
+                  action={!debts.length ? <Button size="sm" onClick={() => setDebtToEdit({ id: "", type: "receivable", partnerName: "", totalAmount: 0, paidAmount: 0, remainingAmount: 0, dueDate: today(), status: "normal" })}>Thêm công nợ đầu tiên</Button> : undefined}
+                />
+              )}
             </Card>
-          )}
-          <DataList title="Danh sách công nợ" subtitle={`${formatMoney(metrics.receivable)} phải thu · ${formatMoney(metrics.payable)} phải trả`} action={<Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setModal("debt")}>Thêm công nợ</Button>} empty={!debts.length} emptyIcon={Clock3} emptyText="Chưa có khoản công nợ nào.">{debts.map(debt => <PaymentProgressRow key={debt.id} icon={debt.type === "receivable" ? ArrowDownRight : ArrowUpRight} title={debt.partnerName} subtitle={debt.type === "receivable" ? "Công nợ phải thu" : "Công nợ phải trả"} dueLabel={`Hạn ${new Date(`${debt.dueDate}T00:00:00`).toLocaleDateString("vi-VN")}`} total={debt.totalAmount} paid={debt.paidAmount} badge={debt.remainingAmount <= 0 ? "Đã tất toán" : debt.status === "overdue" ? "Quá hạn" : debt.status === "due_soon" ? "Sắp đến hạn" : paymentStage(debt.totalAmount, debt.paidAmount)} badgeVariant={debt.remainingAmount <= 0 ? "success" : debt.status === "overdue" ? "danger" : debt.status === "due_soon" || debt.paidAmount > 0 ? "warning" : "success"} stages={["Chưa thanh toán", "Một phần", "Tất toán"]} currentStage={debt.remainingAmount <= 0 ? 2 : debt.paidAmount > 0 ? 1 : 0} action={debt.remainingAmount > 0 ? <Button variant="ghost" size="sm" disabled={saving} onClick={() => openPayment({ kind: "debt", record: debt })}>Ghi thanh toán</Button> : undefined} formatMoney={formatMoney} />)}</DataList>
-        </div>}
+          </div>
+        )}
+
 
         {/* TAB 5: NGÂN SÁCH */}
         {activeTab === "budgets" && <div className="mx-auto max-w-[1300px] space-y-4">
@@ -1035,9 +1736,13 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
                 setType={setTransactionType}
                 accounts={accounts}
                 categories={categories}
+                formatMoney={formatMoney}
                 saving={saving}
                 onSubmit={saveTransaction}
-                onNeedAccount={() => setModal("account")}
+                onNeedAccount={() => {
+                  setModal(null);
+                  setAccountToEdit({ id: "", bank: "", number: "", branch: "", balance: 0, type: "Tài khoản thanh toán", color: "#005432" });
+                }}
                 onOpenCategoryManager={() => setModal("categories")}
                 editing={!!editingTransaction}
               />
@@ -1067,24 +1772,100 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
                 triggerToast={triggerToast}
                 onOpenCategoryManager={() => setModal("categories")}
               />
-            ) : paymentTarget ? (
-              <PaymentForm
-                target={paymentTarget}
-                form={paymentForm}
-                setForm={setPaymentForm}
-                payments={payments.filter(payment =>
-                  paymentTarget.kind === "debt"
-                    ? payment.debtId === paymentTarget.record.id
-                    : payment.invoiceId === paymentTarget.record.id
-                )}
-                formatMoney={formatMoney}
-                saving={saving}
-                onSubmit={savePayment}
-              />
             ) : null}
           </FinanceModal>
         )}
       </AnimatePresence>
+
+      {/* MODAL QUẢN LÝ & TẠO/SỬA TÀI KHOẢN NGÂN HÀNG & VÍ */}
+      {accountToEdit !== null && (
+        <AccountManagerModal
+          initialData={accountToEdit.id ? {
+            id: accountToEdit.id,
+            bank: accountToEdit.bank,
+            number: accountToEdit.number,
+            branch: accountToEdit.branch,
+            type: accountToEdit.type,
+            balance: String(accountToEdit.balance),
+            color: accountToEdit.color || "#005432",
+          } : null}
+          saving={saving}
+          onClose={() => setAccountToEdit(null)}
+          onSubmit={handleSaveAccount}
+          onDelete={async (id) => {
+            const acc = accounts.find(a => a.id === id);
+            if (acc) {
+              setAccountToEdit(null);
+              setAccountToDelete(acc);
+            }
+          }}
+        />
+      )}
+
+      {/* MODAL CHI TIẾT CÔNG NỢ & LỊCH SỬ THANH TOÁN */}
+      {selectedDebtDetail && (
+        <DebtDetailModal
+          debt={selectedDebtDetail}
+          payments={payments}
+          accounts={accounts}
+          formatMoney={formatMoney}
+          onClose={() => setSelectedDebtDetail(null)}
+          onOpenPayment={debt => {
+            setSelectedDebtDetail(null);
+            setPaymentTarget({ kind: "debt", record: debt });
+          }}
+          onEditDebt={debt => {
+            setSelectedDebtDetail(null);
+            setDebtToEdit(debt);
+          }}
+          onDeleteDebt={debt => {
+            setSelectedDebtDetail(null);
+            setDebtToDelete(debt);
+          }}
+        />
+      )}
+
+      {/* MODAL TẠO & SỬA CÔNG NỢ */}
+      {debtToEdit !== null && (
+        <DebtFormModal
+          initialData={debtToEdit.id ? {
+            id: debtToEdit.id,
+            type: debtToEdit.type,
+            partnerName: debtToEdit.partnerName,
+            totalAmount: String(debtToEdit.totalAmount),
+            paidAmount: String(debtToEdit.paidAmount),
+            dueDate: debtToEdit.dueDate,
+            phone: debtToEdit.phone || "",
+            email: debtToEdit.email || "",
+          } : {
+            type: debtToEdit.type || "receivable",
+            partnerName: "",
+            totalAmount: "",
+            paidAmount: "0",
+            dueDate: today(),
+            phone: "",
+            email: "",
+          }}
+          saving={saving}
+          onClose={() => setDebtToEdit(null)}
+          onSubmit={handleSaveDebt}
+        />
+      )}
+
+      {/* MODAL GHI NHẬN THANH TOÁN CÔNG NỢ & HÓA ĐƠN ĐỒNG BỘ SỔ THU CHI */}
+      {paymentTarget !== null && (
+        <DebtPaymentModal
+          target={paymentTarget}
+          accounts={accounts}
+          payments={payments}
+          formatMoney={formatMoney}
+          saving={saving}
+          onClose={() => setPaymentTarget(null)}
+          onSubmit={handlePaymentSubmit}
+        />
+      )}
+
+      {/* MODAL XÁC NHẬN XÓA GIAO DỊCH */}
       <ConfirmModal
         isOpen={!!transactionToDelete}
         title="Xóa giao dịch tài chính?"
@@ -1094,6 +1875,30 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
         confirmText="Xóa giao dịch"
         onConfirm={() => void deleteTransaction()}
         onCancel={() => setTransactionToDelete(null)}
+      />
+
+      {/* MODAL XÁC NHẬN XÓA TÀI KHOẢN */}
+      <ConfirmModal
+        isOpen={!!accountToDelete}
+        title="Xóa tài khoản thanh toán?"
+        description="Tài khoản này sẽ bị xóa khỏi hệ thống. Số dư và các bút toán cũ vẫn được lưu trữ đối soát trong sổ quỹ."
+        itemName={accountToDelete ? `${accountToDelete.bank} · ${accountToDelete.number}` : undefined}
+        itemType="generic"
+        confirmText="Xóa tài khoản"
+        onConfirm={() => void handleDeleteAccount()}
+        onCancel={() => setAccountToDelete(null)}
+      />
+
+      {/* MODAL XÁC NHẬN XÓA CÔNG NỢ */}
+      <ConfirmModal
+        isOpen={!!debtToDelete}
+        title="Xóa khoản công nợ?"
+        description="Khoản công nợ này sẽ bị xóa khỏi hệ thống theo dõi."
+        itemName={debtToDelete ? `${debtToDelete.partnerName} · Còn ${formatMoney(debtToDelete.remainingAmount)}` : undefined}
+        itemType="generic"
+        confirmText="Xóa công nợ"
+        onConfirm={() => void handleDeleteDebt()}
+        onCancel={() => setDebtToDelete(null)}
       />
     </div>
   );
@@ -1266,15 +2071,18 @@ function AccountDistributionCard({
             </div>
           </div>
 
-          <div className="max-h-32 space-y-1.5 overflow-y-auto divide-y divide-[var(--cu-border)] border-t border-[var(--cu-border)] pt-2.5">
+          <div className="max-h-36 space-y-2 overflow-y-auto divide-y divide-[var(--cu-border)] border-t border-[var(--cu-border)] pt-2.5">
             {accounts.map(acc => (
-              <div key={acc.number} className="flex items-center justify-between pt-1.5 text-xs">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: acc.color }} />
-                  <span className="truncate font-semibold text-[var(--cu-text-primary)]">{acc.name} ({acc.number.slice(-4)})</span>
+              <div key={acc.number} className="flex items-center justify-between pt-2 text-xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <AccountBankIcon bank={acc.name} color={acc.color} size="sm" />
+                  <div className="min-w-0">
+                    <p className="truncate font-bold text-[var(--cu-text-primary)]">{acc.name}</p>
+                    <p className="text-[10px] text-[var(--cu-text-tertiary)] font-mono">···{acc.number.slice(-4)}</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="font-bold text-[var(--cu-text-secondary)]">{formatMoney(acc.balance)}</span>
+                  <span className="font-black text-[var(--cu-text-secondary)]">{formatMoney(acc.balance)}</span>
                   <span className="text-[10px] font-bold text-[var(--cu-text-tertiary)]">({acc.percent}%)</span>
                 </div>
               </div>
@@ -1887,10 +2695,10 @@ function ProfileForm({ form, setForm, saving, onSubmit }: { form: ProfileFormSta
 type AccountFormState = { bank: string; number: string; branch: string; type: string; balance: string };
 function AccountForm({ form, setForm, saving, onSubmit }: { form: AccountFormState; setForm: React.Dispatch<React.SetStateAction<AccountFormState>>; saving: boolean; onSubmit: (e: React.FormEvent) => void }) { return <form onSubmit={onSubmit} className="space-y-4"><div className="grid grid-cols-2 gap-3"><Field label="Tên ngân hàng / quỹ"><input className={INPUT} value={form.bank} onChange={e => setForm(f => ({ ...f, bank: e.target.value }))} required /></Field><Field label="Số tài khoản"><input className={INPUT} value={form.number} onChange={e => setForm(f => ({ ...f, number: e.target.value }))} required /></Field><Field label="Chi nhánh"><input className={INPUT} value={form.branch} onChange={e => setForm(f => ({ ...f, branch: e.target.value }))} /></Field><Field label="Số dư mở sổ"><input className={INPUT} type="number" step="0.01" value={form.balance} onChange={e => setForm(f => ({ ...f, balance: e.target.value }))} required /></Field></div><Field label="Loại tài khoản"><input className={INPUT} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} /></Field><SaveActions saving={saving} /></form>; }
 type TxFormState = { accountId: string; date: string; category: string; amount: string; partner: string; note: string };
-function TransactionForm({ form, setForm, type, setType, accounts, categories, saving, editing, onSubmit, onNeedAccount, onOpenCategoryManager }: { form: TxFormState; setForm: React.Dispatch<React.SetStateAction<TxFormState>>; type: "income" | "expense"; setType: (type: "income" | "expense") => void; accounts: BankAccount[]; categories: FinanceCategory[]; saving: boolean; editing: boolean; onSubmit: (e: React.FormEvent) => void; onNeedAccount: () => void; onOpenCategoryManager?: () => void }) {
+function TransactionForm({ form, setForm, type, setType, accounts, categories, formatMoney, saving, editing, onSubmit, onNeedAccount, onOpenCategoryManager }: { form: TxFormState; setForm: React.Dispatch<React.SetStateAction<TxFormState>>; type: "income" | "expense"; setType: (type: "income" | "expense") => void; accounts: BankAccount[]; categories: FinanceCategory[]; formatMoney: (amount: number) => string; saving: boolean; editing: boolean; onSubmit: (e: React.FormEvent) => void; onNeedAccount: () => void; onOpenCategoryManager?: () => void }) {
   const relevantCategories = useMemo(() => categories.filter(c => c.type === type || c.type === "both"), [categories, type]);
 
-  return <form onSubmit={onSubmit} className="space-y-4"><div className="grid grid-cols-2 gap-2 rounded-xl bg-[var(--cu-surface-2)] p-1"><button type="button" onClick={() => setType("income")} className={`h-9 rounded-lg text-xs font-black ${type === "income" ? "bg-emerald-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)]"}`}>Khoản thu</button><button type="button" onClick={() => setType("expense")} className={`h-9 rounded-lg text-xs font-black ${type === "expense" ? "bg-rose-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)]"}`}>Khoản chi</button></div>{accounts.length ? <><div className="grid grid-cols-2 gap-3"><Field label="Tài khoản"><Select className="w-full" ariaLabel="Tài khoản" value={form.accountId} onChange={v => setForm(f => ({ ...f, accountId: v }))} placeholder="Chọn tài khoản" menuWidth={320} options={accounts.map(a => ({ value: a.id, label: `${a.bank} · ${a.number}` }))} /></Field><Field label="Ngày"><input className={INPUT} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} required /></Field><div><div className="mb-1.5 flex items-center justify-between"><span className={LABEL}>Hạng mục</span>{onOpenCategoryManager && <button type="button" onClick={onOpenCategoryManager} className="text-[10px] font-bold text-indigo-500 hover:underline">+ Quản lý danh mục</button>}</div><div className="relative"><input className={INPUT} list="tx-category-datalist" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="Chọn hoặc nhập..." required /><datalist id="tx-category-datalist">{relevantCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</datalist></div></div><Field label="Số tiền"><input className={INPUT} type="number" min="0.01" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required /></Field></div><Field label={type === "income" ? "Khách hàng / Người nộp" : "Đối tác / Người nhận"}><input className={INPUT} value={form.partner} onChange={e => setForm(f => ({ ...f, partner: e.target.value }))} /></Field><Field label="Ghi chú"><textarea className={`${INPUT} h-20 py-2.5`} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></Field>{editing && <p className="rounded-xl bg-indigo-500/10 px-3 py-2 text-[11px] leading-5 text-indigo-600 dark:text-indigo-300">Khi đổi loại, số tiền hoặc tài khoản, hệ thống sẽ tự hoàn nguyên bút toán cũ và cập nhật số dư mới trong cùng một giao dịch.</p>}<SaveActions saving={saving} label={editing ? "Lưu thay đổi" : type === "income" ? "Ghi nhận khoản thu" : "Ghi nhận khoản chi"} /></> : <EmptyState icon={Landmark} title="Cần có tài khoản trước" description="Thêm tài khoản để ghi thu chi và cập nhật số dư chính xác." action={<Button type="button" onClick={onNeedAccount}>Thêm tài khoản</Button>} />}</form>;
+  return <form onSubmit={onSubmit} className="space-y-4"><div className="grid grid-cols-2 gap-2 rounded-xl bg-[var(--cu-surface-2)] p-1"><button type="button" onClick={() => setType("income")} className={`h-9 rounded-lg text-xs font-black ${type === "income" ? "bg-emerald-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)]"}`}>Khoản thu</button><button type="button" onClick={() => setType("expense")} className={`h-9 rounded-lg text-xs font-black ${type === "expense" ? "bg-rose-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)]"}`}>Khoản chi</button></div>{accounts.length ? <><div className="grid grid-cols-2 gap-3"><Field label="Tài khoản thanh toán"><Select className="w-full" ariaLabel="Tài khoản" value={form.accountId} onChange={v => setForm(f => ({ ...f, accountId: v }))} placeholder="Chọn tài khoản" menuWidth={360} options={accounts.map(a => ({ value: a.id, label: `${a.bank} · ···${a.number.slice(-4)} (${formatMoney(a.balance)})` }))} /></Field><Field label="Ngày"><input className={INPUT} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} required /></Field><div><div className="mb-1.5 flex items-center justify-between"><span className={LABEL}>Hạng mục</span>{onOpenCategoryManager && <button type="button" onClick={onOpenCategoryManager} className="text-[10px] font-bold text-indigo-500 hover:underline">+ Quản lý danh mục</button>}</div><div className="relative"><input className={INPUT} list="tx-category-datalist" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="Chọn hoặc nhập..." required /><datalist id="tx-category-datalist">{relevantCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</datalist></div></div><Field label="Số tiền"><input className={INPUT} type="number" min="0.01" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required /></Field></div><Field label={type === "income" ? "Khách hàng / Người nộp" : "Đối tác / Người nhận"}><input className={INPUT} value={form.partner} onChange={e => setForm(f => ({ ...f, partner: e.target.value }))} /></Field><Field label="Ghi chú"><textarea className={`${INPUT} h-20 py-2.5`} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></Field>{editing && <p className="rounded-xl bg-indigo-500/10 px-3 py-2 text-[11px] leading-5 text-indigo-600 dark:text-indigo-300">Khi đổi loại, số tiền hoặc tài khoản, hệ thống sẽ tự hoàn nguyên bút toán cũ và cập nhật số dư mới trong cùng một giao dịch.</p>}<SaveActions saving={saving} label={editing ? "Lưu thay đổi" : type === "income" ? "Ghi nhận khoản thu" : "Ghi nhận khoản chi"} /></> : <EmptyState icon={Landmark} title="Cần có tài khoản trước" description="Thêm tài khoản để ghi thu chi và cập nhật số dư chính xác." action={<Button type="button" onClick={onNeedAccount}>Thêm tài khoản</Button>} />}</form>;
 }
 type InvoiceFormState = { type: "out" | "in"; partnerName: string; taxCode: string; subtotal: string; vatRate: string; date: string; dueDate: string };
 function InvoiceForm({ form, setForm, saving, onSubmit }: { form: InvoiceFormState; setForm: React.Dispatch<React.SetStateAction<InvoiceFormState>>; saving: boolean; onSubmit: (e: React.FormEvent) => void }) { return <form onSubmit={onSubmit} className="space-y-4"><div className="grid grid-cols-2 gap-3"><Field label="Loại hóa đơn"><Select className="w-full" ariaLabel="Loại hóa đơn" value={form.type} onChange={v => setForm(f => ({ ...f, type: v as "out" | "in" }))} options={[{ value: "out", label: "Bán ra" }, { value: "in", label: "Mua vào" }]} /></Field><Field label="Ngày hóa đơn"><input className={INPUT} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></Field></div><Field label="Khách hàng / Nhà cung cấp"><input className={INPUT} value={form.partnerName} onChange={e => setForm(f => ({ ...f, partnerName: e.target.value }))} required /></Field><div className="grid grid-cols-2 gap-3"><Field label="Mã số thuế"><input className={INPUT} value={form.taxCode} onChange={e => setForm(f => ({ ...f, taxCode: e.target.value }))} /></Field><Field label="Hạn thanh toán"><input className={INPUT} type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} /></Field><Field label="Tiền trước thuế"><input className={INPUT} type="number" min="0" step="0.01" value={form.subtotal} onChange={e => setForm(f => ({ ...f, subtotal: e.target.value }))} required /></Field><Field label="VAT (%)"><input className={INPUT} type="number" min="0" max="100" step="0.1" value={form.vatRate} onChange={e => setForm(f => ({ ...f, vatRate: e.target.value }))} /></Field></div><SaveActions saving={saving} /></form>; }

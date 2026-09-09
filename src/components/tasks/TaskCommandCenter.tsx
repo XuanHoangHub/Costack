@@ -560,6 +560,8 @@ export default function TaskCommandCenter({
         members={members}
         customFields={customFields}
         activeWorkspaceId={activeWorkspaceId}
+        allTasks={tasks}
+        triggerToast={triggerToast}
       />
 
       {selectedTask && (

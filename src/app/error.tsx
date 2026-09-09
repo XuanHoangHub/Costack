@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 
 export default function ErrorPage({
@@ -11,6 +12,7 @@ export default function ErrorPage({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const router = useRouter();
   const [isRetrying, setIsRetrying] = useState(false);
   const [locale, setLocale] = useState<'vi' | 'en'>('vi');
 
@@ -66,14 +68,12 @@ export default function ErrorPage({
         e.preventDefault();
         handleRetry();
       } else if (e.key === 'Escape') {
-        if (typeof window !== 'undefined') {
-          window.location.href = '/';
-        }
+        router.push('/');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleRetry, isRetrying]);
+  }, [handleRetry, isRetrying, router]);
 
   return (
     <main className="relative min-h-screen w-full flex items-center justify-center p-4 sm:p-6 md:p-8 bg-[#05060b] text-slate-100 overflow-hidden selection:bg-indigo-500/30 font-sans">

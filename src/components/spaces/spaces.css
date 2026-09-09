@@ -1,13 +1,13 @@
 /* Space workspace: shared surfaces, navigation, overview and task views. */
 .apexa-app-shell .apexa-space-shell {
-  --space-canvas: #f6f7fb;
-  --space-surface: #fff;
-  --space-ink: #202737;
-  --space-muted: #788297;
-  --space-border: #e9ecf3;
-  --space-track: #eef0f6;
-  --space-accent: #5871e9;
-  --space-shadow: 0 3px 18px -12px #25355b24;
+  --space-canvas: #ffffff;
+  --space-surface: #ffffff;
+  --space-ink: #0f172a;
+  --space-muted: #64748b;
+  --space-border: #e2e8f0;
+  --space-track: #f1f5f9;
+  --space-accent: #2563eb;
+  --space-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
   color: var(--space-ink);
   background: var(--space-canvas);
 }
@@ -25,7 +25,7 @@
 .apexa-space-shell button:disabled { cursor: not-allowed; opacity: .5; }
 .apexa-app-shell .apexa-space-shell :where(button, input, select, a):focus-visible { outline: 2px solid var(--space-accent) !important; outline-offset: 3px; }
 .apexa-app-shell .apexa-space-shell .apexa-space-content { background: var(--space-canvas) !important; scrollbar-width: thin; scrollbar-color: var(--space-border) transparent; }
-.apexa-app-shell .apexa-space-shell .apexa-space-sidebar { background: color-mix(in srgb, var(--space-canvas) 72%, var(--space-surface)) !important; }
+.apexa-app-shell .apexa-space-shell .apexa-space-sidebar { background: var(--space-surface) !important; border-right: 1px solid var(--space-border); }
 .apexa-app-shell .apexa-space-shell .apexa-space-sidebar > div:first-child { background: transparent !important; padding: 20px 16px; }
 .apexa-app-shell .apexa-space-shell .apexa-space-sidebar > div:last-child { background: transparent !important; }
 .apexa-app-shell .apexa-space-shell .apexa-space-commandbar { padding-inline: 22px !important; min-height: 64px !important; border-bottom: 0; }

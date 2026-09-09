@@ -23,6 +23,7 @@ import LandingPage from './landing/LandingPage';
 import AuthErrorAlert from './auth/AuthErrorAlert';
 import OtpCodeInput from './auth/OtpCodeInput';
 import { formatAuthError } from '../lib/authError';
+import { PLAN_ENTITLEMENTS } from '../lib/billing/plans';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: { id: string; name: string; email: string; avatar: string; role: 'admin' | 'member'; status: 'online' | 'busy' | 'offline' }, rememberMe: boolean) => void;
@@ -148,7 +149,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     backToSignin: 'Quay lại đăng nhập', securePortal: 'Cổng truy cập bảo mật',
     forgotTitle: 'Khôi phục mật khẩu', signupTitle: 'Tạo tài khoản Apexa', signinTitle: 'Chào mừng trở lại!',
     forgotDescription: 'Nhập địa chỉ email đã đăng ký để nhận liên kết đặt lại mật khẩu.',
-    signupDescription: 'Tạo tài khoản miễn phí để bắt đầu tổ chức công việc cùng đội ngũ.',
+    signupDescription: 'Tạo tài khoản miễn phí để bắt đầu sắp xếp công việc của bạn.',
     signinDescription: 'Đăng nhập để tiếp tục làm việc trong không gian của bạn.',
   } : {
     signin: 'Sign in', signup: 'Sign up', free: 'Free', email: 'Email address',
@@ -165,7 +166,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     backToSignin: 'Back to sign in', securePortal: 'Secure access portal',
     forgotTitle: 'Reset your password', signupTitle: 'Create your Apexa account', signinTitle: 'Welcome back!',
     forgotDescription: 'Enter your registered email address to receive a password reset link.',
-    signupDescription: 'Create a free account and start organizing work with your team.',
+    signupDescription: 'Create a free account and start organizing your work.',
     signinDescription: 'Sign in to continue working in your workspace.',
   };
 
@@ -694,12 +695,12 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                   <div>
                     <div className="text-base font-black tracking-tight text-white font-display">Apexa</div>
                     <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-sky-300/80">
-                      {isVietnamese ? 'Hệ điều hành năng suất & AI' : 'Next-Gen Productivity OS'}
+                      {isVietnamese ? 'Không gian cho công việc & Đội ngũ' : 'A space for work & Teams'}
                     </div>
                   </div>
                 </div>
 
-                {/* Core Value Proposition & Live KPI Card */}
+                {/* Product introduction and Free plan details */}
                 <div className="relative z-10 space-y-6 my-auto py-4">
                   <div className="space-y-3">
                     <span className="inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-sky-300 backdrop-blur-md">
@@ -707,46 +708,40 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
                         <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-sky-400" />
                       </span>
-                      {isVietnamese ? 'Không gian làm việc thế hệ mới' : 'Next-Gen Workspace'}
+                      {isVietnamese ? 'Bắt đầu từ công việc của bạn' : 'Start with your work'}
                     </span>
                     <h3 className="max-w-xs text-[28px] font-bold leading-tight tracking-tight font-display text-white">
                       {isVietnamese ? (
-                        <>Tối ưu vận hành,<br /><span className="bg-gradient-to-r from-sky-300 via-indigo-200 to-cyan-300 bg-clip-text text-transparent inline-block">bứt phá cùng AI.</span></>
+                        <>Bớt việc rời rạc.<br /><span className="bg-gradient-to-r from-sky-300 via-indigo-200 to-cyan-300 bg-clip-text text-transparent inline-block">Thêm điều làm được.</span></>
                       ) : (
-                        <>Supercharge velocity,<br /><span className="bg-gradient-to-r from-sky-300 via-indigo-200 to-cyan-300 bg-clip-text text-transparent inline-block">powered by AI.</span></>
+                        <>Less scattered work.<br /><span className="bg-gradient-to-r from-sky-300 via-indigo-200 to-cyan-300 bg-clip-text text-transparent inline-block">More moving forward.</span></>
                       )}
                     </h3>
                     <p className="max-w-sm text-xs font-normal leading-relaxed text-slate-300/80">
                       {isVietnamese
-                        ? 'Hợp nhất công việc, tài liệu và trợ lý AI trên một nền tảng tinh gọn, liền mạch.'
-                        : 'Unify tasks, documents, and AI assistance on a single seamless, modern platform.'}
+                        ? 'Tổ chức công việc và tài liệu trong cùng workspace. Nâng cấp khi cần cộng tác nhóm và trợ lý AI.'
+                        : 'Organize tasks and documents in one workspace. Upgrade when you need team collaboration and AI assistance.'}
                     </p>
                   </div>
 
-                  {/* Live Interactive KPI Card */}
+                  {/* Free plan facts from the shared entitlement catalog */}
                   <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-xl backdrop-blur-xl">
                     <div className="mb-3.5 flex items-center justify-between">
                       <div>
                         <div className="text-[10px] font-semibold uppercase tracking-wider text-sky-300/80">
-                          {isVietnamese ? 'Tiến độ dự án' : 'Project Sprint'}
+                          {isVietnamese ? 'Gói Free' : 'Free plan'}
                         </div>
                         <div className="mt-0.5 text-xs font-semibold text-white">
-                          {isVietnamese ? 'Ra mắt sản phẩm · Sprint 08' : 'Product launch · Sprint 08'}
+                          {isVietnamese ? 'Không cần thẻ thanh toán' : 'No credit card needed'}
                         </div>
                       </div>
-                      <div className="flex -space-x-1.5">
-                        {['HX', 'MA', 'QB'].map((member, index) => (
-                          <div key={member} className={`flex h-6 w-6 items-center justify-center rounded-full border border-white/10 text-[8px] font-bold text-white ${index === 0 ? 'bg-indigo-500' : index === 1 ? 'bg-fuchsia-500' : 'bg-cyan-500'}`}>
-                            {member}
-                          </div>
-                        ))}
-                      </div>
+                      <User className="h-5 w-5 text-sky-300" />
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       {[
-                        ['98%', isVietnamese ? 'Hoàn thành' : 'Completed'],
-                        ['2.5x', isVietnamese ? 'Tốc độ xử lý' : 'Speed boost'],
-                        ['+4.5h', isVietnamese ? 'Tiết kiệm / tuần' : 'Saved / week']
+                        [String(PLAN_ENTITLEMENTS.free.maxMembers), isVietnamese ? 'Thành viên' : 'Member'],
+                        [String(PLAN_ENTITLEMENTS.free.maxSpaces), isVietnamese ? 'Không gian' : 'Spaces'],
+                        ['VI / EN', isVietnamese ? 'Ngôn ngữ' : 'Languages']
                       ].map(([value, label]) => (
                         <div key={label} className="rounded-xl border border-white/5 bg-white/[0.03] px-2 py-2.5 text-center">
                           <div className="text-sm font-bold tracking-tight text-white">{value}</div>
@@ -756,17 +751,17 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                     </div>
                     <div className="mt-3 flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-[10px] font-medium text-emerald-300">
                       <Sparkles className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                      <span>{isVietnamese ? 'Đồng bộ tức thì & Trợ lý AI sẵn sàng' : 'Instant sync & AI Assistant ready'}</span>
+                      <span>{isVietnamese ? 'Cần thêm trợ lực? AI có từ gói Starter.' : 'Need a helping hand? AI starts with Starter.'}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Reassurance Footer */}
                 <div className="relative z-10 flex items-center justify-between text-[10px] font-normal text-slate-400 pt-2 border-t border-white/10">
-                  <span>© {new Date().getFullYear()} Apexa Inc.</span>
+                  <span>© {new Date().getFullYear()} Apexa.</span>
                   <span className="flex items-center gap-1.5 text-slate-300">
                     <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-                    {isVietnamese ? 'Bảo mật chuẩn doanh nghiệp · AES-256' : 'Enterprise Security · AES-256'}
+                    <Link href="/legal/privacy">{isVietnamese ? 'Chính sách bảo mật' : 'Privacy Policy'}</Link>
                   </span>
                 </div>
               </aside>

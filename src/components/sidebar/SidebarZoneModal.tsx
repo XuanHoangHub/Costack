@@ -231,7 +231,7 @@ export function SidebarZoneModal({
         exit={{ opacity: 0 }}
         transition={{ duration: 0.15 }}
         onClick={onClose}
-        className="fixed inset-0 bg-black/80 backdrop-blur-md"
+        className="fixed inset-0 bg-slate-950/50 backdrop-blur-md"
       />
 
       {/* Modal Dialog */}
@@ -240,16 +240,16 @@ export function SidebarZoneModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 10 }}
         transition={{ duration: 0.18, ease: "easeOut" }}
-        className="relative w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl border border-white/12 bg-[#0c0d12] text-white shadow-[0_25px_70px_rgba(0,0,0,0.9)] overflow-hidden z-10 my-auto"
+        className="relative w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl border border-slate-200/90 dark:border-white/12 bg-white dark:bg-[#0c0d12] text-slate-900 dark:text-white shadow-[0_25px_60px_-15px_rgba(15,23,42,0.18)] dark:shadow-[0_25px_70px_rgba(0,0,0,0.9)] overflow-hidden z-10 my-auto"
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08] bg-white/[0.02]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200/80 dark:border-white/[0.08] bg-slate-50/60 dark:bg-white/[0.02]">
           <div className="flex items-center gap-3">
             <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${activeColorConfig.bgClass} ${activeColorConfig.textClass} border ${activeColorConfig.borderClass} shadow-[0_0_12px_rgba(56,189,248,0.15)] text-lg`}>
               {emoji}
             </div>
             <div>
-              <h2 className="text-base font-bold tracking-tight text-white flex items-center gap-2">
+              <h2 className="text-base font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                 {isEditing 
                   ? (isVi ? 'Chỉnh sửa Vùng làm việc' : 'Edit Workspace Zone')
                   : (isVi ? 'Tạo Vùng làm việc mới' : 'Create Workspace Zone')}
@@ -257,7 +257,7 @@ export function SidebarZoneModal({
                   ZONE
                 </span>
               </h2>
-              <p className="text-xs text-zinc-400 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
                 {isVi 
                   ? 'Gom nhóm các tính năng liên quan thành thư mục để thanh bên luôn gọn gàng' 
                   : 'Group related modules into a folder-like section in your sidebar'}
@@ -268,7 +268,7 @@ export function SidebarZoneModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
             aria-label="Đóng"
           >
             <X className="h-4.5 w-4.5" />
@@ -280,7 +280,7 @@ export function SidebarZoneModal({
           {/* Quick presets */}
           {!isEditing && (
             <div>
-              <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5 mb-2">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center gap-1.5 mb-2">
                 <Sparkles className="h-3 w-3 text-sky-400" />
                 {isVi ? 'Gợi ý nhanh' : 'Quick Presets'}
               </label>
@@ -290,7 +290,7 @@ export function SidebarZoneModal({
                     key={idx}
                     type="button"
                     onClick={() => handleApplyPreset(preset)}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-white/[0.04] border border-white/[0.08] hover:border-sky-500/40 hover:bg-white/[0.08] text-zinc-300 hover:text-white transition-all cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-slate-100/80 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] hover:border-blue-500/40 hover:bg-slate-200/70 dark:hover:border-sky-500/40 dark:hover:bg-white/[0.08] text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
                   >
                     <span>{preset.emoji}</span>
                     <span>{isVi ? preset.vi : preset.en}</span>
@@ -302,14 +302,14 @@ export function SidebarZoneModal({
 
           {/* Name & Emoji input row */}
           <div>
-            <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
               {isVi ? 'Tên Vùng làm việc' : 'Zone Name'} <span className="text-rose-400">*</span>
             </label>
             <div className="flex items-center gap-2">
               <div className="relative">
                 <button
                   type="button"
-                  className="flex h-10 w-12 items-center justify-center rounded-xl border border-white/12 bg-white/[0.05] text-lg hover:border-white/25 hover:bg-white/[0.08] transition-all cursor-pointer"
+                  className="flex h-10 w-12 items-center justify-center rounded-xl border border-slate-200 dark:border-white/12 bg-slate-50 dark:bg-white/[0.05] text-lg hover:border-slate-300 dark:hover:border-white/25 hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-all cursor-pointer"
                   title={isVi ? 'Chọn biểu tượng' : 'Choose icon'}
                 >
                   {emoji}
@@ -325,7 +325,7 @@ export function SidebarZoneModal({
                 }}
                 placeholder={isVi ? 'Ví dụ: Điều hành, Dự án, Tài chính...' : 'e.g., Operations, Projects, Finance...'}
                 autoFocus
-                className="flex-1 h-10 px-3 rounded-xl border border-white/12 bg-white/[0.04] text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 transition-all"
+                className="flex-1 h-10 px-3 rounded-xl border border-slate-200 dark:border-white/12 bg-white dark:bg-white/[0.04] text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-blue-500 dark:focus:border-sky-400 focus:ring-2 focus:ring-blue-500/20 transition-all"
               />
             </div>
 
@@ -339,7 +339,7 @@ export function SidebarZoneModal({
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm transition-all cursor-pointer ${
                     emoji === em 
                       ? 'bg-sky-500/25 border border-sky-400 scale-110 shadow-[0_0_8px_rgba(56,189,248,0.3)]' 
-                      : 'hover:bg-white/[0.08] border border-transparent opacity-75 hover:opacity-100'
+                      : 'hover:bg-slate-100 dark:hover:bg-white/[0.08] border border-transparent opacity-75 hover:opacity-100'
                   }`}
                 >
                   {em}
@@ -357,8 +357,8 @@ export function SidebarZoneModal({
 
           {/* Color accent selection */}
           <div>
-            <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5 mb-2">
-              <Palette className="h-3.5 w-3.5 text-zinc-400" />
+            <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5 mb-2">
+              <Palette className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-400" />
               {isVi ? 'Màu sắc nhận diện' : 'Color Accent'}
             </label>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -372,11 +372,11 @@ export function SidebarZoneModal({
                     className={`flex items-center gap-2 p-2 rounded-xl border text-left transition-all cursor-pointer ${
                       isSelected
                         ? `${preset.borderClass} ${preset.bgClass} ring-2 ${preset.ringClass} shadow-[0_0_10px_rgba(255,255,255,0.08)]`
-                        : 'border-white/[0.08] bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]'
+                        : 'border-slate-200 dark:border-white/[0.08] bg-slate-50/70 dark:bg-white/[0.03] hover:border-slate-300 dark:hover:border-white/20 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
                     }`}
                   >
                     <span className={`w-3 h-3 rounded-full ${preset.bgClass} border ${preset.borderClass}`} />
-                    <span className="text-xs font-semibold text-zinc-300 truncate">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300 truncate">
                       {isVi ? preset.labelVi : preset.labelEn}
                     </span>
                   </button>
@@ -388,16 +388,16 @@ export function SidebarZoneModal({
           {/* Module selection list */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
-                <Layers className="h-3.5 w-3.5 text-zinc-400" />
+              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
+                <Layers className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-400" />
                 {isVi ? 'Chọn module đưa vào Vùng' : 'Select Modules to Include'}
               </label>
-              <span className="text-[11px] text-zinc-400">
+              <span className="text-[11px] text-slate-500 dark:text-zinc-400">
                 {selectedItemIds.length} {isVi ? 'đã chọn' : 'selected'}
               </span>
             </div>
 
-            <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] divide-y divide-white/[0.05] max-h-56 overflow-y-auto custom-scrollbar">
+            <div className="rounded-xl border border-slate-200 dark:border-white/[0.08] bg-slate-50/50 dark:bg-white/[0.02] divide-y divide-slate-100 dark:divide-white/[0.05] max-h-56 overflow-y-auto custom-scrollbar">
               {allModules.map((itemId) => {
                 const isChecked = selectedItemIds.includes(itemId);
                 const otherZone = itemZoneMap.get(itemId);
@@ -409,22 +409,22 @@ export function SidebarZoneModal({
                   <div
                     key={itemId}
                     onClick={() => handleToggleItem(itemId)}
-                    className="flex items-center justify-between px-3 py-2 hover:bg-white/[0.04] cursor-pointer transition-colors select-none"
+                    className="flex items-center justify-between px-3 py-2 hover:bg-slate-100/70 dark:hover:bg-white/[0.04] cursor-pointer transition-colors select-none"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
                         isChecked 
                           ? `${activeColorConfig.bgClass} ${activeColorConfig.textClass}` 
-                          : 'bg-white/[0.06] text-zinc-400'
+                          : 'bg-slate-200/70 dark:bg-white/[0.06] text-slate-500 dark:text-zinc-400'
                       }`}>
                         <IconComponent size={15} />
                       </div>
                       <div className="min-w-0">
-                        <p className={`text-xs font-medium truncate ${isChecked ? 'text-white font-semibold' : 'text-zinc-300'}`}>
+                        <p className={`text-xs font-medium truncate ${isChecked ? 'text-slate-900 dark:text-white font-semibold' : 'text-slate-600 dark:text-zinc-300'}`}>
                           {label}
                         </p>
                         {otherZone && (
-                          <p className="text-[10px] text-amber-400/80 truncate">
+                          <p className="text-[10px] text-amber-500 dark:text-amber-400/80 truncate">
                             {isVi ? `Đang thuộc "${otherZone.zoneName}"` : `Currently in "${otherZone.zoneName}"`}
                           </p>
                         )}
@@ -434,7 +434,7 @@ export function SidebarZoneModal({
                     <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all ${
                       isChecked
                         ? `${activeColorConfig.borderClass} ${activeColorConfig.bgClass} ${activeColorConfig.textClass}`
-                        : 'border-white/20 bg-white/[0.05] text-transparent'
+                        : 'border-slate-300 dark:border-white/20 bg-white dark:bg-white/[0.05] text-transparent'
                     }`}>
                       <Check className="h-3.5 w-3.5 stroke-[3]" />
                     </div>
@@ -442,7 +442,7 @@ export function SidebarZoneModal({
                 );
               })}
             </div>
-            <p className="text-[11px] text-zinc-500 mt-1.5 flex items-center gap-1">
+            <p className="text-[11px] text-slate-500 dark:text-zinc-500 mt-1.5 flex items-center gap-1">
               <Info className="h-3 w-3 shrink-0" />
               {isVi 
                 ? 'Bạn cũng có thể kéo thả trực tiếp các module vào Vùng bất kỳ lúc nào trên thanh bên.' 
@@ -451,12 +451,12 @@ export function SidebarZoneModal({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-between pt-3 border-t border-white/[0.08]">
+          <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-white/[0.08]">
             {isEditing ? (
               <button
                 type="button"
                 onClick={handleDelete}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-rose-500/20 hover:border-rose-500/30 transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 hover:border-rose-300 dark:hover:border-rose-500/30 transition-all cursor-pointer"
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 <span>{isVi ? 'Xóa Vùng này' : 'Delete Zone'}</span>
@@ -467,7 +467,7 @@ export function SidebarZoneModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white hover:bg-white/[0.06] transition-all cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-all cursor-pointer"
               >
                 {isVi ? 'Hủy bỏ' : 'Cancel'}
               </button>

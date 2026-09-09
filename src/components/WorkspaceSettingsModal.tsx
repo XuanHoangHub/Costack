@@ -12,6 +12,8 @@ import { Workspace, User, WorkspaceInvitation, WorkspaceRole } from '../types';
 import SignedImage from './SignedImage';
 import { presenceDotClass } from '../lib/presence';
 import InviteModal from './InviteModal';
+import ManualAddMemberModal from './workspace/ManualAddMemberModal';
+import ConfirmModal from './ConfirmModal';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useTranslation } from '@/contexts/TranslationContext';
 
@@ -82,6 +84,8 @@ export default function WorkspaceSettingsModal({
   // Member invite & add states
   const [selectedMemberToAdd, setSelectedMemberToAdd] = useState('');
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showManualAddModal, setShowManualAddModal] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<User | null>(null);
   const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
 
   const triggerToast = useNotificationStore(s => s.addToast);
@@ -359,9 +363,17 @@ export default function WorkspaceSettingsModal({
     }
   };
 
-  const removeWorkspaceMember = async (member: User) => {
+  const promptRemoveWorkspaceMember = (member: User) => {
     if (!workspace || !canAdminister || !member.userId) return;
-    if (!window.confirm(`Remove ${member.name} from ${workspace.name}?`)) return;
+    if (membershipRoles[member.userId] === 'owner') return;
+    setMemberToRemove(member);
+  };
+
+  const confirmRemoveWorkspaceMember = async () => {
+    if (!workspace || !memberToRemove || !memberToRemove.userId) return;
+    const member = memberToRemove;
+    setMemberToRemove(null);
+
     const { error } = await supabase.from('workspace_memberships').delete().eq('workspace_id', workspace.id).eq('user_id', member.userId);
     if (error) {
       triggerToast({ id: generateId(), type: 'info', title: 'Could not remove member', message: error.message, duration: 4000 });
@@ -369,6 +381,13 @@ export default function WorkspaceSettingsModal({
     }
     await fetchMemberships();
     onUpdateMember?.({ ...member, workspaceIds: (member.workspaceIds || []).filter(id => id !== workspace.id) });
+    triggerToast({
+      id: generateId(),
+      type: 'success',
+      title: isVietnamese ? 'Đã xóa thành viên' : 'Member Removed',
+      message: isVietnamese ? `Đã xóa ${member.name} khỏi workspace.` : `Removed ${member.name} from workspace.`,
+      duration: 3000
+    });
   };
 
   const handleSendInvites = async (emails: string[], role: string) => {
@@ -1015,11 +1034,11 @@ export default function WorkspaceSettingsModal({
                     </div>
                   )}
 
-                  {canAdminister && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {canAdminister && <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
                     {/* Add Directory Member */}
                     <div className="p-4 bg-slate-50/50 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-800/60 rounded-2xl space-y-3 text-left">
                       <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-550 tracking-wider block">
-                        {isVietnamese ? 'Thêm thành viên từ danh bạ' : 'Add from Directory'}
+                        {isVietnamese ? 'Thêm từ danh bạ' : 'Add from Directory'}
                       </span>
                       {nonWSMembers.length === 0 ? (
                         <p className="text-[10px] text-slate-400 italic py-2">
@@ -1055,11 +1074,11 @@ export default function WorkspaceSettingsModal({
                     {/* Invite via Email */}
                     <div className="p-4 bg-slate-50/50 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-800/60 rounded-2xl flex flex-col justify-between items-start gap-3 text-left">
                       <div>
-                        <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-550 tracking-wider block">
+                        <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider block">
                           {isVietnamese ? 'Mời đồng nghiệp' : 'Invite Teammates'}
                         </span>
                         <p className="text-[11px] text-slate-400 dark:text-slate-550 mt-1">
-                          {isVietnamese ? 'Gửi lời mời bảo mật đến nhiều thành viên trong nhóm.' : 'Send secure email invitations to teammates.'}
+                          {isVietnamese ? 'Gửi lời mời bảo mật qua email hoặc liên kết tham gia.' : 'Send secure email invitations or share join link.'}
                         </p>
                       </div>
                       <button
@@ -1068,7 +1087,27 @@ export default function WorkspaceSettingsModal({
                         className="px-4 py-2 bg-indigo-500 hover:bg-indigo-655 active:scale-[0.98] text-white rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
                       >
                         <UserPlus className="w-3.5 h-3.5" />
-                        <span>{isVietnamese ? 'Mời qua email' : 'Invite via Email'}</span>
+                        <span>{isVietnamese ? 'Mời qua email' : 'Invite Teammates'}</span>
+                      </button>
+                    </div>
+
+                    {/* Add Manual Member Profile */}
+                    <div className="p-4 bg-slate-50/50 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-800/60 rounded-2xl flex flex-col justify-between items-start gap-3 text-left">
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-550 tracking-wider block">
+                          {isVietnamese ? 'Thêm thủ công' : 'Manual Entry'}
+                        </span>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-550 mt-1">
+                          {isVietnamese ? 'Thêm tài khoản trực tiếp hoặc chọn người dùng chưa vào nhóm.' : 'Directly register user or pick existing accounts.'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowManualAddModal(true)}
+                        className="px-4 py-2 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 active:scale-[0.98] text-white rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
+                      >
+                        <UserPlus className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>{isVietnamese ? 'Thêm hồ sơ thủ công' : 'Add Manually'}</span>
                       </button>
                     </div>
                   </div>}
@@ -1127,7 +1166,7 @@ export default function WorkspaceSettingsModal({
                                   
                                   <button
                                     type="button"
-                                    onClick={() => removeWorkspaceMember(member)}
+                                    onClick={() => promptRemoveWorkspaceMember(member)}
                                     className="p-1 text-rose-500 hover:text-rose-650 hover:bg-rose-50 dark:hover:bg-rose-955/20 rounded-lg transition-colors cursor-pointer"
                                     title={isVietnamese ? 'Xóa thành viên' : 'Remove member'}
                                   >
@@ -1249,6 +1288,37 @@ export default function WorkspaceSettingsModal({
             onClose={() => setShowInviteModal(false)}
             onSendInvites={handleSendInvites}
             workspaceName={workspace.name}
+            onOpenManualAdd={() => {
+              setShowInviteModal(false);
+              setShowManualAddModal(true);
+            }}
+          />
+
+          <ManualAddMemberModal
+            isOpen={showManualAddModal}
+            onClose={() => setShowManualAddModal(false)}
+            workspaceId={workspace.id}
+            workspaceName={workspace.name}
+            allMembers={members}
+            onMemberAdded={async () => {
+              await fetchMemberships();
+            }}
+          />
+
+          <ConfirmModal
+            isOpen={!!memberToRemove}
+            title={isVietnamese ? 'Xóa thành viên khỏi Workspace' : 'Remove Member from Workspace'}
+            description={isVietnamese
+              ? `Bạn có chắc chắn muốn xóa thành viên "${memberToRemove?.name}" khỏi không gian "${workspace.name}"? Họ sẽ không thể tiếp tục truy cập các dự án và tài liệu trong không gian này.`
+              : `Are you sure you want to remove "${memberToRemove?.name}" from "${workspace.name}"? They will lose access to all tasks and documents in this workspace.`
+            }
+            itemName={memberToRemove?.name}
+            confirmText={isVietnamese ? 'Xóa thành viên' : 'Remove Member'}
+            cancelText={isVietnamese ? 'Hủy' : 'Cancel'}
+            isDestructive={true}
+            type="danger"
+            onConfirm={confirmRemoveWorkspaceMember}
+            onCancel={() => setMemberToRemove(null)}
           />
         </motion.div>
       </div>

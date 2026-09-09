@@ -23,7 +23,7 @@ const tables = [
   'finance_debts', 'finance_budgets', 'finance_payments', 'finance_categories',
   'billing_customers', 'billing_subscriptions', 'billing_orders', 'billing_webhook_events',
   'newsletter_subscribers', 'admin_audit_logs', 'app_versions', 'app_admin_settings',
-  'admin_user_profiles',
+  'admin_user_profiles', 'workspace_contacts',
 ];
 
 const headers = {

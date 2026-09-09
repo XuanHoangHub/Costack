@@ -253,8 +253,13 @@ export function useAppActions() {
             workspace_id: activeWorkspaceId,
             space_id: newTask.spaceId || null,
             list_id: newTask.listId || null,
-            custom_fields: embedTaskRelationships(newTask.custom_fields, newTask.relationships),
-            recurrence: newTask.recurrence || null
+            custom_fields: embedTaskRelationships({
+              ...newTask.custom_fields,
+              reminder: newTask.reminder,
+              isMilestone: newTask.isMilestone
+            }, newTask.relationships),
+            recurrence: newTask.recurrence || null,
+            attachments: newTask.attachments || []
           };
 
           const { error } = await supabase.from('tasks').insert([payload]);
@@ -335,8 +340,13 @@ export function useAppActions() {
             comments: updated.comments,
             space_id: updated.spaceId || null,
             list_id: updated.listId || null,
-            custom_fields: embedTaskRelationships(updated.custom_fields, updated.relationships),
-            recurrence: updated.recurrence || null
+            custom_fields: embedTaskRelationships({
+              ...updated.custom_fields,
+              reminder: updated.reminder,
+              isMilestone: updated.isMilestone
+            }, updated.relationships),
+            recurrence: updated.recurrence || null,
+            attachments: updated.attachments || []
           }).eq('id', updated.id);
           if (error) console.error('Supabase Task Update Error:', error.message || JSON.stringify(error));
         }
