@@ -9,6 +9,16 @@ import {
 } from 'lucide-react';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { createPortal } from 'react-dom';
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
 
 interface InviteModalProps {
   isOpen: boolean;
@@ -175,17 +185,18 @@ export default function InviteModal({
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="absolute inset-0 modal-backdrop-blur"
-          />
+    <Portal>
+      <AnimatePresence>
+        {isOpen && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onClose}
+              className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs cursor-pointer"
+            />
 
           {/* Modal Container */}
           <motion.div
@@ -458,5 +469,6 @@ export default function InviteModal({
         </div>
       )}
     </AnimatePresence>
+    </Portal>
   );
 }

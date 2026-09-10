@@ -1,9 +1,19 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { Command, Search, X } from 'lucide-react';
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
 
 type KeyboardShortcutsModalProps = {
   isOpen: boolean;
@@ -62,16 +72,17 @@ export default function KeyboardShortcutsModal({ isOpen, onClose, locale = 'en' 
   ];
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-          <motion.button
-            type="button"
-            aria-label={vi ? 'Đóng bảng phím tắt' : 'Close shortcuts'}
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm"
-          />
+    <Portal>
+      <AnimatePresence>
+        {isOpen && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.button
+              type="button"
+              aria-label={vi ? 'Đóng bảng phím tắt' : 'Close shortcuts'}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={onClose}
+              className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs cursor-pointer"
+            />
           <motion.div
             role="dialog"
             aria-modal="true"
@@ -117,5 +128,6 @@ export default function KeyboardShortcutsModal({ isOpen, onClose, locale = 'en' 
         </div>
       )}
     </AnimatePresence>
+    </Portal>
   );
 }

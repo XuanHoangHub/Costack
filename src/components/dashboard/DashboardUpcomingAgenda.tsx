@@ -141,26 +141,26 @@ export default function DashboardUpcomingAgenda({
   };
 
   return (
-    <div className="rounded-3xl border border-slate-200/80 bg-white p-4 sm:p-6 shadow-xs dark:border-slate-800 dark:bg-[#12141d] text-left">
+    <div className="flex flex-col gap-3 text-left">
       {/* Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-slate-100 dark:border-slate-800/80">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
-            <CalendarDays className="h-5 w-5" />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-1">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
+            <CalendarDays className="h-4 w-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-black text-slate-900 dark:text-white">
+              <h3 className="text-base font-semibold tracking-tight text-neutral-900 dark:text-white">
                 {locale === 'vi' ? 'Lịch trình & Hạn chót' : 'Upcoming Agenda & Deadlines'}
               </h3>
               {agendaGroups.overdue.length > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10.5px] font-black text-rose-600 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/60 animate-pulse">
-                  <AlertCircle className="h-3 w-3" />
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 text-[10px] font-medium text-rose-600 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/60">
+                  <AlertCircle className="h-2.5 w-2.5" />
                   {agendaGroups.overdue.length} {locale === 'vi' ? 'quá hạn' : 'overdue'}
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 font-normal">
               {locale === 'vi'
                 ? `${totalUpcomingCount} công việc cần chú ý trong 7 ngày tới`
                 : `${totalUpcomingCount} tasks scheduled for the next 7 days`}
@@ -171,7 +171,7 @@ export default function DashboardUpcomingAgenda({
         <button
           type="button"
           onClick={() => onNavigate('tasks')}
-          className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 cursor-pointer self-start sm:self-auto"
+          className="inline-flex items-center gap-1 text-xs font-medium text-[#0071e3] hover:text-[#0077ed] dark:text-[#0a84ff] cursor-pointer self-start sm:self-auto hover:underline"
         >
           <span>{locale === 'vi' ? 'Xem chế độ Lịch' : 'Open Calendar View'}</span>
           <ChevronRight className="h-3.5 w-3.5" />
@@ -179,33 +179,34 @@ export default function DashboardUpcomingAgenda({
       </div>
 
       {totalUpcomingCount === 0 ? (
-        <div className="py-10 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 mb-2">
-            <CheckCircle2 className="h-6 w-6" />
+        <div className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.08] p-8 text-center shadow-xs">
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mb-2">
+            <CheckCircle2 className="h-5 w-5" />
           </div>
-          <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+          <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">
             {locale === 'vi' ? 'Không có hạn chót nào trong tuần tới' : 'No upcoming deadlines this week'}
           </p>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-neutral-400 mt-0.5 font-normal">
             {locale === 'vi' ? 'Mọi công việc đều đang trong tầm kiểm soát!' : 'All tasks are completed or scheduled later!'}
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 pt-4">
+        <div className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.08] shadow-xs overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-black/[0.05] dark:divide-white/[0.06]">
           
           {/* 1. Overdue Group (if any) */}
           {agendaGroups.overdue.length > 0 && (
-            <div className="rounded-2xl bg-rose-50/40 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-900/40 p-3 flex flex-col gap-2">
-              <div className="flex items-center justify-between pb-1 border-b border-rose-200/40 dark:border-rose-900/40">
-                <span className="text-xs font-black text-rose-700 dark:text-rose-400 flex items-center gap-1.5 uppercase tracking-wider">
-                  <AlertCircle className="h-3.5 w-3.5 text-rose-500" />
+            <div className="p-3.5 flex flex-col gap-2.5 bg-rose-500/[0.02] dark:bg-rose-950/[0.1]">
+              <div className="flex items-center justify-between pb-1.5 border-b border-black/[0.04] dark:border-white/[0.06]">
+                <span className="text-[11px] font-medium text-rose-600 dark:text-rose-400 flex items-center gap-1.5 uppercase tracking-wider">
+                  <AlertCircle className="h-3 w-3" />
                   {locale === 'vi' ? 'Quá hạn' : 'Overdue'}
                 </span>
-                <span className="rounded-md bg-rose-100 dark:bg-rose-900/60 px-1.5 py-0.5 text-[10px] font-black text-rose-800 dark:text-rose-300">
+                <span className="rounded-full bg-rose-100 dark:bg-rose-900/60 px-1.5 py-0.2 text-[10px] font-semibold text-rose-700 dark:text-rose-300">
                   {agendaGroups.overdue.length}
                 </span>
               </div>
-              <div className="space-y-2 overflow-y-auto max-h-[300px] custom-scrollbar pr-0.5">
+              <div className="space-y-1.5 overflow-y-auto max-h-[300px] custom-scrollbar pr-0.5">
                 {agendaGroups.overdue.map((task) => (
                   <AgendaTaskItem
                     key={task.id}
@@ -224,22 +225,22 @@ export default function DashboardUpcomingAgenda({
           )}
 
           {/* 2. Today Group */}
-          <div className="rounded-2xl bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 p-3 flex flex-col gap-2">
-            <div className="flex items-center justify-between pb-1 border-b border-amber-200/40 dark:border-amber-900/40">
-              <span className="text-xs font-black text-amber-700 dark:text-amber-400 flex items-center gap-1.5 uppercase tracking-wider">
-                <Clock className="h-3.5 w-3.5 text-amber-500" />
+          <div className="p-3.5 flex flex-col gap-2.5">
+            <div className="flex items-center justify-between pb-1.5 border-b border-black/[0.04] dark:border-white/[0.06]">
+              <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1.5 uppercase tracking-wider">
+                <Clock className="h-3 w-3" />
                 {locale === 'vi' ? 'Hôm nay' : 'Today'}
               </span>
-              <span className="rounded-md bg-amber-100 dark:bg-amber-900/60 px-1.5 py-0.5 text-[10px] font-black text-amber-800 dark:text-amber-300">
+              <span className="rounded-full bg-amber-100 dark:bg-amber-900/60 px-1.5 py-0.2 text-[10px] font-semibold text-amber-800 dark:text-amber-300">
                 {agendaGroups.today.length}
               </span>
             </div>
             {agendaGroups.today.length === 0 ? (
-              <p className="text-[11px] text-slate-400 italic py-4 text-center">
+              <p className="text-[11px] text-neutral-400 font-normal italic py-4 text-center">
                 {locale === 'vi' ? 'Không có việc đến hạn hôm nay' : 'Nothing due today'}
               </p>
             ) : (
-              <div className="space-y-2 overflow-y-auto max-h-[300px] custom-scrollbar pr-0.5">
+              <div className="space-y-1.5 overflow-y-auto max-h-[300px] custom-scrollbar pr-0.5">
                 {agendaGroups.today.map((task) => (
                   <AgendaTaskItem
                     key={task.id}
@@ -258,22 +259,22 @@ export default function DashboardUpcomingAgenda({
           </div>
 
           {/* 3. Tomorrow Group */}
-          <div className="rounded-2xl bg-indigo-50/40 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-900/40 p-3 flex flex-col gap-2">
-            <div className="flex items-center justify-between pb-1 border-b border-indigo-200/40 dark:border-indigo-900/40">
-              <span className="text-xs font-black text-indigo-700 dark:text-indigo-400 flex items-center gap-1.5 uppercase tracking-wider">
-                <Calendar className="h-3.5 w-3.5 text-indigo-500" />
+          <div className="p-3.5 flex flex-col gap-2.5">
+            <div className="flex items-center justify-between pb-1.5 border-b border-black/[0.04] dark:border-white/[0.06]">
+              <span className="text-[11px] font-medium text-[#0071e3] dark:text-[#0a84ff] flex items-center gap-1.5 uppercase tracking-wider">
+                <Calendar className="h-3 w-3" />
                 {locale === 'vi' ? 'Ngày mai' : 'Tomorrow'}
               </span>
-              <span className="rounded-md bg-indigo-100 dark:bg-indigo-900/60 px-1.5 py-0.5 text-[10px] font-black text-indigo-800 dark:text-indigo-300">
+              <span className="rounded-full bg-blue-100 dark:bg-blue-900/60 px-1.5 py-0.2 text-[10px] font-semibold text-blue-800 dark:text-blue-300">
                 {agendaGroups.tomorrow.length}
               </span>
             </div>
             {agendaGroups.tomorrow.length === 0 ? (
-              <p className="text-[11px] text-slate-400 italic py-4 text-center">
+              <p className="text-[11px] text-neutral-400 font-normal italic py-4 text-center">
                 {locale === 'vi' ? 'Không có việc đến hạn ngày mai' : 'Nothing due tomorrow'}
               </p>
             ) : (
-              <div className="space-y-2 overflow-y-auto max-h-[300px] custom-scrollbar pr-0.5">
+              <div className="space-y-1.5 overflow-y-auto max-h-[300px] custom-scrollbar pr-0.5">
                 {agendaGroups.tomorrow.map((task) => (
                   <AgendaTaskItem
                     key={task.id}
@@ -292,22 +293,22 @@ export default function DashboardUpcomingAgenda({
           </div>
 
           {/* 4. This Week Group */}
-          <div className="rounded-2xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/70 dark:border-slate-800 p-3 flex flex-col gap-2">
-            <div className="flex items-center justify-between pb-1 border-b border-slate-200/50 dark:border-slate-800">
-              <span className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5 uppercase tracking-wider">
-                <CalendarDays className="h-3.5 w-3.5 text-slate-500" />
+          <div className="p-3.5 flex flex-col gap-2.5">
+            <div className="flex items-center justify-between pb-1.5 border-b border-black/[0.04] dark:border-white/[0.06]">
+              <span className="text-[11px] font-medium text-neutral-600 dark:text-neutral-400 flex items-center gap-1.5 uppercase tracking-wider">
+                <CalendarDays className="h-3 w-3" />
                 {locale === 'vi' ? 'Tuần này' : 'This Week'}
               </span>
-              <span className="rounded-md bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-black text-slate-700 dark:text-slate-300">
+              <span className="rounded-full bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.2 text-[10px] font-semibold text-neutral-700 dark:text-neutral-300">
                 {agendaGroups.thisWeek.length}
               </span>
             </div>
             {agendaGroups.thisWeek.length === 0 ? (
-              <p className="text-[11px] text-slate-400 italic py-4 text-center">
+              <p className="text-[11px] text-neutral-400 font-normal italic py-4 text-center">
                 {locale === 'vi' ? 'Lịch trình trống' : 'No tasks scheduled'}
               </p>
             ) : (
-              <div className="space-y-2 overflow-y-auto max-h-[300px] custom-scrollbar pr-0.5">
+              <div className="space-y-1.5 overflow-y-auto max-h-[300px] custom-scrollbar pr-0.5">
                 {agendaGroups.thisWeek.map((task) => (
                   <AgendaTaskItem
                     key={task.id}
@@ -325,6 +326,7 @@ export default function DashboardUpcomingAgenda({
             )}
           </div>
 
+        </div>
         </div>
       )}
     </div>
@@ -357,7 +359,7 @@ function AgendaTaskItem({
   return (
     <div
       onClick={() => onOpenTask?.(task.id)}
-      className="group relative rounded-xl border border-slate-200/80 bg-white p-2.5 transition-all hover:border-indigo-300 hover:shadow-xs dark:border-slate-800 dark:bg-[#161822] cursor-pointer"
+      className="group relative rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-white/[0.03] hover:bg-[#fafafa] dark:hover:bg-white/[0.05] p-2.5 transition-all cursor-pointer"
     >
       <div className="flex items-start gap-2">
         {/* Checkbox */}
@@ -384,7 +386,7 @@ function AgendaTaskItem({
 
             {/* Due date tag */}
             {task.dueDate && (
-              <span className="font-mono text-slate-400">
+              <span className="font-numeric tabular-nums text-slate-400">
                 {task.dueDate.split('T')[0]}
               </span>
             )}

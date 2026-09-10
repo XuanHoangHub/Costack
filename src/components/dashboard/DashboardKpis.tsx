@@ -106,60 +106,56 @@ export default function DashboardKpis({
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4 text-left">
-      {cards.map((card, index) => (
-        <motion.div
-          key={card.id}
-          initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          whileHover={prefersReducedMotion ? undefined : { y: -3 }}
-          transition={{ delay: index * 0.05, type: 'spring', stiffness: 200, damping: 22 }}
-          className="group relative isolate overflow-hidden rounded-[24px] border border-slate-200/80 bg-white/95 p-5 shadow-[0_12px_36px_-24px_rgba(15,23,42,0.12)] backdrop-blur-xl transition-all duration-300 hover:border-indigo-300/80 hover:shadow-[0_18px_48px_-20px_rgba(79,70,229,0.22)] dark:border-slate-800 dark:bg-[#12141d]/95 dark:hover:border-indigo-800/80"
-        >
-          {/* Subtle Ambient Radial Glow */}
-          <div className={`pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full blur-2xl transition-transform duration-500 group-hover:scale-125 ${card.glowColor}`} />
-
-          {/* Top Row: Title, Badge, and Icon */}
-          <div className="relative flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+    <div className="apexa-telemetry-ribbon rounded-2xl bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.08] shadow-xs overflow-hidden text-left">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-black/[0.05] dark:divide-white/[0.06]">
+        {cards.map((card, index) => (
+          <motion.div
+            key={card.id}
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.04, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="group relative flex flex-col justify-between p-4 sm:p-5 hover:bg-black/[0.015] dark:hover:bg-white/[0.02] transition-colors"
+          >
+            {/* Top Row: Title, Badge, and Minimalist Icon */}
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-medium tracking-wider uppercase text-neutral-400 dark:text-neutral-500">
                 {card.title}
               </span>
+              
+              <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${card.iconBg} ${card.iconColor} transition-transform duration-200 group-hover:scale-105`}>
+                <card.icon className="h-3.5 w-3.5 stroke-[1.8]" />
+              </div>
             </div>
-            
-            <div className={`flex h-9 w-9 items-center justify-center rounded-xl border shadow-2xs transition-transform duration-300 group-hover:scale-105 ${card.iconBg} ${card.iconColor}`}>
-              <card.icon className="h-4.5 w-4.5" />
-            </div>
-          </div>
 
-          {/* Metric Value & Subtitle */}
-          <div className="relative mt-3 space-y-1">
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white tabular-nums">
-                {card.value}
-              </span>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-extrabold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                {card.badge}
-              </span>
+            {/* Metric Value & Subtitle */}
+            <div className="mt-2.5 space-y-1">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-2xl sm:text-[26px] font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums">
+                  {card.value}
+                </span>
+                <span className="rounded-full bg-black/[0.04] dark:bg-white/[0.06] px-2 py-0.5 text-[10px] font-medium text-neutral-600 dark:text-neutral-300">
+                  {card.badge}
+                </span>
+              </div>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate font-normal">
+                {card.subtitle}
+              </p>
             </div>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 truncate">
-              {card.subtitle}
-            </p>
-          </div>
 
-          {/* Mini Progress Bar */}
-          <div className="relative mt-4">
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-              <motion.div
-                initial={prefersReducedMotion ? false : { width: 0 }}
-                animate={{ width: `${Math.min(100, Math.max(0, card.progress))}%` }}
-                transition={{ delay: 0.1 + index * 0.05, duration: 0.8, ease: 'easeOut' }}
-                className={`h-full rounded-full bg-gradient-to-r ${card.barColor}`}
-              />
+            {/* Micro Progress Bar */}
+            <div className="mt-3.5">
+              <div className="h-1 w-full overflow-hidden rounded-full bg-black/[0.04] dark:bg-white/[0.06]">
+                <motion.div
+                  initial={prefersReducedMotion ? false : { width: 0 }}
+                  animate={{ width: `${Math.min(100, Math.max(0, card.progress))}%` }}
+                  transition={{ delay: 0.1 + index * 0.04, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                  className={`h-full rounded-full bg-gradient-to-r ${card.barColor}`}
+                />
+              </div>
             </div>
-          </div>
-        </motion.div>
-      ))}
+          </motion.div>
+        ))}
+      </div>
     </div>
   );
 }

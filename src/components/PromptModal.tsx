@@ -9,6 +9,16 @@ import {
 } from 'lucide-react';
 
 import { useTranslation } from '../contexts/TranslationContext';
+import { createPortal } from 'react-dom';
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
 
 export type PromptModalType = 
   | 'task' 
@@ -215,17 +225,18 @@ export default function PromptModal({
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          {/* Backdrop with Blur */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onCancel}
-            className="absolute inset-0 bg-slate-950/60 backdrop-blur-md transition-opacity"
-          />
+    <Portal>
+      <AnimatePresence>
+        {isOpen && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            {/* Backdrop with Apple-standard Blur */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onCancel}
+              className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs transition-opacity cursor-pointer"
+            />
 
           {/* Modal Container */}
           <motion.div
@@ -353,5 +364,6 @@ export default function PromptModal({
         </div>
       )}
     </AnimatePresence>
+    </Portal>
   );
 }

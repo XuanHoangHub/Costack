@@ -20,6 +20,16 @@ import { useTranslation } from '@/contexts/TranslationContext';
 import { getLocalizedOptionLabel } from '@/utils/fieldConfig';
 import { uiStatusToPresence, presenceDotClass } from '@/lib/presence';
 import { User, Task } from '@/types';
+import { createPortal } from 'react-dom';
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
 
 interface MemberProfileModalProps {
   memberId: string | null;
@@ -395,15 +405,16 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
   const currentStatusMeta = statusLabels[resolvedStatus] || statusLabels.offline;
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 sm:p-6">
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="absolute inset-0 cursor-pointer" 
-          onClick={onClose} 
-        />
+    <Portal>
+      <AnimatePresence>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs cursor-pointer" 
+            onClick={onClose} 
+          />
 
         <motion.div
           initial={{ opacity: 0, scale: 0.94, y: 18 }}
@@ -982,5 +993,6 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
         </motion.div>
       )}
     </AnimatePresence>
+    </Portal>
   );
 }

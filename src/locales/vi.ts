@@ -2,13 +2,13 @@ import type { Translations } from './en';
 
 export const vi: Translations = {
   tasks: 'Công việc',
-  dashboard: 'Dashboard',
+  dashboard: 'Tổng quan',
   calendar: 'Lịch',
   documents: 'Tài liệu',
   inbox: 'Hộp thư đến',
   analytics: 'Phân tích',
   goals: 'Mục tiêu (OKRs)',
-  homeOverview: 'Dashboard',
+  homeOverview: 'Tổng quan',
   space: 'Không gian',
   docs: 'Tài liệu',
   whiteboard: 'Bảng trắng',

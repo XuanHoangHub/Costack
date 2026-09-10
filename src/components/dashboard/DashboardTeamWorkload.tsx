@@ -79,20 +79,20 @@ export default function DashboardTeamWorkload({
   const overloadedCount = workloadStats.filter((s) => s.status === 'overloaded').length;
 
   return (
-    <div className="rounded-3xl border border-slate-200/80 bg-white p-4 sm:p-6 shadow-xs dark:border-slate-800 dark:bg-[#12141d] text-left">
+    <div className="apexa-inset-group text-left p-4 sm:p-6">
       {/* Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-slate-100 dark:border-slate-800/80">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-black/[0.05] dark:border-white/[0.06]">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
-            <Users className="h-5 w-5" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-black/[0.04] text-slate-800 dark:bg-white/[0.06] dark:text-slate-200">
+            <Users className="h-4.5 w-4.5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-black text-slate-900 dark:text-white">
+              <h3 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white">
                 {locale === 'vi' ? 'Tải công việc & Năng lực đội ngũ' : 'Team Workload & Capacity'}
               </h3>
               {overloadedCount > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10.5px] font-black text-rose-600 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/60">
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[10.5px] font-medium text-rose-600 dark:text-rose-400 border border-rose-500/20">
                   <Flame className="h-3 w-3" />
                   {overloadedCount} {locale === 'vi' ? 'thành viên quá tải' : 'overloaded'}
                 </span>
@@ -111,7 +111,7 @@ export default function DashboardTeamWorkload({
             <button
               type="button"
               onClick={() => onSelectMember?.(null)}
-              className="px-2.5 py-1 text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              className="px-2.5 py-1 text-xs font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
             >
               {locale === 'vi' ? 'Bỏ lọc thành viên' : 'Clear filter'}
             </button>
@@ -119,7 +119,7 @@ export default function DashboardTeamWorkload({
           <button
             type="button"
             onClick={() => onNavigate('team')}
-            className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 cursor-pointer"
+            className="inline-flex items-center gap-1 text-xs font-medium text-[#0071E3] hover:underline dark:text-[#0A84FF] cursor-pointer"
           >
             <span>{locale === 'vi' ? 'Quản lý đội ngũ' : 'Team Directory'}</span>
             <ChevronRight className="h-3.5 w-3.5" />
@@ -133,7 +133,7 @@ export default function DashboardTeamWorkload({
           {locale === 'vi' ? 'Chưa có thành viên nào trong không gian này.' : 'No members found in this workspace.'}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 pt-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 pt-4">
           {workloadStats.map((item) => {
             const isSelected = selectedMemberId === item.member.id;
             const isOnline = item.member.status === 'online' || item.member.customStatus === 'online';
@@ -142,10 +142,10 @@ export default function DashboardTeamWorkload({
               <div
                 key={item.member.id}
                 onClick={() => onSelectMember?.(isSelected ? null : item.member.id)}
-                className={`group relative rounded-2xl border p-3.5 transition-all cursor-pointer ${
+                className={`group relative rounded-xl border p-3 transition-all cursor-pointer ${
                   isSelected
-                    ? 'border-indigo-500 bg-indigo-50/40 ring-2 ring-indigo-500/20 dark:border-indigo-500 dark:bg-indigo-950/30'
-                    : 'border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-xs dark:border-slate-800 dark:bg-[#161822] dark:hover:border-slate-700'
+                    ? 'border-[#0071E3] bg-[#0071E3]/[0.06] dark:border-[#0A84FF] dark:bg-[#0A84FF]/10'
+                    : 'border-black/[0.06] bg-white hover:bg-[#fafafa] dark:border-white/[0.07] dark:bg-white/[0.02] dark:hover:bg-white/[0.04]'
                 }`}
               >
                 {/* Top: Avatar, Name & Capacity badge */}
@@ -154,17 +154,17 @@ export default function DashboardTeamWorkload({
                     <div className="relative shrink-0">
                       <SignedImage
                         filePath={item.member.avatar}
-                        className="h-10 w-10 rounded-2xl object-cover shadow-3xs"
+                        className="h-9 w-9 rounded-full object-cover"
                         alt={item.member.name}
                       />
                       <span
-                        className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-slate-900 ${
+                        className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-[#121214] ${
                           isOnline ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
                         }`}
                       />
                     </div>
                     <div className="min-w-0">
-                      <h4 className="truncate text-xs font-black text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      <h4 className="truncate text-xs font-semibold text-slate-900 dark:text-white group-hover:text-[#0071E3] dark:group-hover:text-[#0A84FF] transition-colors">
                         {item.member.name}
                       </h4>
                       <p className="truncate text-[10px] text-slate-400 capitalize">
@@ -175,19 +175,19 @@ export default function DashboardTeamWorkload({
 
                   {/* Status Pill */}
                   {item.status === 'overloaded' && (
-                    <span className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/60 shrink-0">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-medium text-rose-600 dark:text-rose-400 border border-rose-500/20 shrink-0">
                       <Flame className="h-2.5 w-2.5" />
                       {locale === 'vi' ? 'Quá tải' : 'Heavy'}
                     </span>
                   )}
                   {item.status === 'balanced' && (
-                    <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 shrink-0">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
                       <CheckCircle2 className="h-2.5 w-2.5" />
                       {locale === 'vi' ? 'Cân bằng' : 'Balanced'}
                     </span>
                   )}
                   {item.status === 'available' && (
-                    <span className="inline-flex items-center gap-1 rounded-lg bg-sky-50 px-2 py-0.5 text-[10px] font-black text-sky-600 dark:bg-sky-950/60 dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/60 shrink-0">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-600 dark:text-sky-400 border border-sky-500/20 shrink-0">
                       <UserPlus className="h-2.5 w-2.5" />
                       {locale === 'vi' ? 'Sẵn sàng' : 'Open'}
                     </span>
@@ -195,47 +195,47 @@ export default function DashboardTeamWorkload({
                 </div>
 
                 {/* Metrics Row */}
-                <div className="mt-3 grid grid-cols-3 gap-1 rounded-xl bg-slate-50 p-2 text-center dark:bg-slate-900/60">
+                <div className="mt-2.5 grid grid-cols-3 gap-1 rounded-lg bg-[#f7f7f9] p-1.5 text-center border border-black/[0.03] dark:border-transparent dark:bg-white/[0.04]">
                   <div>
-                    <span className="block text-[9.5px] font-semibold text-slate-400 uppercase">
+                    <span className="block text-[9.5px] font-medium text-slate-400 uppercase tracking-wider">
                       {locale === 'vi' ? 'Đang làm' : 'Active'}
                     </span>
-                    <span className="font-mono text-xs font-black text-slate-800 dark:text-slate-100">
+                    <span className="font-numeric text-xs font-semibold tabular-nums text-slate-800 dark:text-slate-200">
                       {item.activeCount}
                     </span>
                   </div>
                   <div>
-                    <span className="block text-[9.5px] font-semibold text-slate-400 uppercase">
+                    <span className="block text-[9.5px] font-medium text-slate-400 uppercase tracking-wider">
                       {locale === 'vi' ? 'Đã xong' : 'Done'}
                     </span>
-                    <span className="font-mono text-xs font-black text-emerald-600 dark:text-emerald-400">
+                    <span className="font-numeric text-xs font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
                       {item.completedCount}
                     </span>
                   </div>
                   <div>
-                    <span className="block text-[9.5px] font-semibold text-slate-400 uppercase">
+                    <span className="block text-[9.5px] font-medium text-slate-400 uppercase tracking-wider">
                       {locale === 'vi' ? 'Giờ ghi' : 'Logged'}
                     </span>
-                    <span className="font-mono text-xs font-black text-indigo-600 dark:text-indigo-400">
+                    <span className="font-numeric text-xs font-semibold tabular-nums text-[#0071E3] dark:text-[#0A84FF]">
                       {item.totalLogged}h
                     </span>
                   </div>
                 </div>
 
                 {/* Capacity Progress Bar */}
-                <div className="mt-2.5 space-y-1">
+                <div className="mt-2 space-y-1">
                   <div className="flex items-center justify-between text-[9.5px] text-slate-400">
                     <span>{locale === 'vi' ? 'Ước tính tải việc' : 'Weekly Capacity'}</span>
-                    <span className="font-mono font-bold">{item.totalEstimated}h / 40h</span>
+                    <span className="font-numeric font-medium tabular-nums">{item.totalEstimated}h / 40h</span>
                   </div>
-                  <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                  <div className="h-1 w-full rounded-full bg-black/[0.06] dark:bg-white/[0.08] overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-300 ${
                         item.status === 'overloaded'
                           ? 'bg-rose-500'
                           : item.status === 'balanced'
                           ? 'bg-emerald-500'
-                          : 'bg-sky-400'
+                          : 'bg-[#0071E3] dark:bg-[#0A84FF]'
                       }`}
                       style={{ width: `${item.capacityPercentage}%` }}
                     />

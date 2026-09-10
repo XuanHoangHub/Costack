@@ -781,7 +781,7 @@ export default function TaskModal({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.12 }}
           onClick={onClose}
-          className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm"
+          className="fixed inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs cursor-pointer"
         />
 
         {/* ════════════════════════════════════════ */}

@@ -28,6 +28,16 @@ import { supabase } from '@/lib/supabaseClient';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { SUGGESTED_PRICES, type BillingCycle, type BillingPlan, type SelfServeBillingPlan } from '@/lib/billing/plans';
 import { PayOSCheckout, type PaymentReceipt, type PayOSCheckoutData } from '@/components/billing/PayOSCheckout';
+import { createPortal } from 'react-dom';
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
 import { CardPaymentSuccess } from '@/components/billing/CardPaymentSuccess';
 import { PAYPAL_DEFAULT_PRICES } from '@/lib/billing/paypal-prices';
 
@@ -667,17 +677,18 @@ export const PricingModal: React.FC<PricingModalProps> = ({
   }, [checkPaymentStatus, checkout]);
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto p-3 sm:p-5">
-          {/* Ambient Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => !loadingPlan && handleModalClose()}
-            className="fixed inset-0 bg-slate-950/80 backdrop-blur-md"
-          />
+    <Portal>
+      <AnimatePresence>
+        {isOpen && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto p-3 sm:p-5">
+            {/* Ambient Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !loadingPlan && handleModalClose()}
+              className="fixed inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs cursor-pointer"
+            />
 
           {/* Main Modal Shell */}
           <motion.section
@@ -1317,5 +1328,6 @@ export const PricingModal: React.FC<PricingModalProps> = ({
         </div>
       )}
     </AnimatePresence>
+    </Portal>
   );
 };

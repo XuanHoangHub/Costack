@@ -8,6 +8,16 @@ import {
 } from 'lucide-react';
 import { SidebarZone, useUiStore, DEFAULT_SIDEBAR_ORDER } from '@/store/uiStore';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { createPortal } from 'react-dom';
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
 
 export interface SidebarZoneModalProps {
   isOpen: boolean;
@@ -222,17 +232,20 @@ export function SidebarZoneModal({
 
   const activeColorConfig = COLOR_PRESETS.find(c => c.id === color) || COLOR_PRESETS[0];
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
-      {/* Backdrop */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.15 }}
-        onClick={onClose}
-        className="fixed inset-0 bg-slate-950/50 backdrop-blur-md"
-      />
+    <Portal>
+      <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
+        {/* Backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          onClick={onClose}
+          className="fixed inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs cursor-pointer"
+        />
 
       {/* Modal Dialog */}
       <motion.div
@@ -491,5 +504,6 @@ export function SidebarZoneModal({
         </form>
       </motion.div>
     </div>
+    </Portal>
   );
 }

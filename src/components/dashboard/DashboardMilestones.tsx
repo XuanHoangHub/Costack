@@ -79,23 +79,23 @@ export default function DashboardMilestones({
   }
 
   return (
-    <div className="rounded-3xl border border-slate-200/80 bg-white p-4 sm:p-6 shadow-xs dark:border-slate-800 dark:bg-[#12141d] text-left">
+    <div className="flex flex-col gap-3 text-left">
       {/* Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-slate-100 dark:border-slate-800/80">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-500/10 text-violet-600 dark:text-violet-400">
-            <Target className="h-5 w-5" />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-1">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
+            <Target className="h-4 w-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-black text-slate-900 dark:text-white">
+              <h3 className="text-base font-semibold tracking-tight text-neutral-900 dark:text-white">
                 {locale === 'vi' ? 'Tiến độ mục tiêu & Dự án' : 'Project Milestones & Goals'}
               </h3>
-              <span className="rounded-md bg-violet-100 dark:bg-violet-950/60 px-2 py-0.5 text-[10.5px] font-bold text-violet-700 dark:text-violet-300">
+              <span className="rounded-full bg-violet-500/[0.08] dark:bg-violet-400/[0.12] px-2 py-0.5 text-[10px] font-medium text-violet-700 dark:text-violet-300">
                 {projectStats.length} {locale === 'vi' ? 'không gian' : 'spaces'}
               </span>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 font-normal">
               {locale === 'vi'
                 ? 'Tổng hợp trạng thái tiến độ theo từng Không gian làm việc'
                 : 'Workspace progress and delivery milestones by space'}
@@ -106,15 +106,16 @@ export default function DashboardMilestones({
         <button
           type="button"
           onClick={() => onNavigate('tasks')}
-          className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 cursor-pointer self-start sm:self-auto"
+          className="inline-flex items-center gap-1 text-xs font-medium text-[#0071e3] hover:text-[#0077ed] dark:text-[#0a84ff] cursor-pointer self-start sm:self-auto hover:underline"
         >
           <span>{locale === 'vi' ? 'Xem tất cả không gian' : 'View all spaces'}</span>
           <ChevronRight className="h-3.5 w-3.5" />
         </button>
       </div>
 
-      {/* Projects Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 pt-4">
+      {/* Projects Inset Group Grid */}
+      <div className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.08] p-3.5 sm:p-4 shadow-xs">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {projectStats.map((item) => {
           return (
             <div
@@ -126,20 +127,20 @@ export default function DashboardMilestones({
                   onNavigate('tasks');
                 }
               }}
-              className="group relative flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-4 transition-all hover:border-violet-300 hover:shadow-xs dark:border-slate-800 dark:bg-[#161822] cursor-pointer"
+              className="group relative flex flex-col justify-between rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-white/[0.03] p-3.5 transition-all hover:bg-[#fafafa] dark:hover:bg-white/[0.05] cursor-pointer"
             >
               <div>
                 {/* Top Row */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400 font-black text-xs shadow-3xs">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400 font-semibold text-xs shadow-none">
                       {item.space.emoji || <Folder className="h-4 w-4" />}
                     </div>
                     <div className="min-w-0">
-                      <h4 className="truncate text-xs font-black text-slate-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+                      <h4 className="truncate text-xs font-semibold text-neutral-900 dark:text-white group-hover:text-[#0071e3] dark:group-hover:text-[#0a84ff] transition-colors">
                         {item.space.name}
                       </h4>
-                      <p className="text-[10px] text-slate-400">
+                      <p className="text-[10px] text-neutral-400">
                         {item.total} {locale === 'vi' ? 'công việc' : 'tasks'}
                       </p>
                     </div>
@@ -167,18 +168,18 @@ export default function DashboardMilestones({
                 </div>
 
                 {/* Progress Bar */}
-                <div className="mt-4 space-y-1.5">
+                <div className="mt-3.5 space-y-1">
                   <div className="flex items-center justify-between text-[10px]">
-                    <span className="font-semibold text-slate-500 dark:text-slate-400">
+                    <span className="font-medium text-slate-500 dark:text-slate-400">
                       {item.completed} / {item.total} {locale === 'vi' ? 'hoàn tất' : 'completed'}
                     </span>
-                    <span className="font-mono font-black text-slate-900 dark:text-white">
+                    <span className="font-numeric font-semibold tabular-nums text-slate-900 dark:text-white">
                       {item.percentage}%
                     </span>
                   </div>
-                  <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                  <div className="h-1.5 w-full rounded-full bg-black/[0.06] dark:bg-white/[0.08] overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-all duration-500"
+                      className="h-full rounded-full bg-[#0071e3] dark:bg-[#0a84ff] transition-all duration-500"
                       style={{ width: `${item.percentage}%` }}
                     />
                   </div>
@@ -186,18 +187,19 @@ export default function DashboardMilestones({
               </div>
 
               {/* Bottom stats */}
-              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+              <div className="mt-3 pt-2.5 border-t border-black/[0.05] dark:border-white/[0.06] flex items-center justify-between text-[10px] text-slate-400">
                 <span>
                   {item.inProgress} {locale === 'vi' ? 'đang làm' : 'active'}
                   {item.overdue > 0 && ` · ${item.overdue} ${locale === 'vi' ? 'quá hạn' : 'overdue'}`}
                 </span>
-                <span className="font-mono font-semibold">
+                <span className="font-numeric font-medium tabular-nums">
                   {item.remainingHours > 0 ? `${item.remainingHours}h ${locale === 'vi' ? 'còn lại' : 'left'}` : '0h'}
                 </span>
               </div>
             </div>
           );
         })}
+        </div>
       </div>
     </div>
   );

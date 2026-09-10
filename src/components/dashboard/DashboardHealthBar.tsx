@@ -81,10 +81,10 @@ export default function DashboardHealthBar({
 
   return (
     <section
-      className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-2xs backdrop-blur-xl dark:border-slate-800 dark:bg-[#12141d]/90 text-left"
+      className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.08] shadow-xs overflow-hidden text-left"
       aria-label="Task Health Indicators"
     >
-      <div className="grid grid-cols-2 divide-y divide-slate-100 dark:divide-slate-800/80 md:grid-cols-5 md:divide-y-0 md:divide-x">
+      <div className="grid grid-cols-2 divide-y divide-black/[0.05] dark:divide-white/[0.06] md:grid-cols-5 md:divide-y-0 md:divide-x">
         {healthItems.map((item) => {
           const isActive = item.isFilterable && activeHealthFilter === item.key;
           return (
@@ -97,33 +97,33 @@ export default function DashboardHealthBar({
                   onSelectHealthFilter(isActive ? 'none' : item.key);
                 }
               }}
-              className={`group flex min-h-[96px] items-center gap-3 p-3.5 transition-all text-left ${
-                item.isFilterable ? 'cursor-pointer hover:bg-slate-50/80 dark:hover:bg-slate-800/40' : 'cursor-default'
-              } ${isActive ? item.activeRing : ''}`}
+              className={`group flex min-h-[86px] items-center gap-3 p-3.5 transition-all text-left ${
+                item.isFilterable ? 'cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.03]' : 'cursor-default'
+              } ${isActive ? 'bg-[#0071e3]/[0.06] dark:bg-[#0a84ff]/[0.1]' : ''}`}
             >
               <div
-                className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border transition-transform duration-200 ${
+                className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border transition-transform duration-200 ${
                   item.tone
                 } ${item.isFilterable ? 'group-hover:scale-105' : ''}`}
               >
-                <item.icon className="h-4 w-4" />
+                <item.icon className="h-3.5 w-3.5" />
               </div>
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-1">
-                  <p className="truncate text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  <p className="truncate text-[10.5px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
                     {item.label}
                   </p>
                   {isActive && (
-                    <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-indigo-600 text-white">
+                    <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#0071e3] text-white">
                       <Check className="h-2.5 w-2.5" />
                     </span>
                   )}
                 </div>
-                <p className="mt-0.5 text-lg font-black tabular-nums text-slate-900 dark:text-white">
+                <p className="mt-0.5 text-lg font-semibold tabular-nums text-neutral-900 dark:text-white">
                   {item.value}
                 </p>
-                <p className="truncate text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                <p className="truncate text-[10.5px] font-normal text-neutral-400 dark:text-neutral-500">
                   {item.desc}
                 </p>
               </div>

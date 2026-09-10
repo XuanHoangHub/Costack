@@ -8,6 +8,16 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { createConnectedDocument, importDocumentFile, type ImportedApexaDocument } from '@/lib/documentImport';
+import { createPortal } from 'react-dom';
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
 
 interface DocumentStartModalProps {
   open: boolean;
@@ -117,10 +127,11 @@ export default function DocumentStartModal({ open, onClose, onCreate }: Document
   };
 
   return (
-    <AnimatePresence>
-      {open && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6">
-          <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={close} className="absolute inset-0 bg-slate-950/50 backdrop-blur-md" aria-label="Đóng" />
+    <Portal>
+      <AnimatePresence>
+        {open && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6">
+            <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={close} className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs cursor-pointer" aria-label="Đóng" />
           <motion.section initial={{ opacity: 0, y: 18, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12, scale: 0.98 }} transition={{ duration: 0.2 }} className="relative z-10 flex max-h-[88vh] w-full max-w-[860px] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-[#fbfcfe] shadow-[0_32px_100px_-24px_rgba(15,23,42,.5)] dark:border-slate-700 dark:bg-[#101217]">
             <header className="flex items-center justify-between border-b border-slate-200/80 px-5 py-4 sm:px-7 dark:border-slate-800">
               <div className="flex min-w-0 items-center gap-3">
@@ -215,5 +226,6 @@ export default function DocumentStartModal({ open, onClose, onCreate }: Document
         </div>
       )}
     </AnimatePresence>
+    </Portal>
   );
 }

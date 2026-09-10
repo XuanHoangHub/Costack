@@ -12,7 +12,7 @@ import { motion, HTMLMotionProps, useReducedMotion } from "motion/react";
    ═══════════════════════════════════════════════════════ */
 
 interface CardProps extends HTMLMotionProps<"div"> {
-  variant?: "default" | "elevated" | "ghost" | "interactive" | "glass" | "bento" | "outline" | "gradient";
+  variant?: "default" | "elevated" | "ghost" | "interactive" | "glass" | "bento" | "outline" | "gradient" | "apple-grouped";
   padding?: "none" | "sm" | "md" | "lg" | "xl";
   radius?: "md" | "lg" | "xl" | "2xl" | "3xl";
   /** Disable entry animation */
@@ -23,21 +23,23 @@ interface CardProps extends HTMLMotionProps<"div"> {
 
 const variantStyles: Record<NonNullable<CardProps["variant"]>, string> = {
   default:
-    "bg-[var(--cu-surface)] border-[var(--cu-border)] shadow-[var(--ax-shadow-xs)]",
+    "bg-[var(--cu-surface)] border-[var(--cu-border)] shadow-none",
   elevated:
-    "bg-[var(--cu-surface)] border-[var(--cu-border)] shadow-[var(--ax-shadow-md)]",
+    "bg-[var(--cu-surface)] border-[var(--cu-border)] shadow-[var(--ax-shadow-apple)]",
   ghost:
     "bg-transparent border-transparent shadow-none",
   interactive:
-    "bg-[var(--cu-surface)] border-[var(--cu-border)] shadow-[var(--ax-shadow-xs)] cursor-pointer hover:border-[var(--cu-primary)]/30 hover:shadow-[var(--ax-shadow-md)] hover:-translate-y-0.5 transition-all duration-200",
+    "bg-[var(--cu-surface)] border-[var(--cu-border)] shadow-none cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.04] transition-all duration-150 active:scale-[0.99]",
   glass:
-    "bg-[color-mix(in_srgb,var(--cu-surface)_75%,transparent)] backdrop-blur-xl border-[var(--cu-border)] shadow-[var(--ax-shadow-sm)]",
+    "bg-[color-mix(in_srgb,var(--cu-surface)_80%,transparent)] backdrop-blur-2xl border-[var(--cu-border)] shadow-none",
   bento:
-    "bg-[var(--cu-surface)] border-[var(--cu-border)] shadow-[var(--ax-shadow-xs)] hover:shadow-[var(--ax-shadow-lg)] hover:border-[var(--cu-border-strong)] transition-all duration-300 overflow-hidden",
+    "bg-[var(--cu-surface)] border-[var(--cu-border)] shadow-none hover:border-[var(--cu-border-strong)] transition-all duration-200 overflow-hidden",
   outline:
-    "bg-transparent border-[var(--cu-border-strong)] shadow-none hover:border-[var(--cu-primary)]/40 transition-colors",
+    "bg-transparent border-[var(--cu-border)] shadow-none hover:border-[var(--cu-text-secondary)] transition-colors",
   gradient:
-    "bg-gradient-to-br from-[var(--cu-primary-light)] to-[var(--cu-surface)] border-[var(--cu-primary)]/15 shadow-[var(--ax-shadow-sm)]",
+    "bg-[var(--cu-surface-2)] border-[var(--cu-border)] shadow-none",
+  "apple-grouped":
+    "bg-[var(--cu-surface)] border-[var(--cu-border)] divide-y divide-[var(--cu-border)] shadow-none overflow-hidden",
 };
 
 const radiusStyles: Record<NonNullable<CardProps["radius"]>, string> = {

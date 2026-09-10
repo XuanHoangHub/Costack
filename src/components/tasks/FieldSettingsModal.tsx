@@ -308,7 +308,7 @@ export default function FieldSettingsModal({
     <Portal>
       <div className="fixed inset-0 z-[400] flex items-center justify-center p-3 sm:p-4 font-sans select-none">
         <div 
-          className="absolute inset-0 bg-slate-950/60 transition-opacity" 
+          className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs transition-opacity cursor-pointer" 
           onClick={onClose} 
         />
         

@@ -82,7 +82,7 @@ function CustomChartTooltip({ active, payload, label }: any) {
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color || entry.fill }} />
               <span>{entry.name}:</span>
             </span>
-            <span className="font-mono font-black text-slate-900 dark:text-white">
+            <span className="font-numeric font-black text-slate-900 dark:text-white">
               {entry.value}
             </span>
           </div>
@@ -126,23 +126,23 @@ export default function DashboardCharts({
         
         {/* Trend Area / Bar Chart (8 cols) */}
         <motion.section
-          initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
+          initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, type: 'spring', stiffness: 150, damping: 22 }}
-          className="flex flex-col justify-between rounded-[26px] border border-slate-200/80 bg-white/95 p-5 shadow-[0_12px_36px_-24px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-slate-800 dark:bg-[#12141d]/95 sm:p-6 lg:col-span-8"
+          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          className="apexa-inset-group flex flex-col justify-between rounded-2xl bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.08] p-4 sm:p-5 shadow-xs lg:col-span-8 text-left"
         >
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/80 pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-black/[0.05] dark:border-white/[0.06] pb-3.5">
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
+              <h3 className="text-base font-semibold tracking-tight text-neutral-900 dark:text-white flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0071e3]/10 text-[#0071e3] dark:text-[#0a84ff]">
                   <TrendingUp className="h-4 w-4" />
                 </div>
                 <span>
                   {locale === 'vi' ? `Xu hướng hiệu suất · ${dashboardRange} ngày` : `Performance Trend · ${dashboardRange} Days`}
                 </span>
               </h3>
-              <p className="mt-0.5 text-xs font-medium text-slate-400 dark:text-slate-500">
+              <p className="mt-0.5 text-xs font-normal text-neutral-400 dark:text-neutral-500">
                 {locale === 'vi' ? 'Theo dõi số công việc tạo mới và hoàn tất theo ngày' : 'Track tasks created and completed per day'}
               </p>
             </div>
@@ -150,40 +150,34 @@ export default function DashboardCharts({
             {/* Badges & Tab Switcher */}
             <div className="flex flex-wrap items-center gap-2">
               <div className="hidden sm:flex items-center gap-1.5">
-                <span className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200/60 bg-indigo-50/70 px-2.5 py-1 text-[11px] font-bold text-indigo-700 dark:border-indigo-800/60 dark:bg-indigo-950/50 dark:text-indigo-300">
-                  <span className="h-2 w-2 rounded-full bg-indigo-500" />
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10.5px] font-medium text-[#0071e3] dark:text-[#0a84ff] bg-[#0071e3]/[0.08] dark:bg-[#0a84ff]/[0.12]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#0071e3] dark:bg-[#0a84ff]" />
                   <span>{locale === 'vi' ? 'Đã xong' : 'Done'}: <strong>{totalCompleted}</strong></span>
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-xl border border-purple-200/60 bg-purple-50/70 px-2.5 py-1 text-[11px] font-bold text-purple-700 dark:border-purple-800/60 dark:bg-purple-950/50 dark:text-purple-300">
-                  <span className="h-2 w-2 rounded-full bg-purple-500" />
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10.5px] font-medium text-purple-600 dark:text-purple-400 bg-purple-500/[0.08] dark:bg-purple-400/[0.12]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
                   <span>{locale === 'vi' ? 'Tạo mới' : 'Created'}: <strong>{totalCreated}</strong></span>
                 </span>
               </div>
 
-              <div className="inline-flex rounded-xl border border-slate-200/80 bg-slate-100/80 p-1 dark:border-slate-800 dark:bg-slate-900/80 text-xs font-bold">
+              <div className="apexa-segmented-capsule">
                 <button
                   type="button"
+                  data-active={activeTab === 'trend'}
                   onClick={() => setActiveTab('trend')}
-                  className={`rounded-lg px-3 py-1.5 transition-all cursor-pointer ${
-                    activeTab === 'trend'
-                      ? 'bg-white text-indigo-600 shadow-xs dark:bg-slate-800 dark:text-indigo-400 font-black'
-                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
+                  className="apexa-segmented-pill"
                 >
                   {locale === 'vi' ? 'Xu hướng' : 'Trend'}
                 </button>
                 {memberEffortData.length > 0 && (
                   <button
                     type="button"
+                    data-active={activeTab === 'effort'}
                     onClick={() => setActiveTab('effort')}
-                    className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 transition-all cursor-pointer ${
-                      activeTab === 'effort'
-                        ? 'bg-white text-indigo-600 shadow-xs dark:bg-slate-800 dark:text-indigo-400 font-black'
-                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                    }`}
+                    className="apexa-segmented-pill inline-flex items-center gap-1"
                   >
                     <span>{locale === 'vi' ? 'Nỗ lực' : 'Effort'}</span>
-                    {!isPremium && <LockKeyhole className="h-3 w-3 text-amber-500" />}
+                    {!isPremium && <LockKeyhole className="h-2.5 w-2.5 text-amber-500" />}
                   </button>
                 )}
               </div>
@@ -310,19 +304,19 @@ export default function DashboardCharts({
 
         {/* Status Breakdown Donut Chart (4 cols) */}
         <motion.section
-          initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
+          initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15, type: 'spring', stiffness: 150, damping: 22 }}
-          className="flex flex-col justify-between rounded-[26px] border border-slate-200/80 bg-white/95 p-5 shadow-[0_12px_36px_-24px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-slate-800 dark:bg-[#12141d]/95 sm:p-6 lg:col-span-4"
+          transition={{ delay: 0.05, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          className="apexa-inset-group flex flex-col justify-between rounded-2xl bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.08] p-4 sm:p-5 shadow-xs lg:col-span-4 text-left"
         >
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-4">
-            <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/50 dark:text-purple-400">
+          <div className="flex items-center justify-between border-b border-black/[0.05] dark:border-white/[0.06] pb-3.5">
+            <h3 className="text-base font-semibold tracking-tight text-neutral-900 dark:text-white flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
                 <PieIcon className="h-4 w-4" />
               </div>
               <span>{locale === 'vi' ? 'Phân bổ trạng thái' : 'Status Distribution'}</span>
             </h3>
-            <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-black text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+            <span className="rounded-full bg-emerald-500/[0.08] dark:bg-emerald-400/[0.12] px-2.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
               {completionPercentage}% {locale === 'vi' ? 'xong' : 'done'}
             </span>
           </div>
@@ -372,7 +366,7 @@ export default function DashboardCharts({
                       <span className="h-2.5 w-2.5 rounded-full shrink-0 shadow-2xs" style={{ backgroundColor: item.color }} />
                       <span className="truncate">{item.name}</span>
                     </span>
-                    <span className="font-mono font-black text-slate-900 dark:text-white">
+                    <span className="font-numeric font-black text-slate-900 dark:text-white">
                       {item.value} <span className="text-[10px] font-normal text-slate-400">({pct}%)</span>
                     </span>
                   </div>
@@ -393,22 +387,22 @@ export default function DashboardCharts({
       {/* Lower Row: 30-Day Velocity Chart */}
       {showVelocity && totalTasks > 0 && (
         <motion.section
-          initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
+          initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, type: 'spring', stiffness: 150, damping: 22 }}
-          className="rounded-[26px] border border-slate-200/80 bg-white/95 p-5 shadow-[0_12px_36px_-24px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-slate-800 dark:bg-[#12141d]/95 sm:p-6 text-left"
+          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.08] p-4 sm:p-5 shadow-xs text-left"
         >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800/80 pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-black/[0.05] dark:border-white/[0.06] pb-3.5">
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+              <h3 className="text-base font-semibold tracking-tight text-neutral-900 dark:text-white flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                   <TrendingUp className="h-4 w-4" />
                 </div>
                 <span>
                   {locale === 'vi' ? `Vận tốc hoàn thành công việc · ${dashboardRange} ngày` : `Task Completion Velocity · ${dashboardRange} Days`}
                 </span>
               </h3>
-              <p className="mt-0.5 text-xs font-medium text-slate-400 dark:text-slate-500">
+              <p className="mt-0.5 text-xs font-normal text-neutral-400 dark:text-neutral-500">
                 {locale === 'vi' ? 'Đo lường năng suất tích luỹ và động lực đóng góp theo mốc hoàn tất thực tế' : 'Measures team throughput based on recorded completion dates'}
               </p>
             </div>

@@ -77,13 +77,13 @@ export default function DashboardControls({
   ];
 
   return (
-    <div className="relative z-20 flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-xs backdrop-blur-xl dark:border-slate-800 dark:bg-[#12141d]/90 lg:flex-row lg:items-center lg:justify-between text-left">
+    <div className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.08] p-2.5 shadow-xs flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 text-left">
       
       {/* Left controls: Range & Trend comparison */}
       <div className="flex min-w-0 flex-wrap items-center gap-2.5">
         
-        {/* Range Buttons */}
-        <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100/80 p-1 dark:border-slate-800 dark:bg-slate-900/80" role="group" aria-label="Date range">
+        {/* Range Buttons (Apple Segmented Capsule) */}
+        <div className="apexa-segmented-capsule" role="group" aria-label="Date range">
           {([7, 30, 90] as DashboardRange[]).map((r) => {
             const isLocked = r === 90 && !isPremium;
             const isSelected = range === r;
@@ -91,15 +91,12 @@ export default function DashboardControls({
               <button
                 key={r}
                 type="button"
+                data-active={isSelected}
                 onClick={() => onRangeChange(r)}
-                className={`inline-flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-black transition-all cursor-pointer ${
-                  isSelected
-                    ? 'bg-white text-indigo-600 shadow-xs dark:bg-slate-800 dark:text-indigo-400'
-                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
-                }`}
+                className="apexa-segmented-pill inline-flex items-center gap-1"
               >
                 <span>{r} {locale === 'vi' ? 'ngày' : 'days'}</span>
-                {isLocked && <LockKeyhole className="h-3 w-3 text-amber-500" />}
+                {isLocked && <LockKeyhole className="h-2.5 w-2.5 text-amber-500" />}
               </button>
             );
           })}
@@ -107,14 +104,14 @@ export default function DashboardControls({
 
         {/* Period Delta Tag */}
         <span
-          className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black ${
+          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
             periodInsights.completionDelta >= 0
-              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60'
-              : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200/60 dark:border-rose-800/60'
+              ? 'bg-emerald-500/[0.08] text-emerald-600 dark:text-emerald-400'
+              : 'bg-rose-500/[0.08] text-rose-600 dark:text-rose-400'
           }`}
         >
-          <TrendingUp className={`h-3.5 w-3.5 ${periodInsights.completionDelta < 0 ? 'rotate-180 text-rose-500' : 'text-emerald-500'}`} />
-          <span>
+          <TrendingUp className={`h-3 w-3 ${periodInsights.completionDelta < 0 ? 'rotate-180 text-rose-500' : 'text-emerald-500'}`} />
+          <span className="tabular-nums">
             {periodInsights.completionDelta >= 0 ? '+' : ''}{periodInsights.completionDelta}% {locale === 'vi' ? 'so với kỳ trước' : 'vs last period'}
           </span>
         </span>
@@ -125,30 +122,26 @@ export default function DashboardControls({
       <div className="flex flex-wrap items-center gap-2">
         
         {/* Chart mode switcher */}
-        <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-900">
+        <div className="apexa-segmented-capsule">
           <button
             type="button"
+            data-active={chartMode === 'area'}
             onClick={() => onChartModeChange('area')}
-            title={locale === 'vi' ? 'Biểu đồ miền' : 'Area chart'}
-            className={`grid h-8 w-8 place-items-center rounded-lg transition-colors cursor-pointer ${
-              chartMode === 'area'
-                ? 'bg-white text-indigo-600 shadow-xs dark:bg-slate-800 dark:text-indigo-400'
-                : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-            }`}
+            className="apexa-segmented-pill flex items-center gap-1"
+            title={locale === 'vi' ? 'Biểu đồ miền' : 'Area Chart'}
           >
-            <LineChart className="h-4 w-4" />
+            <LineChart className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{locale === 'vi' ? 'Miền' : 'Area'}</span>
           </button>
           <button
             type="button"
+            data-active={chartMode === 'bar'}
             onClick={() => onChartModeChange('bar')}
-            title={locale === 'vi' ? 'Biểu đồ cột' : 'Bar chart'}
-            className={`grid h-8 w-8 place-items-center rounded-lg transition-colors cursor-pointer ${
-              chartMode === 'bar'
-                ? 'bg-white text-indigo-600 shadow-xs dark:bg-slate-800 dark:text-indigo-400'
-                : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-            }`}
+            className="apexa-segmented-pill flex items-center gap-1"
+            title={locale === 'vi' ? 'Biểu đồ cột' : 'Bar Chart'}
           >
-            <BarChart3 className="h-4 w-4" />
+            <BarChart3 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{locale === 'vi' ? 'Cột' : 'Bar'}</span>
           </button>
         </div>
 

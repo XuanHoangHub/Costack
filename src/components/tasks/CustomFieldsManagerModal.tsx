@@ -492,7 +492,7 @@ export default function CustomFieldsManagerModal({
       <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-5 md:p-8 font-sans select-none animate-in fade-in duration-200">
         {/* Backdrop */}
         <div 
-          className="fixed inset-0 bg-slate-950/60 dark:bg-black/80 backdrop-blur-md transition-opacity cursor-pointer"
+          className="fixed inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs transition-opacity cursor-pointer"
           onClick={onClose}
           aria-hidden="true"
         />

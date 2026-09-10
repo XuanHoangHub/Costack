@@ -161,19 +161,19 @@ export default function DashboardScratchpad({
   });
 
   return (
-    <div className="rounded-3xl border border-slate-200/80 bg-white p-4 sm:p-6 shadow-xs dark:border-slate-800 dark:bg-[#12141d] text-left">
+    <div className="apexa-inset-group text-left p-4 sm:p-6">
       {/* Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-slate-100 dark:border-slate-800/80">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-black/[0.05] dark:border-white/[0.06]">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-            <StickyNote className="h-5 w-5" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            <StickyNote className="h-4.5 w-4.5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-black text-slate-900 dark:text-white">
+              <h3 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white">
                 {locale === 'vi' ? 'Bảng nháp & Ghi chú nhanh' : 'Personal Scratchpad'}
               </h3>
-              <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10.5px] font-bold text-slate-500">
+              <span className="apexa-segmented-pill text-[10.5px]">
                 {notes.length} {locale === 'vi' ? 'mẩu nháp' : 'notes'}
               </span>
             </div>
@@ -188,7 +188,7 @@ export default function DashboardScratchpad({
         <button
           type="button"
           onClick={() => setIsAdding(!isAdding)}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3 py-1.5 text-xs font-black text-white hover:bg-amber-600 transition-all cursor-pointer shadow-xs self-start sm:self-auto"
+          className="inline-flex items-center gap-1.5 rounded-full bg-amber-500 hover:bg-amber-600 px-3.5 py-1.5 text-xs font-semibold text-white transition-all cursor-pointer shadow-xs self-start sm:self-auto"
         >
           <Plus className="h-3.5 w-3.5" />
           <span>{locale === 'vi' ? 'Thêm ghi chú' : 'Add Note'}</span>
@@ -197,13 +197,13 @@ export default function DashboardScratchpad({
 
       {/* Inline Note Creation Form */}
       {isAdding && (
-        <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50/50 p-4 dark:border-amber-900/60 dark:bg-amber-950/20 space-y-3">
+        <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/[0.04] p-4 dark:border-amber-500/20 dark:bg-amber-500/[0.06] space-y-3">
           <input
             type="text"
             placeholder={locale === 'vi' ? 'Tiêu đề ghi chú...' : 'Note title...'}
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
-            className="w-full text-xs font-bold text-slate-900 dark:text-white bg-transparent border-b border-amber-200 dark:border-amber-800 pb-1.5 outline-none placeholder:text-slate-400"
+            className="w-full text-xs font-semibold text-slate-900 dark:text-white bg-transparent border-b border-black/[0.06] dark:border-white/[0.08] pb-1.5 outline-none placeholder:text-slate-400"
             autoFocus
           />
           <textarea
@@ -213,16 +213,16 @@ export default function DashboardScratchpad({
             onChange={(e) => setNewContent(e.target.value)}
             className="w-full text-xs text-slate-800 dark:text-slate-200 bg-transparent border-none outline-none resize-none placeholder:text-slate-400"
           />
-          <div className="flex items-center justify-between pt-2 border-t border-amber-200/60 dark:border-amber-900/40">
+          <div className="flex items-center justify-between pt-2 border-t border-black/[0.05] dark:border-white/[0.06]">
             {/* Color selection */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               {(['amber', 'emerald', 'indigo', 'rose'] as const).map((color) => (
                 <button
                   key={color}
                   type="button"
                   onClick={() => setNewColor(color)}
-                  className={`h-5 w-5 rounded-full ${COLOR_STYLES[color].dot} transition-transform ${
-                    newColor === color ? 'scale-125 ring-2 ring-slate-400 dark:ring-white' : 'opacity-70 hover:opacity-100'
+                  className={`h-4.5 w-4.5 rounded-full ${COLOR_STYLES[color].dot} transition-transform ${
+                    newColor === color ? 'scale-125 ring-2 ring-black/20 dark:ring-white/40' : 'opacity-60 hover:opacity-100'
                   }`}
                 />
               ))}
@@ -232,14 +232,14 @@ export default function DashboardScratchpad({
               <button
                 type="button"
                 onClick={() => setIsAdding(false)}
-                className="px-2.5 py-1 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 cursor-pointer"
+                className="px-2.5 py-1 text-xs font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 cursor-pointer"
               >
                 {locale === 'vi' ? 'Hủy' : 'Cancel'}
               </button>
               <button
                 type="button"
                 onClick={handleCreateNote}
-                className="px-3 py-1 rounded-lg bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 cursor-pointer"
+                className="px-3.5 py-1 rounded-full bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold cursor-pointer shadow-xs"
               >
                 {locale === 'vi' ? 'Lưu' : 'Save'}
               </button>
@@ -249,19 +249,19 @@ export default function DashboardScratchpad({
       )}
 
       {/* Notes Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 pt-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 pt-4">
         {sortedNotes.map((note) => {
           const style = COLOR_STYLES[note.color] || COLOR_STYLES.amber;
 
           return (
             <div
               key={note.id}
-              className={`group relative flex flex-col justify-between rounded-2xl border p-3.5 transition-all hover:shadow-xs ${style.bg} ${style.border}`}
+              className={`group relative flex flex-col justify-between rounded-xl border p-3.5 transition-all ${style.bg} ${style.border}`}
             >
               <div>
                 {/* Note Top */}
                 <div className="flex items-start justify-between gap-2 pb-2">
-                  <h4 className={`text-xs font-black truncate flex-1 ${style.header}`}>
+                  <h4 className={`text-xs font-semibold truncate flex-1 ${style.header}`}>
                     {note.title}
                   </h4>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
@@ -295,8 +295,8 @@ export default function DashboardScratchpad({
               </div>
 
               {/* Bottom: 1-Click Convert to Task Button */}
-              <div className="mt-3 pt-2.5 border-t border-slate-200/40 dark:border-white/[0.06] flex items-center justify-between">
-                <span className="text-[9.5px] text-slate-400 font-mono">
+              <div className="mt-3 pt-2.5 border-t border-black/[0.05] dark:border-white/[0.06] flex items-center justify-between">
+                <span className="text-[9.5px] text-slate-400 font-numeric tabular-nums">
                   {new Date(note.createdAt).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', {
                     day: 'numeric',
                     month: 'short',
@@ -306,7 +306,7 @@ export default function DashboardScratchpad({
                 <button
                   type="button"
                   onClick={() => handleConvertToTask(note)}
-                  className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10.5px] font-black text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-all cursor-pointer"
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-medium text-[#0071E3] dark:text-[#0A84FF] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-all cursor-pointer"
                   title={locale === 'vi' ? 'Tạo việc thật từ ghi chú này' : 'Convert to actual workspace task'}
                 >
                   <Sparkles className="h-3 w-3 text-amber-500" />

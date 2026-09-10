@@ -11,6 +11,7 @@ import {
   Search,
   CheckCircle2,
   ArrowRight,
+  ChevronRight,
   AlertTriangle,
   UserRound,
   X,
@@ -137,27 +138,24 @@ export default function DashboardFocusQueue({
 
   return (
     <motion.section
-      initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
+      initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.1, type: 'spring', stiffness: 150, damping: 22 }}
-      className="relative overflow-hidden rounded-[26px] border border-slate-200/80 bg-white/95 p-5 shadow-[0_12px_36px_-24px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-slate-800 dark:bg-[#12141d]/95 sm:p-6 text-left"
+      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+      className="flex flex-col gap-3 text-left"
     >
-      {/* Subtle ambient light */}
-      <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-indigo-500/10 blur-3xl dark:bg-indigo-500/15" />
-
       {/* Header Row: Title, Filters & Search */}
-      <div className="relative z-10 mb-4 flex flex-col gap-4 border-b border-slate-100 pb-4 dark:border-slate-800/80 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between px-1">
         
         {/* Title */}
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-indigo-200/80 bg-indigo-50 text-indigo-600 shadow-2xs dark:border-indigo-800/70 dark:bg-indigo-950/60 dark:text-indigo-400">
-            <Zap className="h-5 w-5" />
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0071e3]/10 text-[#0071e3] dark:text-[#0a84ff]">
+            <Zap className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="text-base font-black tracking-tight text-slate-900 dark:text-white">
+            <h2 className="text-base font-semibold tracking-tight text-neutral-900 dark:text-white">
               {locale === 'vi' ? 'Hàng ưu tiên cần xử lý' : 'Priority Action Queue'}
             </h2>
-            <p className="text-xs font-medium text-slate-400 dark:text-slate-500">
+            <p className="text-xs font-normal text-neutral-500 dark:text-neutral-400">
               {locale === 'vi' 
                 ? 'Tự động xếp theo mức độ cấp bách, hạn chót và công việc đã ghim' 
                 : 'Ranked automatically by urgency, deadline and pinned work'}
@@ -166,31 +164,31 @@ export default function DashboardFocusQueue({
         </div>
 
         {/* Right tools: Search input & Tabs */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
           
           {/* Live Search Input */}
-          <div className="relative min-w-[180px] sm:w-[220px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+          <div className="relative min-w-[170px] sm:w-[200px]">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={locale === 'vi' ? 'Tìm nhanh công việc...' : 'Quick search...'}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/80 pl-8 pr-3 py-1.5 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-200 dark:placeholder-slate-500 transition-colors"
+              placeholder={locale === 'vi' ? 'Tìm nhanh...' : 'Quick search...'}
+              className="w-full rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.05] pl-8 pr-7 py-1.5 text-xs text-neutral-800 placeholder-neutral-400 focus:border-[#0071e3] focus:bg-white dark:focus:bg-[#121214] focus:outline-none dark:text-neutral-200 dark:placeholder-neutral-500 transition-colors"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
 
-          {/* Filter Tabs */}
-          <div className="flex items-center rounded-xl border border-slate-200/80 bg-slate-100/80 p-1 dark:border-slate-800 dark:bg-slate-900/80 text-xs font-bold overflow-x-auto scrollbar-none">
+          {/* Filter Tabs (Apple Capsule Segmented) */}
+          <div className="apexa-segmented-capsule overflow-x-auto scrollbar-none">
             {[
               { id: 'all', label: locale === 'vi' ? 'Tất cả' : 'All', count: tabCounts.all },
               { id: 'urgent', label: locale === 'vi' ? 'Khẩn cấp' : 'Urgent', count: tabCounts.urgent },
@@ -201,19 +199,16 @@ export default function DashboardFocusQueue({
               <button
                 key={tab.id}
                 type="button"
+                data-active={activeTab === tab.id}
                 onClick={() => setActiveTab(tab.id as DashboardPriorityTab)}
-                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 transition-all whitespace-nowrap cursor-pointer ${
-                  activeTab === tab.id
-                    ? 'bg-white text-indigo-600 shadow-xs dark:bg-slate-800 dark:text-indigo-400 font-black'
-                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'
-                }`}
+                className="apexa-segmented-pill flex items-center gap-1.5 whitespace-nowrap"
               >
                 <span>{tab.label}</span>
                 {tab.count > 0 && (
-                  <span className={`rounded-full px-1.5 py-0.2 text-[9px] font-black ${
+                  <span className={`rounded-full px-1.5 py-0.2 text-[9px] font-semibold ${
                     activeTab === tab.id
-                      ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300'
-                      : 'bg-slate-200/80 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                      ? 'bg-black/[0.06] dark:bg-white/[0.1] text-neutral-800 dark:text-neutral-200'
+                      : 'bg-black/[0.04] dark:bg-white/[0.06] text-neutral-500'
                   }`}>
                     {tab.count}
                   </span>
@@ -228,17 +223,17 @@ export default function DashboardFocusQueue({
 
       {/* Active Health Filter banner if present */}
       {activeHealthFilter !== 'none' && (
-        <div className="mb-4 flex items-center justify-between gap-2 rounded-xl bg-indigo-50/70 border border-indigo-200/70 px-3 py-1.5 text-xs font-bold text-indigo-800 dark:bg-indigo-950/40 dark:border-indigo-800/60 dark:text-indigo-300">
+        <div className="flex items-center justify-between gap-2 rounded-xl bg-[#0071e3]/[0.06] border border-[#0071e3]/20 px-3.5 py-1.5 text-xs text-neutral-800 dark:text-neutral-200">
           <span className="flex items-center gap-2">
-            <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
-            <span>
+            <Sparkles className="h-3.5 w-3.5 text-[#0071e3]" />
+            <span className="font-medium">
               {locale === 'vi' ? 'Đang lọc theo chỉ số sức khỏe công việc' : 'Filtered by task health metric'}
             </span>
           </span>
           <button
             type="button"
             onClick={onClearHealthFilter}
-            className="flex items-center gap-1 text-[11px] font-black text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-200 cursor-pointer"
+            className="flex items-center gap-1 text-[11px] font-medium text-[#0071e3] dark:text-[#0a84ff] hover:underline cursor-pointer"
           >
             <span>{locale === 'vi' ? 'Bỏ lọc' : 'Clear'}</span>
             <X className="h-3 w-3" />
@@ -246,10 +241,10 @@ export default function DashboardFocusQueue({
         </div>
       )}
 
-      {/* Task Cards Grid */}
+      {/* Apple Inset Grouped List */}
       {filteredTasks.length > 0 ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredTasks.slice(0, 12).map((task, index) => {
+        <div className="apexa-inset-group divide-y divide-black/[0.05] dark:divide-white/[0.06] rounded-2xl bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.08] shadow-xs">
+          {filteredTasks.slice(0, 10).map((task, index) => {
             const dueDate = parseDateOnly(task.dueDate);
             const isOverdue = dueDate && dueDate.getTime() < now.getTime();
             const isToday = task.dueDate && task.dueDate.startsWith(todayKey);
@@ -258,9 +253,9 @@ export default function DashboardFocusQueue({
             if (dueDate) {
               if (isOverdue) {
                 const diffDays = Math.max(1, Math.round((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)));
-                dueLabel = locale === 'vi' ? `Quá hạn ${diffDays} ngày` : `Overdue ${diffDays}d`;
+                dueLabel = locale === 'vi' ? `Quá hạn ${diffDays}d` : `Overdue ${diffDays}d`;
               } else if (isToday) {
-                dueLabel = locale === 'vi' ? 'Đến hạn hôm nay' : 'Due today';
+                dueLabel = locale === 'vi' ? 'Hôm nay' : 'Today';
               } else {
                 dueLabel = dueDate.toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', {
                   day: '2-digit',
@@ -270,95 +265,89 @@ export default function DashboardFocusQueue({
             }
 
             const priorityBadge = task.priority === 'urgent'
-              ? { text: locale === 'vi' ? 'Khẩn cấp' : 'Urgent', bg: 'bg-rose-50 text-rose-600 border-rose-200/70 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/60' }
+              ? { text: locale === 'vi' ? 'Khẩn cấp' : 'Urgent', bg: 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400' }
               : task.priority === 'high'
-              ? { text: locale === 'vi' ? 'Cao' : 'High', bg: 'bg-amber-50 text-amber-600 border-amber-200/70 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/60' }
+              ? { text: locale === 'vi' ? 'Cao' : 'High', bg: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400' }
               : task.priority === 'medium'
-              ? { text: locale === 'vi' ? 'Trung bình' : 'Medium', bg: 'bg-indigo-50 text-indigo-600 border-indigo-200/70 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-800/60' }
-              : { text: locale === 'vi' ? 'Thấp' : 'Low', bg: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700' };
+              ? { text: locale === 'vi' ? 'Trung bình' : 'Medium', bg: 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400' }
+              : { text: locale === 'vi' ? 'Thấp' : 'Low', bg: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400' };
 
             const assignee = task.assigneeId ? memberMap.get(task.assigneeId) : null;
 
             return (
-              <motion.button
+              <div
                 key={task.id}
-                type="button"
                 onClick={() => (onOpenTask ? onOpenTask(task.id) : onNavigate('calendar'))}
-                whileHover={prefersReducedMotion ? undefined : { y: -2 }}
-                className="group flex flex-col justify-between rounded-2xl border border-slate-200/70 bg-white/80 p-4 text-left shadow-2xs hover:border-indigo-300/80 hover:bg-white dark:border-slate-800/80 dark:bg-slate-900/50 dark:hover:border-indigo-800/80 dark:hover:bg-slate-900/80 transition-all cursor-pointer min-h-[140px]"
+                className="group flex items-center justify-between gap-3 px-4 py-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors cursor-pointer"
               >
-                {/* Card Top: Rank, Priority, Pin */}
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="flex h-5 w-5 items-center justify-center rounded-md bg-slate-100 text-[10px] font-black text-slate-600 dark:bg-slate-800 dark:text-slate-400 tabular-nums">
-                        {index + 1 < 10 ? `0${index + 1}` : index + 1}
-                      </span>
-                      <span className={`rounded-md border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${priorityBadge.bg}`}>
-                        {priorityBadge.text}
-                      </span>
-                    </div>
-                    {task.isPinned && (
-                      <Pin className="h-3.5 w-3.5 text-indigo-500 rotate-45" />
-                    )}
-                  </div>
+                {/* Left: Rank, Status Dot, Title */}
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <span className="text-[11px] font-medium text-neutral-400 dark:text-neutral-500 tabular-nums w-4 shrink-0 text-center">
+                    {index + 1}
+                  </span>
 
-                  {/* Title */}
-                  <h4 className="mt-2.5 line-clamp-2 text-xs font-extrabold text-slate-800 group-hover:text-indigo-600 dark:text-slate-200 dark:group-hover:text-indigo-400 transition-colors leading-snug">
+                  <div className="h-3 w-3 rounded-full border-2 border-neutral-300 dark:border-neutral-600 group-hover:border-[#0071e3] transition-colors shrink-0" />
+
+                  <span className="truncate text-[13.5px] font-medium text-neutral-900 dark:text-neutral-100 group-hover:text-[#0071e3] dark:group-hover:text-[#0a84ff] transition-colors">
                     {task.title}
-                  </h4>
+                  </span>
+
+                  {task.isPinned && (
+                    <Pin className="h-3 w-3 text-[#0071e3] shrink-0 rotate-45" />
+                  )}
                 </div>
 
-                {/* Card Bottom: Assignee & Due Date */}
-                <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-2.5 dark:border-slate-800/80 text-[11px] font-medium">
+                {/* Right metadata: Priority, Assignee, Due Date */}
+                <div className="flex items-center gap-3 shrink-0 text-xs">
+                  <span className={`hidden sm:inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${priorityBadge.bg}`}>
+                    {priorityBadge.text}
+                  </span>
+
                   {/* Assignee Avatar */}
-                  <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="flex items-center gap-1.5">
                     {assignee ? (
-                      <>
-                        <div className="relative h-5 w-5 rounded-full overflow-hidden bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-[9px] shrink-0 border border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300">
-                          {assignee.avatar ? (
-                            <img src={assignee.avatar} alt={assignee.name} className="h-full w-full object-cover" />
-                          ) : (
-                            assignee.name.charAt(0).toUpperCase()
-                          )}
-                        </div>
-                        <span className="truncate text-slate-600 dark:text-slate-400 max-w-[80px]">
-                          {assignee.name}
-                        </span>
-                      </>
+                      <div className="relative h-5 w-5 rounded-full overflow-hidden bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 font-medium flex items-center justify-center text-[9px] shrink-0" title={assignee.name}>
+                        {assignee.avatar ? (
+                          <img src={assignee.avatar} alt={assignee.name} className="h-full w-full object-cover" />
+                        ) : (
+                          assignee.name.charAt(0).toUpperCase()
+                        )}
+                      </div>
                     ) : (
-                      <span className="text-slate-400 dark:text-slate-500 italic text-[10px]">
-                        {locale === 'vi' ? 'Chưa giao' : 'Unassigned'}
+                      <span className="hidden md:inline text-neutral-400 dark:text-neutral-500 text-[11px]">
+                        —
                       </span>
                     )}
                   </div>
 
                   {/* Due Date */}
-                  <span className={`inline-flex items-center gap-1 shrink-0 font-semibold ${
+                  <span className={`inline-flex items-center gap-1 font-medium text-[11px] tabular-nums min-w-[70px] justify-end ${
                     isOverdue
-                      ? 'text-rose-600 dark:text-rose-400 font-bold'
+                      ? 'text-rose-600 dark:text-rose-400'
                       : isToday
-                      ? 'text-amber-600 dark:text-amber-400 font-bold'
-                      : 'text-slate-500 dark:text-slate-400'
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-neutral-500 dark:text-neutral-400'
                   }`}>
-                    <Calendar className="h-3 w-3" />
+                    <Clock className="h-3 w-3 opacity-70" />
                     <span>{dueLabel}</span>
                   </span>
+
+                  <ChevronRight className="h-3.5 w-3.5 text-neutral-300 dark:text-neutral-600 group-hover:text-neutral-500 transition-colors" />
                 </div>
-              </motion.button>
+              </div>
             );
           })}
         </div>
       ) : (
         /* Empty State */
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-emerald-300/70 bg-emerald-50/40 p-8 text-center dark:border-emerald-900/60 dark:bg-emerald-950/20">
-          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/80 dark:text-emerald-400">
-            <CheckCircle2 className="h-6 w-6" />
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#121214] p-8 text-center">
+          <div className="grid h-10 w-10 place-items-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="h-5 w-5" />
           </div>
-          <h4 className="mt-3 text-sm font-black text-slate-900 dark:text-white">
+          <h4 className="mt-3 text-sm font-semibold text-neutral-900 dark:text-white">
             {locale === 'vi' ? 'Hàng ưu tiên đang trống!' : 'All clear! No pending priority tasks'}
           </h4>
-          <p className="mt-1 max-w-sm text-xs text-slate-500 dark:text-slate-400">
+          <p className="mt-1 max-w-sm text-xs text-neutral-500 dark:text-neutral-400 font-normal">
             {locale === 'vi'
               ? 'Tất cả công việc ưu tiên trong phạm vi này đã được giải quyết hoặc chưa có nhiệm vụ mới.'
               : 'All urgent and pending tasks in this view have been resolved.'}
@@ -366,7 +355,7 @@ export default function DashboardFocusQueue({
           <button
             type="button"
             onClick={() => onNavigate('tasks')}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition-colors cursor-pointer"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[#0071e3] hover:bg-[#0077ed] px-3 py-1.5 text-xs font-semibold text-white transition-colors cursor-pointer"
           >
             <span>{locale === 'vi' ? 'Xem toàn bộ danh sách' : 'View all tasks'}</span>
             <ArrowRight className="h-3.5 w-3.5" />

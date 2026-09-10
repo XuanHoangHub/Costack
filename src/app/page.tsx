@@ -203,7 +203,7 @@ const getShortLabel = (label: string) => {
   if (!label) return '';
   if (label === 'Home Overview') return 'Home';
   if (label === 'Tổng quan trang chủ') return 'Tổng quan';
-  if (label === 'Avaxa Base') return 'Base';
+  if (label === 'Avaxa Base' || label === 'Apexa Base') return 'Base';
   if (label === 'Team Directory') return 'Team';
   if (label === 'Thành viên & Đội ngũ') return 'Đội ngũ';
   if (label === 'Danh bạ thành viên') return 'Thành viên';
@@ -455,7 +455,7 @@ export default function App() {
       try { cachedUser = cachedRaw ? JSON.parse(cachedRaw)?.user : null; } catch {}
 
       const isSuper = isApexaSuperAdmin(u.id);
-      const displayName = u.user_metadata?.full_name || u.user_metadata?.name || cachedUser?.name || u.email?.split('@')[0] || 'Avaxa Champion';
+      const displayName = u.user_metadata?.full_name || u.user_metadata?.name || cachedUser?.name || u.email?.split('@')[0] || 'Apexa Champion';
       const displayAvatar = u.user_metadata?.avatar_url || u.user_metadata?.avatar || cachedUser?.avatar || '';
       const userObj = {
         id: u.id,
@@ -2608,7 +2608,7 @@ export default function App() {
         // A. Load Team Members first to find user profile (or handle placeholder)
         const myMemberId = `user-${userId}`;
         const googleName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
-        const myName = googleName || currentUser?.name || session.user.email?.split('@')[0] || 'Avaxa Champion';
+        const myName = googleName || currentUser?.name || session.user.email?.split('@')[0] || 'Apexa Champion';
         const myEmail = currentUser?.email || session.user.email || '';
         const googleAvatar = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || session.user.user_metadata?.avatar || '';
         const cachedAvatar = currentUser?.avatar && !currentUser.avatar.includes('api.dicebear.com') ? currentUser.avatar : '';
@@ -4411,18 +4411,6 @@ export default function App() {
     { id: 'system', label: 'System' },
   ];
 
-  // Navigation menu items definition
-  const sidebarItems = [
-    { id: 'dashboard', label: locale === 'vi' ? 'Tổng quan' : 'Overview', icon: LayoutDashboard, category: 'workspace' },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3, category: 'workspace' },
-    { id: 'calendar', label: 'Calendar', icon: Calendar, category: 'workspace' },
-    { id: 'goals', label: locale === 'vi' ? 'Mục tiêu (OKRs)' : 'Goals & OKRs', icon: Target, category: 'workspace' },
-    { id: 'chat', label: 'Chat Room', icon: MessageSquare, category: 'collaboration' },
-    { id: 'docs', label: 'Wiki Docs', icon: Edit3, category: 'collaboration' },
-    { id: 'team', label: locale === 'vi' ? 'Thành viên & Đội ngũ' : 'Team Directory', icon: Users, category: 'collaboration' },
-    { id: 'profile', label: 'User Profile', icon: UserIcon, category: 'system' },
-    { id: 'settings', label: 'System Settings', icon: Settings, category: 'system' },
-  ];
 
   if (!currentUser) {
     return <LoginScreen registrationEnabled={runtimeConfig.registration.enabled} onLoginSuccess={(user, rememberMe) => {
@@ -4655,7 +4643,7 @@ export default function App() {
                     )}
                   </div>
                   <span className="font-sans font-extrabold text-slate-800 dark:text-white text-[12.5px] tracking-tight truncate flex-1">
-                    {currentWorkspace?.name || 'Apexa'}
+                    {(currentWorkspace?.name && currentWorkspace.name.trim().toLowerCase() !== 'avaxa') ? currentWorkspace.name : 'Apexa'}
                   </span>
                 </div>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 group-hover:text-slate-700 dark:group-hover:text-white transition-transform duration-200 group-hover:translate-y-0.5 ml-1" />
@@ -4881,7 +4869,7 @@ export default function App() {
                     <div className="leading-tight min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="font-bold text-slate-900 dark:text-white text-[14px] truncate tracking-tight">
-                          {currentWorkspace?.name || 'Apexa'}
+                          {(currentWorkspace?.name && currentWorkspace.name.trim().toLowerCase() !== 'avaxa') ? currentWorkspace.name : 'Apexa'}
                         </span>
                         <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0" title="Không gian đang hoạt động">
                           <Check className="w-2.5 h-2.5 stroke-[3]" />
@@ -5035,7 +5023,7 @@ export default function App() {
                 )}
               </div>
               <span className="font-extrabold text-slate-800 dark:text-slate-100 text-[11px] truncate">
-                {currentWorkspace?.name || 'Avaxa'}
+                {currentWorkspace?.name && currentWorkspace.name.trim().toLowerCase() !== 'avaxa' ? currentWorkspace.name : 'Apexa'}
               </span>
             </button>
           </div>
@@ -5051,28 +5039,195 @@ export default function App() {
                 ? selectedSpace?.folders?.find(folder => folder.id === selectedList.folderId)
                 : undefined;
 
-              const activeItem = sidebarItems.find(i => i.id === activeTab);
+              const rawWsName = currentWorkspace?.name?.trim();
+              const wsName = (!rawWsName || rawWsName.toLowerCase() === 'avaxa') ? 'Apexa' : rawWsName;
+
+              const getTabMeta = (tabId: string) => {
+                if (tabId === 'dashboard') {
+                  return {
+                    label: locale === 'vi' ? 'Tổng quan' : 'Dashboard',
+                    icon: PhHouse,
+                    isMiniApp: false,
+                  };
+                }
+                if (tabId === 'my-tasks') {
+                  return {
+                    label: locale === 'vi' ? 'Việc của tôi' : 'My Tasks',
+                    icon: CheckSquare,
+                    isMiniApp: false,
+                  };
+                }
+                if (tabId === 'tasks') {
+                  return {
+                    label: locale === 'vi' ? 'Không gian' : 'Spaces',
+                    icon: PhSquaresFour,
+                    isMiniApp: false,
+                  };
+                }
+                if (tabId === 'inbox') {
+                  return {
+                    label: locale === 'vi' ? 'Hộp thư' : 'Inbox',
+                    icon: PhTray,
+                    isMiniApp: false,
+                  };
+                }
+                if (tabId === 'calendar') {
+                  return {
+                    label: locale === 'vi' ? 'Lịch trình' : 'Calendar',
+                    icon: PhCalendar,
+                    isMiniApp: false,
+                  };
+                }
+                if (tabId === 'goals') {
+                  return {
+                    label: locale === 'vi' ? 'Mục tiêu (OKRs)' : 'Goals & OKRs',
+                    icon: PhTarget,
+                    isMiniApp: false,
+                  };
+                }
+                if (tabId === 'analytics') {
+                  return {
+                    label: locale === 'vi' ? 'Phân tích' : 'Analytics',
+                    icon: BarChart3,
+                    isMiniApp: false,
+                  };
+                }
+                if (tabId === 'finance') {
+                  return {
+                    label: locale === 'vi' ? 'Tài chính' : 'Finance',
+                    icon: PhBank,
+                    isMiniApp: true,
+                  };
+                }
+                if (tabId === 'team') {
+                  return {
+                    label: locale === 'vi' ? 'Đội ngũ' : 'Team',
+                    icon: PhUsers,
+                    isMiniApp: false,
+                  };
+                }
+                if (tabId === 'chat') {
+                  return {
+                    label: locale === 'vi' ? 'Trò chuyện' : 'Chat',
+                    icon: PhChat,
+                    isMiniApp: false,
+                  };
+                }
+                if (tabId === 'docs') {
+                  return {
+                    label: locale === 'vi' ? 'Tài liệu' : 'Docs',
+                    icon: PhFileText,
+                    isMiniApp: false,
+                  };
+                }
+                if (tabId === 'profile') {
+                  return {
+                    label: locale === 'vi' ? 'Hồ sơ' : 'Profile',
+                    icon: UserIcon,
+                    isMiniApp: false,
+                  };
+                }
+                if (tabId === 'settings') {
+                  return {
+                    label: locale === 'vi' ? 'Cài đặt' : 'Settings',
+                    icon: Settings,
+                    isMiniApp: false,
+                  };
+                }
+                if (tabId === 'miniapps') {
+                  return {
+                    label: locale === 'vi' ? 'Kho ứng dụng' : 'Mini Apps',
+                    icon: Boxes,
+                    isMiniApp: false,
+                  };
+                }
+
+                // Check custom / dynamic Mini Apps
+                const dynamicMiniApp = allMiniApps.find(a => a.id === tabId);
+                if (dynamicMiniApp) {
+                  return {
+                    label: locale === 'vi' ? (dynamicMiniApp.nameVi || dynamicMiniApp.name) : dynamicMiniApp.name,
+                    icon: () => (
+                      <MiniAppIcon
+                        appId={dynamicMiniApp.id}
+                        icon={dynamicMiniApp.icon}
+                        iconName={dynamicMiniApp.iconName}
+                        variant="sidebar"
+                      />
+                    ),
+                    isMiniApp: true,
+                  };
+                }
+
+                // Built-in standard mini-apps
+                const miniAppMap: Record<string, { labelVi: string; labelEn: string; icon: any }> = {
+                  crm: { labelVi: 'CRM Khách hàng', labelEn: 'CRM Workspace', icon: Users },
+                  erp: { labelVi: 'ERP Doanh nghiệp', labelEn: 'ERP Hub', icon: Grid },
+                  base: { labelVi: 'Apexa Base', labelEn: 'Apexa Base', icon: Database },
+                  whiteboard: { labelVi: 'Bảng trắng', labelEn: 'Whiteboard', icon: Edit3 },
+                  planner: { labelVi: 'Kế hoạch ngày', labelEn: 'Day Planner', icon: CalendarDays },
+                  pomodoro: { labelVi: 'Pomodoro', labelEn: 'Pomodoro', icon: Timer },
+                  notes: { labelVi: 'Ghi chú', labelEn: 'Notes', icon: Edit3 },
+                  converter: { labelVi: 'Chuyển đổi dữ liệu', labelEn: 'Converter', icon: RefreshCw },
+                };
+
+                if (miniAppMap[tabId]) {
+                  const m = miniAppMap[tabId];
+                  return {
+                    label: locale === 'vi' ? m.labelVi : m.labelEn,
+                    icon: m.icon,
+                    isMiniApp: true,
+                  };
+                }
+
+                // Fallback to sidebarItemsMeta
+                if (sidebarItemsMeta[tabId]) {
+                  return {
+                    label: sidebarItemsMeta[tabId].label,
+                    icon: sidebarItemsMeta[tabId].icon,
+                    isMiniApp: false,
+                  };
+                }
+
+                return {
+                  label: tabId,
+                  icon: LayoutDashboard,
+                  isMiniApp: false,
+                };
+              };
 
               return (
                 <nav aria-label="Cấu trúc điều hướng" className="apexa-breadcrumbs flex min-w-0 items-center gap-1.5 text-xs select-none">
-                  {/* Root: Workspace Item (Text-only link, elegant & no duplicate logo) */}
+                  {/* Root: Workspace Item */}
                   <button
                     type="button"
                     onClick={() => setActiveTab('dashboard')}
-                    className="flex items-center px-2 py-1 rounded-lg text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06] font-semibold text-[13px] transition-all max-w-36 truncate cursor-pointer group"
-                    title={`Không gian làm việc: ${currentWorkspace?.name || 'Avaxa'}`}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium text-[13px] transition-all max-w-40 truncate cursor-pointer group"
+                    title={`${locale === 'vi' ? 'Không gian làm việc' : 'Workspace'}: ${wsName}`}
                   >
-                    <span className="truncate">{currentWorkspace?.name || 'Avaxa'}</span>
+                    {currentWorkspace?.logoUrl ? (
+                      <img src={currentWorkspace.logoUrl} className="w-4 h-4 rounded-md object-cover shrink-0" alt="Logo" />
+                    ) : (
+                      <span className="flex h-4 w-4 items-center justify-center rounded-[5px] bg-[#0071E3]/10 dark:bg-[#0A84FF]/20 text-[10px] font-bold text-[#0071E3] dark:text-[#0A84FF] shrink-0">
+                        {wsName.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                    <span className="truncate">{wsName}</span>
                   </button>
 
                   <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300 dark:text-zinc-600 stroke-[1.5]" />
 
-                  {/* Second level & details */}
-                  {(activeTab === 'tasks' || activeTab === 'my-tasks') ? (
+                  {/* Level 2 & Beyond */}
+                  {activeTab === 'dashboard' ? (
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-slate-900 dark:text-zinc-100 font-semibold text-[13px] bg-black/[0.03] dark:bg-white/[0.06]">
+                      <PhHouse className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
+                      <span>{locale === 'vi' ? 'Tổng quan' : 'Dashboard'}</span>
+                    </div>
+                  ) : (activeTab === 'tasks' || activeTab === 'my-tasks') ? (
                     selectedSpace ? (
                       <>
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-all group">
-                          {/* Nhấn trực tiếp vào icon để đổi biểu tượng & màu sắc */}
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors group">
+                          {/* Emoji / Icon Selector */}
                           <EmojiIconPicker
                             size="inline"
                             value={selectedSpace.emoji || 'Folder'}
@@ -5092,7 +5247,7 @@ export default function App() {
                             type="button"
                             onClick={() => { setActiveSpaceId(selectedSpace.id); setActiveListId(null); }}
                             className="px-1 py-0.5 text-slate-700 dark:text-zinc-300 hover:text-slate-950 dark:hover:text-white font-medium text-[13px] transition-colors max-w-36 truncate cursor-pointer"
-                            title={`Không gian: ${selectedSpace.name}`}
+                            title={`${locale === 'vi' ? 'Không gian' : 'Space'}: ${selectedSpace.name}`}
                           >
                             <span className="truncate">{selectedSpace.name}</span>
                           </button>
@@ -5101,24 +5256,24 @@ export default function App() {
                         {selectedFolder && (
                           <>
                             <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300 dark:text-zinc-600 stroke-[1.5]" />
-                            <div className="hidden md:flex items-center gap-1 px-2 py-0.5 rounded-lg text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/[0.06] font-medium text-[13px] max-w-32 truncate" title={`Thư mục: ${selectedFolder.name}`}>
+                            <div className="hidden md:flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-slate-600 dark:text-zinc-400 font-medium text-[13px] max-w-32 truncate" title={`Thư mục: ${selectedFolder.name}`}>
                               <Folder className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" />
                               <span className="truncate">{selectedFolder.name}</span>
                             </div>
                           </>
                         )}
 
-                        {selectedList && (
+                        {selectedList ? (
                           <>
                             <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300 dark:text-zinc-600 stroke-[1.5]" />
                             <div className="relative">
                               <button
                                 type="button"
                                 onClick={() => setShowTopBreadcrumbListMenu(prev => !prev)}
-                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100/90 dark:bg-white/[0.08] hover:bg-slate-200/80 dark:hover:bg-white/[0.12] text-slate-900 dark:text-zinc-100 border border-slate-200/70 dark:border-white/[0.08] font-semibold text-[13px] shadow-2xs transition-all cursor-pointer max-w-48 group"
-                                title="Danh sách đang chọn - Nhấn để chuyển danh sách"
+                                className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-black/[0.03] dark:bg-white/[0.06] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-slate-900 dark:text-zinc-100 font-semibold text-[13px] transition-all cursor-pointer max-w-48 group"
+                                title={locale === 'vi' ? 'Danh sách đang chọn — Nhấn để chuyển danh sách' : 'Active list — Click to switch'}
                               >
-                                <ListTodo className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 shrink-0" />
+                                <ListTodo className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
                                 <span className="truncate">{selectedList.name}</span>
                                 {selectedSpace.lists && selectedSpace.lists.length > 1 && (
                                   <ChevronDown className="w-3 h-3 text-slate-400 dark:text-zinc-400 group-hover:text-slate-600 dark:group-hover:text-zinc-200 transition-transform shrink-0" />
@@ -5135,10 +5290,10 @@ export default function App() {
                                       animate={{ opacity: 1, y: 0, scale: 1 }}
                                       exit={{ opacity: 0, y: 4, scale: 0.96 }}
                                       transition={{ duration: 0.15 }}
-                                      className="absolute left-0 top-full mt-1.5 w-56 p-1.5 bg-white dark:bg-zinc-900 border border-slate-200/90 dark:border-zinc-800 rounded-xl shadow-xl z-40 space-y-0.5 text-left"
+                                      className="absolute left-0 top-full mt-1.5 w-56 p-1.5 bg-white dark:bg-zinc-900 border border-black/[0.08] dark:border-white/[0.1] rounded-xl shadow-xl z-40 space-y-0.5 text-left"
                                     >
                                       <div className="px-2 py-1 text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
-                                        Danh sách trong {selectedSpace.name}
+                                        {locale === 'vi' ? `Danh sách trong ${selectedSpace.name}` : `Lists in ${selectedSpace.name}`}
                                       </div>
                                       <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-0.5">
                                         {selectedSpace.lists.map(list => (
@@ -5151,15 +5306,15 @@ export default function App() {
                                             }}
                                             className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors cursor-pointer ${
                                               list.id === activeListId 
-                                                ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-sky-300 font-semibold' 
-                                                : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800'
+                                                ? 'bg-blue-50 dark:bg-blue-950/40 text-[#0071E3] dark:text-[#0A84FF] font-semibold' 
+                                                : 'text-slate-700 dark:text-zinc-300 hover:bg-black/[0.04] dark:hover:bg-zinc-800'
                                             }`}
                                           >
                                             <div className="flex items-center gap-2 truncate">
                                               <ListTodo className="w-3.5 h-3.5 shrink-0 opacity-70" />
                                               <span className="truncate">{list.name}</span>
                                             </div>
-                                            {list.id === activeListId && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 shrink-0" />}
+                                            {list.id === activeListId && <Check className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />}
                                           </button>
                                         ))}
                                       </div>
@@ -5169,31 +5324,88 @@ export default function App() {
                               </AnimatePresence>
                             </div>
                           </>
+                        ) : (
+                          <>
+                            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300 dark:text-zinc-600 stroke-[1.5]" />
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-black/[0.03] dark:bg-white/[0.06] text-slate-900 dark:text-zinc-100 font-semibold text-[13px]">
+                              <LayoutDashboard className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
+                              <span>{locale === 'vi' ? 'Tổng quan không gian' : 'Space Overview'}</span>
+                            </div>
+                          </>
                         )}
                       </>
                     ) : (
-                      <div className="apexa-breadcrumb-current flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100/90 dark:bg-white/[0.08] text-slate-900 dark:text-zinc-100 border border-slate-200/70 dark:border-white/[0.08] font-semibold text-[13px] shadow-2xs">
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-black/[0.03] dark:bg-white/[0.06] text-slate-900 dark:text-zinc-100 font-semibold text-[13px]">
                         {activeTab === 'my-tasks' ? (
                           <>
-                            <CheckSquare className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 shrink-0" />
-                            <span>Công việc của tôi</span>
+                            <CheckSquare className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
+                            <span>{locale === 'vi' ? 'Việc của tôi' : 'My Tasks'}</span>
                           </>
                         ) : (
                           <>
-                            <ListTodo className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 shrink-0" />
-                            <span>Tất cả công việc</span>
+                            <ListTodo className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
+                            <span>{locale === 'vi' ? 'Tất cả công việc' : 'All Tasks'}</span>
                           </>
                         )}
                       </div>
                     )
-                  ) : (
-                    activeItem && (
-                      <div className="apexa-breadcrumb-current flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100/90 dark:bg-white/[0.08] text-slate-900 dark:text-zinc-100 border border-slate-200/70 dark:border-white/[0.08] font-semibold text-[13px] shadow-2xs">
-                        {activeItem.icon && <activeItem.icon className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 shrink-0" />}
-                        <span className="capitalize">{activeItem.label}</span>
+                  ) : activeTab === 'settings' ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setActiveSettingsTab('general')}
+                        className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg font-medium text-[13px] transition-colors cursor-pointer ${
+                          activeSettingsTab && activeSettingsTab !== 'general'
+                            ? 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
+                            : 'text-slate-900 dark:text-zinc-100 font-semibold bg-black/[0.03] dark:bg-white/[0.06]'
+                        }`}
+                      >
+                        <Settings className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
+                        <span>{locale === 'vi' ? 'Cài đặt' : 'Settings'}</span>
+                      </button>
+                      {activeSettingsTab && activeSettingsTab !== 'general' && (
+                        <>
+                          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300 dark:text-zinc-600 stroke-[1.5]" />
+                          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-slate-900 dark:text-zinc-100 font-semibold text-[13px] bg-black/[0.03] dark:bg-white/[0.06]">
+                            <span>
+                              {activeSettingsTab === 'members' ? (locale === 'vi' ? 'Thành viên' : 'Members') :
+                               activeSettingsTab === 'billing' ? (locale === 'vi' ? 'Gói cước' : 'Billing') :
+                               activeSettingsTab === 'security' ? (locale === 'vi' ? 'Bảo mật' : 'Security') :
+                               activeSettingsTab === 'notifications' ? (locale === 'vi' ? 'Thông báo' : 'Notifications') :
+                               activeSettingsTab === 'appearance' ? (locale === 'vi' ? 'Giao diện' : 'Appearance') :
+                               activeSettingsTab === 'integrations' ? (locale === 'vi' ? 'Tích hợp' : 'Integrations') :
+                               activeSettingsTab}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  ) : (() => {
+                    const tabInfo = getTabMeta(activeTab);
+                    return tabInfo.isMiniApp ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('miniapps')}
+                          className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium text-[13px] transition-colors cursor-pointer"
+                          title={locale === 'vi' ? 'Mở Kho ứng dụng' : 'Open Mini Apps'}
+                        >
+                          <Boxes className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span>{locale === 'vi' ? 'Ứng dụng' : 'Apps'}</span>
+                        </button>
+                        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300 dark:text-zinc-600 stroke-[1.5]" />
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-slate-900 dark:text-zinc-100 font-semibold text-[13px] bg-black/[0.03] dark:bg-white/[0.06]">
+                          {tabInfo.icon && <tabInfo.icon className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />}
+                          <span>{tabInfo.label}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-slate-900 dark:text-zinc-100 font-semibold text-[13px] bg-black/[0.03] dark:bg-white/[0.06]">
+                        {tabInfo.icon && <tabInfo.icon className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />}
+                        <span>{tabInfo.label}</span>
                       </div>
-                    )
-                  )}
+                    );
+                  })()}
                 </nav>
               );
             })()}
@@ -6217,7 +6429,7 @@ export default function App() {
                         await disconnectUserPresence();
                         await supabase.auth.signOut({ scope: 'local' });
                         updateCurrentUser(null);
-                        if (triggerToast) triggerToast('info', 'Signed Out', 'You have been signed out of Avaxa OS.');
+                        if (triggerToast) triggerToast('info', 'Signed Out', 'You have been signed out of Apexa OS.');
                       }}
                       triggerToast={triggerToast}
                       onSendWorkspaceInvites={handleSendWorkspaceInvites}

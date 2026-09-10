@@ -7,6 +7,16 @@ import {
 } from 'lucide-react';
 import { Space } from '@/types';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { createPortal } from 'react-dom';
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
 
 interface AddFolderModalProps {
   isOpen: boolean;
@@ -92,15 +102,16 @@ export default function AddFolderModal({
   const isEditing = Boolean(editingFolderId);
 
   return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <motion.div 
-        initial={{ opacity: 0 }} 
-        animate={{ opacity: 1 }} 
-        exit={{ opacity: 0 }} 
-        onClick={onClose} 
-        className="absolute inset-0 bg-slate-950/60 backdrop-blur-md transition-opacity" 
-      />
+    <Portal>
+      <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+        {/* Backdrop */}
+        <motion.div 
+          initial={{ opacity: 0 }} 
+          animate={{ opacity: 1 }} 
+          exit={{ opacity: 0 }} 
+          onClick={onClose} 
+          className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs transition-opacity cursor-pointer" 
+        />
 
       <motion.div 
         initial={{ scale: 0.93, y: 16, opacity: 0 }} 
@@ -256,5 +267,6 @@ export default function AddFolderModal({
         </form>
       </motion.div>
     </div>
+    </Portal>
   );
 }

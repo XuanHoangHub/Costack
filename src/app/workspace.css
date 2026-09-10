@@ -1,60 +1,62 @@
 /* Apexa workspace UI. Scoped to the application, independent of the public site. */
 .apexa-app-shell.apexa-design-system {
-  --cu-sidebar-width: 232px;
-  --cu-sidebar-collapsed: 64px;
-  --cu-header-height: 60px;
+  --cu-sidebar-width: 240px;
+  --cu-sidebar-collapsed: 68px;
+  --cu-header-height: 56px;
   --cu-bg: #ffffff;
-  --cu-bg-subtle: #ffffff;
+  --cu-bg-subtle: #fbfbfd;
   --cu-surface: #ffffff;
-  --cu-surface-2: #f8fafc;
-  --cu-surface-3: #f1f5f9;
-  --cu-border: #e2e8f0;
-  --cu-border-strong: #cbd5e1;
-  --cu-text-primary: #0f172a;
-  --cu-text-secondary: #475569;
-  --cu-text-muted: #64748b;
-  --cu-text-tertiary: #94a3b8;
-  --cu-primary: #2563eb;
-  --cu-primary-hover: #1d4ed8;
-  --cu-primary-subtle: #eff6ff;
+  --cu-surface-2: #f7f7f9;
+  --cu-surface-3: #f2f2f7;
+  --cu-border: rgba(0, 0, 0, 0.06);
+  --cu-border-strong: rgba(0, 0, 0, 0.1);
+  --cu-text-primary: #1d1d1f;
+  --cu-text-secondary: #515154;
+  --cu-text-muted: #86868b;
+  --cu-text-tertiary: #a1a1a6;
+  --cu-primary: #0071e3;
+  --cu-primary-hover: #0077ed;
+  --cu-primary-subtle: rgba(0, 113, 227, 0.08);
   --cu-radius-md: 10px;
   --cu-radius-lg: 12px;
   --cu-radius-xl: 16px;
-  --cu-radius-2xl: 18px;
-  --cu-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --cu-shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.06);
-  --cu-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
-  --cu-shadow-primary: 0 4px 12px rgba(37, 99, 235, 0.2);
+  --cu-radius-2xl: 20px;
+  --cu-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.02);
+  --cu-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.03);
+  --cu-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.03);
+  --cu-shadow-primary: 0 2px 8px rgba(0, 113, 227, 0.18);
   --sidebar-bg: #ffffff;
-  --sidebar-text: #0f172a;
-  --sidebar-muted: #64748b;
-  --sidebar-signal: #2563eb;
+  --sidebar-border: rgba(0, 0, 0, 0.06);
+  --sidebar-text: #1d1d1f;
+  --sidebar-muted: #86868b;
+  --sidebar-signal: #0071e3;
   background: var(--cu-bg);
   color: var(--cu-text-primary);
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.5;
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
 }
 .dark .apexa-app-shell.apexa-design-system {
   --cu-bg: #000000;
-  --cu-bg-subtle: #0a0a0a;
-  --cu-surface: #121212;
-  --cu-surface-2: #181818;
-  --cu-surface-3: #222222;
-  --cu-border: rgba(255, 255, 255, 0.09);
-  --cu-border-strong: rgba(255, 255, 255, 0.18);
-  --cu-text-primary: #ffffff;
-  --cu-text-secondary: #d4d4d8;
-  --cu-text-muted: #a0a0a0;
-  --cu-text-tertiary: #a0a0a0;
-  --cu-primary: #3b82f6;
-  --cu-primary-hover: #60a5fa;
-  --cu-primary-subtle: rgba(59, 130, 246, 0.15);
+  --cu-bg-subtle: #0a0a0c;
+  --cu-surface: #121214;
+  --cu-surface-2: #161618;
+  --cu-surface-3: #1c1c1e;
+  --cu-border: rgba(255, 255, 255, 0.07);
+  --cu-border-strong: rgba(255, 255, 255, 0.14);
+  --cu-text-primary: #f5f5f7;
+  --cu-text-secondary: #a1a1a6;
+  --cu-text-muted: #86868b;
+  --cu-text-tertiary: #636366;
+  --cu-primary: #0a84ff;
+  --cu-primary-hover: #409cff;
+  --cu-primary-subtle: rgba(10, 132, 255, 0.12);
   --sidebar-bg: #09090b;
-  --sidebar-text: #eef0f7;
-  --sidebar-muted: #9298ab;
-  --sidebar-signal: #38bdf8;
+  --sidebar-border: rgba(255, 255, 255, 0.07);
+  --sidebar-text: #f5f5f7;
+  --sidebar-muted: #86868b;
+  --sidebar-signal: #0a84ff;
 }
 
 /* Readable type without making every label a heading. */
@@ -65,8 +67,15 @@
 .apexa-app-shell.apexa-design-system .apexa-route-canvas :where(.text-slate-400, .text-slate-405) { color: var(--cu-text-muted); }
 .apexa-app-shell.apexa-design-system .apexa-route-canvas :where(.text-\[9px\], .text-\[10px\], .text-\[10\.5px\]) { font-size: 11px; line-height: 1.5; }
 .apexa-app-shell.apexa-design-system .apexa-route-canvas .text-\[11px\] { font-size: 12px; }
-.apexa-app-shell.apexa-design-system .apexa-route-canvas .tracking-widest { letter-spacing: .07em; }
 .apexa-app-shell.apexa-design-system .apexa-route-canvas :where(p, td, [contenteditable="true"]) { user-select: text; }
+
+/* Clean Sans-Serif Numbers (Apple style, no bottom foot/serif on digit 1) */
+.apexa-app-shell.apexa-design-system :where(.tabular-nums, .font-numeric, [data-numeric]),
+.apexa-app-shell.apexa-design-system .apexa-dashboard :where(.font-mono, .font-numeric, .tabular-nums) {
+  font-family: var(--font-numeric), var(--font-sans), -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", sans-serif !important;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1;
+}
 .apexa-app-shell.apexa-design-system :where(button, select, textarea, a, summary):focus-visible,
 .apexa-app-shell.apexa-design-system input:not([data-no-focus-outline="true"]):not(.border-none):not(.outline-none):not(.apexa-search-input):focus-visible {
   outline: 2px solid #5687f1;
@@ -103,44 +112,56 @@
   background: var(--sidebar-bg) !important;
   box-shadow: none !important;
 }
-.apexa-app-shell.apexa-design-system .apexa-sidebar-navigation { padding-top: 5px; }
-.apexa-app-shell.apexa-design-system .apexa-nav-item { border-radius: 12px !important; min-height: 40px; }
+.apexa-app-shell.apexa-design-system .apexa-sidebar-navigation { padding-top: 6px; padding-inline: 6px; }
+.apexa-app-shell.apexa-design-system .apexa-nav-item {
+  border-radius: 8px !important;
+  min-height: 36px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.apexa-app-shell.apexa-design-system .apexa-nav-item:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+.dark .apexa-app-shell.apexa-design-system .apexa-nav-item:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
 .apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] {
-  background: #eff6ff !important;
-  border-color: #bfdbfe !important;
-  color: #1d4ed8 !important;
+  background: rgba(0, 113, 227, 0.1) !important;
+  border-color: transparent !important;
+  color: #0071E3 !important;
 }
 .apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] .apexa-nav-item-icon {
   background: transparent !important;
-  color: #1d4ed8 !important;
+  color: #0071E3 !important;
 }
 .apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] > span:not([class*="absolute"]) {
-  color: #1d4ed8 !important;
-  font-weight: 700 !important;
+  color: #0071E3 !important;
+  font-weight: 600 !important;
 }
 .dark .apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] {
-  background: #ffffff0e !important;
-  border-color: #ffffff12 !important;
-  color: #ffffff !important;
+  background: rgba(10, 132, 255, 0.15) !important;
+  border-color: transparent !important;
+  color: #0A84FF !important;
 }
 .dark .apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] .apexa-nav-item-icon {
   background: transparent !important;
-  color: #9abaff !important;
+  color: #0A84FF !important;
 }
 .dark .apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] > span:not([class*="absolute"]) {
-  color: #ffffff !important;
-  font-weight: 700 !important;
+  color: #0A84FF !important;
+  font-weight: 600 !important;
 }
-.apexa-app-shell.apexa-design-system .apexa-nav-item > span:first-of-type { font-weight: 500; letter-spacing: 0; }
-.apexa-app-shell.apexa-design-system .apexa-nav-active-marker { width: 3px; background: #2563eb !important; box-shadow: none; }
-.dark .apexa-app-shell.apexa-design-system .apexa-nav-active-marker { background: #82aaff !important; }
-.apexa-app-shell.apexa-design-system .apexa-nav-feature-badge { background: #f1f5f9 !important; border: 1px solid #e2e8f0 !important; color: #475569 !important; font-size: 9px; font-weight: 500; }
-.dark .apexa-app-shell.apexa-design-system .apexa-nav-feature-badge { background: #ffffff08 !important; border: 0 !important; color: #a6b1c3 !important; }
+.apexa-app-shell.apexa-design-system .apexa-nav-item > span:first-of-type { font-weight: 500; letter-spacing: -0.01em; }
+.apexa-app-shell.apexa-design-system .apexa-nav-active-marker { width: 3px; border-radius: 9999px; background: #0071E3 !important; box-shadow: none; }
+.dark .apexa-app-shell.apexa-design-system .apexa-nav-active-marker { background: #0A84FF !important; }
+.apexa-app-shell.apexa-design-system .apexa-nav-feature-badge { background: rgba(0, 0, 0, 0.04) !important; border: 1px solid rgba(0, 0, 0, 0.06) !important; color: #86868b !important; font-size: 9px; font-weight: 600; border-radius: 9999px; }
+.dark .apexa-app-shell.apexa-design-system .apexa-nav-feature-badge { background: rgba(255, 255, 255, 0.06) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; color: #86868b !important; border-radius: 9999px; }
 .apexa-app-shell.apexa-design-system .apexa-sidebar-section-label { margin-top: 14px; color: var(--sidebar-muted); font-size: 10px; font-weight: 600; letter-spacing: .08em; padding: 8px 12px 5px; }
-.apexa-app-shell.apexa-design-system .apexa-app-header { min-height: 60px; background: var(--cu-surface); border-bottom: none !important; box-shadow: none; }
+.apexa-app-shell.apexa-design-system .apexa-app-header { min-height: 52px; background: var(--cu-surface); border-bottom: 1px solid var(--apple-hairline) !important; box-shadow: none; }
 .apexa-app-shell.apexa-design-system .apexa-header-sidebar { border-bottom: none !important; }
-.apexa-app-shell.apexa-design-system .apexa-header-content { gap: 16px; border-bottom: 1px solid var(--cu-border) !important; }
-.dark .apexa-app-shell.apexa-design-system .apexa-header-content { border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important; }
+.apexa-app-shell.apexa-design-system .apexa-header-content { gap: 16px; border-bottom: none !important; }
+.dark .apexa-app-shell.apexa-design-system .apexa-header-content { border-bottom: none !important; }
 .apexa-app-shell.apexa-design-system .apexa-header-context { max-width: 38%; }
 .apexa-app-shell.apexa-design-system .apexa-header-actions { gap: 8px; padding-right: 0; }
 .apexa-app-shell.apexa-design-system .apexa-header-icon-button { box-shadow: none; border-color: var(--cu-border); border-radius: 9px; }
@@ -178,17 +199,92 @@
 .apexa-app-shell.apexa-design-system .apexa-module-heading,
 .apexa-app-shell.apexa-design-system .apexa-finance-header { flex-wrap: wrap; gap: 16px; background: var(--cu-surface); border-color: var(--cu-border); box-shadow: none; }
 
-/* Overview: less ornament, more room for the day's work. */
-.apexa-app-shell.apexa-design-system .apexa-dashboard { max-width: 1600px; padding: 24px; gap: 20px; }
+/* ── Apple Card-less Layout Architecture ── */
+.liquid-blob { display: none !important; }
+
+/* Overview: Apple content-first, airy rhythm, zero card enclosure. */
+.apexa-app-shell.apexa-design-system .apexa-dashboard { max-width: 1480px; padding: 28px 32px 64px; gap: 28px; }
 .apexa-app-shell.apexa-design-system .apexa-dashboard > * { margin-block: 0; }
-.apexa-app-shell.apexa-design-system .apexa-dashboard-hero { border-radius: 16px; padding: 24px; background: var(--cu-surface); box-shadow: none; gap: 18px; }
+.apexa-app-shell.apexa-design-system .apexa-dashboard-hero { border-radius: 0; padding: 0 0 16px 0; background: transparent; box-shadow: none; border: none; gap: 14px; }
 .apexa-app-shell.apexa-design-system .apexa-dashboard-hero > .pointer-events-none { display: none; }
-.apexa-app-shell.apexa-design-system .apexa-dashboard-hero h1 { font-size: clamp(20px, 1.6vw, 27px); }
-.apexa-app-shell.apexa-design-system .apexa-dashboard-priorities { background: var(--cu-surface); border-color: var(--cu-border); box-shadow: none; border-radius: 16px; }
-.apexa-app-shell.apexa-design-system .apexa-dashboard-kpi { min-height: 140px; border-radius: 14px; padding: 20px; background: var(--cu-surface); box-shadow: var(--cu-shadow-xs); }
-.apexa-app-shell.apexa-design-system .apexa-dashboard-kpi > .pointer-events-none { display: none; }
-.apexa-app-shell.apexa-design-system .apexa-dashboard-kpi:hover { box-shadow: none; }
-.apexa-app-shell.apexa-design-system .apexa-dashboard-panel { background: var(--cu-surface); border-color: var(--cu-border); box-shadow: var(--cu-shadow-xs); border-radius: 16px; }
+.apexa-app-shell.apexa-design-system .apexa-dashboard-hero h1 { font-size: clamp(22px, 1.8vw, 30px); letter-spacing: -0.03em; }
+
+/* Inset Group: Apple Clean White */
+.apexa-inset-group {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 4px 12px rgba(0, 0, 0, 0.02);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.dark .apexa-inset-group {
+  background: var(--cu-surface);
+  border-color: var(--cu-border);
+  box-shadow: none;
+}
+
+/* Hairline Rows inside Inset Groups */
+.apexa-hairline-row {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  transition: background-color 0.15s ease;
+}
+.apexa-hairline-row:last-child {
+  border-bottom: none;
+}
+.apexa-hairline-row:hover {
+  background-color: rgba(0, 0, 0, 0.015);
+}
+.dark .apexa-hairline-row:hover {
+  background-color: rgba(255, 255, 255, 0.035);
+}
+
+/* Telemetry Ribbon: Continuous horizontal status ribbon with hairline dividers */
+.apexa-telemetry-ribbon {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 18px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 4px 12px rgba(0, 0, 0, 0.02);
+}
+.dark .apexa-telemetry-ribbon {
+  background: var(--cu-surface);
+  border-color: var(--cu-border);
+  box-shadow: none;
+}
+
+/* Apple Capsule Segmented Control */
+.apexa-segmented-capsule {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  border-radius: 12px;
+  background: #f2f2f7;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+.dark .apexa-segmented-capsule {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+.apexa-segmented-pill {
+  padding: 4px 12px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #515154;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+.apexa-segmented-pill[data-active="true"] {
+  background: #ffffff;
+  color: #1d1d1f;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+.dark .apexa-segmented-pill[data-active="true"] {
+  background: #2c2c2e;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
 
 /* Inbox, documents, chat and team share the same surface rhythm. */
 .apexa-app-shell.apexa-design-system .apexa-inbox { gap: 0; padding: 0; background: var(--cu-surface); height: 100%; width: 100%; }

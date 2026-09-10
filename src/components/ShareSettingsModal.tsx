@@ -12,6 +12,16 @@ import QRCode from 'qrcode';
 import { User, ShareRole, ShareTargetType } from '../types';
 import SignedImage from './SignedImage';
 import { useTranslation } from '../contexts/TranslationContext';
+import { createPortal } from 'react-dom';
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
 
 export interface ShareSettingsModalProps {
   isOpen: boolean;
@@ -311,10 +321,13 @@ export default function ShareSettingsModal({
     return member.name?.toLowerCase().includes(q) || member.email?.toLowerCase().includes(q);
   });
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-slate-950/65 backdrop-blur-sm animate-fade-in font-sans">
-      {/* Backdrop */}
-      <div className="absolute inset-0 cursor-pointer" onClick={onClose} />
+    <Portal>
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 animate-fade-in font-sans">
+        {/* Backdrop */}
+        <div className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs cursor-pointer" onClick={onClose} />
 
       <div className="relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xl z-10 flex flex-col text-left select-none max-h-[92vh]">
         
@@ -899,5 +912,6 @@ export default function ShareSettingsModal({
 
       </div>
     </div>
+    </Portal>
   );
 }

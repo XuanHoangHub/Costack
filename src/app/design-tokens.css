@@ -66,35 +66,61 @@
   --ax-radius-full: 9999px;
 }
 
-/* ── Elevation / Shadow Scale ── */
+/* ── Elevation / Shadow Scale (Apple Ambient Depth) ── */
 :root {
   --ax-shadow-none: none;
-  --ax-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --ax-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --ax-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
-  --ax-shadow-lg: 0 12px 28px -8px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.04);
-  --ax-shadow-xl: 0 20px 40px -12px rgba(0, 0, 0, 0.16), 0 8px 16px rgba(0, 0, 0, 0.06);
-  --ax-shadow-2xl: 0 32px 64px -16px rgba(0, 0, 0, 0.2);
-  --ax-shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+  --ax-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --ax-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --ax-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --ax-shadow-lg: 0 12px 24px -6px rgba(0, 0, 0, 0.06), 0 2px 6px rgba(0, 0, 0, 0.02);
+  --ax-shadow-xl: 0 20px 36px -10px rgba(0, 0, 0, 0.08);
+  --ax-shadow-2xl: 0 28px 56px -12px rgba(0, 0, 0, 0.12);
+  --ax-shadow-inner: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+  --ax-shadow-apple: 0 1px 3px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.03);
 
-  /* Colored shadows */
-  --ax-shadow-primary: 0 8px 24px -6px rgba(37, 99, 235, 0.35);
-  --ax-shadow-success: 0 8px 24px -6px rgba(16, 185, 129, 0.35);
-  --ax-shadow-danger: 0 8px 24px -6px rgba(239, 68, 68, 0.35);
+  /* Subtle contextual accents */
+  --ax-shadow-primary: 0 2px 10px rgba(0, 113, 227, 0.15);
+  --ax-shadow-success: 0 2px 10px rgba(52, 199, 89, 0.15);
+  --ax-shadow-danger: 0 2px 10px rgba(255, 59, 48, 0.15);
+
+  /* Apple Layer & Material Tokens */
+  --apple-canvas: #ffffff;
+  --apple-surface: #ffffff;
+  --apple-surface-secondary: #fbfbfd;
+  --apple-grouped-bg: #ffffff;
+  --apple-hairline: rgba(0, 0, 0, 0.06);
+  --apple-hairline-strong: rgba(0, 0, 0, 0.1);
+  --apple-hover: rgba(0, 0, 0, 0.025);
+  --apple-active: rgba(0, 0, 0, 0.05);
+  --apple-pill-bg: #f2f2f7;
+  --apple-vibrancy: blur(20px) saturate(180%);
 }
 
 .dark {
-  --ax-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
-  --ax-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.6), 0 1px 2px rgba(0, 0, 0, 0.4);
-  --ax-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.7), 0 2px 4px rgba(0, 0, 0, 0.5);
-  --ax-shadow-lg: 0 12px 28px -8px rgba(0, 0, 0, 0.8), 0 4px 8px rgba(0, 0, 0, 0.5);
-  --ax-shadow-xl: 0 20px 40px -12px rgba(0, 0, 0, 0.85), 0 8px 16px rgba(0, 0, 0, 0.6);
-  --ax-shadow-2xl: 0 32px 64px -16px rgba(0, 0, 0, 0.9);
-  --ax-shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+  --ax-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --ax-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --ax-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --ax-shadow-lg: 0 12px 28px -8px rgba(0, 0, 0, 0.6);
+  --ax-shadow-xl: 0 20px 40px -12px rgba(0, 0, 0, 0.7);
+  --ax-shadow-2xl: 0 32px 64px -16px rgba(0, 0, 0, 0.8);
+  --ax-shadow-inner: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+  --ax-shadow-apple: 0 1px 3px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
 
-  --ax-shadow-primary: 0 8px 24px -6px rgba(59, 130, 246, 0.3);
-  --ax-shadow-success: 0 8px 24px -6px rgba(16, 185, 129, 0.3);
-  --ax-shadow-danger: 0 8px 24px -6px rgba(239, 68, 68, 0.3);
+  --ax-shadow-primary: 0 2px 10px rgba(10, 132, 255, 0.2);
+  --ax-shadow-success: 0 2px 10px rgba(48, 209, 88, 0.2);
+  --ax-shadow-danger: 0 2px 10px rgba(255, 69, 58, 0.2);
+
+  /* Apple Dark Materials */
+  --apple-canvas: #000000;
+  --apple-surface: #121214;
+  --apple-surface-secondary: #18181b;
+  --apple-grouped-bg: rgba(255, 255, 255, 0.03);
+  --apple-hairline: rgba(255, 255, 255, 0.08);
+  --apple-hairline-strong: rgba(255, 255, 255, 0.16);
+  --apple-hover: rgba(255, 255, 255, 0.05);
+  --apple-active: rgba(255, 255, 255, 0.09);
+  --apple-pill-bg: rgba(255, 255, 255, 0.08);
+  --apple-vibrancy: blur(20px) saturate(180%);
 }
 
 /* ── Animation / Easing Tokens ── */

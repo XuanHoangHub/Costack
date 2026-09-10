@@ -67,57 +67,41 @@ export function NavItem({
           aria-current={isActive ? "page" : undefined}
           style={style}
           className={[
-            "apexa-nav-item apexa-nav-item-collapsed group relative flex h-10 w-10 cursor-pointer select-none items-center justify-center rounded-[14px] border transition-all duration-150 active:scale-92 hover:scale-105",
+            "apexa-nav-item apexa-nav-item-collapsed group relative flex h-9 w-9 cursor-pointer select-none items-center justify-center rounded-lg border transition-all duration-150 active:scale-95",
             isDragging
-              ? "opacity-35 scale-95 border-dashed border-sky-400/60 bg-sky-500/10 shadow-[0_0_12px_rgba(56,189,248,0.3)]"
+              ? "opacity-35 scale-95 border-dashed border-[#0071E3]/60 bg-[#0071E3]/10 shadow-xs"
               : isActive
-                ? "border-blue-200/90 bg-blue-100/80 text-blue-600 shadow-xs ring-1 ring-blue-300/40 dark:border-sky-500/30 dark:bg-sky-500/20 dark:text-sky-300 dark:ring-sky-400/25 dark:shadow-[0_0_12px_rgba(56,189,248,0.2)]"
-                : "border-transparent text-slate-500 hover:border-slate-200/70 hover:bg-slate-100/90 hover:text-slate-900 dark:text-zinc-400 dark:hover:border-white/[0.08] dark:hover:bg-white/[0.08] dark:hover:text-white",
+                ? "border-black/[0.05] bg-black/[0.06] text-[#0071E3] dark:border-white/[0.08] dark:bg-white/[0.1] dark:text-[#0A84FF]"
+                : "border-transparent text-slate-500 hover:border-black/[0.04] hover:bg-black/[0.03] hover:text-slate-900 dark:text-zinc-400 dark:hover:border-white/[0.06] dark:hover:bg-white/[0.05] dark:hover:text-white",
           ].join(" ")}
         >
           <Icon
-            size={19}
+            size={18}
             weight={isActive ? "fill" : "regular"}
-            className={`shrink-0 transition-all duration-150 ${isActive ? 'text-blue-600 dark:text-sky-300 drop-shadow-[0_0_6px_rgba(56,189,248,0.35)]' : ''}`}
+            className={`shrink-0 transition-all duration-150 ${isActive ? 'text-[#0071E3] dark:text-[#0A84FF]' : ''}`}
           />
 
           {/* Unread / Count Badge */}
           {count !== undefined && count > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-rose-500 text-white font-black text-[8.5px] flex items-center justify-center ring-2 ring-white dark:ring-[#09090b] z-30 shadow-sm">
+            <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-rose-500 text-white font-semibold text-[8px] flex items-center justify-center ring-2 ring-white dark:ring-[#121214] z-30 shadow-xs">
               {count > 99 ? "99+" : count}
             </span>
           )}
 
-          {/* Rich Floating Flyout Card on Hover */}
-          <div className="pointer-events-none absolute left-full top-1/2 z-[120] ml-3.5 flex -translate-y-1/2 min-w-[200px] max-w-[260px] flex-col gap-1.5 rounded-2xl border border-slate-200/90 dark:border-white/12 bg-white/98 dark:bg-[#0a0a0c]/98 p-3.5 text-left opacity-0 shadow-[0_12px_36px_rgba(15,23,42,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] backdrop-blur-2xl transition-all duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 scale-95 group-hover:scale-100 origin-left">
+          {/* Rich Floating Flyout Card on Hover: Apple Popover */}
+          <div className="pointer-events-none absolute left-full top-1/2 z-[120] ml-3 flex -translate-y-1/2 min-w-[180px] max-w-[240px] flex-col gap-1 rounded-xl border border-black/[0.08] dark:border-white/[0.12] bg-white/95 dark:bg-[#1c1c1e]/95 p-3 text-left opacity-0 shadow-xl backdrop-blur-2xl transition-all duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 scale-95 group-hover:scale-100 origin-left">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className={`p-1.5 rounded-lg flex items-center justify-center ${isActive ? 'bg-blue-100/90 text-blue-600 dark:bg-sky-500/20 dark:text-sky-300' : 'bg-slate-100 text-slate-700 dark:bg-white/[0.08] dark:text-slate-300'}`}>
-                  <Icon size={15} weight={isActive ? "fill" : "regular"} />
+              <div className="flex items-center gap-2 min-w-0">
+                <div className={`p-1.5 rounded-md flex items-center justify-center ${isActive ? 'bg-[#0071E3]/10 text-[#0071E3] dark:text-[#0A84FF]' : 'bg-black/[0.04] text-slate-700 dark:bg-white/[0.08] dark:text-slate-300'}`}>
+                  <Icon size={14} weight={isActive ? "fill" : "regular"} />
                 </div>
-                <span className="font-bold text-[13px] text-slate-900 dark:text-white tracking-tight truncate">{label}</span>
+                <span className="font-semibold text-xs text-slate-900 dark:text-white tracking-tight truncate">{label}</span>
               </div>
             </div>
-
             {description && (
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 leading-snug pl-[30px]">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">
                 {description}
               </p>
-            )}
-
-            {(badge || (count !== undefined && count > 0)) && (
-              <div className="mt-0.5 flex items-center gap-1.5 pt-1.5 border-t border-slate-100 dark:border-white/10 pl-[30px]">
-                {badge && (
-                  <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded border bg-blue-50 text-blue-600 border-blue-200 dark:bg-sky-400/20 dark:text-sky-300 dark:border-sky-400/30">
-                    {badge}
-                  </span>
-                )}
-                {count !== undefined && count > 0 && (
-                  <span className="text-[8.5px] font-black text-rose-500 bg-rose-50 border border-rose-200 dark:text-rose-400 dark:bg-rose-500/15 dark:border-rose-500/30 px-1.5 py-0.5 rounded">
-                    {count} {isVietnamese ? 'chưa đọc' : 'unread'}
-                  </span>
-                )}
-              </div>
             )}
           </div>
         </button>
@@ -152,12 +136,12 @@ export function NavItem({
         aria-current={isActive ? "page" : undefined}
         style={style}
         className={[
-          "apexa-nav-item group relative flex h-[38px] min-h-[38px] w-full cursor-pointer select-none items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left transition-all duration-150 border active:scale-[0.98]",
+          "apexa-nav-item group relative flex h-[34px] min-h-[34px] w-full cursor-pointer select-none items-center gap-2 rounded-lg px-2 py-1 text-left transition-all duration-150 border active:scale-[0.99]",
           isDragging
-            ? "opacity-35 scale-[0.98] border-dashed border-sky-400/60 bg-sky-500/10 shadow-[0_0_12px_rgba(56,189,248,0.25)]"
+            ? "opacity-35 scale-[0.98] border-dashed border-[#0071E3]/60 bg-[#0071E3]/10"
             : isActive
-              ? "border-blue-200/70 bg-blue-50/90 text-blue-700 dark:border-sky-500/30 dark:bg-gradient-to-r dark:from-blue-600/20 dark:via-blue-600/15 dark:to-sky-500/10 dark:text-white font-semibold shadow-xs"
-              : "border-transparent text-slate-600 hover:border-slate-200/70 hover:bg-slate-100/80 hover:text-slate-900 dark:text-zinc-400 dark:hover:border-white/[0.06] dark:hover:bg-white/[0.05] dark:hover:text-zinc-100 font-medium",
+              ? "border-black/[0.04] bg-black/[0.05] text-[#0071E3] dark:border-white/[0.08] dark:bg-white/[0.09] dark:text-[#0A84FF] font-semibold"
+              : "border-transparent text-slate-600 hover:bg-black/[0.03] hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-white/[0.04] dark:hover:text-zinc-100 font-medium",
         ].join(" ")}
       >
         {/* Active Left Indicator */}
@@ -165,19 +149,19 @@ export function NavItem({
           <motion.div
             layoutId="sidebarActivePill"
             transition={{ type: "spring", stiffness: 450, damping: 30 }}
-            className="apexa-nav-active-marker absolute left-1 top-2 bottom-2 w-1 rounded-full bg-blue-600 dark:bg-sky-400"
+            className="apexa-nav-active-marker absolute left-0.5 top-1.5 bottom-1.5 w-0.5 rounded-full bg-[#0071E3] dark:bg-[#0A84FF]"
           />
         )}
 
         {/* Icon Frame */}
         <div className={[
-          "apexa-nav-item-icon relative flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-lg transition-all duration-150",
+          "apexa-nav-item-icon relative flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-all duration-150",
           isActive
-            ? "bg-blue-100/90 text-blue-600 dark:bg-sky-500/20 dark:text-sky-300"
+            ? "text-[#0071E3] dark:text-[#0A84FF]"
             : "text-slate-400 group-hover:text-slate-700 dark:text-zinc-400 dark:group-hover:text-zinc-200",
         ].join(" ")}>
           <Icon
-            size={17.5}
+            size={16.5}
             weight={isActive ? "fill" : "regular"}
             className="shrink-0 transition-transform duration-150"
           />
@@ -186,7 +170,7 @@ export function NavItem({
         {/* Label Text */}
         <span className={[
           "truncate text-[13px] tracking-tight flex-1 text-left",
-          isActive ? "text-blue-700 dark:text-white font-bold" : "text-slate-700 group-hover:text-slate-950 dark:text-zinc-300 dark:group-hover:text-white",
+          isActive ? "text-[#0071E3] dark:text-white font-semibold" : "text-slate-700 group-hover:text-slate-950 dark:text-zinc-300 dark:group-hover:text-white",
         ].join(" ")}>
           {displayText}
         </span>
@@ -194,10 +178,10 @@ export function NavItem({
         {/* Count Badge */}
         {count !== undefined && count > 0 && (
           <span className={[
-            "font-black flex items-center justify-center shrink-0 tabular-nums transition-all ml-auto min-w-[17px] h-[17px] px-1 rounded-full text-[9px]",
+            "font-semibold flex items-center justify-center shrink-0 tabular-nums transition-all ml-auto min-w-[16px] h-[16px] px-1 rounded-full text-[9px]",
             isActive
-              ? "bg-rose-500 text-white"
-              : "bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/40 group-hover:bg-rose-500 group-hover:text-white",
+              ? "bg-[#0071E3] text-white dark:bg-[#0A84FF]"
+              : "bg-black/[0.05] text-slate-600 dark:bg-white/[0.08] dark:text-slate-300",
           ].join(" ")}>
             {count > 99 ? "99+" : count}
           </span>
@@ -205,14 +189,7 @@ export function NavItem({
 
         {/* Feature Badge */}
         {badge && (
-          <span className={[
-            "apexa-nav-feature-badge ml-auto shrink-0 rounded-md px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider border transition-all",
-            badge === 'Enterprise' || badge === 'ENTERPRISE'
-              ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-400/30"
-              : badge === 'AMIS'
-                ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-400/30"
-                : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-sky-400/20 dark:text-sky-300 dark:border-sky-400/30"
-          ].join(" ")}>
+          <span className="apexa-nav-feature-badge ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[8.5px] font-medium tracking-wide border border-black/[0.06] bg-black/[0.02] text-slate-500 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-slate-400">
             {badge}
           </span>
         )}

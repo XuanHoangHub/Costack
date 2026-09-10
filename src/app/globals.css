@@ -8,7 +8,7 @@
   --font-display: var(--font-plus-jakarta), "Plus Jakarta Sans", var(--font-inter), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-serif: "Newsreader", "Charter", "Georgia", "Cambria", "Times New Roman", serif;
   --font-mono: var(--font-geist-mono), var(--font-jetbrains-mono), "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  --font-numeric: var(--font-geist-mono), var(--font-jetbrains-mono), "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-numeric: var(--font-inter), "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
   /* Custom slate shades dynamically bound to theme variables */
   --color-slate-50: var(--slate-50, #f8fafc);
@@ -140,52 +140,52 @@
   --font-display: var(--font-plus-jakarta), "Plus Jakarta Sans", var(--font-inter), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-serif: "Newsreader", "Charter", "Georgia", "Cambria", "Times New Roman", serif;
   --font-mono: var(--font-geist-mono), var(--font-jetbrains-mono), "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  --font-numeric: var(--font-geist-mono), var(--font-jetbrains-mono), "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-numeric: var(--font-inter), "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
-  /* ── Apexa Modern Blue Design Tokens ── */
-  --cu-primary: #2563EB;
-  --cu-primary-hover: #1D4ED8;
-  --cu-primary-light: #EFF6FF;
-  --cu-primary-subtle: rgba(37, 99, 235, 0.08);
-  --cu-accent: #0284C7;
-  --cu-accent-subtle: rgba(2, 132, 199, 0.1);
-  --cu-success: #10B981;
-  --cu-warning: #F59E0B;
-  --cu-danger: #EF4444;
+  /* ── Apexa Apple Design System Tokens ── */
+  --cu-primary: #0071E3;
+  --cu-primary-hover: #0077ED;
+  --cu-primary-light: #F2F7FE;
+  --cu-primary-subtle: rgba(0, 113, 227, 0.08);
+  --cu-accent: #0A84FF;
+  --cu-accent-subtle: rgba(10, 132, 255, 0.1);
+  --cu-success: #34C759;
+  --cu-warning: #FF9F0A;
+  --cu-danger: #FF3B30;
 
-  --cu-bg: #FFFFFF;
-  --cu-bg-subtle: #FFFFFF;
-  --cu-surface: #FFFFFF;
-  --cu-surface-2: #F1F5F9;
-  --cu-surface-3: #E2E8F0;
-  --cu-border: rgba(15, 23, 42, 0.08);
-  --cu-border-strong: rgba(15, 23, 42, 0.16);
+  --cu-bg: #ffffff;
+  --cu-bg-subtle: #fbfbfd;
+  --cu-surface: #ffffff;
+  --cu-surface-2: #f7f7f9;
+  --cu-surface-3: #f2f2f7;
+  --cu-border: rgba(0, 0, 0, 0.06);
+  --cu-border-strong: rgba(0, 0, 0, 0.1);
 
-  --cu-text-primary: #0F172A;
-  --cu-text-secondary: #475569;
-  --cu-text-muted: #64748B;
+  --cu-text-primary: #1D1D1F;
+  --cu-text-secondary: #515154;
+  --cu-text-muted: #86868B;
   --cu-text-inverse: #FFFFFF;
 
-  --cu-sidebar-width: 260px;
-  --cu-sidebar-collapsed: 72px;
-  --cu-header-height: 64px;
+  --cu-sidebar-width: 250px;
+  --cu-sidebar-collapsed: 68px;
+  --cu-header-height: 56px;
 
   --cu-radius-sm: 8px;
-  --cu-radius-md: 12px;
+  --cu-radius-md: 10px;
   --cu-radius-lg: 14px;
   --cu-radius-xl: 18px;
   --cu-radius-2xl: 22px;
   --cu-radius-full: 9999px;
 
-  --cu-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --cu-shadow-sm: 0 4px 12px -4px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --cu-shadow-md: 0 12px 28px -10px rgba(15, 23, 42, 0.12), 0 3px 10px rgba(15, 23, 42, 0.04);
-  --cu-shadow-lg: 0 24px 48px -18px rgba(15, 23, 42, 0.18);
-  --cu-shadow-primary: 0 12px 28px -10px rgba(37, 99, 235, 0.55);
+  --cu-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --cu-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --cu-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.04);
+  --cu-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.06);
+  --cu-shadow-primary: 0 2px 8px rgba(0, 113, 227, 0.2);
 
   --cu-transition-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
-  --cu-transition-base: 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  --cu-transition-slow: 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  --cu-transition-base: 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  --cu-transition-slow: 320ms cubic-bezier(0.16, 1, 0.3, 1);
 
   --slate-50: #f8fafc;
   --slate-100: #f1f5f9;
@@ -357,7 +357,8 @@ html.dark, html.dark body {
 }
 
 .tabular-nums {
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum" 1;
 }
 
@@ -543,20 +544,20 @@ button,
 
 
 
-/* Settings → Interface Depth controls every glass surface consistently. */
-html[data-blur-intensity='soft'] [class*='backdrop-blur'] {
+/* Settings → Interface Depth controls every glass surface consistently, while keeping modal backdrops soft and natural. */
+html[data-blur-intensity='soft'] [class*='backdrop-blur']:not(.modal-backdrop):not([data-modal-backdrop]) {
   -webkit-backdrop-filter: blur(4px) !important;
   backdrop-filter: blur(4px) !important;
 }
 
-html[data-blur-intensity='default'] [class*='backdrop-blur'] {
+html[data-blur-intensity='default'] [class*='backdrop-blur']:not(.modal-backdrop):not([data-modal-backdrop]) {
   -webkit-backdrop-filter: blur(12px) !important;
   backdrop-filter: blur(12px) !important;
 }
 
-html[data-blur-intensity='immersive'] [class*='backdrop-blur'] {
-  -webkit-backdrop-filter: blur(22px) saturate(1.12) !important;
-  backdrop-filter: blur(22px) saturate(1.12) !important;
+html[data-blur-intensity='immersive'] [class*='backdrop-blur']:not(.modal-backdrop):not([data-modal-backdrop]) {
+  -webkit-backdrop-filter: blur(20px) saturate(1.1) !important;
+  backdrop-filter: blur(20px) saturate(1.1) !important;
 }
 
 .ios27-glass, .liquid-glass {
@@ -583,17 +584,21 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur'] {
   box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.7);
 }
 
-/* Premium VisionOS/macOS Frosted Glass Modal & Blur Standards */
+/* Apple-standard modal backdrop: gentle, elegant, crystal-clean dimming (no murky black sludge) */
+.modal-backdrop,
+[data-modal-backdrop],
 .modal-backdrop-blur {
-  background-color: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background-color: rgba(0, 0, 0, 0.22) !important;
+  backdrop-filter: blur(3px) !important;
+  -webkit-backdrop-filter: blur(3px) !important;
 }
 
+.dark .modal-backdrop,
+.dark [data-modal-backdrop],
 .dark .modal-backdrop-blur {
-  background-color: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background-color: rgba(0, 0, 0, 0.58) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
 }
 
 /* Custom Interactive Animations & Visual Effects */
@@ -3098,28 +3103,28 @@ input[type="checkbox"]:not(.sr-only):disabled {
 .apexa-app-shell {
   --cu-sidebar-width: 284px;
   --cu-sidebar-collapsed: 72px;
-  --sidebar-bg: #FFFFFF;
-  --sidebar-surface: #F8FAFC;
-  --sidebar-border: rgba(15, 23, 42, 0.08);
-  --sidebar-muted: #64748B;
-  --sidebar-text: #0F172A;
-  --sidebar-signal: #2563EB;
+  --sidebar-bg: #ffffff;
+  --sidebar-surface: #fbfbfd;
+  --sidebar-border: rgba(0, 0, 0, 0.06);
+  --sidebar-muted: #86868b;
+  --sidebar-text: #1d1d1f;
+  --sidebar-signal: #0071E3;
 }
 
 .dark .apexa-app-shell {
-  --sidebar-bg: #09090b;
-  --sidebar-surface: rgba(255,255,255,.055);
-  --sidebar-border: rgba(255,255,255,.08);
-  --sidebar-muted: #9298ab;
-  --sidebar-text: #eef0f7;
-  --sidebar-signal: #38bdf8;
+  --sidebar-bg: #121214;
+  --sidebar-surface: #18181b;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-muted: #86868b;
+  --sidebar-text: #f5f5f7;
+  --sidebar-signal: #0A84FF;
 }
 
 .apexa-header-sidebar,
 .apexa-desktop-sidebar,
 .apexa-mobile-drawer {
   color: var(--sidebar-text);
-  background: #FFFFFF !important;
+  background: var(--sidebar-bg) !important;
   border-right: 1px solid var(--sidebar-border) !important;
   box-shadow: none !important;
 }
@@ -3128,9 +3133,7 @@ input[type="checkbox"]:not(.sr-only):disabled {
 .dark .apexa-desktop-sidebar,
 .dark .apexa-mobile-drawer {
   color: var(--sidebar-text);
-  background:
-    radial-gradient(circle at 14% -12%, rgba(37,99,235,.2), transparent 28%),
-    linear-gradient(180deg, #09090b 0%, var(--sidebar-bg) 100%) !important;
+  background: var(--sidebar-bg) !important;
   border-right-color: var(--sidebar-border) !important;
 }
 

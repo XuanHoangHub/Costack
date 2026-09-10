@@ -41,6 +41,16 @@ import {
 } from 'lucide-react';
 import { Task, Document, Space, User as UserType } from '@/types';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { createPortal } from 'react-dom';
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
 
 export type SearchCategory = 'all' | 'tasks' | 'docs' | 'spaces' | 'channels' | 'members' | 'commands';
 
@@ -671,20 +681,21 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 pt-[8vh] sm:pt-[10vh] overflow-hidden font-sans">
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
-          onClick={() => {
-            onClose();
-            setSearchQuery('');
-          }}
-          className="absolute inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm cursor-pointer"
-        />
+    <Portal>
+      <AnimatePresence>
+        <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 pt-[8vh] sm:pt-[10vh] overflow-hidden font-sans">
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => {
+              onClose();
+              setSearchQuery('');
+            }}
+            className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs cursor-pointer"
+          />
 
         {/* Modal Body (Raycast/Spotlight Island) */}
         <motion.div
@@ -1390,7 +1401,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             </div>
           </div>
         </motion.div>
-      </div>
-    </AnimatePresence>
+        </div>
+      </AnimatePresence>
+    </Portal>
   );
 };
