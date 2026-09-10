@@ -26,6 +26,7 @@ interface UiState {
   themePreference: ThemePreference;
   dateFormat: 'short' | 'full' | 'vi' | 'numeric' | 'clock';
   uiDensity: 'comfortable' | 'compact';
+  defaultStartupTab: string;
   notificationSettings: NotificationSettings;
 
   // Search selection triggers
@@ -94,6 +95,7 @@ interface UiState {
   setThemePreference: (preference: ThemePreference) => void;
   setDateFormat: (format: 'short' | 'full' | 'vi' | 'numeric' | 'clock') => void;
   setUiDensity: (density: 'comfortable' | 'compact') => void;
+  setDefaultStartupTab: (tab: string) => void;
   setNotificationSettings: (settings: NotificationSettings | ((prev: NotificationSettings) => NotificationSettings)) => void;
 
   setInitialSelectedTaskId: (id: string | null) => void;
@@ -145,8 +147,8 @@ export interface SidebarZone {
 }
 
 export const DEFAULT_SIDEBAR_ORDER: string[] = [
-  'dashboard', 'inbox', 'tasks', 'calendar', 'planner', 'goals',
-  'finance', 'docs', 'chat', 'team'
+  'dashboard', 'inbox', 'tasks', 'calendar', 'goals',
+  'finance', 'docs', 'chat', 'team', 'miniapps'
 ];
 
 export const useUiStore = create<UiState>()(
@@ -173,6 +175,7 @@ export const useUiStore = create<UiState>()(
       accentPreset: 'indigo',
       dateFormat: 'short',
       uiDensity: 'comfortable',
+      defaultStartupTab: 'dashboard',
       soundEnabled: false,
       notificationSettings: {
         enableAll: true,
@@ -249,6 +252,7 @@ export const useUiStore = create<UiState>()(
       },
       setDateFormat: (dateFormat) => set({ dateFormat }),
       setUiDensity: (uiDensity) => set({ uiDensity }),
+      setDefaultStartupTab: (defaultStartupTab) => set({ defaultStartupTab }),
       setNotificationSettings: (notificationSettings) => set({ notificationSettings: typeof notificationSettings === 'function' ? notificationSettings(get().notificationSettings) : notificationSettings }),
 
       setInitialSelectedTaskId: (initialSelectedTaskId) => set({ initialSelectedTaskId }),
@@ -388,6 +392,9 @@ export const useUiStore = create<UiState>()(
         const isDarkMode = applyThemePreference(themePreference, false, false);
         state.themePreference = themePreference;
         state.isDarkMode = isDarkMode;
+        if (state.defaultStartupTab) {
+          state.activeTab = state.defaultStartupTab;
+        }
         if (state.sidebarOrder) {
           state.sidebarOrder = state.sidebarOrder.filter(id => id !== 'crm');
         }

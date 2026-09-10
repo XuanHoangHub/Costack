@@ -674,34 +674,11 @@ const TaskListView = React.memo(function TaskListView({
                                                   </span>
                                                 )}
 
-                                                {/* Timer indicator */}
-                                                {activeTimerTaskId === task.id && (
-                                                  <span className="flex items-center gap-1 text-[9px] font-black text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded-full border border-rose-300 dark:border-rose-800/60 animate-pulse shrink-0">
-                                                    <Clock className="w-3 h-3 animate-spin text-rose-500" /> Đang bấm giờ
-                                                  </span>
-                                                )}
+
                                               </div>
 
                                               {/* Hover Action Shortcuts Toolbar */}
                                               <div className="hidden lg:flex opacity-0 group-hover/row:opacity-100 items-center gap-1 transition-all ml-2 shrink-0 bg-white/90 dark:bg-slate-800/90 p-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60 shadow-3xs backdrop-blur-md">
-                                                {/* Timer toggle */}
-                                                {activeTimerTaskId === task.id ? (
-                                                  <button 
-                                                    onClick={e => { e.stopPropagation(); onStopGlobalTimer?.(); }}
-                                                    className="p-1 rounded-md bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-300 hover:bg-rose-200 transition-all cursor-pointer"
-                                                    title="Dừng bấm giờ"
-                                                  >
-                                                    <Clock className="w-3.5 h-3.5 text-rose-500 animate-spin" />
-                                                  </button>
-                                                ) : (
-                                                  <button 
-                                                    onClick={e => { e.stopPropagation(); onStartGlobalTimer?.(task.id); }}
-                                                    className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-all cursor-pointer"
-                                                    title="Bắt đầu bấm giờ"
-                                                  >
-                                                    <Play className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500" />
-                                                  </button>
-                                                )}
 
                                                 {/* Quick Subtask */}
                                                 <button 

@@ -23,29 +23,33 @@ import {
   Volume2, VolumeX, Timer, Sparkles, Pin, Tag, Hash, MoreHorizontal, ChevronDown,
   Folder, FolderOpen, Share2, ChevronRight, Star, Eye, ChevronsLeft, FileText, GanttChart, HelpCircle, EyeOff, Check, Cog, User as UserIcon, RefreshCw,
   Activity, Users, Brain, Map as MapIcon, Pencil, Link as LinkIcon, Droplet, Zap, Copy, Archive, Phone,
-  Flag, Lock, Shield, Rocket, BarChart3, Bookmark, ArrowDownAZ, ArrowUpAZ, ArrowUpNarrowWide, ArrowDownWideNarrow, GripVertical, CheckCircle2
+  Flag, Lock, Shield, Rocket, BarChart3, Bookmark, ArrowDownAZ, ArrowUpAZ, ArrowUpNarrowWide, ArrowDownWideNarrow, GripVertical, CheckCircle2,
+  Paperclip, Settings2, Flame, Layers
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { Select } from './ui/Select';
-import ShareSettingsModal from './ShareSettingsModal';
 import EmojiIconPicker, { renderSpaceIcon } from './EmojiIconPicker';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker, SpacePillSelect, BulkStatusSelect, BulkAssigneeSelect, BulkPrioritySelect } from './tasks/TaskSelects';
 import TaskListView from './tasks/TaskListView';
 import TaskBoardView from './tasks/TaskBoardView';
 import TaskTableView from './tasks/TaskTableView';
-import TaskGanttView from './tasks/TaskGanttView';
-import TaskDetailsPanel from './tasks/TaskDetailsPanel';
 import SpaceOverviewTab from './SpaceOverviewTab';
 import ConfirmModal from './ConfirmModal';
 import TaskModal from './tasks/TaskModal';
 import FieldSettingsModal, { ALL_FIELD_TYPES } from './tasks/FieldSettingsModal';
-import CalendarView from './CalendarView';
-import Whiteboard from './Whiteboard';
-import DocumentHub from './DocumentHub';
-import TeamDirectory from './TeamDirectory';
-import DashboardOverview from './DashboardOverview';
-import AddFolderModal from './AddFolderModal';
 import { ApexaAiIcon } from './ApexaAiIcon';
 import PromptModal, { PromptModalConfig } from './PromptModal';
+
+// Dynamically split heavy non-default views and dialogs
+const TaskGanttView = dynamic(() => import('./tasks/TaskGanttView'), { ssr: false });
+const TaskDetailsPanel = dynamic(() => import('./tasks/TaskDetailsPanel'), { ssr: false });
+const Whiteboard = dynamic(() => import('./Whiteboard'), { ssr: false });
+const CalendarView = dynamic(() => import('./CalendarView'), { ssr: false });
+const DocumentHub = dynamic(() => import('./DocumentHub'), { ssr: false });
+const TeamDirectory = dynamic(() => import('./TeamDirectory'), { ssr: false });
+const DashboardOverview = dynamic(() => import('./DashboardOverview'), { ssr: false });
+const ShareSettingsModal = dynamic(() => import('./ShareSettingsModal'), { ssr: false });
+const AddFolderModal = dynamic(() => import('./AddFolderModal'), { ssr: false });
 
 import SpaceViewTabBar, {
   SpaceViewTab,
@@ -147,9 +151,6 @@ interface SpacePageProps {
   onToggleOffline?: () => void;
 
   // Global Timer Props
-  globalActiveTaskId?: string | null;
-  globalActiveElapsed?: number;
-  globalIsPaused?: boolean;
   onStartGlobalTimer?: (taskId: string) => void;
   onStopGlobalTimer?: () => void;
   onTogglePauseGlobalTimer?: () => void;
@@ -165,7 +166,6 @@ export default function SpacePage({
   syncLogs = [], onNavigate, onToggleOffline,
   onAddFolderToSpace, onAddDocToSpace, onAddWhiteboardToSpace, onAddListToFolder,
   onAddDoc, onUpdateDoc, onDeleteDoc, onDeleteSpace, onOpenAutomations,
-  globalActiveTaskId = null, globalActiveElapsed = 0, globalIsPaused = false,
   onStartGlobalTimer, onStopGlobalTimer, onTogglePauseGlobalTimer
 }: SpacePageProps) {
   const { t, locale } = useTranslation();
@@ -527,15 +527,23 @@ export default function SpacePage({
   const [activeListSettings, setActiveListSettings] = useState<{ id: string; spaceId: string; folderId: string | null; x: number; y: number } | null>(null);
   const [activeFolderSettings, setActiveFolderSettings] = useState<{ id: string; spaceId: string; x: number; y: number } | null>(null);
   const [folderColorMenuOpen, setFolderColorMenuOpen] = useState<string | null>(null);
-
   // Custom Fields and visibility states
   const [showFieldsPanel, setShowFieldsPanel] = useState<boolean>(false);
+  const [fieldsPanelAnchor, setFieldsPanelAnchor] = useState<{ x: number; y: number } | null>(null);
   const [visibleFields, setVisibleFields] = useState<string[]>([
     'title', 'status', 'priority', 'assignee', 'dueDate', 'progress', 'tags'
   ]);
   const [customFields, setCustomFields] = useState<any[]>([]);
-  const openFieldsPanel = () => {
+  const openFieldsPanel = (anchor?: { x: number; y: number; rect?: DOMRect } | React.MouseEvent) => {
     if (activeViewProtectedRef.current) return notifyProtectedView();
+    if (anchor && 'currentTarget' in anchor) {
+      const rect = (anchor.currentTarget as HTMLElement).getBoundingClientRect();
+      setFieldsPanelAnchor({ x: rect.right, y: rect.bottom + 4 });
+    } else if (anchor && 'x' in anchor) {
+      setFieldsPanelAnchor({ x: anchor.x, y: anchor.y + 4 });
+    } else {
+      setFieldsPanelAnchor(null);
+    }
     setShowFieldsPanel(true);
   };
   const persistCustomFields: React.Dispatch<React.SetStateAction<any[]>> = (action) => {
@@ -1261,19 +1269,25 @@ export default function SpacePage({
   const [isSortMenuOpen, setIsSortMenuOpen] = useState<boolean>(false);
   const sortMenuRef = useRef<HTMLDivElement>(null);
 
+  const [isBoardDisplayMenuOpen, setIsBoardDisplayMenuOpen] = useState<boolean>(false);
+  const boardDisplayMenuRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (sortMenuRef.current && !sortMenuRef.current.contains(e.target as Node)) {
         setIsSortMenuOpen(false);
       }
+      if (boardDisplayMenuRef.current && !boardDisplayMenuRef.current.contains(e.target as Node)) {
+        setIsBoardDisplayMenuOpen(false);
+      }
     };
-    if (isSortMenuOpen) {
+    if (isSortMenuOpen || isBoardDisplayMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isSortMenuOpen]);
+  }, [isSortMenuOpen, isBoardDisplayMenuOpen]);
 
   // Advanced Filter Builder State
   const [filterConjunction, setFilterConjunction] = useState<'AND' | 'OR'>('AND');
@@ -2050,20 +2064,20 @@ export default function SpacePage({
             transition={isResizing ? { duration: 0 } : { duration: 0.2, ease: 'easeInOut' }}
             data-testid="space-sidebar"
             ref={sidebarRef}
-            className={`apexa-space-sidebar h-full border-r border-slate-100 dark:border-slate-800/40 bg-white dark:bg-[#090b10] flex flex-col overflow-hidden shrink-0 ${
+            className={`apexa-space-sidebar h-full border-r border-slate-100 dark:border-white/[0.08] bg-white dark:bg-[#09090b] flex flex-col overflow-hidden shrink-0 ${
               isMobileSidebarOpen
                 ? 'fixed inset-y-0 left-0 z-50 shadow-2xl w-[280px] max-w-[85vw] flex'
                 : 'hidden md:flex'
             }`}
           >
             {/* Header: Spaces */}
-            <div className="relative shrink-0 px-3.5 py-3 border-b border-slate-100 dark:border-white/[0.08] bg-white dark:bg-[#090b10]">
+            <div className="relative shrink-0 px-3.5 py-3 border-b border-slate-100 dark:border-white/[0.08] bg-white dark:bg-[#09090b]">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-[13px] font-bold tracking-tight text-slate-900 dark:text-zinc-100">
                     {locale === 'vi' ? 'Không gian' : 'Spaces'}
                   </span>
-                  <span className="inline-flex min-w-5 h-5 items-center justify-center rounded-md bg-slate-100 dark:bg-white/[0.08] px-1.5 text-[10px] font-bold font-mono text-slate-500 dark:text-zinc-400">
+                  <span className="inline-flex min-w-5 h-5 items-center justify-center rounded-md bg-slate-100 dark:bg-white/[0.08] px-1.5 text-[10px] font-bold font-mono text-slate-500 dark:text-zinc-300">
                     {spaces.filter(space => !space.isArchived).length}
                   </span>
                 </div>
@@ -2073,7 +2087,7 @@ export default function SpacePage({
                   <button 
                     type="button" 
                     onClick={() => onAddSpace?.()}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 hover:bg-blue-500 dark:bg-sky-500 dark:hover:bg-sky-400 text-white shadow-xs transition-all cursor-pointer"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 hover:bg-blue-500 dark:bg-blue-600 dark:hover:bg-blue-500 text-white shadow-xs transition-all cursor-pointer"
                     title={locale === 'vi' ? 'Tạo không gian mới' : 'Create new space'}
                     aria-label={locale === 'vi' ? 'Tạo không gian mới' : 'Create new space'}
                   >
@@ -2087,8 +2101,8 @@ export default function SpacePage({
                       onClick={() => setShowSpaceOptionsDropdown(prev => !prev)}
                       className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all cursor-pointer ${
                         showSpaceOptionsDropdown || showHiddenSpaces || showArchivedToggle
-                          ? 'border-blue-500/40 bg-blue-50 text-blue-600 dark:border-sky-500/40 dark:bg-sky-500/15 dark:text-sky-300'
-                          : 'border-transparent text-slate-400 hover:border-slate-200 hover:bg-slate-100 dark:hover:border-white/10 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200'
+                          ? 'border-blue-500/40 bg-blue-50 text-blue-600 dark:border-blue-500/40 dark:bg-blue-500/15 dark:text-blue-300'
+                          : 'border-transparent text-slate-400 hover:border-slate-200 hover:bg-slate-100 dark:hover:border-white/10 dark:hover:bg-white/[0.06] dark:hover:text-white'
                       }`}
                       title={locale === 'vi' ? 'Tùy chọn không gian' : 'Space options'}
                       aria-label={locale === 'vi' ? 'Tùy chọn không gian' : 'Space options'}
@@ -2105,7 +2119,7 @@ export default function SpacePage({
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 4, scale: 0.95 }}
                             transition={{ duration: 0.12 }}
-                            className="absolute right-0 mt-1.5 w-48 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-1.5 shadow-xl z-50 divide-y divide-slate-100 dark:divide-zinc-800"
+                            className="absolute right-0 mt-1.5 w-48 rounded-xl bg-white dark:bg-[#121214] border border-slate-200 dark:border-white/10 p-1.5 shadow-xl z-50 divide-y divide-slate-100 dark:divide-white/[0.06]"
                           >
                             <div className="space-y-0.5 pb-1">
                               <button
@@ -2116,8 +2130,8 @@ export default function SpacePage({
                                 }}
                                 className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                                   showHiddenSpaces 
-                                    ? 'bg-blue-50 text-blue-600 dark:bg-sky-500/15 dark:text-sky-300' 
-                                    : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800'
+                                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300' 
+                                    : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-white/[0.06] dark:hover:text-white'
                                 }`}
                               >
                                 <div className="flex items-center gap-2">
@@ -2138,7 +2152,7 @@ export default function SpacePage({
                                 className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                                   showArchivedToggle 
                                     ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300' 
-                                    : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800'
+                                    : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-white/[0.06] dark:hover:text-white'
                                 }`}
                               >
                                 <div className="flex items-center gap-2">
@@ -2248,10 +2262,10 @@ export default function SpacePage({
                         data-space-active={isSpaceActive || undefined}
                         className={`group/space flex min-h-9 items-center justify-between rounded-xl border px-2 py-1.5 text-[11px] font-bold transition-all ${
                           isSpaceActive 
-                            ? 'border-blue-500/25 bg-blue-50/70 text-blue-900 shadow-xs dark:border-blue-500/30 dark:bg-blue-950/40 dark:text-sky-200' 
+                            ? 'border-blue-500/25 bg-blue-50/70 text-blue-900 shadow-xs dark:border-blue-500/40 dark:bg-blue-500/15 dark:text-blue-200' 
                             : isAnyChildActive
-                              ? 'border-transparent bg-slate-100/70 text-slate-900 dark:bg-slate-900/60 dark:text-slate-100'
-                              : 'border-transparent text-slate-600 hover:border-slate-200/60 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:border-slate-800 dark:hover:bg-slate-900/70 dark:hover:text-slate-100'
+                              ? 'border-transparent bg-slate-100/70 text-slate-900 dark:bg-white/[0.05] dark:border-white/[0.06] dark:text-white'
+                              : 'border-transparent text-slate-600 hover:border-slate-200/60 hover:bg-slate-50 hover:text-slate-900 dark:text-zinc-400 dark:hover:border-white/[0.06] dark:hover:bg-white/[0.04] dark:hover:text-white'
                         }`}
                       >
                         {/* Accordion Chevron Toggle + Space Icon + Space Name */}
@@ -2279,7 +2293,7 @@ export default function SpacePage({
                                 [space.id]: !isExpanded
                               }));
                             }}
-                            className="grid h-5 w-5 shrink-0 place-items-center rounded-md text-slate-400 transition-all hover:bg-slate-200/80 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30 dark:hover:bg-slate-700 dark:hover:text-white"
+                            className="grid h-5 w-5 shrink-0 place-items-center rounded-md text-slate-400 transition-all hover:bg-slate-200/80 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30 dark:text-zinc-400 dark:hover:bg-white/[0.08] dark:hover:text-white"
                             title={isExpanded ? "Thu gọn khu vực" : "Mở rộng khu vực"}
                             aria-label={isExpanded ? `Thu gọn ${space.name}` : `Mở rộng ${space.name}`}
                             aria-expanded={isExpanded}
@@ -2327,7 +2341,7 @@ export default function SpacePage({
                               setActiveSpaceSettings(null);
                               setActiveListMenu(null);
                             }}
-                            className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer"
+                            className="p-0.5 hover:bg-slate-200 dark:hover:bg-white/[0.08] rounded text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
                             title="Trình đơn tạo mới"
                           >
                             <Plus className="w-3.5 h-3.5" />
@@ -2349,7 +2363,7 @@ export default function SpacePage({
                               setActiveSpaceMenu(null);
                               setActiveListMenu(null);
                             }}
-                            className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer"
+                            className="p-0.5 hover:bg-slate-200 dark:hover:bg-white/[0.08] rounded text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
                             title="Cài đặt khu vực"
                           >
                             <MoreHorizontal className="w-3.5 h-3.5" />
@@ -2359,15 +2373,15 @@ export default function SpacePage({
 
                       {/* Lists nested under Space */}
                       {isExpanded && (
-                        <div className="relative ml-[18px] mt-0.5 space-y-0.5 border-l border-slate-200/80 pl-3 dark:border-slate-800">
+                        <div className="relative ml-[18px] mt-0.5 space-y-0.5 border-l border-slate-200/80 pl-3 dark:border-white/[0.08]">
                           {/* Quick Add List button at top of hierarchy */}
                           {activeSpaceId === space.id && (
                             <button
                               onClick={() => onAddListSpace?.(space.id)}
-                              className="group/addlist mb-2 flex min-h-8 w-full items-center justify-between rounded-xl border border-dashed border-slate-200 bg-white/50 px-2 py-1.5 text-[10px] font-extrabold text-slate-500 transition-all duration-200 hover:border-indigo-300 hover:bg-indigo-50/60 hover:text-indigo-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30 dark:border-slate-800 dark:bg-slate-900/30 dark:text-slate-400 dark:hover:border-indigo-700/80 dark:hover:bg-indigo-950/20 dark:hover:text-indigo-300"
+                              className="group/addlist mb-2 flex min-h-8 w-full items-center justify-between rounded-xl border border-dashed border-slate-200 bg-white/50 px-2 py-1.5 text-[10px] font-extrabold text-slate-500 transition-all duration-200 hover:border-indigo-300 hover:bg-indigo-50/60 hover:text-indigo-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30 dark:border-white/[0.08] dark:bg-white/[0.02] dark:text-zinc-400 dark:hover:border-blue-500/40 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
                             >
                               <div className="flex items-center gap-1.5">
-                                <div className="flex h-4 w-4 items-center justify-center rounded-md bg-slate-100 text-slate-500 transition-colors group-hover/addlist:bg-indigo-100 group-hover/addlist:text-indigo-600 dark:bg-slate-800 dark:group-hover/addlist:bg-indigo-900/60 dark:group-hover/addlist:text-indigo-300">
+                                <div className="flex h-4 w-4 items-center justify-center rounded-md bg-slate-100 text-slate-500 transition-colors group-hover/addlist:bg-indigo-100 group-hover/addlist:text-indigo-600 dark:bg-white/[0.06] dark:text-zinc-400 dark:group-hover/addlist:bg-blue-500/20 dark:group-hover/addlist:text-blue-300">
                                   <Plus className="h-3 w-3 stroke-[2.5]" />
                                 </div>
                                 <span>Danh sách mới</span>
@@ -2386,8 +2400,8 @@ export default function SpacePage({
                                 <div 
                                   className={`w-full flex items-center justify-between py-1 px-2 rounded-lg text-xs font-bold transition-all text-left cursor-pointer group/folder ${
                                     activeSpaceId === space.id && activeFolderId === folder.id
-                                      ? 'text-indigo-650 dark:text-indigo-400 font-extrabold bg-indigo-50/50 dark:bg-indigo-950/10'
-                                      : 'text-slate-550 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/30 hover:text-slate-850 dark:hover:text-slate-250'
+                                      ? 'text-indigo-650 dark:text-blue-300 font-extrabold bg-indigo-50/50 dark:bg-blue-500/15'
+                                      : 'text-slate-550 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-white/[0.04] hover:text-slate-850 dark:hover:text-white'
                                   }`}
                                   onClick={() => {
                                     if (setActiveSpaceId) setActiveSpaceId(space.id);
@@ -2433,7 +2447,7 @@ export default function SpacePage({
                                         setActiveListMenu(null);
                                         setActiveListSettings(null);
                                       }}
-                                      className="opacity-0 group-hover/folder:opacity-100 p-0.5 hover:bg-slate-250 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-all cursor-pointer"
+                                      className="opacity-0 group-hover/folder:opacity-100 p-0.5 hover:bg-slate-250 dark:hover:bg-white/[0.08] rounded text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-white transition-all cursor-pointer"
                                       title="Cài đặt thư mục"
                                     >
                                       <MoreHorizontal className="w-3 h-3" />
@@ -2454,7 +2468,7 @@ export default function SpacePage({
                                           }
                                         });
                                       }}
-                                      className="opacity-0 group-hover/folder:opacity-100 p-0.5 hover:bg-slate-250 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-all cursor-pointer"
+                                      className="opacity-0 group-hover/folder:opacity-100 p-0.5 hover:bg-slate-250 dark:hover:bg-white/[0.08] rounded text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-white transition-all cursor-pointer"
                                       title="Thêm danh sách vào thư mục"
                                     >
                                       <Plus className="w-3 h-3" />
@@ -2469,112 +2483,112 @@ export default function SpacePage({
                                        const isListActive = activeSpaceId === space.id && activeListId === list.id;
                                        const taskCount = tasks.filter(t => t.listId === list.id).length;
                                        return (
-                                          <div
-                                            key={list.id}
-                                            className={`group/list relative flex min-h-[34px] w-full items-center justify-between overflow-hidden rounded-2xl border px-2.5 py-1 text-left text-xs transition-all duration-150 ${
-                                              isListActive
-                                                ? 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-sky-300 dark:bg-blue-500/15 dark:border-blue-500/30 shadow-xs font-bold'
-                                                : 'border-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white font-medium'
-                                            }`}
-                                          >
-                                            {isListActive && (
-                                              <div className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1 h-3.5 rounded-full bg-blue-600 dark:bg-sky-400 shadow-sm" />
-                                           )}
+                                           <div
+                                             key={list.id}
+                                             className={`group/list relative flex min-h-[34px] w-full items-center justify-between overflow-hidden rounded-2xl border px-2.5 py-1 text-left text-xs transition-all duration-150 ${
+                                               isListActive
+                                                 ? 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/15 dark:text-blue-200 shadow-xs font-bold'
+                                                 : 'border-transparent text-slate-600 dark:text-zinc-300 hover:bg-slate-100/80 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white font-medium'
+                                             }`}
+                                           >
+                                             {isListActive && (
+                                               <div className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1 h-3.5 rounded-full bg-blue-600 dark:bg-blue-500 shadow-sm shadow-blue-500/40" />
+                                            )}
 
-                                           {/* List name click area */}
-                                           <div 
-                                             onClick={() => {
-                                               if (setActiveSpaceId) setActiveSpaceId(space.id);
-                                               if (setActiveListId) setActiveListId(list.id);
-                                               setActiveFolderId(null);
-                                               setActiveView('table');
-                                               onAddSyncLog(`Entered List: ${list.name}`);
-                                             }}
-                                             className={`flex min-w-0 flex-1 cursor-pointer items-center gap-2 ${isListActive ? 'pl-2' : ''}`}
-                                            >
-                                              <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                                                isListActive 
-                                                  ? 'bg-blue-500/15 text-blue-600 ring-1 ring-blue-500/20 dark:bg-blue-400/20 dark:text-sky-300' 
-                                                  : 'bg-slate-200/60 text-slate-500 group-hover/list:text-slate-700 dark:bg-slate-800/60 dark:text-slate-400 dark:group-hover/list:text-slate-200'
-                                              }`}>
-                                                <List className="h-3.5 w-3.5 stroke-[2]" />
-                                             </div>
-                                             <span className="truncate text-xs font-semibold">{list.name}</span>
-                                             {list.isArchived && (
-                                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[8.5px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25 shrink-0 ml-1">
-                                                  <Archive className="w-2.5 h-2.5" />
-                                                  Lưu trữ
-                                                </span>
-                                              )}
-                                             {list.isPrivate && <Lock className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500 shrink-0 ml-0.5" />}
-                                           </div>
-                                           
-                                           {/* Task count or hover actions */}
-                                           <div className="flex items-center gap-1 shrink-0 relative">
-                                             {/* Hover Actions */}
-                                             <div className="opacity-0 group-hover/list:opacity-100 flex items-center gap-0.5 transition-all">
-                                               <button
-                                                 type="button"
-                                                 onClick={(e) => {
-                                                   e.stopPropagation();
-                                                   const rect = e.currentTarget.getBoundingClientRect();
-                                                   if (activeListSettings?.id === list.id) {
-                                                     setActiveListSettings(null);
-                                                   } else {
-                                                     setActiveListSettings({
-                                                       id: list.id,
-                                                       spaceId: space.id,
-                                                       folderId: folder.id,
-                                                       x: rect.left,
-                                                       y: rect.bottom + 4
-                                                     });
-                                                   }
-                                                   setActiveSpaceMenu(null);
-                                                   setActiveSpaceSettings(null);
-                                                   setActiveListMenu(null);
-                                                 }}
-                                                 className="p-1 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition-colors"
-                                                 title="Cài đặt"
-                                               >
-                                                 <MoreHorizontal className="w-3.5 h-3.5" />
-                                               </button>
-                                               
-                                               <button
-                                                 type="button"
-                                                 onClick={(e) => {
-                                                   e.stopPropagation();
-                                                   const rect = e.currentTarget.getBoundingClientRect();
-                                                   if (activeListMenu?.id === list.id) {
-                                                     setActiveListMenu(null);
-                                                   } else {
-                                                     setActiveListMenu({
-                                                       id: list.id,
-                                                       spaceId: space.id,
-                                                       folderId: folder.id,
-                                                       x: rect.left,
-                                                       y: rect.bottom + 4
-                                                     });
-                                                   }
-                                                   setActiveSpaceMenu(null);
-                                                   setActiveSpaceSettings(null);
-                                                 }}
-                                                 className="p-1 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition-colors"
-                                                 title="Tạo nhanh"
-                                               >
-                                                 <Plus className="w-3.5 h-3.5" />
-                                               </button>
-                                             </div>
-                                             
-                                             {/* Count (shown when not hovering) */}
-                                             <span className={`min-w-[18px] h-[18px] px-1.5 rounded-full text-center text-[9.5px] font-bold tabular-nums transition-colors group-hover/list:hidden flex items-center justify-center ${
+                                            {/* List name click area */}
+                                            <div 
+                                              onClick={() => {
+                                                if (setActiveSpaceId) setActiveSpaceId(space.id);
+                                                if (setActiveListId) setActiveListId(list.id);
+                                                setActiveFolderId(null);
+                                                setActiveView('table');
+                                                onAddSyncLog(`Entered List: ${list.name}`);
+                                              }}
+                                              className={`flex min-w-0 flex-1 cursor-pointer items-center gap-2 ${isListActive ? 'pl-2' : ''}`}
+                                             >
+                                               <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-colors ${
                                                  isListActive 
-                                                   ? 'bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-sky-300 border border-blue-200/60 dark:border-blue-800/60' 
-                                                   : 'bg-slate-100 text-slate-400 dark:bg-slate-800/80 dark:text-slate-500'
+                                                   ? 'bg-blue-500/15 text-blue-600 ring-1 ring-blue-500/20 dark:bg-blue-500/20 dark:text-blue-300 dark:ring-blue-500/30' 
+                                                   : 'bg-slate-200/60 text-slate-500 group-hover/list:text-slate-700 dark:bg-white/[0.06] dark:text-zinc-400 dark:group-hover/list:text-zinc-200'
                                                }`}>
-                                               {taskCount}
-                                             </span>
-                                           </div>
-                                         </div>
+                                                 <List className="h-3.5 w-3.5 stroke-[2]" />
+                                              </div>
+                                              <span className="truncate text-xs font-semibold">{list.name}</span>
+                                              {list.isArchived && (
+                                                 <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[8.5px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25 shrink-0 ml-1">
+                                                   <Archive className="w-2.5 h-2.5" />
+                                                   Lưu trữ
+                                                 </span>
+                                               )}
+                                              {list.isPrivate && <Lock className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500 shrink-0 ml-0.5" />}
+                                            </div>
+                                            
+                                            {/* Task count or hover actions */}
+                                            <div className="flex items-center gap-1 shrink-0 relative">
+                                              {/* Hover Actions */}
+                                              <div className="opacity-0 group-hover/list:opacity-100 flex items-center gap-0.5 transition-all">
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    if (activeListSettings?.id === list.id) {
+                                                      setActiveListSettings(null);
+                                                    } else {
+                                                      setActiveListSettings({
+                                                        id: list.id,
+                                                        spaceId: space.id,
+                                                        folderId: folder.id,
+                                                        x: rect.left,
+                                                        y: rect.bottom + 4
+                                                      });
+                                                    }
+                                                    setActiveSpaceMenu(null);
+                                                    setActiveSpaceSettings(null);
+                                                    setActiveListMenu(null);
+                                                  }}
+                                                  className="p-1 hover:bg-slate-200/80 dark:hover:bg-white/[0.08] rounded-lg text-slate-400 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-white cursor-pointer transition-colors"
+                                                  title="Cài đặt"
+                                                >
+                                                  <MoreHorizontal className="w-3.5 h-3.5" />
+                                                </button>
+                                                
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    if (activeListMenu?.id === list.id) {
+                                                      setActiveListMenu(null);
+                                                    } else {
+                                                      setActiveListMenu({
+                                                        id: list.id,
+                                                        spaceId: space.id,
+                                                        folderId: folder.id,
+                                                        x: rect.left,
+                                                        y: rect.bottom + 4
+                                                      });
+                                                    }
+                                                    setActiveSpaceMenu(null);
+                                                    setActiveSpaceSettings(null);
+                                                  }}
+                                                  className="p-1 hover:bg-slate-200/80 dark:hover:bg-white/[0.08] rounded-lg text-slate-400 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-white cursor-pointer transition-colors"
+                                                  title="Tạo nhanh"
+                                                >
+                                                  <Plus className="w-3.5 h-3.5" />
+                                                </button>
+                                              </div>
+                                              
+                                              {/* Count (shown when not hovering) */}
+                                              <span className={`min-w-[18px] h-[18px] px-1.5 rounded-full text-center text-[9.5px] font-bold tabular-nums transition-colors group-hover/list:hidden flex items-center justify-center ${
+                                                  isListActive 
+                                                    ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-200 border border-blue-200/60 dark:border-blue-500/30' 
+                                                    : 'bg-slate-100 text-slate-400 dark:bg-white/[0.06] dark:text-zinc-400'
+                                                }`}>
+                                                {taskCount}
+                                              </span>
+                                            </div>
+                                          </div>
                                        );
                                      })}
 
@@ -2625,16 +2639,16 @@ export default function SpacePage({
                             const isListActive = activeSpaceId === space.id && activeListId === list.id;
                             const taskCount = tasks.filter(t => t.listId === list.id).length;
                             return (
-                              <div
+                               <div
                                 key={list.id}
                                 className={`group/list relative flex min-h-[34px] w-full items-center justify-between overflow-hidden rounded-2xl border px-2.5 py-1 text-left text-xs transition-all duration-150 ${
                                   isListActive
-                                    ? 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-sky-300 dark:bg-blue-500/15 dark:border-blue-500/30 shadow-xs font-bold'
-                                    : 'border-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white font-medium'
+                                    ? 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/15 dark:text-blue-200 shadow-xs font-bold'
+                                    : 'border-transparent text-slate-600 dark:text-zinc-300 hover:bg-slate-100/80 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white font-medium'
                                 }`}
                               >
                                 {isListActive && (
-                                  <div className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1 h-3.5 rounded-full bg-blue-600 dark:bg-sky-400 shadow-sm" />
+                                  <div className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1 h-3.5 rounded-full bg-blue-600 dark:bg-blue-500 shadow-sm shadow-blue-500/40" />
                                 )}
 
                                 {/* List name click area */}
@@ -2650,8 +2664,8 @@ export default function SpacePage({
                                 >
                                   <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-colors ${
                                     isListActive 
-                                      ? 'bg-blue-500/15 text-blue-600 ring-1 ring-blue-500/20 dark:bg-blue-400/20 dark:text-sky-300' 
-                                      : 'bg-slate-200/60 text-slate-500 group-hover/list:text-slate-700 dark:bg-slate-800/60 dark:text-slate-400 dark:group-hover/list:text-slate-200'
+                                      ? 'bg-blue-500/15 text-blue-600 ring-1 ring-blue-500/20 dark:bg-blue-500/20 dark:text-blue-300 dark:ring-blue-500/30' 
+                                      : 'bg-slate-200/60 text-slate-500 group-hover/list:text-slate-700 dark:bg-white/[0.06] dark:text-zinc-400 dark:group-hover/list:text-zinc-200'
                                   }`}>
                                     <List className="h-3.5 w-3.5 stroke-[2]" />
                                   </div>
@@ -2689,7 +2703,7 @@ export default function SpacePage({
                                         setActiveSpaceSettings(null);
                                         setActiveListMenu(null);
                                       }}
-                                      className="p-1 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition-colors"
+                                      className="p-1 hover:bg-slate-200/80 dark:hover:bg-white/[0.08] rounded-lg text-slate-400 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-white cursor-pointer transition-colors"
                                       title="Cài đặt"
                                     >
                                       <MoreHorizontal className="w-3.5 h-3.5" />
@@ -2714,7 +2728,7 @@ export default function SpacePage({
                                         setActiveSpaceMenu(null);
                                         setActiveSpaceSettings(null);
                                       }}
-                                      className="p-1 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition-colors"
+                                      className="p-1 hover:bg-slate-200/80 dark:hover:bg-white/[0.08] rounded-lg text-slate-400 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-white cursor-pointer transition-colors"
                                       title="Tạo nhanh"
                                     >
                                       <Plus className="w-3.5 h-3.5" />
@@ -2724,8 +2738,8 @@ export default function SpacePage({
                                   {/* Count (shown when not hovering) */}
                                   <span className={`min-w-[18px] h-[18px] px-1.5 rounded-full text-center text-[9.5px] font-bold tabular-nums transition-colors group-hover/list:hidden flex items-center justify-center ${
                                     isListActive 
-                                      ? 'bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-sky-300 border border-blue-200/60 dark:border-blue-800/60' 
-                                      : 'bg-slate-100 text-slate-400 dark:bg-slate-800/80 dark:text-slate-500'
+                                      ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-200 border border-blue-200/60 dark:border-blue-500/30' 
+                                      : 'bg-slate-100 text-slate-400 dark:bg-white/[0.06] dark:text-zinc-400'
                                   }`}>
                                     {taskCount}
                                   </span>
@@ -2743,7 +2757,7 @@ export default function SpacePage({
                                 if (setActiveListId) setActiveListId(null);
                                 setActiveView('doc');
                               }}
-                              className="w-full flex items-center gap-1.5 py-1 px-2 rounded-lg text-xs font-bold text-slate-550 hover:bg-slate-50 hover:text-slate-855 dark:hover:bg-slate-800/10 text-left cursor-pointer"
+                              className="w-full flex items-center gap-1.5 py-1 px-2 rounded-lg text-xs font-bold text-slate-550 dark:text-zinc-400 hover:bg-slate-50 hover:text-slate-855 dark:hover:bg-white/[0.04] dark:hover:text-white text-left cursor-pointer"
                             >
                               <span className="text-sm shrink-0">📄</span>
                               <span className="truncate">{doc.title}</span>
@@ -2760,7 +2774,7 @@ export default function SpacePage({
                                 setActiveFolderId(null);
                                 setActiveView('whiteboard');
                               }}
-                              className="w-full flex items-center gap-1.5 py-1 px-2 rounded-lg text-xs font-bold text-slate-550 hover:bg-slate-50 hover:text-slate-855 dark:hover:bg-slate-800/10 text-left cursor-pointer"
+                              className="w-full flex items-center gap-1.5 py-1 px-2 rounded-lg text-xs font-bold text-slate-550 dark:text-zinc-400 hover:bg-slate-50 hover:text-slate-855 dark:hover:bg-white/[0.04] dark:hover:text-white text-left cursor-pointer"
                             >
                               <span className="text-sm shrink-0">🎨</span>
                               <span className="truncate">{wb.name}</span>
@@ -2812,13 +2826,13 @@ export default function SpacePage({
             </div>
 
             {/* Create space row */}
-            <div className="shrink-0 border-t border-slate-100 bg-white p-2.5 dark:border-white/[0.08] dark:bg-[#090b10]">
+            <div className="shrink-0 border-t border-slate-100 bg-white p-2.5 dark:border-white/[0.08] dark:bg-[#09090b]">
               <button
                 type="button"
                 onClick={() => onAddSpace?.()}
-                className="group/newspace flex min-h-9 w-full items-center gap-2.5 rounded-xl border border-transparent px-2.5 py-2 text-left text-xs font-semibold text-slate-600 transition-all hover:border-slate-200/70 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer"
+                className="group/newspace flex min-h-9 w-full items-center gap-2.5 rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/50 dark:bg-white/[0.02] px-2.5 py-2 text-left text-xs font-semibold text-slate-700 dark:text-zinc-300 transition-all hover:border-slate-200/70 hover:bg-slate-100/80 dark:hover:bg-white/[0.05] dark:hover:border-white/15 dark:hover:text-white cursor-pointer"
               >
-                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-slate-200/80 bg-white text-slate-500 shadow-3xs transition group-hover/newspace:border-blue-300 group-hover/newspace:text-blue-600 group-hover/newspace:bg-blue-50 dark:border-slate-800 dark:bg-slate-900 dark:group-hover/newspace:border-sky-500 dark:group-hover/newspace:text-sky-400">
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-slate-200/80 bg-white text-slate-500 shadow-3xs transition group-hover/newspace:border-blue-300 group-hover/newspace:text-blue-600 group-hover/newspace:bg-blue-50 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-zinc-300 dark:group-hover/newspace:border-blue-500/40 dark:group-hover/newspace:bg-blue-500/15 dark:group-hover/newspace:text-blue-300">
                   <Plus className="h-3.5 w-3.5" />
                 </span>
                 <span>{t('createNewSpace') || (locale === 'vi' ? 'Tạo không gian mới' : 'Create new space')}</span>
@@ -2843,7 +2857,7 @@ export default function SpacePage({
       {isSubSidebarCollapsed && (
         <button
           onClick={() => setIsSubSidebarCollapsed(false)}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-40 bg-white dark:bg-slate-900 border border-l-0 border-slate-200/80 dark:border-slate-800 rounded-r-xl shadow-md p-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all cursor-pointer shrink-0 hidden md:block"
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-40 bg-white dark:bg-[#121214] border border-l-0 border-slate-200/80 dark:border-white/[0.08] rounded-r-xl shadow-md p-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all cursor-pointer shrink-0 hidden md:block"
           title="Mở rộng thanh khu vực"
         >
           <ChevronRight className="w-4 h-4" />
@@ -2852,7 +2866,7 @@ export default function SpacePage({
 
       {/* Main Page Workspace Content Container (Right) */}
       <div className="apexa-space-workspace flex-grow flex-1 flex flex-col h-full overflow-hidden relative bg-white dark:bg-transparent">
-        <header className="apexa-space-header shrink-0 bg-white dark:bg-[#07080c]/70 backdrop-blur-xl border-b border-slate-200/30 dark:border-slate-800/40 flex flex-col relative z-30 select-none">
+        <header className="apexa-space-header shrink-0 bg-white dark:bg-[#09090b]/80 backdrop-blur-xl border-b border-slate-200/30 dark:border-white/[0.06] flex flex-col relative z-30 select-none">
           {/* Single Unified Header Row (UI/UX Upgraded, Clean & Compact) */}
           <div className="apexa-space-commandbar flex items-center justify-between px-3 sm:px-5 py-2 relative flex-wrap gap-2 sm:gap-3 min-h-[48px]">
             
@@ -2861,7 +2875,7 @@ export default function SpacePage({
               {/* Mobile Spaces sub-sidebar trigger drawer button */}
               <button
                 onClick={() => setIsMobileSidebarOpen(true)}
-                className="md:hidden p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-200 transition-colors cursor-pointer shrink-0"
+                className="md:hidden p-1.5 hover:bg-slate-100 dark:hover:bg-white/[0.08] rounded-lg text-slate-500 hover:text-slate-800 dark:text-zinc-200 transition-colors cursor-pointer shrink-0"
                 title="Mở thanh danh mục Space"
               >
                 <FolderOpen className="w-4 h-4 text-indigo-500" />
@@ -2875,7 +2889,7 @@ export default function SpacePage({
                       <Star className="h-3.5 w-3.5 fill-current" />
                     </span>
                     <span className="text-slate-900 dark:text-white font-black text-sm">{t('allTasks')}</span>
-                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400">
                       {filteredTasks.length} {locale === 'vi' ? 'việc' : 'tasks'}
                     </span>
                   </div>
@@ -2907,7 +2921,7 @@ export default function SpacePage({
                   if (folder) {
                     return (
                       <>
-                        <span className="text-slate-300 dark:text-slate-700 mx-0.5 font-normal">/</span>
+                        <span className="text-slate-300 dark:text-zinc-700 mx-0.5 font-normal">/</span>
                         <div className="flex items-center gap-1 text-slate-550 dark:text-slate-400">
                           <Folder className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                           <span className="truncate">{folder.name}</span>
@@ -2924,17 +2938,17 @@ export default function SpacePage({
                   if (currentList) {
                     return (
                       <>
-                        <span className="text-slate-300 dark:text-slate-700 mx-0.5 font-normal">/</span>
+                        <span className="text-slate-300 dark:text-zinc-700 mx-0.5 font-normal">/</span>
                         
                         <div className="relative flex items-center" ref={breadcrumbBtnRef}>
                           <button
                             type="button"
                             onClick={toggleBreadcrumbNav}
-                            className="flex items-center gap-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors py-1 px-2 rounded-lg text-slate-800 dark:text-slate-200"
+                            className="flex items-center gap-1.5 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors py-1 px-2 rounded-lg text-slate-800 dark:text-zinc-200"
                             title="Chuyển danh sách / Tùy chọn"
                           >
                             <List className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span className="text-slate-800 dark:text-slate-200 font-bold text-xs max-w-[140px] sm:max-w-[220px] truncate">{currentList.name}</span>
+                            <span className="text-slate-800 dark:text-zinc-200 font-bold text-xs max-w-[140px] sm:max-w-[220px] truncate">{currentList.name}</span>
                             <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${showBreadcrumbNav ? 'rotate-180' : ''}`} />
                           </button>
 
@@ -2956,10 +2970,10 @@ export default function SpacePage({
                                     top: breadcrumbCoords.top,
                                     left: breadcrumbCoords.left,
                                   }}
-                                  className="w-[310px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-3 z-[150] text-left font-sans select-none"
+                                  className="w-[310px] bg-white dark:bg-[#121214] border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl p-3 z-[150] text-left font-sans select-none"
                                 >
                                   {/* Header Box: Rename list input & options */}
-                                  <div className="flex items-center gap-2 p-1.5 border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 rounded-xl mb-3 shadow-3xs">
+                                  <div className="flex items-center gap-2 p-1.5 border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/60 dark:bg-white/[0.04] rounded-xl mb-3 shadow-3xs">
                                     <List className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
                                     <input
                                       type="text"
@@ -2973,7 +2987,7 @@ export default function SpacePage({
                                         }
                                       }}
                                       placeholder="Tên danh sách..."
-                                      className="flex-1 bg-transparent border-none outline-none font-bold text-slate-800 dark:text-slate-100 text-xs px-1 py-0.5"
+                                      className="flex-1 bg-transparent border-none outline-none font-bold text-slate-800 dark:text-zinc-100 text-xs px-1 py-0.5"
                                     />
                                     <button 
                                       type="button"
@@ -2981,7 +2995,7 @@ export default function SpacePage({
                                         navigator.clipboard.writeText(window.location.href);
                                         if (triggerToast) triggerToast('success', 'Link Copied', 'Copied list link to clipboard!');
                                       }}
-                                      className="p-1 hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition-colors"
+                                      className="p-1 hover:bg-slate-200/60 dark:hover:bg-white/[0.08] rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 cursor-pointer transition-colors"
                                       title="Sao chép liên kết danh sách"
                                     >
                                       <LinkIcon className="w-3.5 h-3.5" />
@@ -2998,19 +3012,19 @@ export default function SpacePage({
                                           }
                                         });
                                       }}
-                                      className="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
+                                      className="p-1 hover:bg-rose-50 dark:hover:bg-rose-500/20 rounded-lg text-slate-400 hover:text-rose-500 cursor-pointer transition-colors"
                                       title="Xóa danh sách"
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
                                   </div>
 
-                                  <div className="border-t border-slate-100 dark:border-slate-800/80 my-2" />
+                                  <div className="border-t border-slate-100 dark:border-white/[0.08] my-2" />
 
                                   {/* Hierarchy List */}
                                   <div className="space-y-1">
                                     {/* Space Header */}
-                                    <div className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-black text-slate-700 dark:text-slate-350 uppercase tracking-wider">
+                                    <div className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-black text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
                                       {activeSpace.emoji && activeSpace.emoji !== '📦' ? (
                                         renderSpaceIcon(activeSpace.emoji, "w-4 h-4 text-indigo-550 dark:text-indigo-400")
                                       ) : (
@@ -3036,8 +3050,8 @@ export default function SpacePage({
                                             }}
                                             className={`w-full flex items-center gap-2 py-1.5 px-3 rounded-xl text-left font-bold transition-all cursor-pointer ${
                                               isSelected 
-                                                ? 'bg-blue-50 dark:bg-indigo-950/30 text-blue-600 dark:text-indigo-400 shadow-3xs border border-blue-100/10 dark:border-indigo-900/10' 
-                                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                                                ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-300 shadow-3xs border border-blue-100/10 dark:border-blue-500/30' 
+                                                : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-white/[0.04] dark:hover:text-white'
                                             }`}
                                           >
                                             <List className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-blue-500' : 'text-slate-400'}`} />
@@ -3259,36 +3273,97 @@ export default function SpacePage({
 
       {/* ── Filter / Sorter Bar (Seamless & Gentle Workspace Toolbar) ── */}
       {isTaskWorkspaceView && (
-        <div className="apexa-space-filterbar shrink-0 border-b border-slate-200/40 dark:border-white/[0.04] px-3 sm:px-5 py-2 flex flex-col md:flex-row md:items-center md:justify-between gap-2.5 bg-white dark:bg-transparent" role="search" aria-label="Tìm kiếm và lọc công việc">
+        <div className="apexa-space-filterbar shrink-0 border-b border-slate-200/60 dark:border-white/[0.06] px-3 sm:px-6 py-1.5 flex items-center justify-between gap-2.5 bg-white/80 dark:bg-[#09090b]/60 backdrop-blur-xs min-h-[42px] overflow-x-auto no-scrollbar" role="search" aria-label={locale === 'vi' ? 'Tìm kiếm và lọc công việc' : 'Search and filter tasks'}>
           
-          {/* Search task input (Seamless, gentle pill) */}
-          <div className="flex items-center gap-2 bg-white dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 focus-within:border-indigo-500/50 shadow-3xs rounded-xl px-3 py-1.5 flex-1 w-full md:max-w-xs transition-all">
-            <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <input 
-              type="text" 
-              placeholder={t('searchTask') || (locale === 'vi' ? 'Tìm kiếm công việc...' : 'Search tasks...')} 
-              aria-label={t('searchTask') || (locale === 'vi' ? 'Tìm kiếm công việc...' : 'Search tasks...')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-transparent text-xs font-medium text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 outline-none"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs cursor-pointer">✕</button>
+          {/* Left section: Search + (if Board view) Group & Swimlane */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Search task input */}
+            <div className="group flex items-center gap-2 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 focus-within:border-indigo-500 dark:focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500/20 shadow-3xs rounded-xl px-2.5 py-1 w-36 sm:w-44 lg:w-52 transition-all h-8">
+              <Search className="w-3.5 h-3.5 text-slate-400 group-focus-within:text-indigo-500 dark:group-focus-within:text-indigo-400 transition-colors shrink-0" />
+              <input 
+                type="text" 
+                placeholder={locale === 'vi' ? 'Tìm kiếm công việc...' : (t('searchTask') || 'Search tasks...')} 
+                aria-label={locale === 'vi' ? 'Tìm kiếm công việc...' : (t('searchTask') || 'Search tasks...')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                data-no-focus-outline="true"
+                className="apexa-search-input w-full bg-transparent text-xs font-medium text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 border-none !border-0 outline-none !outline-none focus:outline-none focus:!outline-none focus-visible:outline-none focus-visible:!outline-none focus:ring-0 focus:!ring-0 focus-visible:ring-0 focus-visible:!ring-0 shadow-none"
+              />
+              {searchQuery && (
+                <button 
+                  type="button" 
+                  onClick={() => setSearchQuery('')} 
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded-md hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                  title={locale === 'vi' ? 'Xóa tìm kiếm' : 'Clear search'}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Board View Specific Controls (Inline seamlessly with Search) */}
+            {activeView === 'board' && (
+              <>
+                <div className="h-4 w-px bg-slate-200 dark:bg-white/10 hidden sm:block" />
+
+                {/* Group By Selector */}
+                <div className="flex items-center gap-1.5 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] rounded-xl px-2 py-0.5 shadow-3xs h-8">
+                  <span className="text-[11px] text-slate-400 dark:text-slate-500 font-bold hidden md:inline">
+                    {locale === 'vi' ? 'Nhóm:' : 'Group:'}
+                  </span>
+                  <Select
+                    value={boardGroupBy}
+                    onChange={(v) => {
+                      setBoardGroupBy(v as any);
+                      if (boardSwimlaneBy === v) {
+                        setBoardSwimlaneBy('none');
+                      }
+                    }}
+                    size="sm"
+                    ariaLabel={locale === 'vi' ? 'Nhóm theo' : 'Group by'}
+                    options={[
+                      { value: 'status', label: locale === 'vi' ? 'Trạng thái' : 'Status' },
+                      { value: 'priority', label: locale === 'vi' ? 'Mức ưu tiên' : 'Priority' },
+                      { value: 'assignee', label: locale === 'vi' ? 'Người phụ trách' : 'Assignee' },
+                    ]}
+                  />
+                </div>
+
+                {/* Swimlane Selector */}
+                <div className="flex items-center gap-1.5 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] rounded-xl px-2 py-0.5 shadow-3xs h-8">
+                  <span className="text-[11px] text-slate-400 dark:text-slate-500 font-bold hidden md:inline">
+                    {locale === 'vi' ? 'Làn bơi:' : 'Swimlane:'}
+                  </span>
+                  <Select
+                    value={boardSwimlaneBy}
+                    onChange={(v) => setBoardSwimlaneBy(v as any)}
+                    size="sm"
+                    ariaLabel={locale === 'vi' ? 'Làn công việc' : 'Swimlane'}
+                    options={[
+                      { value: 'none', label: locale === 'vi' ? 'Không' : 'None' },
+                      ...(boardGroupBy !== 'status' ? [{ value: 'status', label: locale === 'vi' ? 'Trạng thái' : 'Status' }] : []),
+                      ...(boardGroupBy !== 'priority' ? [{ value: 'priority', label: locale === 'vi' ? 'Mức ưu tiên' : 'Priority' }] : []),
+                      ...(boardGroupBy !== 'assignee' ? [{ value: 'assignee', label: locale === 'vi' ? 'Người phụ trách' : 'Assignee' }] : []),
+                    ]}
+                  />
+                </div>
+              </>
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {/* Filter Drawer Toggle (Ghost pill) */}
+          {/* Right section: Filters, Sorter, Card Size/Covers, AI, Add Board */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Filter Drawer Toggle */}
             <button 
               onClick={() => setShowFilters(!showFilters)}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                 showFilters || activeFilterCount > 0
-                  ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 font-bold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-white/5'
+                  ? 'bg-indigo-50 dark:bg-blue-500/15 text-indigo-600 dark:text-blue-300 font-bold'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-white/5'
               }`}
             >
               <Filter className="w-3.5 h-3.5" />
-              <span>{t('filter') || (locale === 'vi' ? 'Bộ lọc' : 'Filter')}</span>
+              <span>{locale === 'vi' ? 'Bộ lọc' : (t('filter') || 'Filter')}</span>
               {activeFilterCount > 0 && (
                 <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[8.5px] font-black flex items-center justify-center">
                   {activeFilterCount}
@@ -3296,48 +3371,24 @@ export default function SpacePage({
               )}
             </button>
 
-            {/* Custom Sorter Dropdown Popover (Ghost pill) */}
+            {/* Custom Sorter Dropdown Popover */}
             <div className="relative" ref={sortMenuRef}>
               <div className="flex items-center">
                 <button
                   type="button"
                   onClick={() => setIsSortMenuOpen(!isSortMenuOpen)}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                     sortBy !== 'manual'
-                      ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-bold'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-white/5'
+                      ? 'bg-indigo-50 dark:bg-blue-500/15 text-indigo-700 dark:text-blue-300 font-bold'
+                      : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-white/5'
                   }`}
                 >
-                  {/* Left Dynamic Icon */}
-                  {sortBy === 'manual' && <GripVertical className="w-3.5 h-3.5 text-slate-400" />}
-                  {sortBy === 'priority' && <Flag className="w-3.5 h-3.5 text-rose-500" />}
-                  {sortBy === 'dueDate' && <Calendar className="w-3.5 h-3.5 text-amber-500" />}
-                  {sortBy === 'title' && <ArrowDownAZ className="w-3.5 h-3.5 text-blue-500" />}
-                  {sortBy === 'createdAt' && <Clock className="w-3.5 h-3.5 text-purple-500" />}
-                  {sortBy === 'status' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
-
-                  {/* Label */}
-                  <span>
-                    {sortBy === 'manual' && (t('sortByManual') || (locale === 'vi' ? 'Sắp xếp thủ công' : 'Manual Sort'))}
-                    {sortBy === 'priority' && (t('sortByPriority') || (locale === 'vi' ? 'Độ ưu tiên' : 'Priority'))}
-                    {sortBy === 'dueDate' && (t('sortByDueDate') || (locale === 'vi' ? 'Hạn chót' : 'Due Date'))}
-                    {sortBy === 'title' && (t('sortByTitle') || (locale === 'vi' ? 'Bảng chữ cái (A-Z)' : 'Title (A-Z)'))}
-                    {sortBy === 'createdAt' && (t('sortByCreatedAt') || (locale === 'vi' ? 'Ngày tạo mới' : 'Created Date'))}
-                    {sortBy === 'status' && (t('sortByStatus') || (locale === 'vi' ? 'Trạng thái' : 'Status'))}
-                  </span>
-
-                  {/* Direction Badge if not manual */}
-                  {sortBy !== 'manual' && (
-                    <span className="px-1.5 py-0.2 rounded bg-indigo-200/60 dark:bg-indigo-900/60 text-[9px] font-black text-indigo-800 dark:text-indigo-200 flex items-center">
-                      {sortDirection === 'asc' ? '↑' : '↓'}
-                    </span>
-                  )}
-
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  <span>{locale === 'vi' ? 'Sắp xếp' : 'Sort'}</span>
                   <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${isSortMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
               </div>
 
-              {/* Animated Popover */}
               <AnimatePresence>
                 {isSortMenuOpen && (
                   <motion.div
@@ -3345,35 +3396,31 @@ export default function SpacePage({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 4, scale: 0.96 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute left-0 top-full mt-1.5 z-50 w-72 p-2 bg-white/98 dark:bg-slate-900/98 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800/90 rounded-2xl shadow-2xl space-y-1 font-sans text-xs"
+                    className="absolute right-0 top-full mt-1.5 z-50 w-72 p-2 bg-white/98 dark:bg-[#121214]/98 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-2xl space-y-1 font-sans text-xs"
                   >
-                    {/* Popover Header */}
-                    <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-slate-100 dark:border-slate-800/80 mb-1">
+                    <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-slate-100 dark:border-white/[0.08] mb-1">
                       <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
                         {locale === 'vi' ? 'Sắp xếp công việc' : 'Sort Tasks'}
                       </span>
                       {sortBy !== 'manual' && (
                         <button
                           type="button"
-                          onClick={() => {
-                            setSortBy('manual');
-                            setSortDirection('asc');
-                          }}
-                          className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                          onClick={() => { setSortBy('manual'); setIsSortMenuOpen(false); }}
+                          className="text-[10px] text-indigo-600 dark:text-blue-400 font-bold hover:underline cursor-pointer"
                         >
-                          {t('resetSort') || (locale === 'vi' ? 'Khôi phục' : 'Reset')}
+                          {locale === 'vi' ? 'Đặt lại' : 'Reset'}
                         </button>
                       )}
                     </div>
 
-                    {/* Sort Options */}
+                    {/* Sorting Options list */}
                     {[
-                      { id: 'manual', label: t('sortByManual') || (locale === 'vi' ? 'Sắp xếp thủ công' : 'Manual Sort'), desc: locale === 'vi' ? 'Kéo thả thứ tự thẻ tùy biến' : 'Drag and drop cards custom order', icon: GripVertical, color: 'text-slate-500 bg-slate-100 dark:bg-slate-800' },
-                      { id: 'priority', label: t('sortByPriority') || (locale === 'vi' ? 'Mức độ ưu tiên' : 'Priority'), desc: locale === 'vi' ? 'Khẩn cấp ↔ Thấp' : 'Urgent ↔ Low', icon: Flag, color: 'text-rose-600 bg-rose-50 dark:bg-rose-950/50' },
-                      { id: 'dueDate', label: t('sortByDueDate') || (locale === 'vi' ? 'Hạn chót' : 'Due Date'), desc: locale === 'vi' ? 'Gần nhất ↔ Xa nhất' : 'Earliest ↔ Latest', icon: Calendar, color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/50' },
-                      { id: 'title', label: t('sortByTitle') || (locale === 'vi' ? 'Bảng chữ cái (A-Z)' : 'Title (A-Z)'), desc: locale === 'vi' ? 'Theo tên tiêu đề công việc' : 'By task title alphabetically', icon: ArrowDownAZ, color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/50' },
-                      { id: 'createdAt', label: t('sortByCreatedAt') || (locale === 'vi' ? 'Ngày tạo mới' : 'Created Date'), desc: locale === 'vi' ? 'Mới nhất ↔ Cũ hơn' : 'Newest ↔ Oldest', icon: Clock, color: 'text-purple-600 bg-purple-50 dark:bg-purple-950/50' },
-                      { id: 'status', label: t('sortByStatus') || (locale === 'vi' ? 'Trạng thái tiến độ' : 'Status'), desc: locale === 'vi' ? 'Chưa làm ↔ Đã xong' : 'To Do ↔ Completed', icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50' },
+                      { id: 'manual', label: locale === 'vi' ? 'Thứ tự thủ công' : (t('manualOrder') || 'Manual'), desc: locale === 'vi' ? 'Kéo thả tùy ý' : 'Drag and drop freely', icon: SlidersHorizontal, color: 'text-slate-500 bg-slate-100 dark:bg-white/[0.06]' },
+                      { id: 'priority', label: locale === 'vi' ? 'Độ ưu tiên' : (t('sortByPriority') || 'Priority'), desc: locale === 'vi' ? 'Khẩn cấp → Thấp' : 'Urgent to Low', icon: Flag, color: 'text-rose-500 bg-rose-50 dark:bg-rose-500/20' },
+                      { id: 'dueDate', label: locale === 'vi' ? 'Hạn chót' : (t('sortByDueDate') || 'Due Date'), desc: locale === 'vi' ? 'Gần hạn nhất trước' : 'Nearest deadline first', icon: Calendar, color: 'text-amber-500 bg-amber-50 dark:bg-amber-500/20' },
+                      { id: 'title', label: locale === 'vi' ? 'Bảng chữ cái' : (t('sortByTitle') || 'Title (A-Z)'), desc: locale === 'vi' ? 'Theo tên A-Z' : 'Alphabetical order', icon: ArrowDownAZ, color: 'text-blue-500 bg-blue-50 dark:bg-blue-500/20' },
+                      { id: 'createdAt', label: locale === 'vi' ? 'Ngày tạo' : (t('sortByCreatedAt') || 'Created Date'), desc: locale === 'vi' ? 'Gần đây nhất' : 'Recently created first', icon: Clock, color: 'text-purple-500 bg-purple-50 dark:bg-purple-500/20' },
+                      { id: 'status', label: locale === 'vi' ? 'Trạng thái' : (t('sortByStatus') || 'Status'), desc: locale === 'vi' ? 'Theo tiến độ' : 'By task progress', icon: CheckCircle2, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/20' },
                     ].map(opt => {
                       const isActive = sortBy === opt.id;
                       return (
@@ -3381,23 +3428,13 @@ export default function SpacePage({
                           key={opt.id}
                           type="button"
                           onClick={() => {
-                            if (isActive && opt.id !== 'manual') {
-                              // Toggle direction if already active
-                              setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-                            } else {
-                              setSortBy(opt.id);
-                              if (opt.id === 'priority' || opt.id === 'createdAt') {
-                                setSortDirection('desc');
-                              } else {
-                                setSortDirection('asc');
-                              }
-                            }
+                            setSortBy(opt.id as any);
                             if (opt.id === 'manual') setIsSortMenuOpen(false);
                           }}
                           className={`w-full flex items-center justify-between p-2 rounded-xl transition-all text-left cursor-pointer ${
                             isActive
-                              ? 'bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold'
-                              : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                              ? 'bg-indigo-50/80 dark:bg-blue-500/15 text-indigo-900 dark:text-blue-200 font-bold'
+                              : 'hover:bg-slate-100/70 dark:hover:bg-white/[0.06] text-slate-700 dark:text-zinc-300'
                           }`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -3409,49 +3446,138 @@ export default function SpacePage({
                               <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate leading-tight mt-0.5">{opt.desc}</p>
                             </div>
                           </div>
-                          {isActive && <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 ml-2" />}
+                          {isActive && <Check className="w-4 h-4 text-indigo-600 dark:text-blue-400 shrink-0 ml-2" />}
                         </button>
                       );
                     })}
-
-                    {/* Direction Toggle Control (if not manual) */}
-                    {sortBy !== 'manual' && (
-                      <div className="pt-2 mt-1 border-t border-slate-100 dark:border-slate-800/80 space-y-1.5 px-1 pb-1">
-                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block">
-                          {locale === 'vi' ? 'Chiều sắp xếp' : 'Sort Direction'}
-                        </span>
-                        <div className="grid grid-cols-2 gap-1.5 p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800">
-                          <button
-                            type="button"
-                            onClick={() => setSortDirection('asc')}
-                            className={`py-1.5 px-2 rounded-lg text-[10px] font-black flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                              sortDirection === 'asc'
-                                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                            }`}
-                          >
-                            <ArrowUpNarrowWide className="w-3 h-3" />
-                            <span>{t('sortAscending') || (locale === 'vi' ? 'Tăng dần' : 'Ascending')}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setSortDirection('desc')}
-                            className={`py-1.5 px-2 rounded-lg text-[10px] font-black flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                              sortDirection === 'desc'
-                                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                            }`}
-                          >
-                            <ArrowDownWideNarrow className="w-3 h-3" />
-                            <span>{t('sortDescending') || (locale === 'vi' ? 'Giảm dần' : 'Descending')}</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
+
+            {/* Board View Right Controls (Size, Covers, Add Board) */}
+            {activeView === 'board' && (
+              <>
+                <div className="h-4 w-px bg-slate-200 dark:bg-white/10 hidden sm:block" />
+
+                {/* Card Size Selector (Inline on desktop >= xl) */}
+                <div className="hidden xl:flex items-center gap-0.5 bg-slate-100/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.07] rounded-xl p-0.5 shadow-3xs h-8">
+                  {(['small', 'medium', 'large'] as const).map(size => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => setCardSize(size)}
+                      className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer text-[11px] font-bold ${
+                        cardSize === size
+                          ? 'bg-white dark:bg-white/10 text-indigo-600 dark:text-blue-400 shadow-xs border border-slate-200/70 dark:border-white/10'
+                          : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                      title={locale === 'vi' ? `Kích cỡ thẻ: ${{ small: 'Nhỏ', medium: 'Vừa', large: 'Lớn' }[size]}` : `Card size: ${{ small: 'Small', medium: 'Medium', large: 'Large' }[size]}`}
+                    >
+                      {{ small: locale === 'vi' ? 'Nhỏ' : 'Small', medium: locale === 'vi' ? 'Vừa' : 'Medium', large: locale === 'vi' ? 'Lớn' : 'Large' }[size]}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Show Covers Toggle Button (Inline on desktop >= xl) */}
+                <button
+                  type="button"
+                  onClick={() => setCardCover(!cardCover)}
+                  className={`hidden xl:flex h-8 px-2.5 border rounded-xl items-center gap-1.5 transition-all cursor-pointer text-[11px] font-bold shadow-3xs ${
+                    cardCover
+                      ? 'bg-indigo-50/90 dark:bg-blue-500/20 border-indigo-200 dark:border-blue-500/40 text-indigo-600 dark:text-blue-300'
+                      : 'bg-white dark:bg-white/[0.04] border-slate-200/80 dark:border-white/[0.08] text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-white'
+                  }`}
+                  title={locale === 'vi' ? 'Bật/tắt hiển thị ảnh đính kèm làm bìa' : 'Toggle cover images'}
+                >
+                  <Paperclip className="w-3 h-3" />
+                  <span>{locale === 'vi' ? 'Ảnh bìa' : 'Covers'}</span>
+                </button>
+
+                {/* Display Popover (For screens < xl:) */}
+                <div className="relative xl:hidden" ref={boardDisplayMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsBoardDisplayMenuOpen(!isBoardDisplayMenuOpen)}
+                    className={`h-8 px-2.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      isBoardDisplayMenuOpen || !cardCover || cardSize !== 'medium'
+                        ? 'bg-indigo-50 dark:bg-blue-500/20 border-indigo-200 dark:border-blue-500/40 text-indigo-600 dark:text-blue-300 font-bold'
+                        : 'bg-white dark:bg-white/[0.04] border-slate-200/80 dark:border-white/[0.08] text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                    title={locale === 'vi' ? 'Tùy chọn hiển thị thẻ' : 'Display options'}
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    <span>{locale === 'vi' ? 'Hiển thị' : 'Display'}</span>
+                    <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-150 ${isBoardDisplayMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  <AnimatePresence>
+                    {isBoardDisplayMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 4, scale: 0.96 }}
+                        transition={{ duration: 0.15, ease: 'easeOut' }}
+                        className="absolute right-0 top-full mt-1.5 z-50 w-60 p-3 bg-white/98 dark:bg-[#121214]/98 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-2xl space-y-3 font-sans text-xs"
+                      >
+                        <div>
+                          <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1.5">
+                            {locale === 'vi' ? 'Kích thước thẻ' : 'Card Size'}
+                          </span>
+                          <div className="grid grid-cols-3 gap-1 bg-slate-100 dark:bg-white/[0.04] p-1 rounded-xl">
+                            {(['small', 'medium', 'large'] as const).map(size => (
+                              <button
+                                key={size}
+                                type="button"
+                                onClick={() => setCardSize(size)}
+                                className={`py-1 text-center rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                  cardSize === size 
+                                    ? 'bg-white dark:bg-white/10 text-indigo-600 dark:text-blue-400 shadow-xs' 
+                                    : 'text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white'
+                                }`}
+                              >
+                                {{ small: locale === 'vi' ? 'Nhỏ' : 'Small', medium: locale === 'vi' ? 'Vừa' : 'Medium', large: locale === 'vi' ? 'Lớn' : 'Large' }[size]}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-white/[0.08]">
+                          <span className="font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
+                            <Paperclip className="w-3.5 h-3.5 text-slate-400" />
+                            {locale === 'vi' ? 'Ảnh bìa công việc' : 'Cover images'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setCardCover(!cardCover)}
+                            className={`w-9 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer ${
+                              cardCover ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+                            }`}
+                          >
+                            <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                              cardCover ? 'translate-x-4' : 'translate-x-0'
+                            }`} />
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Add Board Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('apexa-open-add-board'));
+                  }}
+                  className="h-8 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs hover:shadow-md cursor-pointer active:scale-95 transition-all"
+                  title={locale === 'vi' ? 'Thêm bảng / cột trạng thái mới' : 'Add new column'}
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>{locale === 'vi' ? 'Thêm bảng' : 'Add Board'}</span>
+                </button>
+              </>
+            )}
 
             {/* AI Priority suggestions button (Ghost pill) */}
             <button
@@ -3463,10 +3589,11 @@ export default function SpacePage({
                 setShowAiPriorityModal(true);
                 fetchAiPriority();
               }}
-              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50/80 dark:hover:bg-indigo-950/40 cursor-pointer flex items-center gap-1.5 transition-colors"
+              title={locale === 'vi' ? 'Ưu tiên do AI đề xuất' : 'AI Priority Suggestions'}
+              className="h-8 px-2.5 rounded-lg text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50/80 dark:hover:bg-indigo-950/40 cursor-pointer flex items-center gap-1.5 transition-colors"
             >
               <Bot className="w-3.5 h-3.5" />
-              <span>{t('aiPriority') || (locale === 'vi' ? 'Ưu tiên do AI đề xuất' : 'AI Priority Suggestions')}</span>
+              <span>{locale === 'vi' ? 'Gợi ý AI' : 'AI Priority'}</span>
             </button>
 
             {/* Pomodoro Focus indicator */}
@@ -3822,6 +3949,7 @@ export default function SpacePage({
             cardCover={cardCover}
             setCardCover={setCardCover}
             onAddTask={guardedAddTask}
+            hideHeaderControls={true}
           />
         )}
 
@@ -6358,33 +6486,39 @@ export default function SpacePage({
         );
       })()}
 
-      {/* ── Portal for Custom Fields Drawer ── */}
+      {/* ── Portal for Custom Fields Popover ── */}
       {showFieldsPanel && (
         <Portal>
-          {/* Backdrop with click outside */}
+          {/* Transparent click-outside overlay — no blur */}
           <div 
-            className="fixed inset-0 z-[140] bg-slate-950/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-150" 
-            onClick={() => setShowFieldsPanel(false)} 
+            className="fixed inset-0 z-[140] bg-transparent cursor-default" 
+            onClick={() => { setShowFieldsPanel(false); setFieldsPanelAnchor(null); }} 
           />
           <div 
-            className="fixed top-0 right-0 h-full w-[360px] sm:w-[400px] bg-white/95 dark:bg-[#0f141e]/95 backdrop-blur-xl border-l border-slate-200/80 dark:border-slate-800/80 z-[150] shadow-2xl flex flex-col p-4 sm:p-5 font-sans select-none animate-slideInRight"
-            style={{ boxShadow: '-12px 0 40px rgba(0,0,0,0.15)' }}
+            className="fixed z-[150] w-[340px] max-h-[520px] bg-white dark:bg-[#12141a] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl flex flex-col p-4 font-sans select-none animate-in fade-in slide-in-from-top-2 duration-150 overflow-hidden"
+            style={{
+              ...(fieldsPanelAnchor ? {
+                top: Math.min(fieldsPanelAnchor.y, typeof window !== 'undefined' ? window.innerHeight - 540 : 400),
+                left: Math.min(fieldsPanelAnchor.x - 340, typeof window !== 'undefined' ? window.innerWidth - 360 : 600),
+              } : {
+                top: '50%',
+                right: '24px',
+                transform: 'translateY(-50%)',
+              }),
+            }}
           >
-            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800 shrink-0">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black shadow-xs">
-                  <SlidersHorizontal className="w-4 h-4" />
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center">
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
                 </div>
-                <div>
-                  <span className="font-black text-sm text-slate-800 dark:text-slate-100 uppercase tracking-wider block">Trường dữ liệu</span>
-                  <span className="text-[10px] text-slate-400 font-medium">Tùy biến & quản lý thuộc tính</span>
-                </div>
+                <span className="font-bold text-[13px] text-slate-800 dark:text-slate-100 tracking-tight">Trường dữ liệu</span>
               </div>
               <button 
-                onClick={() => setShowFieldsPanel(false)}
-                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                onClick={() => { setShowFieldsPanel(false); setFieldsPanelAnchor(null); }}
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
 
@@ -6896,7 +7030,7 @@ function CustomFieldsTabs({
               : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
           }`}
         >
-          ✨ Tạo mới
+          <Plus className="w-3 h-3 inline mr-1" /> Tạo mới
         </button>
         <button 
           onClick={() => setTab('add')}
@@ -6906,7 +7040,7 @@ function CustomFieldsTabs({
               : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
           }`}
         >
-          ⚙️ Quản lý ({allPropertiesList.length})
+          <Settings2 className="w-3 h-3 inline mr-1" /> Quản lý ({allPropertiesList.length})
         </button>
       </div>
 
@@ -6921,7 +7055,7 @@ function CustomFieldsTabs({
             {!search && (
               <div className="space-y-2">
                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                  <span>🔥 Phổ biến</span>
+                  <Flame className="w-3 h-3" /><span>Phổ biến</span>
                 </div>
                 <div className="grid grid-cols-1 gap-1.5">
                   {popularCatalog.map(fc => {
@@ -6933,8 +7067,8 @@ function CustomFieldsTabs({
                         className="w-full flex items-center justify-between p-2.5 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-850 hover:border-indigo-300 dark:hover:border-indigo-800/80 text-left transition-all cursor-pointer group shadow-3xs"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${fc.color} text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform`}>
-                            <IconComp className="w-4 h-4" />
+                          <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                            <IconComp className="w-3.5 h-3.5" />
                           </div>
                           <div className="min-w-0">
                             <div className="text-xs font-extrabold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
@@ -6958,7 +7092,7 @@ function CustomFieldsTabs({
             {/* ALL FIELDS */}
             <div className="space-y-2">
               <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-between">
-                <span>{search ? `Kết quả tìm kiếm (${filteredCatalog.length})` : '📦 Tất cả loại trường'}</span>
+                <span>{search ? `Kết quả tìm kiếm (${filteredCatalog.length})` : <><Layers className="w-3 h-3 inline mr-1" />Tất cả loại trường</>}</span>
               </div>
               <div className="grid grid-cols-1 gap-1.5">
                 {filteredCatalog.map(fc => {
@@ -6970,8 +7104,8 @@ function CustomFieldsTabs({
                       className="w-full flex items-center justify-between p-2.5 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-850 hover:border-indigo-300 dark:hover:border-indigo-800/80 text-left transition-all cursor-pointer group shadow-3xs"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${fc.color} text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform`}>
-                          <IconComp className="w-4 h-4" />
+                        <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                          <IconComp className="w-3.5 h-3.5" />
                         </div>
                         <div className="min-w-0">
                           <div className="text-xs font-extrabold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">

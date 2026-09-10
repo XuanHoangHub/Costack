@@ -233,7 +233,7 @@ export default function PromptModal({
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.92, y: 16, opacity: 0 }}
             transition={{ type: "spring", stiffness: 420, damping: 30 }}
-            className="relative w-full max-w-[440px] rounded-[28px] bg-white/95 dark:bg-[#181818]/95 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-800/90 shadow-[0_25px_70px_-15px_rgba(0,0,0,0.4)] p-5 sm:p-6 overflow-hidden z-10 text-left font-sans select-none"
+            className="relative w-full max-w-[440px] rounded-[28px] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-[0_25px_70px_-15px_rgba(0,0,0,0.4)] p-5 sm:p-6 overflow-hidden z-10 text-left font-sans select-none"
           >
             {/* Ambient Radial Glow */}
             <div className={`absolute -top-24 -right-24 w-52 h-52 bg-gradient-to-br ${typeConfig.gradient} opacity-20 rounded-full blur-3xl pointer-events-none transition-all duration-500`} />

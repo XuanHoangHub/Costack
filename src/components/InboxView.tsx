@@ -759,13 +759,13 @@ export default function InboxView({
   ];
 
   return (
-    <div className="apexa-inbox w-full h-full flex flex-col md:flex-row gap-3.5 font-sans text-left text-slate-800 dark:text-slate-100 select-none overflow-hidden p-1 sm:p-2">
+    <div className="apexa-inbox w-full h-full flex flex-col md:flex-row gap-0 font-sans text-left text-slate-800 dark:text-slate-100 select-none overflow-hidden p-0 bg-slate-50/50 dark:bg-slate-950/50">
       
       {/* ── Left Column: Stream Panel ── */}
-      <div className={`apexa-inbox-list flex flex-col min-w-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-[28px] border border-slate-200/80 dark:border-slate-800/80 shadow-sm overflow-hidden transition-all duration-300 ${
+      <div className={`apexa-inbox-list flex flex-col min-w-0 bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800/80 shadow-none overflow-hidden transition-all duration-300 ${
         selectedNotificationId 
-          ? 'hidden md:flex md:w-[380px] lg:w-[410px] xl:w-[440px] shrink-0' 
-          : 'flex-1 md:flex-initial md:w-[420px] lg:w-[460px] xl:w-[480px] shrink-0'
+          ? 'hidden md:flex md:w-[410px] lg:w-[440px] xl:w-[460px] shrink-0' 
+          : 'flex-1 md:flex-initial md:w-[420px] lg:w-[450px] xl:w-[480px] shrink-0'
       }`}>
         
         {/* Top Header & Scope Bar */}
@@ -831,7 +831,7 @@ export default function InboxView({
           </div>
 
           {/* Segmented Navigation Tabs */}
-          <div className="flex items-center gap-1 p-1 bg-slate-100/90 dark:bg-slate-950/80 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-1 p-1 bg-slate-100/90 dark:bg-slate-950/80 rounded-xl border border-slate-200/80 dark:border-slate-800/80 overflow-x-auto scrollbar-none">
             {TABS_CONFIG.map(tab => {
               const isTabActive = activeTab === tab.id;
               const hasUnread = tab.unread > 0;
@@ -843,16 +843,16 @@ export default function InboxView({
                     setSelectedNotificationId(null);
                   }}
                   aria-pressed={isTabActive}
-                  className={`flex-1 min-w-[62px] py-1.5 px-2 rounded-xl transition-all cursor-pointer relative flex items-center justify-center gap-1.5 text-center whitespace-nowrap ${
+                  className={`flex-1 min-w-0 py-1.5 px-1.5 rounded-lg transition-all cursor-pointer relative flex items-center justify-center gap-1 text-center whitespace-nowrap ${
                     isTabActive
                       ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-sky-300 shadow-xs font-bold border border-slate-200/70 dark:border-slate-700/70'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-semibold hover:bg-white/50 dark:hover:bg-slate-800/40'
                   }`}
                 >
                   <tab.icon className={`w-3.5 h-3.5 shrink-0 transition-colors ${isTabActive ? 'text-blue-600 dark:text-sky-300' : 'text-slate-400 dark:text-slate-500'}`} />
-                  <span className="text-[11.5px] font-bold">{tab.label}</span>
+                  <span className="text-[11px] font-bold">{tab.label}</span>
                   {tab.count > 0 && (
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold transition-colors ${
+                    <span className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-bold transition-colors ${
                       isTabActive 
                         ? 'bg-blue-100/90 dark:bg-blue-900/60 text-blue-700 dark:text-sky-300' 
                         : 'bg-slate-200/80 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
@@ -1008,18 +1008,27 @@ export default function InboxView({
 
           {/* Grouped Notifications Feed */}
           {groupedNotifications.map((group, gIdx) => (
-            <div key={gIdx} className="space-y-2">
-              <div className="flex items-center gap-2 px-1">
+            <div key={gIdx} className="space-y-1.5">
+              <div className="flex items-center gap-2 px-1 py-1">
                 <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
                   {group.label}
                 </span>
                 <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800/80" />
-                <span className="text-[9.5px] font-bold text-slate-400">
+                <span className="text-[9.5px] font-bold text-slate-400 dark:text-slate-500">
                   {group.items.length}
                 </span>
+                {(group.label.toLowerCase().includes('cũ') || group.label.toLowerCase().includes('older')) && olderReadNotifications.length > 0 && (
+                  <button
+                    onClick={handleTriageOlderRead}
+                    className="text-[9.5px] font-bold text-blue-600 dark:text-sky-400 hover:underline cursor-pointer ml-1"
+                    title={isVietnamese ? 'Lưu trữ tất cả thông báo cũ đã đọc' : 'Archive all older read'}
+                  >
+                    {isVietnamese ? 'Dọn dẹp' : 'Clean up'}
+                  </button>
+                )}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {group.items.map(notif => {
                   const hasTaskLink = !!getAssociatedTaskId(notif);
                   const isSelected = selectedNotificationId === notif.id;
@@ -1031,133 +1040,151 @@ export default function InboxView({
                     <div 
                       key={notif.id}
                       onClick={() => setSelectedNotificationId(notif.id)}
-                      className={`group p-3 sm:p-3.5 rounded-2xl border transition-all duration-200 flex items-start gap-3 cursor-pointer relative overflow-hidden ${
+                      className={`group p-2.5 sm:p-3 rounded-xl border transition-all duration-150 flex flex-col gap-1.5 cursor-pointer relative overflow-hidden ${
                         isSelected
-                          ? 'bg-blue-50/90 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500 ring-2 ring-blue-500/20 shadow-sm'
+                          ? 'bg-blue-50/80 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500 ring-1 ring-blue-500/25 shadow-xs'
                           : notif.read 
-                            ? 'bg-white/70 dark:bg-slate-900/50 border-slate-200/70 dark:border-slate-800/70 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:border-slate-300 dark:hover:border-slate-700 shadow-2xs' 
-                            : 'bg-white dark:bg-slate-900 border-blue-200/80 dark:border-blue-900/70 shadow-xs hover:border-blue-400 dark:hover:border-blue-600'
+                            ? 'bg-slate-50/40 dark:bg-slate-900/30 border-transparent hover:border-slate-200/80 dark:hover:border-slate-800 hover:bg-white dark:hover:bg-slate-900/70 text-slate-600 dark:text-slate-300' 
+                            : 'bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800/80 shadow-2xs hover:border-blue-300 dark:hover:border-blue-700/60'
                       }`}
                     >
                       {/* Left glowing accent line for unread items */}
                       {!notif.read && (
-                        <div className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full bg-gradient-to-b from-blue-500 to-indigo-600" />
+                        <div className="absolute left-0 top-2 bottom-2 w-[3.5px] rounded-r-full bg-blue-600 dark:bg-blue-500" />
                       )}
 
-                      {/* Pin indicator */}
-                      {notif.pinned && (
-                        <div className="absolute top-2.5 right-2.5 text-amber-500">
-                          <Pin className="w-3.5 h-3.5 fill-current rotate-45" />
+                      {/* Header Row: Checkbox, Icon, Category Badge, Title preview, Pin, Timestamp */}
+                      <div className="flex items-center gap-2 min-w-0">
+                        {/* Interactive selection checkbox - visible on hover or when any items are selected */}
+                        <div 
+                          onClick={(e) => e.stopPropagation()} 
+                          className={`shrink-0 transition-all duration-150 flex items-center justify-center ${
+                            isChecked || selectedNotifIds.length > 0 
+                              ? 'w-4 opacity-100' 
+                              : 'w-0 opacity-0 group-hover:w-4 group-hover:opacity-100 overflow-hidden'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => handleToggleSelectNotif(notif.id, e as any)}
+                            className="w-3.5 h-3.5 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
                         </div>
-                      )}
 
-                      {/* Selection checkbox & Category icon badge */}
-                      <div className="flex items-center gap-2 shrink-0 pt-0.5">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={(e) => handleToggleSelectNotif(notif.id, e as any)}
-                          className="w-4 h-4 rounded-md border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer transition-all"
-                        />
-                        
-                        <div className={`w-8 h-8 rounded-xl shrink-0 flex items-center justify-center border shadow-2xs ${catMeta.bg} ${catMeta.color} ${catMeta.border}`}>
-                          <IconComp className="w-4 h-4" />
+                        {/* Category Icon Badge */}
+                        <div className={`w-6 h-6 rounded-lg shrink-0 flex items-center justify-center border shadow-2xs ${catMeta.bg} ${catMeta.color} ${catMeta.border}`}>
+                          <IconComp className="w-3.5 h-3.5" />
+                        </div>
+
+                        {/* Category label badge */}
+                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded tracking-wider shrink-0 ${catMeta.badge}`}>
+                          {catMeta.label}
+                        </span>
+
+                        {/* Unread Glowing Dot */}
+                        {!notif.read && (
+                          <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 shadow-[0_0_6px_rgba(59,130,246,0.8)] animate-pulse" />
+                        )}
+
+                        {/* Right header actions: Pin & Timestamp */}
+                        <div className="ml-auto flex items-center gap-1.5 shrink-0 pl-1">
+                          {notif.pinned && (
+                            <span title={isVietnamese ? 'Đã ghim' : 'Pinned'}>
+                              <Pin className="w-3 h-3 text-amber-500 fill-current rotate-45 shrink-0" />
+                            </span>
+                          )}
+                          <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                            {notif.timestamp}
+                          </span>
                         </div>
                       </div>
 
-                      {/* Notification Content Body */}
-                      <div className="flex-1 min-w-0 pr-6">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className={`text-[9.5px] font-black uppercase px-1.5 py-0.2 rounded-md tracking-wider ${catMeta.badge}`}>
-                            {catMeta.label}
-                          </span>
-                          {!notif.read && (
-                            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
-                          )}
-                        </div>
-
+                      {/* Title & Preview Content */}
+                      <div className="min-w-0 pl-0 sm:pl-8 pr-1 space-y-0.5">
                         <h3 className={`text-xs leading-snug truncate ${
                           notif.read 
-                            ? 'font-bold text-slate-700 dark:text-slate-300' 
+                            ? 'font-semibold text-slate-700 dark:text-slate-300' 
                             : 'font-black text-slate-900 dark:text-white'
                         }`}>
                           {notif.title}
                         </h3>
 
-                        <p className="text-[11.5px] text-slate-600 dark:text-slate-400 leading-relaxed mt-0.5 line-clamp-2">
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 group-hover:line-clamp-2 leading-relaxed">
                           {notif.message}
                         </p>
-                        
-                        {/* Meta chips footer */}
-                        <div className="flex items-center gap-2 mt-2 flex-wrap text-slate-400">
-                          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {notif.timestamp}
-                          </span>
-
-                          {notif.workspaceId && notif.workspaceId !== 'all' && (
-                            <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold px-1.5 py-0.5 rounded-md border border-slate-200/60 dark:border-slate-700/60">
-                              {workspaces.find(w => w.id === notif.workspaceId)?.name || (isVietnamese ? 'Không gian' : 'Workspace')}
-                            </span>
-                          )}
-
-                          {hasTaskLink && (
-                            <span className="text-[9px] bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/60 font-black px-1.5 py-0.5 rounded-md tracking-wider uppercase flex items-center gap-1">
-                              <CheckSquare className="w-2.5 h-2.5 text-indigo-600 dark:text-indigo-400" />
-                              Task
-                            </span>
-                          )}
-                        </div>
                       </div>
 
-                      {/* On-Hover Interactive Action Dock */}
+                      {/* Footer Metadata Badges */}
+                      <div className="min-w-0 pl-0 sm:pl-8 flex items-center gap-1.5 flex-wrap pt-0.5">
+                        {notif.workspaceId && notif.workspaceId !== 'all' && (
+                          <span className="text-[9px] bg-slate-100/90 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-medium px-1.5 py-0.5 rounded border border-slate-200/60 dark:border-slate-700/60 truncate max-w-[130px]">
+                            {workspaces.find(w => w.id === notif.workspaceId)?.name || (isVietnamese ? 'Không gian' : 'Workspace')}
+                          </span>
+                        )}
+
+                        {hasTaskLink && (
+                          <span className="text-[9px] bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/50 font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
+                            <CheckSquare className="w-2.5 h-2.5 text-indigo-600 dark:text-indigo-400" />
+                            Task
+                          </span>
+                        )}
+
+                        {notif.priority === 'urgent' && (
+                          <span className="text-[9px] bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/50 font-bold px-1.5 py-0.5 rounded">
+                            {isVietnamese ? 'Khẩn cấp' : 'Urgent'}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* On-Hover Quick Floating Action Dock */}
                       <div 
-                        className="absolute right-2.5 bottom-2.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-md z-20" 
+                        className="absolute right-2 bottom-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all duration-150 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-lg p-0.5 shadow-md z-20" 
                         onClick={e => e.stopPropagation()}
                       >
                         {/* Pin toggle */}
                         <button 
                           onClick={() => handleTogglePin(notif.id)}
-                          className={`p-1.5 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${
+                          className={`p-1 rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${
                             notif.pinned ? 'text-amber-500' : 'text-slate-400 hover:text-slate-700 dark:hover:text-white'
                           }`}
                           title={notif.pinned ? (isVietnamese ? "Bỏ ghim" : "Unpin") : (isVietnamese ? "Ghim" : "Pin")}
                         >
-                          <Pin className="w-3.5 h-3.5 fill-current" />
+                          <Pin className="w-3 h-3 fill-current" />
                         </button>
 
                         {/* Read toggle */}
                         <button 
                           onClick={() => handleToggleRead(notif.id)}
-                          className="p-1.5 text-slate-400 hover:text-slate-800 dark:hover:text-white rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                          className="p-1 text-slate-400 hover:text-slate-800 dark:hover:text-white rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
                           title={notif.read ? (isVietnamese ? "Đánh dấu chưa đọc" : "Mark as unread") : (isVietnamese ? "Đã đọc" : "Mark as read")}
                         >
-                          {notif.read ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          {notif.read ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                         </button>
 
                         {/* Snooze button with popover */}
                         <div className="relative">
                           <button 
                             onClick={() => setShowSnoozeDropdownId(showSnoozeDropdownId === notif.id ? null : notif.id)}
-                            className={`p-1.5 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${
+                            className={`p-1 rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${
                               notif.snoozedUntil ? 'text-blue-600 dark:text-sky-300' : 'text-slate-400 hover:text-slate-700 dark:hover:text-white'
                             }`}
                             title={isVietnamese ? "Tạm ẩn" : "Snooze"}
                           >
-                            <Clock className="w-3.5 h-3.5" />
+                            <Clock className="w-3 h-3" />
                           </button>
 
                           {showSnoozeDropdownId === notif.id && (
                             <>
-                              <div className="fixed inset-0 z-20 cursor-default" onClick={(e) => { e.stopPropagation(); setShowSnoozeDropdownId(null); }} />
-                              <div className="absolute bottom-full right-0 mb-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-30 flex flex-col gap-1 text-xs min-w-[120px]">
-                                <button onClick={() => handleSnooze(notif.id, 2)} className="px-2.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl font-bold text-left text-slate-800 dark:text-slate-200">
+                              <div className="fixed inset-0 z-30 cursor-default" onClick={(e) => { e.stopPropagation(); setShowSnoozeDropdownId(null); }} />
+                              <div className="absolute bottom-full right-0 mb-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-1.5 z-40 flex flex-col gap-0.5 text-xs min-w-[130px]">
+                                <button onClick={() => handleSnooze(notif.id, 2)} className="px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-semibold text-left text-slate-700 dark:text-slate-200">
                                   {isVietnamese ? 'Sau 2 giờ' : 'In 2 hours'}
                                 </button>
-                                <button onClick={() => handleSnooze(notif.id, 24)} className="px-2.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl font-bold text-left text-slate-800 dark:text-slate-200">
+                                <button onClick={() => handleSnooze(notif.id, 24)} className="px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-semibold text-left text-slate-700 dark:text-slate-200">
                                   {isVietnamese ? 'Ngày mai' : 'Tomorrow'}
                                 </button>
-                                <button onClick={() => handleSnooze(notif.id, 168)} className="px-2.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl font-bold text-left text-slate-800 dark:text-slate-200">
+                                <button onClick={() => handleSnooze(notif.id, 168)} className="px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-semibold text-left text-slate-700 dark:text-slate-200">
                                   {isVietnamese ? 'Tuần tới' : 'Next week'}
                                 </button>
                               </div>
@@ -1169,18 +1196,18 @@ export default function InboxView({
                         {activeTab === 'cleared' ? (
                           <button 
                             onClick={() => handleRestore(notif.id)}
-                            className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-sky-300 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                            className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-sky-300 rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
                             title={isVietnamese ? "Khôi phục" : "Restore"}
                           >
-                            <ArchiveRestore className="w-3.5 h-3.5" />
+                            <ArchiveRestore className="w-3 h-3" />
                           </button>
                         ) : (
                           <button 
                             onClick={() => handleClear(notif.id)}
-                            className="p-1.5 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                            className="p-1 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
                             title={isVietnamese ? "Lưu trữ" : "Archive"}
                           >
-                            <Check className="w-3.5 h-3.5" />
+                            <Check className="w-3 h-3" />
                           </button>
                         )}
                       </div>
@@ -1211,14 +1238,22 @@ export default function InboxView({
 
         {/* Floating Capsule Bar for Multi-Select */}
         {selectedNotifIds.length > 0 && (
-          <div className="p-3 bg-slate-900/95 text-white dark:bg-white/95 dark:text-slate-900 backdrop-blur-xl rounded-2xl m-3 flex items-center justify-between shadow-2xl border border-white/10 dark:border-black/10">
-            <span className="text-xs font-black px-2">
-              {selectedNotifIds.length} {isVietnamese ? 'đã chọn' : 'selected'}
-            </span>
+          <div className="p-2.5 bg-slate-900/95 text-white dark:bg-white/95 dark:text-slate-900 backdrop-blur-xl rounded-2xl m-3 flex items-center justify-between shadow-2xl border border-white/10 dark:border-black/10 shrink-0">
             <div className="flex items-center gap-2">
+              <span className="text-xs font-black px-1.5">
+                {selectedNotifIds.length} {isVietnamese ? 'đã chọn' : 'selected'}
+              </span>
+              <button 
+                onClick={() => setSelectedNotifIds([])}
+                className="text-[11px] text-slate-400 hover:text-white dark:hover:text-black underline cursor-pointer"
+              >
+                {isVietnamese ? 'Bỏ chọn' : 'Deselect'}
+              </button>
+            </div>
+            <div className="flex items-center gap-1.5">
               <button 
                 onClick={handleMarkReadSelected}
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 dark:bg-slate-100 dark:hover:bg-slate-200 text-xs font-bold transition-all cursor-pointer"
+                className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 dark:bg-slate-100 dark:hover:bg-slate-200 text-xs font-bold transition-all cursor-pointer"
               >
                 {isVietnamese ? 'Đã đọc' : 'Mark Read'}
               </button>
@@ -1235,7 +1270,7 @@ export default function InboxView({
       </div>
 
       {/* ── Right Column: Detail & Productivity Hub ── */}
-      <div className={`apexa-inbox-detail flex-1 min-w-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-[28px] border border-slate-200/80 dark:border-slate-800/80 shadow-sm overflow-hidden flex flex-col relative ${
+      <div className={`apexa-inbox-detail flex-1 min-w-0 bg-white dark:bg-slate-900 shadow-none overflow-hidden flex flex-col relative ${
         selectedNotificationId ? 'flex' : 'hidden md:flex'
       }`}>
         
@@ -1340,224 +1375,536 @@ export default function InboxView({
         ) : selectedNotif ? (
           /* ── Case 2: Deep Master-Detail Inspector for Billing, System, Invites, Mentions ── */
           <div className="w-full h-full flex flex-col min-h-0 relative">
-            {/* Header */}
-            <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <button
-                  onClick={() => setSelectedNotificationId(null)}
-                  className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
-                  title={isVietnamese ? "Quay lại tổng quan" : "Back to Overview"}
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>{isVietnamese ? 'Tổng quan' : 'Overview'}</span>
-                </button>
-                <span className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">
-                  {isVietnamese ? 'Chi tiết thông báo' : 'Notification Details'}
-                </span>
-              </div>
+            {(() => {
+              const catMeta = getCategoryMeta(selectedNotif);
+              const isBilling = catMeta.key === 'billing';
+              const isMention = catMeta.key === 'comment';
+              const isDeadline = catMeta.key === 'deadline';
+              const IconComp = catMeta.icon;
+              const notifWorkspace = workspaces.find(w => w.id === selectedNotif.workspaceId);
+              const workspaceName = notifWorkspace?.name || (selectedNotif.workspaceId && selectedNotif.workspaceId !== 'all' ? selectedNotif.workspaceId : (isVietnamese ? 'Apexa Cloud' : 'Apexa Cloud'));
+              const refId = `#PAY-${selectedNotif.id.slice(-6).toUpperCase()}`;
 
-              <div className="flex items-center gap-2">
-                {selectedNotif.cleared ? (
-                  <button 
-                    onClick={() => handleRestore(selectedNotif.id)}
-                    className="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-sky-300 border border-blue-200/60 dark:border-blue-800/60 text-xs font-black cursor-pointer hover:bg-blue-100 transition-all"
-                  >
-                    {isVietnamese ? 'Khôi phục' : 'Restore'}
-                  </button>
-                ) : (
-                  <button 
-                    onClick={() => handleClear(selectedNotif.id)}
-                    className="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-sky-300 border border-blue-200/60 dark:border-blue-800/60 text-xs font-black cursor-pointer hover:bg-blue-100 transition-all flex items-center gap-1.5"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    <span>{isVietnamese ? 'Lưu trữ' : 'Archive'}</span>
-                  </button>
-                )}
-                <button 
-                  onClick={() => setSelectedNotificationId(null)} 
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+              return (
+                <>
+                  {/* Top Inspector Header */}
+                  <div className="px-4 sm:px-6 py-3 border-b border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md flex items-center justify-between shrink-0 gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <button
+                        onClick={() => setSelectedNotificationId(null)}
+                        className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer shrink-0"
+                        title={isVietnamese ? "Quay lại tổng quan" : "Back to Overview"}
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">{isVietnamese ? 'Tổng quan' : 'Overview'}</span>
+                      </button>
 
-            {/* Deep Inspector Body */}
-            <div className="flex-1 p-5 sm:p-7 space-y-5 overflow-y-auto custom-scrollbar text-left">
-              {(() => {
-                const catMeta = getCategoryMeta(selectedNotif);
-                const isBilling = catMeta.key === 'billing';
-                const isSystem = catMeta.key === 'system';
-                const isMention = catMeta.key === 'comment';
-                const IconComp = catMeta.icon;
+                      <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block shrink-0" />
 
-                return (
-                  <div className="space-y-5 max-w-3xl">
-                    
-                    {/* Category Specific Hero Card */}
-                    {isBilling ? (
-                      /* Billing & Transaction Inspector */
-                      <div className="p-6 bg-gradient-to-br from-emerald-50/90 via-teal-50/40 to-slate-50 dark:from-emerald-950/30 dark:via-teal-950/20 dark:to-slate-900 border border-emerald-200/80 dark:border-emerald-800/60 rounded-3xl space-y-4 shadow-sm">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="p-3 rounded-2xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700/60">
-                              <CreditCard className="w-6 h-6" />
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider shrink-0 ${catMeta.badge}`}>
+                          {catMeta.label}
+                        </span>
+                        <span className="text-xs font-black text-slate-900 dark:text-slate-100 truncate max-w-[180px] sm:max-w-xs md:max-w-md">
+                          {selectedNotif.title}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {/* Read / Unread toggle */}
+                      <button 
+                        onClick={() => handleToggleRead(selectedNotif.id)}
+                        className={`h-8 px-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
+                          selectedNotif.read
+                            ? 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                            : 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-sky-300 hover:bg-blue-100'
+                        }`}
+                        title={selectedNotif.read ? (isVietnamese ? "Đánh dấu chưa đọc" : "Mark as unread") : (isVietnamese ? "Đánh dấu đã đọc" : "Mark as read")}
+                      >
+                        {selectedNotif.read ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        <span className="hidden md:inline">{selectedNotif.read ? (isVietnamese ? 'Chưa đọc' : 'Unread') : (isVietnamese ? 'Đã đọc' : 'Read')}</span>
+                      </button>
+
+                      {/* Pin button */}
+                      <button
+                        onClick={() => handleTogglePin(selectedNotif.id)}
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center border transition-all cursor-pointer shadow-2xs ${
+                          selectedNotif.pinned
+                            ? 'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400'
+                            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700'
+                        }`}
+                        title={selectedNotif.pinned ? (isVietnamese ? "Bỏ ghim" : "Unpin") : (isVietnamese ? "Ghim" : "Pin")}
+                      >
+                        <Pin className={`w-3.5 h-3.5 ${selectedNotif.pinned ? 'fill-current rotate-45' : ''}`} />
+                      </button>
+
+                      {/* Snooze popover */}
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowSnoozeDropdownId(showSnoozeDropdownId === `detail-${selectedNotif.id}` ? null : `detail-${selectedNotif.id}`)}
+                          className="w-8 h-8 rounded-xl flex items-center justify-center border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700 transition-all cursor-pointer shadow-2xs"
+                          title={isVietnamese ? "Tạm ẩn" : "Snooze"}
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                        </button>
+                        {showSnoozeDropdownId === `detail-${selectedNotif.id}` && (
+                          <>
+                            <div className="fixed inset-0 z-30 cursor-default" onClick={() => setShowSnoozeDropdownId(null)} />
+                            <div className="absolute top-full right-0 mt-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-40 flex flex-col gap-1 text-xs min-w-[130px]">
+                              <button onClick={() => handleSnooze(selectedNotif.id, 2)} className="px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-bold text-left text-slate-800 dark:text-slate-200">
+                                {isVietnamese ? '⏰ Sau 2 giờ' : '⏰ In 2 hours'}
+                              </button>
+                              <button onClick={() => handleSnooze(selectedNotif.id, 24)} className="px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-bold text-left text-slate-800 dark:text-slate-200">
+                                {isVietnamese ? '☀️ Ngày mai' : '☀️ Tomorrow'}
+                              </button>
+                              <button onClick={() => handleSnooze(selectedNotif.id, 168)} className="px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-bold text-left text-slate-800 dark:text-slate-200">
+                                {isVietnamese ? '📅 Tuần tới' : '📅 Next week'}
+                              </button>
                             </div>
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-200/80 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 tracking-wider">
-                                  {isVietnamese ? 'Cổng Thanh toán' : 'Billing Gateway'}
-                                </span>
-                                <span className="text-[11px] text-slate-400 font-bold">
-                                  {selectedNotif.timestamp}
+                          </>
+                        )}
+                      </div>
+
+                      {/* Archive / Restore */}
+                      {selectedNotif.cleared ? (
+                        <button 
+                          onClick={() => handleRestore(selectedNotif.id)}
+                          className="h-8 px-3 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-sky-300 border border-blue-200 dark:border-blue-800 text-xs font-black cursor-pointer hover:bg-blue-100 transition-all flex items-center gap-1.5 shadow-2xs"
+                          title={isVietnamese ? "Khôi phục" : "Restore"}
+                        >
+                          <ArchiveRestore className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">{isVietnamese ? 'Khôi phục' : 'Restore'}</span>
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => handleClear(selectedNotif.id)}
+                          className="h-8 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-black cursor-pointer transition-all flex items-center gap-1.5 shadow-2xs"
+                          title={isVietnamese ? "Lưu trữ" : "Archive"}
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">{isVietnamese ? 'Lưu trữ' : 'Archive'}</span>
+                        </button>
+                      )}
+
+                      {/* Close button */}
+                      <button 
+                        onClick={() => setSelectedNotificationId(null)} 
+                        className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                        title={isVietnamese ? "Đóng chi tiết" : "Close"}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Inspector Body: Full-bleed Responsive Multi-Column Canvas */}
+                  <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto custom-scrollbar text-left bg-gradient-to-b from-slate-50/50 via-white to-slate-50/20 dark:from-slate-950/50 dark:via-slate-900 dark:to-slate-950/20">
+                    <div className="w-full max-w-7xl mx-auto">
+                      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+                        
+                        {/* Left / Main Workspace Content (8 cols) */}
+                        <div className="xl:col-span-8 space-y-6">
+                          
+                          {/* Hero Notification Banner */}
+                          {isBilling ? (
+                            /* Billing Hero Card */
+                            <div className="p-6 sm:p-7 bg-gradient-to-br from-emerald-50/90 via-teal-50/40 to-slate-50 dark:from-emerald-950/30 dark:via-teal-950/20 dark:to-slate-900 border border-emerald-200/90 dark:border-emerald-800/60 rounded-3xl space-y-5 shadow-xs">
+                              <div className="flex items-start justify-between gap-4 flex-wrap sm:flex-nowrap">
+                                <div className="flex items-center gap-3.5">
+                                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/70 text-emerald-700 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700/60 flex items-center justify-center shadow-xs shrink-0">
+                                    <CreditCard className="w-6 h-6" />
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-200/80 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 tracking-wider">
+                                        {isVietnamese ? 'Cổng Thanh toán' : 'Billing Gateway'}
+                                      </span>
+                                      <span className="text-xs text-slate-400 font-bold flex items-center gap-1">
+                                        <Clock className="w-3.5 h-3.5" />
+                                        {selectedNotif.timestamp}
+                                      </span>
+                                    </div>
+                                    <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-snug">
+                                      {selectedNotif.title}
+                                    </h2>
+                                  </div>
+                                </div>
+
+                                <span className="px-3 py-1.5 rounded-xl bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 text-xs font-black border border-amber-300/60 dark:border-amber-800/60 flex items-center gap-1.5 shrink-0">
+                                  <AlertTriangle className="w-4 h-4 text-amber-600 animate-pulse" />
+                                  <span>{isVietnamese ? 'Cần xử lý' : 'Action Required'}</span>
                                 </span>
                               </div>
-                              <h2 className="text-base font-black text-slate-900 dark:text-white leading-tight">
-                                {selectedNotif.title}
-                              </h2>
-                            </div>
-                          </div>
 
-                          <span className="px-2.5 py-1 rounded-xl bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 text-xs font-black border border-amber-300/60 dark:border-amber-800/60 flex items-center gap-1.5">
-                            <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                            <span>{isVietnamese ? 'Cần xử lý' : 'Action Required'}</span>
-                          </span>
+                              {/* Notification Body Message */}
+                              <div className="p-4 sm:p-5 bg-white/95 dark:bg-slate-950/90 border border-emerald-200/70 dark:border-emerald-900/50 rounded-2xl space-y-3 shadow-2xs">
+                                <p className="text-sm font-semibold leading-relaxed text-slate-800 dark:text-slate-200">
+                                  {selectedNotif.message}
+                                </p>
+                              </div>
+
+                              {/* Structured Metadata Grid */}
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div className="p-3.5 rounded-2xl bg-white/80 dark:bg-slate-950/80 border border-slate-200/80 dark:border-slate-800/80 flex flex-col justify-between shadow-2xs">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                    {isVietnamese ? 'Mã tham chiếu' : 'Reference ID'}
+                                  </span>
+                                  <div className="flex items-center justify-between gap-1 mt-1">
+                                    <span className="font-mono text-xs font-black text-slate-900 dark:text-white">{refId}</span>
+                                    <button
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(refId);
+                                        triggerToast?.('success', isVietnamese ? 'Đã sao chép' : 'Copied', refId);
+                                      }}
+                                      className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                      title={isVietnamese ? "Sao chép mã" : "Copy ID"}
+                                    >
+                                      <Copy className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div className="p-3.5 rounded-2xl bg-white/80 dark:bg-slate-950/80 border border-slate-200/80 dark:border-slate-800/80 flex flex-col justify-between shadow-2xs">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                    {isVietnamese ? 'Cổng giao dịch' : 'Payment Gateway'}
+                                  </span>
+                                  <span className="text-xs font-black text-slate-900 dark:text-white mt-1 truncate">
+                                    PayOS VietQR / Visa Master
+                                  </span>
+                                </div>
+
+                                <div className="p-3.5 rounded-2xl bg-white/80 dark:bg-slate-950/80 border border-slate-200/80 dark:border-slate-800/80 flex flex-col justify-between shadow-2xs">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                    {isVietnamese ? 'Không gian' : 'Workspace'}
+                                  </span>
+                                  <span className="text-xs font-black text-slate-900 dark:text-white mt-1 truncate">
+                                    {workspaceName}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Action Toolbar */}
+                              <div className="flex items-center gap-3 pt-2 flex-wrap">
+                                <button
+                                  onClick={onUpgradePremium}
+                                  className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 hover:opacity-95 text-white font-black text-xs shadow-md shadow-emerald-500/20 flex items-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
+                                >
+                                  <CreditCard className="w-4 h-4" />
+                                  <span>{isVietnamese ? 'Thử lại thanh toán / Nâng cấp gói' : 'Retry Payment / Upgrade Plan'}</span>
+                                </button>
+                                
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(`${selectedNotif.title}\n${selectedNotif.message}\nID: ${refId}\nWorkspace: ${workspaceName}`);
+                                    triggerToast?.('success', isVietnamese ? 'Đã sao chép' : 'Copied', isVietnamese ? 'Đã chép thông tin lỗi vào bộ nhớ đệm.' : 'Copied error info.');
+                                  }}
+                                  className="px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                  <span>{isVietnamese ? 'Sao chép thông tin lỗi' : 'Copy Error Details'}</span>
+                                </button>
+
+                                <button
+                                  onClick={() => handleClear(selectedNotif.id)}
+                                  className="px-4 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>{isVietnamese ? 'Đã giải quyết & Lưu trữ' : 'Mark Resolved'}</span>
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            /* General Hero Card for Other Categories */
+                            <div className="p-6 sm:p-7 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl space-y-5 shadow-xs">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-center gap-3.5">
+                                  <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center shadow-xs shrink-0 ${catMeta.bg} ${catMeta.color} ${catMeta.border}`}>
+                                    <IconComp className="w-6 h-6" />
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                      <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${catMeta.badge}`}>
+                                        {catMeta.label}
+                                      </span>
+                                      <span className="text-xs text-slate-400 font-bold flex items-center gap-1">
+                                        <Clock className="w-3.5 h-3.5" />
+                                        {selectedNotif.timestamp}
+                                      </span>
+                                    </div>
+                                    <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-snug">
+                                      {selectedNotif.title}
+                                    </h2>
+                                  </div>
+                                </div>
+
+                                <button 
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(`${selectedNotif.title}\n\n${selectedNotif.message}`);
+                                    triggerToast?.('success', isVietnamese ? 'Đã sao chép' : 'Copied', isVietnamese ? 'Đã chép nội dung thông báo vào bộ nhớ đệm.' : 'Copied to clipboard.');
+                                  }}
+                                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-2xs"
+                                  title={isVietnamese ? "Sao chép nội dung" : "Copy content"}
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </button>
+                              </div>
+
+                              <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-950/80 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl text-sm font-medium leading-relaxed text-slate-700 dark:text-slate-300">
+                                {selectedNotif.message}
+                              </div>
+
+                              <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80 text-xs flex-wrap gap-2">
+                                <span className="text-xs text-slate-400 font-medium">
+                                  {isVietnamese ? 'Trạng thái: ' : 'Status: '}
+                                  <strong className="text-slate-700 dark:text-slate-300">
+                                    {selectedNotif.read ? (isVietnamese ? 'Đã đọc' : 'Read') : (isVietnamese ? 'Mới' : 'Unread')}
+                                  </strong>
+                                </span>
+
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => handleToggleRead(selectedNotif.id)}
+                                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
+                                  >
+                                    {selectedNotif.read ? (isVietnamese ? 'Đánh dấu chưa đọc' : 'Mark unread') : (isVietnamese ? 'Đánh dấu đã đọc' : 'Mark read')}
+                                  </button>
+                                  <button
+                                    onClick={() => handleClear(selectedNotif.id)}
+                                    className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+                                  >
+                                    <Check className="w-3.5 h-3.5" />
+                                    <span>{isVietnamese ? 'Lưu trữ' : 'Archive'}</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Actionable Troubleshooting Guide (For Billing) */}
+                          {isBilling ? (
+                            <div className="p-5 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl space-y-4 shadow-xs">
+                              <div className="flex items-center gap-2.5">
+                                <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60">
+                                  <ShieldCheck className="w-4 h-4" />
+                                </div>
+                                <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                                  {isVietnamese ? 'Hướng dẫn xử lý sự cố đề xuất' : 'Recommended Troubleshooting Steps'}
+                                </h3>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 space-y-2">
+                                  <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 font-black text-xs flex items-center justify-center">
+                                    1
+                                  </div>
+                                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">
+                                    {isVietnamese ? 'Kiểm tra tài khoản' : 'Check Account Balance'}
+                                  </h4>
+                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                                    {isVietnamese ? 'Xác nhận số dư tài khoản ngân hàng hoặc hạn mức tín dụng còn đủ chi trả.' : 'Verify that your bank balance or card credit limit is sufficient.'}
+                                  </p>
+                                </div>
+
+                                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 space-y-2">
+                                  <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 font-black text-xs flex items-center justify-center">
+                                    2
+                                  </div>
+                                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">
+                                    {isVietnamese ? 'Quét lại VietQR / Thẻ' : 'Retry via VietQR / Card'}
+                                  </h4>
+                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                                    {isVietnamese ? 'Nhấn nút "Thử lại thanh toán" để nhận mã VietQR mới hoặc đổi phương thức khác.' : 'Click "Retry Payment" to generate a fresh QR code or switch method.'}
+                                  </p>
+                                </div>
+
+                                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 space-y-2">
+                                  <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 font-black text-xs flex items-center justify-center">
+                                    3
+                                  </div>
+                                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">
+                                    {isVietnamese ? 'Liên hệ hỗ trợ' : 'Contact Support'}
+                                  </h4>
+                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                                    {isVietnamese ? 'Nếu đã trừ tiền, hãy sao chép mã tham chiếu và gửi bộ phận chăm sóc khách hàng.' : 'If debited, copy the reference ID and message support for manual activation.'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {/* Mention / Discussion Specific Interactive Quick Reply */}
+                          {isMention && (
+                            <div className="p-5 sm:p-6 rounded-3xl bg-sky-50/70 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-800/50 space-y-4 shadow-xs">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2.5">
+                                  <MessageSquare className="w-4 h-4 text-sky-600" />
+                                  <span className="text-xs font-bold text-sky-900 dark:text-sky-200">
+                                    {isVietnamese ? 'Thảo luận này thuộc một công việc hoặc tài liệu chung.' : 'This mention is from a shared workspace conversation.'}
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() => onNavigateToTab?.('chat')}
+                                  className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-black shadow-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                                >
+                                  <span>{isVietnamese ? 'Mở Chat' : 'Open Chat'}</span>
+                                  <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Deadline Specific Quick Navigation */}
+                          {isDeadline && (
+                            <div className="p-5 sm:p-6 rounded-3xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/50 flex items-center justify-between gap-3 shadow-xs">
+                              <div className="flex items-center gap-2.5">
+                                <Flame className="w-4 h-4 text-amber-600" />
+                                <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                                  {isVietnamese ? 'Hạn chót công việc đang đến gần. Vui lòng kiểm tra tiến độ.' : 'Deadline is approaching. Please review and update task status.'}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => onNavigateToTab?.('tasks')}
+                                className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-black shadow-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                              >
+                                <span>{isVietnamese ? 'Xem công việc' : 'View Tasks'}</span>
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+
                         </div>
 
-                        {/* Diagnostic Explanation */}
-                        <div className="p-4 bg-white/90 dark:bg-slate-950/90 border border-emerald-200/70 dark:border-emerald-900/50 rounded-2xl space-y-2.5 text-xs text-slate-700 dark:text-slate-200">
-                          <p className="font-semibold leading-relaxed">
-                            {selectedNotif.message}
-                          </p>
-                          <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200/70 dark:border-slate-800 space-y-1.5 text-[11px]">
-                            <div className="flex items-center justify-between text-slate-500">
-                              <span>{isVietnamese ? 'Mã tham chiếu' : 'Reference ID'}:</span>
-                              <span className="font-mono font-bold text-slate-800 dark:text-slate-200">#PAY-{selectedNotif.id.slice(-6).toUpperCase()}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-slate-500">
-                              <span>{isVietnamese ? 'Cổng giao dịch' : 'Payment Gateway'}:</span>
-                              <span className="font-bold text-slate-800 dark:text-slate-200">PayOS VietQR / Visa Master</span>
-                            </div>
-                            <div className="flex items-center justify-between text-slate-500">
-                              <span>{isVietnamese ? 'Không gian' : 'Workspace'}:</span>
-                              <span className="font-bold text-slate-800 dark:text-slate-200">{selectedNotif.workspaceId || 'Apexa Cloud'}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Action Toolbar */}
-                        <div className="flex items-center gap-3 pt-2 flex-wrap">
-                          <button
-                            onClick={onUpgradePremium}
-                            className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 hover:opacity-95 text-white font-black text-xs shadow-md shadow-emerald-500/20 flex items-center gap-2 cursor-pointer transition-all"
-                          >
-                            <CreditCard className="w-4 h-4" />
-                            <span>{isVietnamese ? 'Thử lại thanh toán / Nâng cấp gói' : 'Retry Payment / Upgrade Plan'}</span>
-                          </button>
+                        {/* Right Sidebar: Context & Metadata & Shortcuts (4 cols) */}
+                        <div className="xl:col-span-4 space-y-5">
                           
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(`${selectedNotif.title}\n${selectedNotif.message}\nID: #PAY-${selectedNotif.id.slice(-6).toUpperCase()}`);
-                              triggerToast?.('success', isVietnamese ? 'Đã sao chép' : 'Copied', isVietnamese ? 'Đã chép thông tin lỗi vào bộ nhớ đệm.' : 'Copied error info.');
-                            }}
-                            className="px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                            <span>{isVietnamese ? 'Sao chép thông tin lỗi' : 'Copy Error Details'}</span>
-                          </button>
-
-                          <button
-                            onClick={() => handleClear(selectedNotif.id)}
-                            className="px-4 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                            <span>{isVietnamese ? 'Đã giải quyết & Lưu trữ' : 'Mark Resolved'}</span>
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      /* General & System Inspector */
-                      <div className="p-6 bg-gradient-to-b from-white to-slate-50/60 dark:from-slate-900 dark:to-slate-950/60 border border-slate-200/80 dark:border-slate-800 rounded-3xl space-y-4 shadow-sm">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className={`p-3 rounded-2xl border ${catMeta.bg} ${catMeta.color} ${catMeta.border}`}>
-                              <IconComp className="w-6 h-6" />
+                          {/* Card 1: Context & Source Info */}
+                          <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl space-y-4 shadow-xs">
+                            <div className="flex items-center gap-2">
+                              <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-sky-400" />
+                              <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                                {isVietnamese ? 'Ngữ cảnh thông báo' : 'Context & Metadata'}
+                              </h3>
                             </div>
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
+
+                            <div className="space-y-2.5 text-xs">
+                              <div className="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-800/80">
+                                <span className="text-slate-400 font-semibold">{isVietnamese ? 'Không gian' : 'Workspace'}</span>
+                                <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                                  <Layers className="w-3 h-3 text-slate-400" />
+                                  {workspaceName}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-800/80">
+                                <span className="text-slate-400 font-semibold">{isVietnamese ? 'Phân loại' : 'Category'}</span>
                                 <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${catMeta.badge}`}>
                                   {catMeta.label}
                                 </span>
-                                <span className="text-[11px] text-slate-400 font-bold">
-                                  {selectedNotif.timestamp}
+                              </div>
+
+                              <div className="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-800/80">
+                                <span className="text-slate-400 font-semibold">{isVietnamese ? 'Thời gian nhận' : 'Received At'}</span>
+                                <span className="font-bold text-slate-800 dark:text-slate-200">{selectedNotif.timestamp}</span>
+                              </div>
+
+                              <div className="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-800/80">
+                                <span className="text-slate-400 font-semibold">{isVietnamese ? 'Trạng thái' : 'Status'}</span>
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                                  selectedNotif.read 
+                                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300' 
+                                    : 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-sky-300'
+                                }`}>
+                                  {selectedNotif.read ? (isVietnamese ? 'Đã đọc' : 'Read') : (isVietnamese ? 'Chưa đọc' : 'Unread')}
                                 </span>
                               </div>
-                              <h2 className="text-base font-black text-slate-900 dark:text-white leading-tight">
-                                {selectedNotif.title}
-                              </h2>
+
+                              <div className="flex items-center justify-between py-1.5">
+                                <span className="text-slate-400 font-semibold">{isVietnamese ? 'Ghim ưu tiên' : 'Pinned'}</span>
+                                <span className="font-bold text-slate-800 dark:text-slate-200">
+                                  {selectedNotif.pinned ? (isVietnamese ? '⭐ Đã ghim' : '⭐ Pinned') : (isVietnamese ? 'Chưa' : 'No')}
+                                </span>
+                              </div>
                             </div>
                           </div>
 
-                          <button 
-                            onClick={() => {
-                              navigator.clipboard.writeText(`${selectedNotif.title}\n\n${selectedNotif.message}`);
-                              triggerToast?.('success', isVietnamese ? 'Đã sao chép' : 'Copied', isVietnamese ? 'Đã chép nội dung thông báo vào bộ nhớ đệm.' : 'Copied to clipboard.');
-                            }}
-                            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                            title={isVietnamese ? "Sao chép nội dung" : "Copy content"}
-                          >
-                            <Copy className="w-4 h-4" />
-                          </button>
-                        </div>
+                          {/* Card 2: Quick Actions Panel */}
+                          <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl space-y-3.5 shadow-xs">
+                            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                              {isVietnamese ? 'Thao tác nhanh' : 'Quick Actions'}
+                            </h3>
 
-                        <div className="p-4 bg-white dark:bg-slate-950/80 border border-slate-200/80 dark:border-slate-800 rounded-2xl text-xs font-medium leading-relaxed text-slate-700 dark:text-slate-300">
-                          {selectedNotif.message}
-                        </div>
+                            <div className="space-y-2">
+                              <button
+                                onClick={() => handleToggleRead(selectedNotif.id)}
+                                className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/70 dark:border-slate-700/60 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between transition-all cursor-pointer"
+                              >
+                                <span className="flex items-center gap-2">
+                                  {selectedNotif.read ? <EyeOff className="w-3.5 h-3.5 text-slate-400" /> : <Eye className="w-3.5 h-3.5 text-blue-500" />}
+                                  <span>{selectedNotif.read ? (isVietnamese ? 'Đánh dấu chưa đọc' : 'Mark as unread') : (isVietnamese ? 'Đánh dấu đã đọc' : 'Mark as read')}</span>
+                                </span>
+                                <kbd className="text-[10px] font-mono text-slate-400 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border">R</kbd>
+                              </button>
 
-                        {/* Notification Footer Actions */}
-                        <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
-                          <span className="text-[11px] text-slate-400 font-medium">
-                            {isVietnamese ? 'Trạng thái: ' : 'Status: '}
-                            <strong className="text-slate-700 dark:text-slate-300">
-                              {selectedNotif.read ? (isVietnamese ? 'Đã đọc' : 'Read') : (isVietnamese ? 'Mới' : 'Unread')}
-                            </strong>
-                          </span>
+                              <button
+                                onClick={() => handleTogglePin(selectedNotif.id)}
+                                className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/70 dark:border-slate-700/60 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between transition-all cursor-pointer"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <Pin className={`w-3.5 h-3.5 ${selectedNotif.pinned ? 'text-amber-500 fill-current' : 'text-slate-400'}`} />
+                                  <span>{selectedNotif.pinned ? (isVietnamese ? 'Bỏ ghim thông báo' : 'Unpin notification') : (isVietnamese ? 'Ghim lên đầu' : 'Pin to top')}</span>
+                                </span>
+                              </button>
 
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleToggleRead(selectedNotif.id)}
-                              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
-                            >
-                              {selectedNotif.read ? (isVietnamese ? 'Đánh dấu chưa đọc' : 'Mark unread') : (isVietnamese ? 'Đánh dấu đã đọc' : 'Mark read')}
-                            </button>
+                              <button
+                                onClick={() => handleClear(selectedNotif.id)}
+                                className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/70 dark:border-slate-700/60 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between transition-all cursor-pointer"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <Archive className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>{isVietnamese ? 'Lưu trữ thông báo' : 'Archive notification'}</span>
+                                </span>
+                                <kbd className="text-[10px] font-mono text-slate-400 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border">E</kbd>
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    )}
 
-                    {/* Context Shortcuts if Comment or Mention */}
-                    {isMention && (
-                      <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-800/50 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2.5">
-                          <MessageSquare className="w-4 h-4 text-sky-600" />
-                          <span className="text-xs font-bold text-sky-900 dark:text-sky-200">
-                            {isVietnamese ? 'Thảo luận này thuộc một công việc hoặc tài liệu chung.' : 'This mention is from a shared workspace conversation.'}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => onNavigateToTab?.('chat')}
-                          className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-black shadow-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
-                        >
-                          <span>{isVietnamese ? 'Mở Chat' : 'Open Chat'}</span>
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
+                          {/* Card 3: Keyboard Shortcuts Guide */}
+                          <div className="p-4 bg-slate-50/70 dark:bg-slate-950/50 border border-slate-200/70 dark:border-slate-800/70 rounded-3xl space-y-2.5 text-xs">
+                            <span className="text-[10.5px] font-black uppercase tracking-wider text-slate-400 block">
+                              {isVietnamese ? 'Phím tắt bàn phím' : 'Keyboard Shortcuts'}
+                            </span>
+                            <div className="space-y-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                              <div className="flex items-center justify-between">
+                                <span>{isVietnamese ? 'Di chuyển lên/xuống' : 'Navigate up/down'}</span>
+                                <div className="flex gap-1">
+                                  <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border font-mono">J</kbd>
+                                  <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border font-mono">K</kbd>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span>{isVietnamese ? 'Lưu trữ' : 'Archive'}</span>
+                                <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border font-mono">E</kbd>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span>{isVietnamese ? 'Đã đọc / Chưa đọc' : 'Toggle read'}</span>
+                                <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border font-mono">R</kbd>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span>{isVietnamese ? 'Đóng chi tiết' : 'Close details'}</span>
+                                <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border font-mono">Esc</kbd>
+                              </div>
+                            </div>
+                          </div>
 
+                        </div>
+
+                      </div>
+                    </div>
                   </div>
-                );
-              })()}
-            </div>
+                </>
+              );
+            })()}
           </div>
         ) : (
           /* ── Case 3: World-Class Productivity & Focus Command Hub ── */

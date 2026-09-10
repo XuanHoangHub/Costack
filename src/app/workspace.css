@@ -67,7 +67,8 @@
 .apexa-app-shell.apexa-design-system .apexa-route-canvas .text-\[11px\] { font-size: 12px; }
 .apexa-app-shell.apexa-design-system .apexa-route-canvas .tracking-widest { letter-spacing: .07em; }
 .apexa-app-shell.apexa-design-system .apexa-route-canvas :where(p, td, [contenteditable="true"]) { user-select: text; }
-.apexa-app-shell.apexa-design-system :where(button, input, select, textarea, a, summary):focus-visible {
+.apexa-app-shell.apexa-design-system :where(button, select, textarea, a, summary):focus-visible,
+.apexa-app-shell.apexa-design-system input:not([data-no-focus-outline="true"]):not(.border-none):not(.outline-none):not(.apexa-search-input):focus-visible {
   outline: 2px solid #5687f1;
   outline-offset: 3px;
 }
@@ -190,9 +191,9 @@
 .apexa-app-shell.apexa-design-system .apexa-dashboard-panel { background: var(--cu-surface); border-color: var(--cu-border); box-shadow: var(--cu-shadow-xs); border-radius: 16px; }
 
 /* Inbox, documents, chat and team share the same surface rhythm. */
-.apexa-app-shell.apexa-design-system .apexa-inbox { gap: 16px; padding: 20px; background: var(--cu-bg); }
-.apexa-app-shell.apexa-design-system .apexa-inbox-list { border-radius: 14px; border-color: var(--cu-border); box-shadow: none; }
-.apexa-app-shell.apexa-design-system .apexa-inbox-detail { border-radius: 14px; border-color: var(--cu-border); box-shadow: none; }
+.apexa-app-shell.apexa-design-system .apexa-inbox { gap: 0; padding: 0; background: var(--cu-surface); height: 100%; width: 100%; }
+.apexa-app-shell.apexa-design-system .apexa-inbox-list { border-radius: 0; border-top: 0; border-bottom: 0; border-left: 0; border-right: 1px solid var(--cu-border); box-shadow: none; background: var(--cu-surface); }
+.apexa-app-shell.apexa-design-system .apexa-inbox-detail { border-radius: 0; border: 0; box-shadow: none; background: var(--cu-surface); }
 .apexa-app-shell.apexa-design-system .apexa-inbox-welcome { background: var(--cu-primary-subtle); color: var(--cu-text-primary); border: 1px solid var(--cu-border); box-shadow: none; border-radius: 12px; }
 .apexa-app-shell.apexa-design-system .apexa-inbox-welcome :where(h1, h2, h3, p, span, strong) { color: inherit; }
 .apexa-app-shell.apexa-design-system .apexa-chat { min-height: 0; border-radius: 0; border: 0; box-shadow: none; background: var(--cu-surface); }
@@ -238,8 +239,8 @@
   .apexa-app-shell.apexa-design-system .apexa-dashboard-hero { padding: 18px; }
   .apexa-app-shell.apexa-design-system .apexa-dashboard-kpi { padding: 16px; min-height: 130px; }
   .apexa-app-shell.apexa-design-system .apexa-module-header { padding: 16px; border-radius: 12px; }
-  .apexa-app-shell.apexa-design-system .apexa-module-toolbar { align-items: stretch; }
-  .apexa-app-shell.apexa-design-system .apexa-inbox { padding: 12px; gap: 12px; }
+  .apexa-app-shell.apexa-design-system .apexa-inbox { padding: 0; gap: 0; }
+  .apexa-app-shell.apexa-design-system .apexa-inbox-list { border-right: none; }
   .apexa-app-shell.apexa-design-system .apexa-route-canvas :where(input:not([type="checkbox"]):not([type="radio"]), textarea, select) { font-size: 16px; }
   .apexa-task-dialog :where(input:not([type="checkbox"]), textarea, select) { font-size: 16px; }
   .apexa-task-dialog .apexa-task-properties { padding: 16px; }

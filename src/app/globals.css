@@ -4,10 +4,11 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: var(--font-sans), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-display: var(--font-display), var(--font-sans), "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-inter), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-plus-jakarta), "Plus Jakarta Sans", var(--font-inter), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-serif: "Newsreader", "Charter", "Georgia", "Cambria", "Times New Roman", serif;
-  --font-mono: var(--font-mono), "JetBrains Mono", ui-monospace, monospace;
+  --font-mono: var(--font-geist-mono), var(--font-jetbrains-mono), "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --font-numeric: var(--font-geist-mono), var(--font-jetbrains-mono), "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* Custom slate shades dynamically bound to theme variables */
   --color-slate-50: var(--slate-50, #f8fafc);
@@ -135,6 +136,12 @@
 
 :root {
   color-scheme: light;
+  --font-sans: var(--font-inter), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-plus-jakarta), "Plus Jakarta Sans", var(--font-inter), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Newsreader", "Charter", "Georgia", "Cambria", "Times New Roman", serif;
+  --font-mono: var(--font-geist-mono), var(--font-jetbrains-mono), "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --font-numeric: var(--font-geist-mono), var(--font-jetbrains-mono), "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
   /* ── Apexa Modern Blue Design Tokens ── */
   --cu-primary: #2563EB;
   --cu-primary-hover: #1D4ED8;
@@ -333,6 +340,25 @@ html.dark, html.dark body {
   background-color: var(--cu-bg);
   color: #f8fafc;
   color-scheme: dark;
+}
+
+/* ── Modern Number & Monospace Typography ── */
+.font-mono,
+[data-font-mono] {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.font-numeric {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
 /* Accessible keyboard entry point shared by the public site and product shell. */
@@ -715,12 +741,20 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur'] {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(100, 116, 139, 0.25);
   border-radius: 9999px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(100, 116, 139, 0.45);
+}
+
+:is(.dark, [data-theme="dark"]) .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+:is(.dark, [data-theme="dark"]) .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
 }
 
 @keyframes orbit-clockwise {
@@ -2048,7 +2082,8 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur'] {
   -webkit-tap-highlight-color: transparent;
 }
 
-.apexa-app-shell :where(button, a, input, textarea, select, [role="button"], [role="tab"]):focus-visible {
+.apexa-app-shell :where(button, a, textarea, select, [role="button"], [role="tab"]):focus-visible,
+.apexa-app-shell input:not([data-no-focus-outline="true"]):not(.border-none):not(.outline-none):not(.apexa-search-input):focus-visible {
   outline: 2px solid color-mix(in srgb, var(--cu-primary) 82%, white);
   outline-offset: 2px;
 }
@@ -2547,15 +2582,14 @@ input[type="checkbox"]:not(.sr-only):disabled {
 }
 
 .apexa-board-controls {
-  border-color: var(--space-border) !important;
-  border-radius: 12px !important;
-  background: var(--space-surface) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
 .dark .apexa-board-controls {
-  background: rgba(255, 255, 255, 0.03) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: transparent !important;
+  border: 0 !important;
 }
 
 .apexa-board-column {
@@ -2918,7 +2952,8 @@ input[type="checkbox"]:not(.sr-only):disabled {
 }
 
 .apexa-space-pulse-track[role="progressbar"]:focus-visible,
-.apexa-space-shell :where(button, input, select, textarea, [role="tab"]):focus-visible {
+.apexa-space-shell :where(button, select, textarea, [role="tab"]):focus-visible,
+.apexa-space-shell input:not([data-no-focus-outline="true"]):not(.border-none):not(.outline-none):not(.apexa-search-input):focus-visible {
   outline: 2px solid color-mix(in srgb, #2563eb 72%, white);
   outline-offset: 2px;
 }
@@ -3489,6 +3524,13 @@ input:focus, textarea:focus, select:focus,
 input:focus-visible, textarea:focus-visible, select:focus-visible {
   outline: none !important;
   box-shadow: none;
+}
+:where(input[data-no-focus-outline="true"], input.border-none, input.outline-none, .apexa-search-input),
+:where(input[data-no-focus-outline="true"], input.border-none, input.outline-none, .apexa-search-input):focus,
+:where(input[data-no-focus-outline="true"], input.border-none, input.outline-none, .apexa-search-input):focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
 }
 
 

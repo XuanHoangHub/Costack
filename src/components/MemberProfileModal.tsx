@@ -413,7 +413,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
           role="dialog"
           aria-modal="true"
           aria-labelledby="member-profile-title"
-          className="relative w-full max-w-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-[32px] shadow-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden z-10 flex flex-col max-h-[90vh] text-slate-800 dark:text-slate-100"
+          className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-[32px] shadow-2xl border border-slate-200 dark:border-zinc-800 overflow-hidden z-10 flex flex-col max-h-[90vh] text-slate-800 dark:text-slate-100"
         >
           {/* Header Banner (Custom image or Mesh gradient) */}
           <div 

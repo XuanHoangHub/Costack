@@ -16,7 +16,11 @@ import {
   PointerSensor, 
   TouchSensor, 
   KeyboardSensor,
-  closestCorners
+  closestCorners,
+  pointerWithin,
+  rectIntersection,
+  defaultDropAnimationSideEffects,
+  DropAnimation
 } from '@dnd-kit/core';
 import { 
   SortableContext, 
@@ -28,7 +32,6 @@ import { Task, User, TaskStatus, Priority, Workspace } from '../../types';
 import SignedImage from '../SignedImage';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { getStoredStatuses, getStoredPriorities, OptionConfig, getLocalizedOptionLabel, getColorOption, saveStatuses, savePriorities, COLOR_PALETTE, DEFAULT_STATUSES, DEFAULT_PRIORITIES } from '../../utils/fieldConfig';
-import { motion } from 'motion/react';
 import { useUiStore } from '../../store/uiStore';
 import { Select } from '../ui/Select';
 
@@ -42,6 +45,18 @@ function Portal({ children }: { children: React.ReactNode }) {
   return createPortal(children, document.body);
 }
 
+const dropAnimationConfig: DropAnimation = {
+  sideEffects: defaultDropAnimationSideEffects({
+    styles: {
+      active: {
+        opacity: '0.35',
+      },
+    },
+  }),
+  duration: 160,
+  easing: 'cubic-bezier(0.2, 0, 0, 1)',
+};
+
 import { useDroppable } from '@dnd-kit/core';
 
 function KanbanColumn({ id, children, isOver }: { id: string; children: React.ReactNode; isOver?: boolean }) {
@@ -50,8 +65,8 @@ function KanbanColumn({ id, children, isOver }: { id: string; children: React.Re
   return (
     <div 
       ref={setNodeRef}
-      className={`flex-1 space-y-2 min-h-[150px] transition-all duration-200 rounded-[var(--ax-radius-xl)] p-2 overflow-y-auto max-h-[calc(100vh-260px)] custom-scrollbar ${
-        isOver ? 'bg-[var(--cu-primary-subtle)] ring-2 ring-[var(--cu-primary)]/30 ring-dashed' : 'bg-transparent'
+      className={`flex-1 space-y-2.5 min-h-[200px] transition-colors duration-150 rounded-2xl p-1 overflow-y-auto max-h-[calc(100vh-250px)] custom-scrollbar ${
+        isOver ? 'bg-indigo-50/50 dark:bg-indigo-950/40 ring-2 ring-indigo-500/40 ring-dashed' : 'bg-transparent'
       }`}
     >
       {children}
@@ -98,12 +113,21 @@ function KanbanCard({
     transform,
     transition,
     isDragging
-  } = useSortable({ id: task.id });
+  } = useSortable({ 
+    id: task.id,
+    transition: {
+      duration: 160,
+      easing: 'cubic-bezier(0.2, 0, 0, 1)',
+    }
+  });
 
-  const style = {
-    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
-    transition,
-    opacity: isDragging ? 0.35 : undefined,
+  const isCardDragging = isDragging;
+  const style: React.CSSProperties = {
+    transform: !isCardDragging && transform ? `translate3d(${Math.round(transform.x)}px, ${Math.round(transform.y)}px, 0)` : undefined,
+    transition: isCardDragging ? 'none' : transition,
+    opacity: isCardDragging ? 0.35 : 1,
+    zIndex: isCardDragging ? 0 : undefined,
+    willChange: transform ? 'transform' : undefined,
   };
 
   const assigneeIds = task.assigneeIds || (task.assigneeId ? [task.assigneeId] : []);
@@ -126,13 +150,15 @@ function KanbanCard({
       style={style} 
       className="outline-none"
     >
-      <motion.div 
+      <div 
         onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
         {...attributes}
         {...listeners}
-        whileHover={{ y: -2, scale: 1.008 }}
-        whileTap={{ scale: 0.985 }}
-        className={`group relative bg-[var(--cu-surface)] rounded-[var(--ax-radius-xl)] border border-[var(--cu-border)] hover:border-[var(--cu-primary)]/40 shadow-[var(--ax-shadow-xs)] hover:shadow-[var(--ax-shadow-md)] border-l-[3.5px] ${dynamicPriorityColors[task.priority] || PRIORITY_COLORS[task.priority]} cursor-grab active:cursor-grabbing transition-all duration-150 ${selectedTaskIds.includes(task.id) ? 'ring-2 ring-[var(--cu-primary)] border-[var(--cu-primary)]' : ''} overflow-hidden`}
+        className={`group relative bg-white dark:bg-[#18181b] rounded-2xl border ${
+          isCardDragging 
+            ? 'border-2 border-dashed border-indigo-400/80 bg-indigo-50/20 dark:bg-indigo-950/20 shadow-none pointer-events-none' 
+            : 'border-slate-200/80 dark:border-white/[0.08] hover:border-indigo-400/60 dark:hover:border-indigo-500/50 shadow-xs hover:shadow-md'
+        } border-l-[3.5px] ${dynamicPriorityColors[task.priority] || PRIORITY_COLORS[task.priority]} cursor-grab active:cursor-grabbing hover:-translate-y-0.5 active:scale-[0.99] transition-[border-color,box-shadow,background-color,transform] duration-150 ${selectedTaskIds.includes(task.id) ? 'ring-2 ring-indigo-500 border-indigo-500' : ''} overflow-hidden select-none`}
       >
         {imageAttachment && (
           <div className="w-full relative overflow-hidden bg-slate-50 dark:bg-slate-950" style={{ height: localCardSize === 'small' ? '65px' : localCardSize === 'large' ? '120px' : '90px' }}>
@@ -164,31 +190,7 @@ function KanbanCard({
 
                   {/* Quick Action Buttons on Hover */}
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {activeTimerTaskId === task.id ? (
-                      <button
-                        type="button"
-                        onClick={e => {
-                          e.stopPropagation();
-                          if (onStopGlobalTimer) onStopGlobalTimer();
-                        }}
-                        className="p-1 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 cursor-pointer transition-all hover:bg-rose-100 border border-rose-200/50"
-                        title="Dừng bấm giờ"
-                      >
-                        <Clock className="w-3 h-3 text-rose-500 animate-spin" />
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={e => {
-                          e.stopPropagation();
-                          if (onStartGlobalTimer) onStartGlobalTimer(task.id);
-                        }}
-                        className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-emerald-600 cursor-pointer transition-all"
-                        title="Bắt đầu bấm giờ"
-                      >
-                        <Play className="w-3 h-3 text-emerald-500 fill-emerald-500" />
-                      </button>
-                    )}
+
 
                     {onAddTask && (
                       <button
@@ -266,10 +268,8 @@ function KanbanCard({
 
               {/* Task Title & Complete Toggle */}
               <div className="flex items-start gap-2.5 mt-1.5">
-                <motion.button
+                <button
                   type="button"
-                  whileHover={{ scale: 1.15 }}
-                  whileTap={{ scale: 0.9 }}
                   onClick={(e) => {
                     e.stopPropagation();
                     const newStatus = task.status === 'completed' ? 'todo' : 'completed';
@@ -279,14 +279,14 @@ function KanbanCard({
                       (window as any).playSystemSound?.('toggle');
                     }
                   }}
-                  className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all mt-0.5 ${
+                  className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all duration-150 hover:scale-110 active:scale-95 mt-0.5 ${
                     task.status === 'completed'
                       ? 'border-emerald-500 bg-emerald-500 text-white shadow-[0_0_8px_rgba(16,185,129,0.35)]'
                       : 'border-slate-300 dark:border-slate-600 bg-transparent text-transparent hover:border-emerald-500 hover:text-emerald-500'
                   }`}
                 >
                   <Check className={`w-2 h-2 text-white dark:text-slate-100 transition-transform duration-200 ${task.status === 'completed' ? 'scale-100' : 'scale-0'}`} strokeWidth={3} />
-                </motion.button>
+                </button>
 
                 <div className="flex-1 min-w-0">
                   {inlineEditTaskId === task.id ? (
@@ -345,11 +345,9 @@ function KanbanCard({
                     <span className="font-extrabold text-indigo-600 dark:text-indigo-400">{completedSubtasks}/{subtasks.length} ({subtaskPercent}%)</span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-200/70 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <motion.div 
-                      className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${subtaskPercent}%` }}
-                      transition={{ duration: 0.4, ease: 'easeOut' }}
+                    <div 
+                      className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-[width] duration-300 ease-out"
+                      style={{ width: `${subtaskPercent}%` }}
                     />
                   </div>
                 </div>
@@ -412,7 +410,7 @@ function KanbanCard({
             </>
           )}
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -547,6 +545,7 @@ interface TaskBoardViewProps {
   activeTimerTaskId?: string | null;
   onStartGlobalTimer?: (id: string) => void;
   onStopGlobalTimer?: () => void;
+  hideHeaderControls?: boolean;
 }
 
 export default function TaskBoardView({
@@ -555,7 +554,7 @@ export default function TaskBoardView({
   boardSwimlaneBy, setBoardSwimlaneBy, filterTag, setFilterTag,
   isSmartSort, isUrgentNearDueTask, isMultiSelectMode, activeDragId, activeOverDropId,
   cardSize = 'medium', setCardSize, cardCover = true, setCardCover, onAddTask, onStartFocus,
-  activeTimerTaskId = null, onStartGlobalTimer, onStopGlobalTimer
+  activeTimerTaskId = null, onStartGlobalTimer, onStopGlobalTimer, hideHeaderControls = false
 }: TaskBoardViewProps) {
 
   const { t, locale } = useTranslation();
@@ -638,6 +637,7 @@ export default function TaskBoardView({
   const [isReady, setIsReady] = useState(false);
   const [localActiveDragId, setLocalActiveDragId] = useState<string | null>(null);
   const [localActiveOverDropId, setLocalActiveOverDropId] = useState<string | null>(null);
+  const [activeDragTask, setActiveDragTask] = useState<Task | null>(null);
   const [collapsedSwimlanes, setCollapsedSwimlanes] = useState<string[]>([]);
   const [inlineAddCell, setInlineAddCell] = useState<string | null>(null);
   const [inlineTitle, setInlineTitle] = useState('');
@@ -704,17 +704,29 @@ export default function TaskBoardView({
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 3,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 250,
-        tolerance: 5,
+        delay: 150,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor)
   );
+
+  const collisionDetectionStrategy = useCallback((args: any) => {
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions.length > 0) {
+      return pointerCollisions;
+    }
+    const rectCollisions = rectIntersection(args);
+    if (rectCollisions.length > 0) {
+      return rectCollisions;
+    }
+    return closestCorners(args);
+  }, []);
 
   const findColumnOfTask = (taskId: string) => {
     if (!boardState) return null;
@@ -727,7 +739,11 @@ export default function TaskBoardView({
   };
 
   const handleDragStart = (event: any) => {
-    setLocalActiveDragId(event.active.id.toString());
+    const activeId = event.active.id.toString();
+    setLocalActiveDragId(activeId);
+    if (boardState?.tasks[activeId]) {
+      setActiveDragTask(boardState.tasks[activeId]);
+    }
   };
 
   const columns: string[] = useMemo(() => {
@@ -814,6 +830,7 @@ export default function TaskBoardView({
   const [boardState, setBoardState] = useState<NormalizedState | null>(null);
 
   useEffect(() => {
+    if (isDraggingRef.current) return;
     const tasksObj: Record<string, Task> = {};
     filteredTasks.forEach(t => {
       tasksObj[t.id] = t;
@@ -942,7 +959,7 @@ export default function TaskBoardView({
     setInlineAddCell(null);
   };
 
-  const handleOpenAddColumn = () => {
+  const handleOpenAddColumn = useCallback(() => {
     if (boardGroupBy === 'assignee') {
       setBoardGroupBy('status');
     }
@@ -956,7 +973,13 @@ export default function TaskBoardView({
       }
       newColumnInputRef.current?.focus();
     }, 120);
-  };
+  }, [boardGroupBy, setBoardGroupBy]);
+
+  useEffect(() => {
+    const onOpenAdd = () => handleOpenAddColumn();
+    window.addEventListener('apexa-open-add-board', onOpenAdd);
+    return () => window.removeEventListener('apexa-open-add-board', onOpenAdd);
+  }, [handleOpenAddColumn]);
 
   const handleCreateColumn = () => {
     const title = newColumnTitle.trim();
@@ -1130,7 +1153,7 @@ export default function TaskBoardView({
   const handleDragOver = (event: any) => {
     const { active, over } = event;
     if (!over || !boardState) {
-      setLocalActiveOverDropId(null);
+      if (localActiveOverDropId !== null) setLocalActiveOverDropId(null);
       return;
     }
 
@@ -1148,8 +1171,10 @@ export default function TaskBoardView({
     }
 
     if (overCol) {
-      setLocalActiveOverDropId(overCol);
-    } else {
+      if (localActiveOverDropId !== overCol) {
+        setLocalActiveOverDropId(overCol);
+      }
+    } else if (localActiveOverDropId !== null) {
       setLocalActiveOverDropId(null);
     }
 
@@ -1162,18 +1187,19 @@ export default function TaskBoardView({
       const endCol = prev.columns[overCol];
       if (!startCol || !endCol) return prev;
 
-      const activeIndex = startCol.taskIds.indexOf(activeId);
       let overIndex = endCol.taskIds.indexOf(overId);
-
       if (overIndex === -1) {
         overIndex = endCol.taskIds.length;
       }
 
-      const newStartIds = startCol.taskIds.filter(id => id !== activeId);
-      const newEndIds = [...endCol.taskIds];
-      if (!newEndIds.includes(activeId)) {
-        newEndIds.splice(overIndex, 0, activeId);
+      if (endCol.taskIds.includes(activeId)) {
+        const currentIdx = endCol.taskIds.indexOf(activeId);
+        if (currentIdx === overIndex) return prev;
       }
+
+      const newStartIds = startCol.taskIds.filter(id => id !== activeId);
+      const newEndIds = endCol.taskIds.filter(id => id !== activeId);
+      newEndIds.splice(overIndex, 0, activeId);
 
       return {
         ...prev,
@@ -1189,6 +1215,10 @@ export default function TaskBoardView({
   const handleDragEnd = async (event: any) => {
     setLocalActiveDragId(null);
     setLocalActiveOverDropId(null);
+    setTimeout(() => {
+      setActiveDragTask(null);
+    }, 250);
+
     const { active, over } = event;
 
     if (!over || !boardState) return;
@@ -1229,17 +1259,14 @@ export default function TaskBoardView({
     } 
     // Case B: Dragged across columns
     else {
-      const activeIndex = startCol.taskIds.indexOf(activeId);
       let overIndex = endCol.taskIds.indexOf(overId);
       if (overIndex === -1) {
         overIndex = endCol.taskIds.length;
       }
 
       const newStartIds = startCol.taskIds.filter(id => id !== activeId);
-      const newEndIds = [...endCol.taskIds];
-      if (!newEndIds.includes(activeId)) {
-        newEndIds.splice(overIndex, 0, activeId);
-      }
+      const newEndIds = endCol.taskIds.filter(id => id !== activeId);
+      newEndIds.splice(overIndex, 0, activeId);
 
       nextBoardState.columns[activeCol] = {
         ...startCol,
@@ -1376,7 +1403,7 @@ export default function TaskBoardView({
 
     return (
       <div 
-        className={`rounded-2xl border-l-[3.5px] ${dynamicPriorityColors[task.priority] || PRIORITY_COLORS[task.priority]} border-y border-r border-slate-205 dark:border-slate-855/50 bg-white dark:bg-slate-900 cursor-grabbing shadow-2xl scale-[1.02] rotate-[1deg] border-indigo-505 dark:border-indigo-500/80 ring-4 ring-indigo-500/10 overflow-hidden opacity-95`}
+        className={`rounded-2xl border-l-[3.5px] ${dynamicPriorityColors[task.priority] || PRIORITY_COLORS[task.priority]} border-y border-r border-indigo-400/80 dark:border-indigo-500/80 bg-white dark:bg-[#18181b] cursor-grabbing shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_60px_rgba(0,0,0,0.7)] scale-[1.02] rotate-[1deg] ring-4 ring-indigo-500/15 overflow-hidden will-change-transform`}
       >
         {imageAttachment && (
           <div className="w-full relative overflow-hidden bg-slate-50 dark:bg-slate-955" style={{ height: localCardSize === 'small' ? '65px' : localCardSize === 'large' ? '120px' : '90px' }}>
@@ -1490,7 +1517,7 @@ export default function TaskBoardView({
         <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/80 rounded-2xl p-3 mb-4 h-12" />
         <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
           {[1, 2, 3, 4].map(idx => (
-            <div key={idx} className="min-w-[290px] w-[290px] flex-shrink-0 bg-slate-50/50 dark:bg-slate-900/25 p-4 rounded-2xl border border-slate-200/50 dark:border-slate-805/50 flex flex-col gap-3">
+            <div key={idx} className="min-w-[315px] sm:min-w-[335px] 2xl:min-w-[350px] w-[315px] sm:w-[335px] 2xl:w-[350px] flex-shrink-0 bg-slate-50/50 dark:bg-slate-900/25 p-4 rounded-2xl border border-slate-200/50 dark:border-slate-805/50 flex flex-col gap-3">
               <div className="flex justify-between items-center h-6 bg-slate-200/50 dark:bg-slate-800/50 rounded-lg w-1/2" />
               <div className="space-y-3 mt-2">
                 {[1, 2].map(cIdx => (
@@ -1507,102 +1534,115 @@ export default function TaskBoardView({
   return (
     <DndContext 
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={collisionDetectionStrategy}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
       <div className="apexa-space-board flex flex-col h-full w-full">
         
-        {/* Kanban Board Controls Panel */}
-        <div className="apexa-board-controls flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-2.5 sm:gap-3 bg-white/80 dark:bg-[#121212]/85 backdrop-blur-2xl border border-slate-200/80 dark:border-white/[0.08] rounded-2xl p-2.5 sm:p-3 mb-4 text-xs font-bold text-slate-700 dark:text-slate-200 select-none shadow-3xs">
-          <div className="flex w-full sm:w-auto items-center gap-2 overflow-x-auto scrollbar-none pb-0.5 sm:pb-0">
-            
-            {/* Group By selector */}
-            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/[0.07] rounded-xl px-2.5 py-1.5 shadow-3xs">
-              <span className="text-[10px] text-slate-400 dark:text-slate-400 font-extrabold uppercase tracking-wider">Nhóm:</span>
-              <Select
-                value={boardGroupBy}
-                onChange={(v) => {
-                  setBoardGroupBy(v);
-                  if (boardSwimlaneBy === v) {
-                    setBoardSwimlaneBy('none');
-                  }
-                }}
-                size="sm"
-                ariaLabel="Nhóm theo"
-                options={[
-                  { value: 'status', label: 'Trạng thái' },
-                  { value: 'priority', label: 'Ưu tiên' },
-                  { value: 'assignee', label: 'Người phụ trách' },
-                ]}
-              />
+        {/* Kanban Board Controls Bar (Sleek & Integrated - Hidden when unified with top filterbar) */}
+        {!hideHeaderControls && (
+          <div className="apexa-board-controls flex flex-wrap items-center justify-between gap-2.5 px-0.5 py-1 mb-3 text-xs select-none">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Group By Selector */}
+              <div className="flex items-center gap-1.5 bg-slate-50/90 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/[0.08] rounded-xl px-2.5 py-1 shadow-3xs">
+                <span className="text-[11px] text-slate-400 dark:text-slate-500 font-bold">
+                  {locale === 'vi' ? 'Nhóm:' : 'Group:'}
+                </span>
+                <Select
+                  value={boardGroupBy}
+                  onChange={(v) => {
+                    setBoardGroupBy(v);
+                    if (boardSwimlaneBy === v) {
+                      setBoardSwimlaneBy('none');
+                    }
+                  }}
+                  size="sm"
+                  ariaLabel={locale === 'vi' ? 'Nhóm theo' : 'Group by'}
+                  options={[
+                    { value: 'status', label: locale === 'vi' ? 'Trạng thái' : 'Status' },
+                    { value: 'priority', label: locale === 'vi' ? 'Mức ưu tiên' : 'Priority' },
+                    { value: 'assignee', label: locale === 'vi' ? 'Người phụ trách' : 'Assignee' },
+                  ]}
+                />
+              </div>
+
+              {/* Swimlane Selector */}
+              <div className="flex items-center gap-1.5 bg-slate-50/90 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/[0.08] rounded-xl px-2.5 py-1 shadow-3xs">
+                <span className="text-[11px] text-slate-400 dark:text-slate-500 font-bold">
+                  {locale === 'vi' ? 'Làn bơi:' : 'Swimlane:'}
+                </span>
+                <Select
+                  value={boardSwimlaneBy}
+                  onChange={(v) => setBoardSwimlaneBy(v)}
+                  size="sm"
+                  ariaLabel={locale === 'vi' ? 'Làn công việc' : 'Swimlane'}
+                  options={[
+                    { value: 'none', label: locale === 'vi' ? 'Không' : 'None' },
+                    ...(boardGroupBy !== 'status' ? [{ value: 'status' as const, label: locale === 'vi' ? 'Trạng thái' : 'Status' }] : []),
+                    ...(boardGroupBy !== 'priority' ? [{ value: 'priority' as const, label: locale === 'vi' ? 'Mức ưu tiên' : 'Priority' }] : []),
+                    ...(boardGroupBy !== 'assignee' ? [{ value: 'assignee' as const, label: locale === 'vi' ? 'Người phụ trách' : 'Assignee' }] : []),
+                  ]}
+                />
+              </div>
             </div>
 
-            {/* Swimlane selector */}
-            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/[0.07] rounded-xl px-2.5 py-1.5 shadow-3xs">
-              <span className="text-[10px] text-slate-400 dark:text-slate-400 font-extrabold uppercase tracking-wider">Làn công việc:</span>
-              <Select
-                value={boardSwimlaneBy}
-                onChange={(v) => setBoardSwimlaneBy(v)}
-                size="sm"
-                ariaLabel="Làn công việc"
-                options={[
-                  { value: 'none', label: 'Không' },
-                  ...(boardGroupBy !== 'status' ? [{ value: 'status' as const, label: 'Trạng thái' }] : []),
-                  ...(boardGroupBy !== 'priority' ? [{ value: 'priority' as const, label: 'Ưu tiên' }] : []),
-                  ...(boardGroupBy !== 'assignee' ? [{ value: 'assignee' as const, label: 'Người phụ trách' }] : []),
-                ]}
-              />
+            {/* Right Controls: Card Size, Covers, Add Column */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Card Size Selector */}
+              <div className="flex items-center gap-0.5 bg-slate-100/90 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/[0.07] rounded-xl p-0.5 shadow-3xs">
+                {(['small', 'medium', 'large'] as const).map(size => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => toggleCardSize(size)}
+                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer text-[11px] font-bold ${
+                      localCardSize === size
+                        ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/70 dark:border-white/[0.08]'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    }`}
+                    title={locale === 'vi' ? `Kích cỡ thẻ: ${{ small: 'Nhỏ', medium: 'Vừa', large: 'Lớn' }[size]}` : `Card size: ${{ small: 'Small', medium: 'Medium', large: 'Large' }[size]}`}
+                  >
+                    {{ small: locale === 'vi' ? 'Nhỏ' : 'Small', medium: locale === 'vi' ? 'Vừa' : 'Medium', large: locale === 'vi' ? 'Lớn' : 'Large' }[size]}
+                  </button>
+                ))}
+              </div>
+
+              {/* Show Covers Toggle Button */}
+              <button
+                type="button"
+                onClick={() => toggleCardCover(!localCardCover)}
+                className={`h-7.5 px-2.5 border rounded-xl flex items-center gap-1.5 transition-all cursor-pointer text-[11px] font-bold shadow-3xs ${
+                  localCardCover
+                    ? 'bg-indigo-50/90 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-700/80 text-indigo-600 dark:text-sky-300'
+                    : 'bg-white dark:bg-slate-900/60 border-slate-200/80 dark:border-white/[0.08] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+                title={locale === 'vi' ? 'Bật/tắt hiển thị ảnh đính kèm làm bìa' : 'Toggle cover images'}
+              >
+                <Paperclip className="w-3 h-3" />
+                <span>{locale === 'vi' ? 'Ảnh bìa' : 'Covers'}</span>
+              </button>
+
+              {/* Add Column Button */}
+              <button
+                type="button"
+                onClick={handleOpenAddColumn}
+                className="h-7.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11.5px] flex items-center gap-1.5 shadow-xs hover:shadow-md cursor-pointer active:scale-95 transition-all"
+                title={locale === 'vi' ? 'Thêm bảng / cột trạng thái mới' : 'Add new column'}
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>{locale === 'vi' ? 'Thêm bảng' : 'Add Board'}</span>
+              </button>
             </div>
           </div>
-
-          {/* Card size & covers selectors */}
-          <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-2 sm:gap-3">
-            <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/[0.07] rounded-xl p-1 shadow-3xs">
-              {(['small', 'medium', 'large'] as const).map(size => (
-                <button
-                  key={size}
-                  onClick={() => toggleCardSize(size)}
-                  className={`px-2.5 py-1 rounded-lg capitalize transition-all cursor-pointer text-xs font-bold ${
-                    localCardSize === size
-                      ? 'bg-white dark:bg-gradient-to-r dark:from-indigo-600/30 dark:to-blue-600/30 text-indigo-600 dark:text-sky-200 font-black shadow-xs border border-slate-200/80 dark:border-indigo-500/40'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                  }`}
-                >
-                  {{ small: 'Nhỏ', medium: 'Vừa', large: 'Lớn' }[size]}
-                </button>
-              ))}
-            </div>
-
-            <button
-              onClick={() => toggleCardCover(!localCardCover)}
-              className={`px-3 py-1.5 border rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer text-xs font-bold ${
-                localCardCover
-                  ? 'bg-indigo-50/80 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-700/80 text-indigo-600 dark:text-sky-300 font-black shadow-xs'
-                  : 'bg-slate-50 dark:bg-slate-900/70 border-slate-200/80 dark:border-white/[0.07] text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-              }`}
-            >
-              <span>{locale === 'vi' ? 'Hiển thị ảnh bìa' : 'Show Covers'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleOpenAddColumn}
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs hover:shadow-md cursor-pointer active:scale-95 transition-all"
-              title={locale === 'vi' ? 'Thêm bảng mới' : 'Add new column'}
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>{locale === 'vi' ? 'Thêm bảng' : 'Add Board'}</span>
-            </button>
-          </div>
-        </div>
+        )}
 
         {/* Board Main Area */}
         {boardSwimlaneBy === 'none' ? (
           <div 
             ref={boardScrollRef}
-            className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar custom-touch-scroll snap-x snap-mandatory select-none px-1"
+            className="flex gap-4 sm:gap-5 overflow-x-auto pb-4 custom-scrollbar custom-touch-scroll select-none px-1"
           >
             {columns.map(col => {
               const colMeta = getColumnMeta(col);
@@ -1615,8 +1655,8 @@ export default function TaskBoardView({
                   role="group"
                   aria-label={`${colMeta.label}: ${colTasks.length} ${locale === 'vi' ? 'công việc' : 'tasks'}`}
                   style={{ '--column-accent': boardGroupBy === 'status' ? ({ todo: '#8190a8', inprogress: '#e9a23b', review: '#7c6ce7', completed: '#26a885' }[col] || '#8190a8') : boardGroupBy === 'priority' ? ({ urgent: '#dc668b', high: '#e9a23b', medium: '#5871e9', low: '#26a885' }[col] || '#8190a8') : '#5871e9' } as React.CSSProperties}
-                  className={`apexa-board-column min-w-[288px] sm:min-w-[300px] w-[288px] sm:w-[300px] flex-shrink-0 snap-center bg-slate-100/60 dark:bg-[#181818]/80 backdrop-blur-2xl p-3.5 sm:p-4 rounded-[22px] flex flex-col gap-3 transition-all duration-300 border border-slate-200/70 dark:border-white/[0.08] shadow-[0_4px_24px_-6px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] hover:border-slate-300 dark:hover:border-slate-700/90 hover:shadow-[0_12px_36px_-6px_rgba(0,0,0,0.08)] ${
-                    isOverColumn ? 'ring-2 ring-indigo-500/30 bg-indigo-50/30 dark:bg-indigo-950/30 border-indigo-400/50' : ''
+                  className={`apexa-board-column min-w-[315px] sm:min-w-[335px] 2xl:min-w-[350px] w-[315px] sm:w-[335px] 2xl:w-[350px] flex-shrink-0 bg-slate-100/70 dark:bg-[#181818]/90 backdrop-blur-2xl p-4 rounded-[22px] flex flex-col gap-3 transition-colors duration-150 border border-slate-200/80 dark:border-white/[0.08] shadow-[0_4px_24px_-6px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] hover:border-slate-300 dark:hover:border-slate-700/90 hover:shadow-[0_12px_36px_-6px_rgba(0,0,0,0.08)] ${
+                    isOverColumn ? 'ring-2 ring-indigo-500/40 bg-indigo-50/40 dark:bg-indigo-950/40 border-indigo-400/60' : ''
                   }`}
                 >
                   {/* Column Header */}
@@ -1665,8 +1705,8 @@ export default function TaskBoardView({
                           }`}>
                             {colTasks.length}
                           </span>
-                          {/* WIP Limit warning badge if tasks > 6 */}
-                          {colTasks.length > 6 && (
+                          {/* WIP Limit warning badge if tasks > 6 (only for active work, not completed) */}
+                          {col !== 'completed' && colTasks.length > 6 && (
                             <span className="text-[8.5px] font-black text-amber-600 bg-amber-50 dark:bg-amber-950/50 dark:text-amber-300 px-1.5 py-0.5 rounded-md border border-amber-200/60 dark:border-amber-900/50 animate-pulse">
                               Giới hạn WIP
                             </span>
@@ -1790,8 +1830,25 @@ export default function TaskBoardView({
                           </div>
                         </div>
                       </div>
+                    ) : colTasks.length === 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => { setInlineAddCell(col); setInlineTitle(''); }}
+                        className="space-board-empty w-full flex flex-col items-center justify-center text-center py-9 px-4 rounded-2xl border-2 border-dashed border-slate-200/90 dark:border-white/[0.08] bg-white/40 dark:bg-slate-900/30 hover:bg-white/90 dark:hover:bg-slate-900/70 hover:border-indigo-400 dark:hover:border-indigo-500/60 transition-all cursor-pointer group shadow-3xs hover:shadow-xs"
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800/80 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/50 flex items-center justify-center text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors mb-2">
+                          <Plus className="w-4 h-4" />
+                        </div>
+                        <p className="text-xs font-bold text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                          {locale === 'vi' ? 'Thêm công việc' : 'Add task'}
+                        </p>
+                        <p className="text-[10.5px] text-slate-400 dark:text-slate-500 mt-0.5">
+                          {locale === 'vi' ? 'Kéo thả hoặc nhấp để tạo' : 'Drag tasks here or click to add'}
+                        </p>
+                      </button>
                     ) : (
                       <button 
+                        type="button"
                         onClick={() => { setInlineAddCell(col); setInlineTitle(''); }}
                         className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-300 hover:bg-white dark:hover:bg-indigo-950/30 hover:border-indigo-400/60 dark:hover:border-indigo-500/40 border border-dashed border-slate-300/80 dark:border-white/[0.08] rounded-xl transition-all cursor-pointer text-center group shadow-3xs hover:shadow-xs"
                       >
@@ -1799,27 +1856,13 @@ export default function TaskBoardView({
                         <span>{locale === 'vi' ? 'Thêm công việc' : 'Add Task'}</span>
                       </button>
                     )}
-
-                    {colTasks.length === 0 && inlineAddCell !== col && (
-                      <div className="space-board-empty flex flex-col items-center justify-center text-center py-8 px-3 rounded-2xl border border-dashed border-slate-200/80 dark:border-white/[0.06] bg-white/40 dark:bg-slate-900/30 backdrop-blur-sm group hover:border-indigo-400/40 dark:hover:border-indigo-500/30 transition-colors">
-                        <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/70 flex items-center justify-center text-slate-400 dark:text-slate-500 mb-1.5">
-                          <Check className="w-3.5 h-3.5 opacity-60" />
-                        </div>
-                        <p className="text-[11.5px] font-bold text-slate-600 dark:text-slate-300">
-                          {locale === 'vi' ? 'Chưa có công việc' : 'No tasks in this column'}
-                        </p>
-                        <p className="text-[9.5px] text-slate-400 dark:text-slate-500 mt-0.5">
-                          {locale === 'vi' ? 'Kéo thả hoặc nhấn + để tạo' : 'Drag tasks here or click +'}
-                        </p>
-                      </div>
-                    )}
                   </KanbanColumn>
                 </div>
               );
             })}
             
             {/* Add Column Card */}
-            <div className="min-w-[288px] sm:min-w-[300px] w-[288px] sm:w-[300px] flex-shrink-0 snap-center">
+            <div className="min-w-[315px] sm:min-w-[335px] 2xl:min-w-[350px] w-[315px] sm:w-[335px] 2xl:w-[350px] flex-shrink-0">
               {isAddingColumn ? (
                 <div className="bg-white dark:bg-[#181818] p-4 rounded-[22px] flex flex-col gap-3.5 border-2 border-indigo-500/80 dark:border-indigo-500 shadow-xl dark:shadow-[0_12px_40px_rgba(0,0,0,0.6)] animate-in fade-in zoom-in-95 duration-150">
                   <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-white/[0.06]">
@@ -1943,7 +1986,7 @@ export default function TaskBoardView({
                   }).length;
 
                   return (
-                    <div key={col} className="min-w-[280px] w-[280px] flex-shrink-0 px-2.5 py-1.5 flex items-center justify-between text-xs font-bold text-slate-655 dark:text-slate-405">
+                    <div key={col} className="min-w-[315px] sm:min-w-[335px] 2xl:min-w-[350px] w-[315px] sm:w-[335px] 2xl:w-[350px] flex-shrink-0 px-2.5 py-1.5 flex items-center justify-between text-xs font-bold text-slate-655 dark:text-slate-405">
                       <div className="flex items-center gap-2">
                         {colMeta.avatar && (
                           <SignedImage filePath={colMeta.avatar} className="w-4.5 h-4.5 rounded-full object-cover border border-slate-200 dark:border-slate-700" alt={colMeta.label} />
@@ -2018,8 +2061,8 @@ export default function TaskBoardView({
                             return (
                               <div 
                                 key={col} 
-                                className={`min-w-[280px] w-[280px] flex-shrink-0 bg-slate-55 dark:bg-slate-900/10 p-3 rounded-2xl flex flex-col gap-2.5 transition-[background-color,border-color,box-shadow,ring] duration-300 border border-slate-205 dark:border-slate-855/40 min-h-[140px] ${
-                                  isOverCell ? 'ring-2 ring-indigo-400/50 bg-indigo-50/20 dark:bg-indigo-955/10' : ''
+                                className={`min-w-[315px] sm:min-w-[335px] 2xl:min-w-[350px] w-[315px] sm:w-[335px] 2xl:w-[350px] flex-shrink-0 bg-slate-50/70 dark:bg-slate-900/30 p-3.5 rounded-2xl flex flex-col gap-2.5 transition-[background-color,border-color,box-shadow,ring] duration-150 border border-slate-200/80 dark:border-slate-800/60 min-h-[160px] ${
+                                  isOverCell ? 'ring-2 ring-indigo-400/50 bg-indigo-50/30 dark:bg-indigo-950/20' : ''
                                 }`}
                               >
                                 <KanbanColumn id={cellId} isOver={isOverCell}>
@@ -2047,20 +2090,24 @@ export default function TaskBoardView({
                                         <button onClick={() => handleInlineAddSubmit(col, row)} className="px-2 py-0.5 rounded bg-indigo-600 text-white hover:bg-indigo-700">{locale === 'vi' ? 'Lưu' : 'Save'}</button>
                                       </div>
                                     </div>
+                                  ) : cellTasks.length === 0 ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => { setInlineAddCell(cellId); setInlineTitle(''); }}
+                                      className="w-full py-6 flex flex-col items-center justify-center gap-1.5 border border-dashed border-slate-200/90 dark:border-white/[0.08] hover:border-indigo-400 dark:hover:border-indigo-500/50 rounded-xl text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer group"
+                                    >
+                                      <Plus className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-indigo-500 transition-colors" />
+                                      <span className="text-[11px] font-semibold">{locale === 'vi' ? 'Thêm công việc' : 'Add task'}</span>
+                                    </button>
                                   ) : (
                                     <button 
+                                      type="button"
                                       onClick={() => { setInlineAddCell(cellId); setInlineTitle(''); }}
                                       className="w-full flex items-center justify-start gap-1.5 px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/40 rounded-xl transition-all cursor-pointer text-left"
                                     >
                                       <Plus className="w-3.5 h-3.5 text-slate-400" />
                                       <span>{locale === 'vi' ? 'Thêm công việc' : 'Add Task'}</span>
                                     </button>
-                                  )}
-
-                                  {cellTasks.length === 0 && inlineAddCell !== cellId && (
-                                    <div className="text-center py-4 text-[10.5px] text-slate-400 dark:text-slate-505 font-medium italic border border-dashed border-slate-200/60 dark:border-slate-800/50 rounded-xl">
-                                      {locale === 'vi' ? 'Không có công việc' : 'No tasks'}
-                                    </div>
                                   )}
                                 </KanbanColumn>
                               </div>
@@ -2079,10 +2126,10 @@ export default function TaskBoardView({
       </div>
 
       <Portal>
-        <DragOverlay dropAnimation={null}>
-          {localActiveDragId && boardState?.tasks[localActiveDragId] ? (
-            <div className="w-[280px]">
-              {renderOverlayCard(boardState.tasks[localActiveDragId])}
+        <DragOverlay dropAnimation={dropAnimationConfig}>
+          {activeDragTask ? (
+            <div className="w-[315px] sm:w-[335px] 2xl:w-[350px] pointer-events-none">
+              {renderOverlayCard(activeDragTask)}
             </div>
           ) : null}
         </DragOverlay>

@@ -41,15 +41,12 @@ import SignedImage from '../components/SignedImage';
 import { useTranslation } from '../contexts/TranslationContext';
 import ToastNotification, { Toast } from '../components/ToastNotification';
 import { WORKSPACE_COVERS } from '../components/SettingsPanel';
-import MemberProfileModal from '../components/MemberProfileModal';
-import { GlobalSearchModal } from '../components/GlobalSearchModal';
-import { AutomationRulesModal } from '../components/AutomationRulesModal';
-import { ExportDataModal } from '../components/ExportDataModal';
-import { PricingModal } from '../components/PricingModal';
 import ThemeSwitch from '../components/ThemeSwitch';
 import LanguageDropdown from '../components/LanguageDropdown';
 import PromptModal, { PromptModalConfig } from '../components/PromptModal';
-import AcceptInviteModal from '../components/workspace/AcceptInviteModal';
+import HeaderLiveClockPill from '../components/header/HeaderLiveClockPill';
+import GlobalTimerPill from '../components/timer/GlobalTimerPill';
+import { useGlobalTimerStore } from '@/store/globalTimerStore';
 import dynamic from 'next/dynamic';
 
 const ComponentLoading = () => (
@@ -120,6 +117,26 @@ const AddListModal = dynamic(retryLoader(() => import('../components/AddListModa
 const FinanceHub = dynamic(retryLoader(() => import('../components/FinanceHub')), { loading: ComponentLoading });
 const GoalsHub = dynamic(retryLoader(() => import('../components/GoalsHub')), { loading: ComponentLoading });
 const SidebarOrderModal = dynamic(retryLoader(() => import('../components/SidebarOrderModal')), { ssr: false });
+const GlobalSearchModal = dynamic(() => import('../components/GlobalSearchModal').then(m => m.GlobalSearchModal), { ssr: false });
+const AutomationRulesModal = dynamic(() => import('../components/AutomationRulesModal').then(m => m.AutomationRulesModal), { ssr: false });
+const ExportDataModal = dynamic(() => import('../components/ExportDataModal').then(m => m.ExportDataModal), { ssr: false });
+const PricingModal = dynamic(() => import('../components/PricingModal').then(m => m.PricingModal), { ssr: false });
+const MemberProfileModal = dynamic(() => import('../components/MemberProfileModal'), { ssr: false });
+const AcceptInviteModal = dynamic(() => import('../components/workspace/AcceptInviteModal'), { ssr: false });
+const MiniAppHub = dynamic(retryLoader(() => import('../components/miniapp/MiniAppHub')), { loading: ComponentLoading });
+const MiniAppContainer = dynamic(retryLoader(() => import('../components/miniapp/MiniAppContainer')), { ssr: false });
+const CRMWorkspace = dynamic(retryLoader(() => import('../components/CRMWorkspace')), { loading: ComponentLoading, ssr: false });
+const ERPHub = dynamic(retryLoader(() => import('../components/ERPHub')), { loading: ComponentLoading, ssr: false });
+const BaseHub = dynamic(retryLoader(() => import('../components/BaseHub')), { loading: ComponentLoading, ssr: false });
+const WhiteboardHub = dynamic(retryLoader(() => import('../components/WhiteboardHub')), { loading: ComponentLoading, ssr: false });
+const DayPlanner = dynamic(retryLoader(() => import('../components/DayPlanner')), { loading: ComponentLoading, ssr: false });
+const PomodoroMiniApp = dynamic(retryLoader(() => import('../components/miniapp/PomodoroMiniApp')), { loading: ComponentLoading, ssr: false });
+const NotesMiniApp = dynamic(retryLoader(() => import('../components/miniapp/NotesMiniApp')), { loading: ComponentLoading, ssr: false });
+const ConverterMiniApp = dynamic(retryLoader(() => import('../components/miniapp/ConverterMiniApp')), { loading: ComponentLoading, ssr: false });
+const MiniAppLauncherButton = dynamic(() => import('../components/header/MiniAppLauncherButton'), { ssr: false });
+import { useMiniAppStore, selectAllMiniApps } from '@/store/miniAppStore';
+import { SYSTEM_MINI_APPS } from '@/lib/miniAppsRegistry';
+import MiniAppIcon from '@/components/miniapp/MiniAppIcon';
 
 import { 
   Briefcase, MessageSquare, Edit3, Users, 
@@ -131,7 +148,7 @@ import {
   ListPlus, ListTodo, CheckSquare, Folder, WifiOff,
   ChevronsLeft, ChevronsRight,
   CalendarClock, CalendarDays, Languages, UnfoldVertical, FoldVertical,
-  ShieldCheck, SlidersHorizontal, Monitor, Palette
+  ShieldCheck, SlidersHorizontal, Monitor, Palette, Power
 } from 'lucide-react';
 
 import {
@@ -201,8 +218,25 @@ const getShortLabel = (label: string) => {
 
 const DEFAULT_SIDEBAR_ORDER = [
   'dashboard', 'inbox', 'tasks', 'calendar', 'goals',
-  'finance', 'docs', 'chat', 'team'
+  'finance', 'docs', 'chat', 'team', 'miniapps'
 ];
+
+const buildTaskCustomFields = (task: Partial<Task> | any) => {
+  const base = task?.custom_fields && typeof task.custom_fields === 'object' ? { ...task.custom_fields } : {};
+  const assigneeIds = getTaskAssigneeIds(task);
+  if (assigneeIds.length > 0) {
+    base.assigneeIds = assigneeIds;
+  } else {
+    delete base.assigneeIds;
+  }
+  if (task?.reminder) {
+    base.reminder = task.reminder;
+  }
+  if (task?.isMilestone !== undefined) {
+    base.isMilestone = task.isMilestone;
+  }
+  return embedTaskRelationships(base, extractTaskRelationships(task));
+};
 
 export default function App() {
   useThemeSync();
@@ -351,19 +385,6 @@ export default function App() {
   const setDateFormat = useUiStore((s) => s.setDateFormat);
   const uiDensity = useUiStore((s) => s.uiDensity);
   const setUiDensity = useUiStore((s) => s.setUiDensity);
-  const [showDisplayOptionsMenu, setShowDisplayOptionsMenu] = useState<boolean>(false);
-  const [currentTimeStr, setCurrentTimeStr] = useState<string>('');
-
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTimeStr(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-    };
-    updateTime();
-    const timer = setInterval(updateTime, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   // Pomodoro Focus Timer state - consumed from usePomodoroStore
   const workDuration = usePomodoroStore((s) => s.workDuration);
   const setWorkDuration = usePomodoroStore((s) => s.setWorkDuration);
@@ -382,92 +403,6 @@ export default function App() {
   const previousStatus = usePomodoroStore((s) => s.previousStatus);
   const setPreviousStatus = usePomodoroStore((s) => s.setPreviousStatus);
 
-  // Global Time Tracking States
-  const [activeTimerTaskId, setActiveTimerTaskId] = useState<string | null>(null);
-  const [activeTimerElapsed, setActiveTimerElapsed] = useState<number>(0);
-  const [isTimerPaused, setIsTimerPaused] = useState<boolean>(false);
-  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    if (activeTimerTaskId && !isTimerPaused) {
-      timerIntervalRef.current = setInterval(() => {
-        setActiveTimerElapsed(prev => prev + 1);
-      }, 1000);
-    } else {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-    }
-    return () => {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-    };
-  }, [activeTimerTaskId, isTimerPaused]);
-
-  const formatTimerDuration = (secs: number) => {
-    const h = Math.floor(secs / 3600);
-    const m = Math.floor((secs % 3600) / 60);
-    const s = secs % 60;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
-
-  const handleStartGlobalTimer = (taskId: string) => {
-    // If a different task is being tracked, stop it and log it first
-    if (activeTimerTaskId && activeTimerTaskId !== taskId) {
-      const prevTask = tasks.find(t => t.id === activeTimerTaskId);
-      if (prevTask) {
-        const exactLogged = parseFloat((activeTimerElapsed / 3600).toFixed(2));
-        if (exactLogged > 0) {
-          const nextLogged = parseFloat(((prevTask.hoursLogged || 0) + exactLogged).toFixed(2));
-          const updated = { ...prevTask, hoursLogged: nextLogged };
-          setTasks(prev => prev.map(t => t.id === prevTask.id ? updated : t));
-          if (!isOffline) {
-            supabase.from('tasks').update({ hoursLogged: nextLogged }).eq('id', prevTask.id).then(({ error }) => {
-              if (error) console.error('Error updating task hours:', error);
-            });
-          }
-          addSyncLog(`Logged ${exactLogged} hours of work via global timer`);
-          triggerToast('success', 'Time Logged ⏱', `Added ${exactLogged}h to "${prevTask.title}".`);
-        }
-      }
-    }
-
-    setActiveTimerTaskId(taskId);
-    setActiveTimerElapsed(0);
-    setIsTimerPaused(false);
-  };
-
-  const handleStopGlobalTimer = () => {
-    if (!activeTimerTaskId) return;
-    const task = tasks.find(t => t.id === activeTimerTaskId);
-    if (task) {
-      const exactLogged = parseFloat((activeTimerElapsed / 3600).toFixed(2));
-      if (exactLogged > 0) {
-        const nextLogged = parseFloat(((task.hoursLogged || 0) + exactLogged).toFixed(2));
-        const updated = { ...task, hoursLogged: nextLogged };
-        setTasks(prev => prev.map(t => t.id === task.id ? updated : t));
-        if (!isOffline) {
-          supabase.from('tasks').update({ hoursLogged: nextLogged }).eq('id', task.id).then(({ error }) => {
-            if (error) console.error('Error updating task hours:', error);
-          });
-        }
-        addSyncLog(`Logged ${exactLogged} hours of work via global timer`);
-        triggerToast('success', 'Time Logged ⏱', `Added ${exactLogged}h to "${task.title}".`);
-      } else {
-        triggerToast('info', 'Timer Stopped', 'No time was logged (less than 1 minute).');
-      }
-    }
-    setActiveTimerTaskId(null);
-    setActiveTimerElapsed(0);
-    setIsTimerPaused(false);
-  };
-
-  const handleTogglePauseGlobalTimer = () => {
-    setIsTimerPaused(prev => !prev);
-  };
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1013,7 +948,7 @@ export default function App() {
   };
 
   // Map tasks helper
-  const mapTasksToSpaces = (tasksList: Task[]): Task[] => {
+  const mapTasksToSpaces = useCallback((tasksList: Task[]): Task[] => {
     const workspaceSpaces = spaces.filter(s => s.workspaceId === activeWorkspaceId);
     const validSpaceIdSet = new Set(workspaceSpaces.map(s => s.id));
     const defaultSpace = workspaceSpaces[0];
@@ -1062,7 +997,7 @@ export default function App() {
         assigneeIds: t.assigneeIds || (t.assigneeId ? [t.assigneeId] : [])
       };
     });
-  };
+  }, [spaces, activeWorkspaceId]);
 
 
 
@@ -1377,6 +1312,10 @@ export default function App() {
     });
   }, [tasks, spaces, activeWorkspaceId]);
 
+  const mappedWorkspaceTasks = useMemo(() => {
+    return mapTasksToSpaces(currentWorkspaceTasks);
+  }, [currentWorkspaceTasks, mapTasksToSpaces]);
+
   const currentWorkspaceDocs = useMemo(() => {
     const workspaceSpaceIds = new Set(spaces.filter(s => s.workspaceId === activeWorkspaceId).map(s => s.id));
     return docs.filter(d => {
@@ -1418,8 +1357,6 @@ export default function App() {
   const notificationsButtonRef = useRef<HTMLButtonElement>(null);
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const statusButtonRef = useRef<HTMLButtonElement>(null);
-  const displayMenuRef = useRef<HTMLDivElement>(null);
-  const displayButtonRef = useRef<HTMLButtonElement>(null);
 
   // Global Click-outside & Escape dismissal for Header Popovers (works everywhere on screen)
   useEffect(() => {
@@ -1439,25 +1376,17 @@ export default function App() {
           setShowStatusMenu(false);
         }
       }
-      if (showDisplayOptionsMenu) {
-        const isInsideMenu = displayMenuRef.current?.contains(target);
-        const isInsideButton = displayButtonRef.current?.contains(target);
-        if (!isInsideMenu && !isInsideButton) {
-          setShowDisplayOptionsMenu(false);
-        }
-      }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (showNotificationsMenu) setShowNotificationsMenu(false);
         if (showStatusMenu) setShowStatusMenu(false);
-        if (showDisplayOptionsMenu) setShowDisplayOptionsMenu(false);
         if (isMobileSidebarOpen) setIsMobileSidebarOpen(false);
       }
     };
 
-    if (showNotificationsMenu || showStatusMenu || showDisplayOptionsMenu || isMobileSidebarOpen) {
+    if (showNotificationsMenu || showStatusMenu || isMobileSidebarOpen) {
       document.addEventListener('mousedown', handleClickOutside, true);
       document.addEventListener('keydown', handleKeyDown, true);
     }
@@ -1465,7 +1394,7 @@ export default function App() {
       document.removeEventListener('mousedown', handleClickOutside, true);
       document.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [showNotificationsMenu, setShowNotificationsMenu, showStatusMenu, setShowStatusMenu, showDisplayOptionsMenu, setShowDisplayOptionsMenu, isMobileSidebarOpen, setIsMobileSidebarOpen]);
+  }, [showNotificationsMenu, setShowNotificationsMenu, showStatusMenu, setShowStatusMenu, isMobileSidebarOpen, setIsMobileSidebarOpen]);
 
   const rawSidebarOrder = useUiStore((s) => s.sidebarOrder);
   const sidebarOrder = useMemo(() => rawSidebarOrder || DEFAULT_SIDEBAR_ORDER, [rawSidebarOrder]);
@@ -1479,6 +1408,12 @@ export default function App() {
   const moveItemToZone = useUiStore((s) => s.moveItemToZone);
   const removeItemFromZone = useUiStore((s) => s.removeItemFromZone);
   const reorderSidebarZones = useUiStore((s) => s.reorderSidebarZones);
+
+  const pinnedMiniAppIds = useMiniAppStore((s) => s.pinnedAppIds);
+  const customMiniApps = useMiniAppStore((s) => s.customApps);
+  const disabledMiniAppIds = useMiniAppStore((s) => s.disabledAppIds);
+  const enableMiniApp = useMiniAppStore((s) => s.enableApp);
+  const allMiniApps = useMemo(() => selectAllMiniApps(pinnedMiniAppIds, customMiniApps, disabledMiniAppIds), [pinnedMiniAppIds, customMiniApps, disabledMiniAppIds]);
 
   const [editingZone, setEditingZone] = useState<SidebarZone | null>(null);
   const [showZoneModal, setShowZoneModal] = useState(false);
@@ -1533,7 +1468,7 @@ export default function App() {
   }, [notificationsList, workspaceInvitations, activeWorkspaceId]);
 
   const sidebarItemsMeta = useMemo<Record<string, { label: string; icon: React.ComponentType<any>; count?: number; badge?: string; shortcut?: string; description?: string }>>(() => {
-    return {
+    const meta: Record<string, { label: string; icon: React.ComponentType<any>; count?: number; badge?: string; shortcut?: string; description?: string }> = {
       dashboard: { 
         label: t('homeOverview') || 'Home Overview', 
         icon: PhHouse,
@@ -1581,12 +1516,40 @@ export default function App() {
         icon: PhBank, 
         description: locale === 'vi' ? 'Thu chi, hóa đơn & báo cáo tài chính' : 'Finance invoicing & accounting',
       },
+      miniapps: {
+        label: t('miniApps') || (locale === 'vi' ? 'Kho ứng dụng' : 'Mini Apps'),
+        icon: Boxes,
+        badge: 'Apps',
+        description: locale === 'vi' ? 'Khám phá & mở rộng tiện ích làm việc' : 'Workspace apps directory & tools',
+      },
     };
-  }, [locale, unreadNotificationsCount, t]);
+
+    // Dynamically populate pinned Mini Apps into navigation (only if enabled)
+    allMiniApps
+      .filter((app) => pinnedMiniAppIds.includes(app.id) && app.isEnabled !== false)
+      .forEach((app) => {
+        meta[app.id] = {
+          label: locale === 'vi' ? app.nameVi || app.name : app.name,
+          icon: () => (
+            <MiniAppIcon
+              appId={app.id}
+              icon={app.icon}
+              iconName={app.iconName}
+              variant="sidebar"
+            />
+          ),
+          badge: app.badge,
+          description: locale === 'vi' ? app.descriptionVi || app.description : app.description,
+        };
+      });
+
+    return meta;
+  }, [locale, unreadNotificationsCount, t, allMiniApps, pinnedMiniAppIds]);
 
   const orderedItems = useMemo(() => {
-    const defaultOrder = DEFAULT_SIDEBAR_ORDER;
-    const currentOrder = [...sidebarOrder].filter(id => id !== 'erp');
+    const activePinnedIds = pinnedMiniAppIds.filter(id => !disabledMiniAppIds.includes(id));
+    const defaultOrder = [...DEFAULT_SIDEBAR_ORDER, ...activePinnedIds];
+    const currentOrder = [...sidebarOrder].filter(id => id !== 'erp' || activePinnedIds.includes('erp'));
     defaultOrder.forEach((id) => {
       if (!currentOrder.includes(id)) {
         currentOrder.push(id);
@@ -1606,7 +1569,7 @@ export default function App() {
           description: meta.description,
         };
       });
-  }, [sidebarOrder, sidebarItemsMeta]);
+  }, [sidebarOrder, sidebarItemsMeta, pinnedMiniAppIds, disabledMiniAppIds]);
 
   const rootOrderedItems = useMemo(() => {
     const zoneItemIds = new Set((sidebarZones || []).flatMap(z => z.itemIds));
@@ -1836,9 +1799,12 @@ export default function App() {
   }, [pomodoroActive, notificationSettings, addToast, setNotificationsList, activeWorkspaceId]);
 
   const [inviteTokenParam, setInviteTokenParam] = useState<string | null>(null);
+  const hasHandledParamsRef = useRef(false);
 
   useEffect(() => {
+    if (hasHandledParamsRef.current) return;
     if (typeof window !== 'undefined') {
+      hasHandledParamsRef.current = true;
       const params = new URLSearchParams(window.location.search);
       const inviteToken = params.get('invite_token');
       if (inviteToken) {
@@ -1939,14 +1905,19 @@ export default function App() {
     }
   }, [currentUser, tasks, triggerToast, activeWorkspaceId]);
 
-  // Periodic standard task reminder worker
+  // Periodic standard task reminder worker (decoupled from tasks dependency array)
+  const reminderTasksRef = useRef(tasks);
   useEffect(() => {
-    checkAndFirePendingReminders(tasks);
+    reminderTasksRef.current = tasks;
+  }, [tasks]);
+
+  useEffect(() => {
+    checkAndFirePendingReminders(reminderTasksRef.current);
     const interval = setInterval(() => {
-      checkAndFirePendingReminders(tasks);
+      checkAndFirePendingReminders(reminderTasksRef.current);
     }, 20_000);
     return () => clearInterval(interval);
-  }, [tasks]);
+  }, []);
 
   useEffect(() => {
     const handleOpenTask = (e: Event) => {
@@ -2104,6 +2075,63 @@ export default function App() {
       )
     ].slice(0, 100));
   }, [isOffline, currentUser?.name, currentUser?.avatar, setSyncLogs]);
+
+  // Global Time Tracking Actions (driven via useGlobalTimerStore)
+  const handleStartGlobalTimer = useCallback((taskId: string) => {
+    const { activeTimerTaskId, activeTimerElapsed, setActiveTimerTaskId, setActiveTimerElapsed, setIsTimerPaused } = useGlobalTimerStore.getState();
+    const currentTasks = useTaskStore.getState().tasks;
+    if (activeTimerTaskId && activeTimerTaskId !== taskId) {
+      const prevTask = currentTasks.find(t => t.id === activeTimerTaskId);
+      if (prevTask) {
+        const exactLogged = parseFloat((activeTimerElapsed / 3600).toFixed(2));
+        if (exactLogged > 0) {
+          const nextLogged = parseFloat(((prevTask.hoursLogged || 0) + exactLogged).toFixed(2));
+          const updated = { ...prevTask, hoursLogged: nextLogged };
+          useTaskStore.getState().updateTask(updated);
+          if (!isOffline) {
+            supabase.from('tasks').update({ hoursLogged: nextLogged }).eq('id', prevTask.id).then(({ error }) => {
+              if (error) console.error('Error updating task hours:', error);
+            });
+          }
+          addSyncLog(`Logged ${exactLogged} hours of work via global timer`);
+          triggerToast('success', 'Time Logged ⏱', `Added ${exactLogged}h to "${prevTask.title}".`);
+        }
+      }
+    }
+
+    setActiveTimerTaskId(taskId);
+    setActiveTimerElapsed(0);
+    setIsTimerPaused(false);
+  }, [isOffline, addSyncLog, triggerToast]);
+
+  const handleStopGlobalTimer = useCallback(() => {
+    const { activeTimerTaskId, activeTimerElapsed, resetTimer } = useGlobalTimerStore.getState();
+    if (!activeTimerTaskId) return;
+    const currentTasks = useTaskStore.getState().tasks;
+    const task = currentTasks.find(t => t.id === activeTimerTaskId);
+    if (task) {
+      const exactLogged = parseFloat((activeTimerElapsed / 3600).toFixed(2));
+      if (exactLogged > 0) {
+        const nextLogged = parseFloat(((task.hoursLogged || 0) + exactLogged).toFixed(2));
+        const updated = { ...task, hoursLogged: nextLogged };
+        useTaskStore.getState().updateTask(updated);
+        if (!isOffline) {
+          supabase.from('tasks').update({ hoursLogged: nextLogged }).eq('id', task.id).then(({ error }) => {
+            if (error) console.error('Error updating task hours:', error);
+          });
+        }
+        addSyncLog(`Logged ${exactLogged} hours of work via global timer`);
+        triggerToast('success', 'Time Logged ⏱', `Added ${exactLogged}h to "${task.title}".`);
+      } else {
+        triggerToast('info', 'Timer Stopped', 'No time was logged (less than 1 minute).');
+      }
+    }
+    resetTimer();
+  }, [isOffline, addSyncLog, triggerToast]);
+
+  const handleTogglePauseGlobalTimer = useCallback(() => {
+    useGlobalTimerStore.getState().setIsTimerPaused(prev => !prev);
+  }, []);
 
   const handleNavItemClick = useCallback((itemId: string, label: string) => {
     if (itemId === 'tasks') {
@@ -3730,32 +3758,8 @@ export default function App() {
     triggerToast('success', 'Success', `Deleted workspace: ${targetWS.name}`);
   };
 
-  const getTaskAssigneeIds = (task: Partial<Task> | any) => {
-    if (Array.isArray(task?.assigneeIds)) return task.assigneeIds.filter(Boolean);
-    if (Array.isArray(task?.assignee_ids)) return task.assignee_ids.filter(Boolean);
-    const fromCustom = task?.custom_fields?.assigneeIds;
-    if (Array.isArray(fromCustom)) return fromCustom.filter(Boolean);
-    return task?.assigneeId ? [task.assigneeId] : [];
-  };
 
-  const buildTaskCustomFields = (task: Partial<Task> | any) => {
-    const base = task?.custom_fields && typeof task.custom_fields === 'object' ? { ...task.custom_fields } : {};
-    const assigneeIds = getTaskAssigneeIds(task);
-    if (assigneeIds.length > 0) {
-      base.assigneeIds = assigneeIds;
-    } else {
-      delete base.assigneeIds;
-    }
-    if (task?.reminder) {
-      base.reminder = task.reminder;
-    }
-    if (task?.isMilestone !== undefined) {
-      base.isMilestone = task.isMilestone;
-    }
-    return embedTaskRelationships(base, extractTaskRelationships(task));
-  };
-
-  const handleAddTask = async (t: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress' | 'comments'>) => {
+  const handleAddTask = useCallback(async (t: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress' | 'comments'>) => {
     // Chỉ thông báo với người dùng khi người đó là assignee trong task
     if (isUserAssignedToTask(t, currentUser, members)) {
       triggerToast(
@@ -3847,14 +3851,15 @@ export default function App() {
       setOfflineDeletedTasks(prev => prev.filter(id => id !== newTask.id));
       addSyncLog(`Đã tạo công việc mới (Ngoại tuyến): "${newTask.title}"`, 'task');
     }
-  };
+  }, [currentUser, members, triggerToast, spaces, activeWorkspaceId, activeSpaceId, activeListId, setTasks, isOffline, addSyncLog, setOfflineTasksQueue, setOfflineDeletedTasks]);
 
-  const handleUpdateTask = async (updated: Task) => {
-    const oldTask = tasks.find(t => t.id === updated.id);
+  const handleUpdateTask = useCallback(async (updated: Task) => {
+    const currentTasks = useTaskStore.getState().tasks;
+    const oldTask = currentTasks.find(t => t.id === updated.id);
     const isNewCompletion = oldTask?.status !== 'completed' && updated.status === 'completed';
 
     if (isNewCompletion) {
-      const incompleteBlockers = getIncompleteBlockers(updated, tasks);
+      const incompleteBlockers = getIncompleteBlockers(updated, currentTasks);
       if (incompleteBlockers.length > 0) {
         triggerToast(
           'info',
@@ -4020,10 +4025,11 @@ export default function App() {
       });
       addSyncLog(`Đã hoàn thành chu kỳ, tạo lịch tiếp theo cho "${updated.title}" vào ngày ${nextDueDate} (đã bỏ lặp lại task cũ)`, 'task');
     }
-  };
+  }, [currentUser, members, triggerToast, addSyncLog, setTasks, isOffline, handleAddTask, setOfflineTasksQueue, setOfflineDeletedTasks]);
 
-  const handleDeleteTask = async (id: string) => {
-    const targetTask = tasks.find(t => t.id === id);
+  const handleDeleteTask = useCallback(async (id: string) => {
+    const currentTasks = useTaskStore.getState().tasks;
+    const targetTask = currentTasks.find(t => t.id === id);
     if (targetTask) {
       triggerToast(
         'info',
@@ -4053,9 +4059,9 @@ export default function App() {
       });
       setOfflineDeletedTasks(prev => [...prev, id]);
     }
-  };
+  }, [triggerToast, addSyncLog, setTasks, isOffline, setOfflineTasksQueue, setOfflineDeletedTasks]);
 
-  const handleUpdateTaskOrder = async (workspaceId: string, orderedIds: string[]) => {
+  const handleUpdateTaskOrder = useCallback(async (workspaceId: string, orderedIds: string[]) => {
     if (currentUser && !isOffline) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -4083,7 +4089,7 @@ export default function App() {
         console.error('Task order sync failure:', err);
       }
     }
-  };
+  }, [currentUser, isOffline]);
 
   const handleAddDoc = async (d: Omit<Document, 'id' | 'updatedAt'>) => {
     const newDocId = `doc-${Date.now()}`;
@@ -4847,7 +4853,7 @@ export default function App() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8, scale: 0.96 }}
                 transition={{ duration: 0.16, ease: "easeOut" }}
-                className={`fixed top-14 mt-1 w-[280px] p-3.5 bg-white/98 border border-slate-200/90 rounded-3xl shadow-[0_20px_50px_rgba(15,23,42,0.14)] dark:bg-[#09090b]/98 dark:border-white/15 dark:shadow-[0_25px_60px_rgba(0,0,0,0.8)] backdrop-blur-2xl z-[150] space-y-3 text-left origin-top-left ${
+                className={`fixed top-14 mt-1 w-[280px] p-3.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl shadow-[0_20px_50px_rgba(15,23,42,0.14)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.8)] z-[150] space-y-3 text-left origin-top-left ${
                   isMainSidebarCollapsed ? 'left-[74px]' : 'left-3'
                 }`}
               >
@@ -5234,174 +5240,14 @@ export default function App() {
             >
               <Keyboard className="h-4 w-4" />
             </button>
-            {/* Interactive Date & Display Options Pill Widget */}
-            {(() => {
-              const now = new Date();
-              const localeTag = locale === 'vi' ? 'vi-VN' : 'en-US';
-              const renderDateValue = (fmt: string, ref: Date) => {
-                switch (fmt) {
-                  case 'full':
-                    return ref.toLocaleDateString(localeTag, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-                  case 'vi':
-                    return ref.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' });
-                  case 'numeric':
-                    return ref.toISOString().split('T')[0];
-                  case 'clock':
-                    return `${ref.toLocaleDateString(localeTag, { weekday: 'short', month: 'short', day: 'numeric' })} • ${currentTimeStr || ref.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-                  case 'short':
-                  default:
-                    return ref.toLocaleDateString(localeTag, { weekday: 'short', month: 'short', day: 'numeric' });
-                }
-              };
-              const formattedDate = renderDateValue(dateFormat, now);
+            {/* Quick Mini App Launcher Popover */}
+            <MiniAppLauncherButton
+              onSelectApp={(appId) => setActiveTab(appId)}
+              onOpenHub={() => setActiveTab('miniapps')}
+            />
 
-              const dateFmtOptions: { id: 'short' | 'clock' | 'full' | 'vi' | 'numeric'; label: string; icon: typeof Calendar; tile: string }[] = [
-                { id: 'short', label: locale === 'vi' ? 'Ngắn gọn' : 'Short', icon: Calendar, tile: 'bg-sky-50 text-sky-600 border-sky-200/70 dark:bg-sky-500/10 dark:text-sky-300 dark:border-sky-500/20' },
-                { id: 'clock', label: locale === 'vi' ? 'Đồng hồ Realtime' : 'Live Clock', icon: CalendarClock, tile: 'bg-emerald-50 text-emerald-600 border-emerald-200/70 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20' },
-                { id: 'full', label: locale === 'vi' ? 'Chi tiết' : 'Full', icon: CalendarDays, tile: 'bg-violet-50 text-violet-600 border-violet-200/70 dark:bg-violet-500/10 dark:text-violet-300 dark:border-violet-500/20' },
-                { id: 'vi', label: locale === 'vi' ? 'Chuẩn Việt Nam' : 'Vietnamese', icon: Languages, tile: 'bg-amber-50 text-amber-600 border-amber-200/70 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20' },
-                { id: 'numeric', label: locale === 'vi' ? 'Số ISO' : 'ISO Numeric', icon: Hash, tile: 'bg-slate-100 text-slate-600 border-slate-200/70 dark:bg-slate-500/10 dark:text-slate-300 dark:border-slate-500/20' },
-              ];
-
-              return (
-                <div className="relative">
-                  <button
-                    ref={displayButtonRef}
-                    type="button"
-                    onClick={() => {
-                      setShowDisplayOptionsMenu(!showDisplayOptionsMenu);
-                      (window as any).playSystemSound?.('click');
-                    }}
-                    aria-expanded={showDisplayOptionsMenu}
-                    aria-haspopup="dialog"
-                    className={`apexa-header-date-button h-8.5 text-[11.5px] font-bold tabular-nums font-sans hidden xl:inline-flex items-center gap-1.5 px-3 rounded-xl border select-none transition-all cursor-pointer group active:scale-95 shadow-3xs ${
-                      showDisplayOptionsMenu
-                        ? 'bg-blue-50 dark:bg-zinc-800 border-blue-500/50 dark:border-blue-400/50 text-blue-600 dark:text-sky-300 ring-2 ring-blue-500/15'
-                        : 'bg-white/70 dark:bg-white/[0.03] border-slate-200/80 dark:border-white/[0.08] text-slate-700 dark:text-zinc-200 hover:bg-white dark:hover:bg-white/[0.06] hover:border-slate-300 dark:hover:border-white/15'
-                    }`}
-                    title={locale === 'vi' ? 'Định dạng ngày & giờ' : 'Date & Time format'}
-                  >
-                    <Calendar className="w-3.5 h-3.5 text-blue-500 shrink-0 group-hover:rotate-12 transition-transform" />
-                    {dateFormat === 'clock' && (
-                      <span className="relative flex h-1.5 w-1.5 shrink-0" title={locale === 'vi' ? 'Đang cập nhật realtime' : 'Updating live'}>
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      </span>
-                    )}
-                    <span>{formattedDate}</span>
-                    <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 group-hover:text-slate-600 dark:group-hover:text-zinc-300 ${showDisplayOptionsMenu ? 'rotate-180 text-blue-500 group-hover:text-blue-600 dark:text-sky-300' : ''}`} />
-                  </button>
-
-                  {/* Compact Date & Time Popover Menu */}
-                  <AnimatePresence>
-                    {showDisplayOptionsMenu && (
-                      <motion.div
-                        ref={displayMenuRef}
-                        initial={{ opacity: 0, scale: 0.95, y: 4 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 4 }}
-                        transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-                        className="absolute right-0 top-full mt-2 w-72 bg-white/98 dark:bg-[#121620]/98 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-[0_20px_45px_-10px_rgba(0,0,0,0.3)] p-3 z-50 text-left font-sans space-y-2.5 select-none"
-                      >
-                        {/* Header */}
-                        <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-white/[0.06]">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-7 h-7 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-sky-400 flex items-center justify-center shrink-0">
-                              <Calendar className="w-3.5 h-3.5" />
-                            </div>
-                            <div className="min-w-0">
-                              <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
-                                {locale === 'vi' ? 'Định dạng ngày & giờ' : 'Date & Time'}
-                              </h4>
-                              <p className="text-[10px] text-slate-400 dark:text-zinc-400 font-medium leading-tight">
-                                {locale === 'vi' ? 'Hiển thị trên thanh tiêu đề' : 'Header display format'}
-                              </p>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setShowDisplayOptionsMenu(false)}
-                            className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
-                            title={locale === 'vi' ? 'Đóng' : 'Close'}
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-
-                        {/* Format Options List */}
-                        <div className="space-y-1">
-                          {dateFmtOptions.map((fmt) => {
-                            const isSelected = dateFormat === fmt.id;
-                            const Icon = fmt.icon;
-                            return (
-                              <button
-                                key={fmt.id}
-                                type="button"
-                                onClick={() => {
-                                  setDateFormat(fmt.id);
-                                  (window as any).playSystemSound?.('toggle');
-                                }}
-                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left transition-all cursor-pointer ${
-                                  isSelected
-                                    ? 'bg-blue-500/10 text-blue-600 dark:text-sky-400 border border-blue-500/25 font-semibold'
-                                    : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-100/70 dark:hover:bg-white/[0.04] border border-transparent'
-                                }`}
-                              >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <Icon className="w-3.5 h-3.5 shrink-0 opacity-70" />
-                                  <div className="min-w-0">
-                                    <div className="text-xs font-medium truncate">{fmt.label}</div>
-                                    <div className="text-[9.5px] font-mono text-slate-400 dark:text-zinc-500 truncate">{renderDateValue(fmt.id, now)}</div>
-                                  </div>
-                                </div>
-                                {isSelected && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 shrink-0" />}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* Density toggle footer */}
-                        <div className="pt-2 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between text-[10px]">
-                          <span className="font-semibold text-slate-400 dark:text-zinc-500">
-                            {locale === 'vi' ? 'Mật độ hiển thị:' : 'UI Density:'}
-                          </span>
-                          <div className="flex items-center gap-1 bg-slate-100 dark:bg-white/[0.06] p-0.5 rounded-lg">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setUiDensity('comfortable');
-                                (window as any).playSystemSound?.('toggle');
-                              }}
-                              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
-                                uiDensity === 'comfortable'
-                                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-3xs font-semibold'
-                                  : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800'
-                              }`}
-                            >
-                              {locale === 'vi' ? 'Thoáng' : 'Comfortable'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setUiDensity('compact');
-                                (window as any).playSystemSound?.('toggle');
-                              }}
-                              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
-                                uiDensity === 'compact'
-                                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-3xs font-semibold'
-                                  : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800'
-                              }`}
-                            >
-                              {locale === 'vi' ? 'Gọn' : 'Compact'}
-                            </button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              );
-            })()}
+            {/* Interactive Date & Display Options Pill Widget (Memoized & Isolated) */}
+            <HeaderLiveClockPill />
             
             {/* Upgrade Premium Button */}
             {!currentUser.isPremium && !isApexaSuperAdmin(currentUser.id) && (
@@ -5454,10 +5300,10 @@ export default function App() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute right-0 mt-2.5 w-[min(95vw,24rem)] bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-2xl backdrop-blur-xl z-[90] overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 font-sans"
+                    className="absolute right-0 mt-2.5 w-[min(95vw,24rem)] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-[0_16px_40px_-8px_rgba(0,0,0,0.18),0_6px_16px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8),0_8px_20px_-4px_rgba(0,0,0,0.6)] z-[90] overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 font-sans"
                   >
                     {/* Header */}
-                    <div className="p-3.5 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/20">
+                    <div className="p-3.5 flex items-center justify-between bg-slate-50 dark:bg-zinc-800/60">
                       <div className="flex items-center gap-1.5">
                         <Bell className="w-4 h-4 text-indigo-500" />
                         <span className="text-xs font-black text-slate-800 dark:text-slate-200">
@@ -5472,7 +5318,7 @@ export default function App() {
                               setNotificationsList(prev => prev.map(n => activeIds.includes(n.id) ? { ...n, read: true } : n));
                               (window as any).playSystemSound?.('success');
                             }}
-                            className="text-[10px] font-extrabold text-indigo-600 hover:text-indigo-755 dark:text-indigo-400 cursor-pointer hover:underline"
+                            className="text-[10px] font-extrabold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 cursor-pointer hover:underline"
                           >
                             Đánh dấu đã đọc
                           </button>
@@ -5589,7 +5435,7 @@ export default function App() {
                     </div>
                     
                     {/* Footer link to settings & inbox */}
-                    <div className="p-2.5 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/20 px-3">
+                    <div className="p-2.5 flex items-center justify-between bg-slate-50 dark:bg-zinc-800/60 px-3">
                       <button
                         onClick={() => {
                           setActiveTab('inbox');
@@ -5662,22 +5508,100 @@ export default function App() {
                     initial={{ opacity: 0, y: 6, scale: 0.96 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 6, scale: 0.96 }}
-                    transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-                    className="absolute right-0 mt-2 w-[min(92vw,250px)] p-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/10 dark:shadow-black/50 z-[100] text-left origin-top-right font-sans"
+                    transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+                    className="absolute right-0 mt-2 w-[min(92vw,284px)] p-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-[0_16px_40px_-8px_rgba(0,0,0,0.18),0_6px_16px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8),0_8px_20px_-4px_rgba(0,0,0,0.6)] z-[100] text-left origin-top-right font-sans"
                   >
-                    {/* User Info Header with Role */}
-                    <div className="p-2.5 mb-1 bg-slate-50/90 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800/60">
-                      <div className="flex items-center justify-between gap-1.5">
-                        <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
-                          {currentUser.name}
-                        </span>
-                        <span className="shrink-0 text-[8.5px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/50 px-1.5 py-0.5 rounded-md">
-                          {currentUser.role === 'admin' ? (locale === 'vi' ? 'Quản trị' : 'Admin') : (locale === 'vi' ? 'Kỹ sư thiết kế' : 'Designer')}
-                        </span>
+                    {/* User Info Header with Avatar & Role */}
+                    <div className="p-2.5 mb-1.5 bg-slate-50 dark:bg-zinc-800/60 rounded-xl border border-slate-100 dark:border-zinc-800/80">
+                      <div className="flex items-center gap-2.5">
+                        <div className="relative shrink-0">
+                          <SignedImage
+                            filePath={currentUser.avatar}
+                            className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 object-cover border border-slate-200/80 dark:border-zinc-700/80 shadow-xs"
+                            alt={currentUser.name}
+                          />
+                          <span
+                            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-zinc-800 z-10 ${
+                              presenceDotClass(accountPresenceStatus, true)
+                            }`}
+                            title={accountPresenceLabel}
+                          />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-[13px] text-slate-900 dark:text-zinc-100 truncate leading-snug" title={currentUser.name}>
+                              {currentUser.name}
+                            </span>
+                            <span className="shrink-0 text-[8.5px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/70 border border-blue-200/70 dark:border-blue-800/60 px-1.5 py-0.5 rounded-md">
+                              {currentUser.role === 'admin' || isApexaSuperAdmin(currentUser.id)
+                                ? (locale === 'vi' ? 'Quản trị' : 'Admin')
+                                : (currentUser.role === 'guest' ? (locale === 'vi' ? 'Khách' : 'Guest') : (locale === 'vi' ? 'Thành viên' : 'Member'))}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate mt-0.5 font-medium" title={currentUser.email}>
+                            {currentUser.email}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 truncate mt-0.5 font-medium">
-                        {currentUser.email}
-                      </p>
+                    </div>
+
+                    {/* Subscription Pro Banner / Status */}
+                    <div className="mb-1">
+                      {(currentUser.isPremium || isApexaSuperAdmin(currentUser.id)) ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowPremiumModal(true);
+                            setShowStatusMenu(false);
+                            (window as any).playSystemSound?.('click');
+                          }}
+                          className="w-full flex items-center justify-between p-2 rounded-xl text-xs bg-amber-50/70 hover:bg-amber-50 dark:bg-amber-500/10 dark:hover:bg-amber-500/15 border border-amber-200 dark:border-amber-500/30 transition-all cursor-pointer group text-left"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-6 h-6 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:rotate-12 transition-transform">
+                              <Sparkles className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-[11.5px] text-amber-900 dark:text-amber-200 truncate">
+                                  {locale === 'vi' ? 'Gói Apexa Pro' : 'Apexa Pro'}
+                                </span>
+                                <span className="text-[7.5px] font-black uppercase bg-gradient-to-r from-amber-500 to-orange-500 text-white px-1.5 py-0.2 rounded-md shadow-xs">PRO</span>
+                              </div>
+                              <p className="text-[9.5px] text-amber-700/80 dark:text-amber-400 font-medium truncate">
+                                {locale === 'vi' ? 'Đã kích hoạt • Toàn bộ tính năng' : 'Active • All features'}
+                              </p>
+                            </div>
+                          </div>
+                          <ChevronRight className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowPremiumModal(true);
+                            setShowStatusMenu(false);
+                            (window as any).playSystemSound?.('click');
+                          }}
+                          className="w-full flex items-center justify-between p-2 rounded-xl text-xs bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-xs transition-all cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-2 min-w-0 text-left">
+                            <Sparkles className="w-4 h-4 text-white shrink-0 animate-pulse group-hover:rotate-12 transition-transform" />
+                            <div className="min-w-0">
+                              <span className="font-bold text-[11.5px] block truncate leading-tight">
+                                {locale === 'vi' ? 'Nâng cấp Premium Pro' : 'Upgrade to Pro'}
+                              </span>
+                              <span className="text-[9.5px] text-amber-100 block truncate">
+                                {locale === 'vi' ? 'Mở khóa AI & không giới hạn' : 'Unlock AI & unlimited'}
+                              </span>
+                            </div>
+                          </div>
+                          <span className="text-[8.5px] font-black uppercase bg-white/20 text-white px-1.5 py-0.5 rounded-md shrink-0">
+                            PRO
+                          </span>
+                        </button>
+                      )}
                     </div>
 
                     {/* Quick Access Menu Items */}
@@ -5689,10 +5613,13 @@ export default function App() {
                           setShowStatusMenu(false);
                           (window as any).playSystemSound?.('click');
                         }}
-                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                        className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/70 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer group"
                       >
-                        <UserIcon className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
-                        <span>{locale === 'vi' ? 'Hồ sơ cá nhân' : 'Profile'}</span>
+                        <div className="flex items-center gap-2.5">
+                          <UserIcon className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 shrink-0 transition-colors" />
+                          <span>{locale === 'vi' ? 'Hồ sơ cá nhân' : 'Profile'}</span>
+                        </div>
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-zinc-600 group-hover:text-slate-500 dark:group-hover:text-zinc-400 group-hover:translate-x-0.5 transition-all" />
                       </button>
 
                       <button
@@ -5702,32 +5629,64 @@ export default function App() {
                           setShowStatusMenu(false);
                           (window as any).playSystemSound?.('click');
                         }}
-                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                        className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/70 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer group"
                       >
-                        <Settings className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
-                        <span>{locale === 'vi' ? 'Cài đặt hệ thống' : 'Settings'}</span>
+                        <div className="flex items-center gap-2.5">
+                          <Settings className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 shrink-0 transition-colors" />
+                          <span>{locale === 'vi' ? 'Cài đặt hệ thống' : 'Settings'}</span>
+                        </div>
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-zinc-600 group-hover:text-slate-500 dark:group-hover:text-zinc-400 group-hover:translate-x-0.5 transition-all" />
                       </button>
 
+                      {/* Quick Dark/Light Mode Switcher */}
                       <button
                         type="button"
                         onClick={() => {
-                          setShowPremiumModal(true);
+                          const nextTheme = isDarkMode ? 'light' : 'dark';
+                          setThemePreference(nextTheme);
+                          (window as any).playSystemSound?.('pop');
+                        }}
+                        className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/70 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          {isDarkMode ? (
+                            <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                          ) : (
+                            <Moon className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                          )}
+                          <span>
+                            {isDarkMode
+                              ? (locale === 'vi' ? 'Chế độ sáng' : 'Light Mode')
+                              : (locale === 'vi' ? 'Chế độ tối' : 'Dark Mode')}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-medium text-slate-400 dark:text-zinc-500">
+                          {isDarkMode ? (locale === 'vi' ? 'Đang bật tối' : 'Dark') : (locale === 'vi' ? 'Đang bật sáng' : 'Light')}
+                        </span>
+                      </button>
+
+                      {/* Keyboard Shortcuts */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowKeyboardShortcuts(true);
                           setShowStatusMenu(false);
                           (window as any).playSystemSound?.('click');
                         }}
-                        className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-500/8 hover:bg-amber-500/15 border border-amber-500/20 transition-all cursor-pointer group"
+                        className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/70 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer group"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0 group-hover:rotate-12 transition-transform" />
-                          <span className="truncate">{(currentUser.isPremium || isApexaSuperAdmin(currentUser.id)) ? (locale === 'vi' ? 'Đã kích hoạt Pro' : 'Pro Active') : (locale === 'vi' ? 'Nâng cấp Premium Pro' : 'Upgrade Pro')}</span>
+                        <div className="flex items-center gap-2.5">
+                          <Keyboard className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 shrink-0 transition-colors" />
+                          <span>{locale === 'vi' ? 'Phím tắt nhanh' : 'Keyboard Shortcuts'}</span>
                         </div>
-                        {!currentUser.isPremium && !isApexaSuperAdmin(currentUser.id) && (
-                          <span className="text-[8.5px] font-black uppercase bg-gradient-to-r from-amber-500 to-orange-500 text-white px-1.5 py-0.2 rounded-md shadow-xs">PRO</span>
-                        )}
+                        <kbd className="text-[9.5px] font-sans font-bold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-400 border border-slate-200/80 dark:border-zinc-700/80">
+                          ?
+                        </kbd>
                       </button>
 
-                      <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+                      <div className="border-t border-slate-100 dark:border-zinc-800 my-1" />
 
+                      {/* Sign out */}
                       <button
                         type="button"
                         onClick={async () => {
@@ -5741,10 +5700,12 @@ export default function App() {
                           updateCurrentUser(null);
                           localStorage.removeItem('avaxa_session');
                         }}
-                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/25 transition-colors cursor-pointer"
+                        className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/25 transition-colors cursor-pointer group"
                       >
-                        <LogOut className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                        <span>{locale === 'vi' ? 'Đăng xuất' : 'Sign out'}</span>
+                        <div className="flex items-center gap-2.5">
+                          <LogOut className="w-3.5 h-3.5 text-rose-500 shrink-0 group-hover:-translate-x-0.5 transition-transform" />
+                          <span>{locale === 'vi' ? 'Đăng xuất tài khoản' : 'Sign out'}</span>
+                        </div>
                       </button>
                     </div>
                   </motion.div>
@@ -5931,7 +5892,23 @@ export default function App() {
         
 
         {(() => {
-          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'goals' || activeTab === 'chat' || activeTab === 'docs' || activeTab === 'inbox' || activeTab === 'calendar' || activeTab === 'settings' || activeTab === 'finance';
+          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'goals' || activeTab === 'chat' || activeTab === 'docs' || activeTab === 'inbox' || activeTab === 'calendar' || activeTab === 'settings' || activeTab === 'finance' || activeTab === 'miniapps' || activeTab === 'crm' || activeTab === 'erp' || activeTab === 'base' || activeTab === 'whiteboard' || activeTab === 'planner' || activeTab === 'pomodoro' || activeTab === 'notes' || activeTab === 'converter' || activeTab.startsWith('custom-');
+          const activeMiniApp = allMiniApps.find(a => a.id === activeTab) || (
+            activeTab.startsWith('custom-')
+              ? customMiniApps.find(a => a.id === activeTab) || {
+                  id: activeTab,
+                  name: 'Custom Web App',
+                  nameVi: 'Ứng dụng Web tùy chỉnh',
+                  description: '',
+                  descriptionVi: '',
+                  icon: '🌐',
+                  category: 'custom' as const,
+                  color: '#3b82f6',
+                  isSystem: false,
+                  openMode: 'embedded' as const,
+                }
+              : undefined
+          );
           
           return (
             <main id="apexa-main-content" tabIndex={-1} className="apexa-main-canvas cu-content-area relative h-full w-full flex-1 overflow-hidden bg-white dark:bg-transparent">
@@ -6010,7 +5987,7 @@ export default function App() {
 
                   {(activeTab === 'tasks' || activeTab === 'my-tasks') && (
                     <SpacePage
-                      tasks={mapTasksToSpaces(currentWorkspaceTasks)}
+                      tasks={mappedWorkspaceTasks}
                       members={currentWorkspaceMembers}
                       onAddTask={handleAddTask}
                       onUpdateTask={handleUpdateTask}
@@ -6018,9 +5995,6 @@ export default function App() {
                       isOffline={isOffline}
                       onAddSyncLog={addSyncLog}
                       triggerToast={triggerToast}
-                      globalActiveTaskId={activeTimerTaskId}
-                      globalActiveElapsed={activeTimerElapsed}
-                      globalIsPaused={isTimerPaused}
                       onStartGlobalTimer={handleStartGlobalTimer}
                       onStopGlobalTimer={handleStopGlobalTimer}
                       onTogglePauseGlobalTimer={handleTogglePauseGlobalTimer}
@@ -6055,7 +6029,7 @@ export default function App() {
                       }}
                       
                       // Space states
-                      spaces={spaces.filter(s => s.workspaceId === activeWorkspaceId)}
+                      spaces={currentWorkspaceSpaces}
                       onSaveSpaces={handleSaveSpaces}
                       activeSpaceId={activeSpaceId}
                       setActiveSpaceId={setActiveSpaceId}
@@ -6099,7 +6073,7 @@ export default function App() {
 
                   {activeTab === 'calendar' && (
                     <CalendarView
-                      tasks={mapTasksToSpaces(currentWorkspaceTasks)}
+                      tasks={mappedWorkspaceTasks}
                       members={currentWorkspaceMembers}
                       isOffline={isOffline}
                       onAddSyncLog={addSyncLog}
@@ -6107,7 +6081,7 @@ export default function App() {
                       onAddTask={handleAddTask}
                       onUpdateTask={handleUpdateTask}
                       onDeleteTask={handleDeleteTask}
-                      spaces={spaces.filter(s => s.workspaceId === activeWorkspaceId)}
+                      spaces={currentWorkspaceSpaces}
                       activeSpaceId={activeSpaceId}
                       activeListId={activeListId}
                     />
@@ -6143,6 +6117,10 @@ export default function App() {
                       currentUser={currentUser}
                       onSendWorkspaceInvites={handleSendWorkspaceInvites}
                       onStartChat={(memberId) => {
+                        const currentUserId = currentUser?.id || 'user';
+                        const sortedIds = [currentUserId, memberId].sort();
+                        const dmChannelId = `${activeWorkspaceId || 'w1'}:dm-${sortedIds[0]}-${sortedIds[1]}`;
+                        setInitialSelectedChannelId(dmChannelId);
                         setActiveTab('chat');
                         const targetMember = currentWorkspaceMembers.find(m => m.id === memberId);
                         triggerToast('info', 'Chat đội nhóm', targetMember ? `Đang mở cuộc trò chuyện với ${targetMember.name}.` : 'Đang chuyển đến kênh trò chuyện.');
@@ -6245,6 +6223,226 @@ export default function App() {
                       onSendWorkspaceInvites={handleSendWorkspaceInvites}
                     />
                   )}
+
+                  {activeTab === 'miniapps' && (
+                    <MiniAppHub
+                      onLaunchApp={(appId) => setActiveTab(appId)}
+                      triggerToast={triggerToast}
+                    />
+                  )}
+
+                  {/* Fallback if active mini app is disabled */}
+                  {activeMiniApp && activeMiniApp.isEnabled === false && activeTab !== 'miniapps' && (
+                    <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-slate-50/50 dark:bg-zinc-950/50">
+                      <div className="max-w-md p-8 rounded-3xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-zinc-900 shadow-xl flex flex-col items-center">
+                        <MiniAppIcon
+                          appId={activeMiniApp.id}
+                          icon={activeMiniApp.icon}
+                          iconName={activeMiniApp.iconName}
+                          gradient={activeMiniApp.gradient}
+                          color={activeMiniApp.color}
+                          variant="card"
+                          disabled={true}
+                          className="w-16 h-16 rounded-2xl mb-4 shadow-lg"
+                        />
+                        <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-300 dark:border-amber-800/50 mb-3">
+                          {locale === 'vi' ? 'Ứng dụng đang tắt' : 'Mini App Disabled'}
+                        </span>
+                        <h2 className="text-xl font-black text-slate-900 dark:text-white">
+                          {locale === 'vi' ? activeMiniApp.nameVi || activeMiniApp.name : activeMiniApp.name}
+                        </h2>
+                        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2 leading-relaxed">
+                          {locale === 'vi'
+                            ? 'Ứng dụng này hiện đang ở trạng thái tắt. Hãy bật lại để tiếp tục sử dụng các công cụ và dữ liệu làm việc.'
+                            : 'This mini app is currently turned off. Re-enable it to continue accessing its tools and workspace data.'}
+                        </p>
+                        <div className="flex items-center gap-3 mt-6 w-full">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              enableMiniApp(activeMiniApp.id);
+                              if (triggerToast) triggerToast('success', locale === 'vi' ? 'Đã bật ứng dụng' : 'App Enabled', activeMiniApp.name);
+                            }}
+                            className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                          >
+                            <Power className="w-4 h-4" />
+                            <span>{locale === 'vi' ? 'Kích hoạt ngay' : 'Enable App'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('miniapps')}
+                            className="py-2.5 px-4 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold text-xs transition-all cursor-pointer"
+                          >
+                            {locale === 'vi' ? 'Về Hub' : 'Back to Hub'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'crm' && activeMiniApp && activeMiniApp.isEnabled !== false && (
+                    <MiniAppContainer
+                      app={activeMiniApp}
+                      onBackToHub={() => setActiveTab('miniapps')}
+                      triggerToast={triggerToast}
+                    >
+                      <CRMWorkspace
+                        bases={currentWorkspaceBases}
+                        members={currentWorkspaceMembers}
+                        activeWorkspaceId={activeWorkspaceId}
+                        isOffline={isOffline}
+                        onAddBase={handleAddBase}
+                        onUpdateBase={handleUpdateBase}
+                        onAddSyncLog={addSyncLog}
+                        triggerToast={triggerToast}
+                      />
+                    </MiniAppContainer>
+                  )}
+
+                  {activeTab === 'erp' && activeMiniApp && activeMiniApp.isEnabled !== false && (
+                    <MiniAppContainer
+                      app={activeMiniApp}
+                      onBackToHub={() => setActiveTab('miniapps')}
+                      triggerToast={triggerToast}
+                    >
+                      <ERPHub
+                        activeWorkspaceId={activeWorkspaceId}
+                        members={currentWorkspaceMembers}
+                        isOffline={isOffline}
+                        onAddSyncLog={addSyncLog}
+                        triggerToast={triggerToast}
+                      />
+                    </MiniAppContainer>
+                  )}
+
+                  {activeTab === 'base' && activeMiniApp && activeMiniApp.isEnabled !== false && (
+                    <MiniAppContainer
+                      app={activeMiniApp}
+                      onBackToHub={() => setActiveTab('miniapps')}
+                      triggerToast={triggerToast}
+                    >
+                      <BaseHub
+                        bases={currentWorkspaceBases}
+                        members={currentWorkspaceMembers}
+                        isOffline={isOffline}
+                        spaces={currentWorkspaceSpaces}
+                        tasks={currentWorkspaceTasks}
+                        onAddBase={handleAddBase}
+                        onUpdateBase={handleUpdateBase}
+                        onDeleteBase={handleDeleteBase}
+                        onAddSyncLog={addSyncLog}
+                        triggerToast={triggerToast}
+                      />
+                    </MiniAppContainer>
+                  )}
+
+                  {activeTab === 'whiteboard' && activeMiniApp && activeMiniApp.isEnabled !== false && (
+                    <MiniAppContainer
+                      app={activeMiniApp}
+                      onBackToHub={() => setActiveTab('miniapps')}
+                      triggerToast={triggerToast}
+                    >
+                      <WhiteboardHub
+                        activeWorkspaceId={activeWorkspaceId}
+                        members={currentWorkspaceMembers}
+                        tasks={currentWorkspaceTasks}
+                        isOffline={isOffline}
+                        currentUser={currentUser}
+                        onUpgradePremium={() => setShowPremiumModal(true)}
+                        onAddSyncLog={addSyncLog}
+                        onAddTask={handleAddTask}
+                        triggerToast={triggerToast}
+                      />
+                    </MiniAppContainer>
+                  )}
+
+                  {activeTab === 'planner' && activeMiniApp && activeMiniApp.isEnabled !== false && (
+                    <MiniAppContainer
+                      app={activeMiniApp}
+                      onBackToHub={() => setActiveTab('miniapps')}
+                      triggerToast={triggerToast}
+                    >
+                      <DayPlanner
+                        tasks={currentWorkspaceTasks}
+                        members={currentWorkspaceMembers}
+                        currentUser={currentUser || {
+                          id: 'anon',
+                          name: 'Member',
+                          email: '',
+                          avatar: '',
+                          role: 'member',
+                          status: 'online',
+                        }}
+                        workspaceId={activeWorkspaceId}
+                        onOpenTask={(taskId) => {
+                          const task = currentWorkspaceTasks.find((item) => item.id === taskId);
+                          setActiveTab('tasks');
+                          if (task?.spaceId) setActiveSpaceId(task.spaceId);
+                          if (task?.listId) setActiveListId(task.listId);
+                          setInitialSelectedTaskId(taskId);
+                        }}
+                      />
+                    </MiniAppContainer>
+                  )}
+
+                  {activeTab === 'pomodoro' && activeMiniApp && activeMiniApp.isEnabled !== false && (
+                    <MiniAppContainer
+                      app={activeMiniApp}
+                      onBackToHub={() => setActiveTab('miniapps')}
+                      triggerToast={triggerToast}
+                    >
+                      <PomodoroMiniApp
+                        tasks={currentWorkspaceTasks}
+                        onOpenTask={(taskId) => {
+                          const task = currentWorkspaceTasks.find((item) => item.id === taskId);
+                          setActiveTab('tasks');
+                          if (task?.spaceId) setActiveSpaceId(task.spaceId);
+                          if (task?.listId) setActiveListId(task.listId);
+                          setInitialSelectedTaskId(taskId);
+                        }}
+                        triggerToast={triggerToast}
+                      />
+                    </MiniAppContainer>
+                  )}
+
+                  {activeTab === 'notes' && activeMiniApp && activeMiniApp.isEnabled !== false && (
+                    <MiniAppContainer
+                      app={activeMiniApp}
+                      onBackToHub={() => setActiveTab('miniapps')}
+                      triggerToast={triggerToast}
+                    >
+                      <NotesMiniApp
+                        onExportToDoc={(title, content) => {
+                          handleAddDoc({
+                            title,
+                            content,
+                            category: 'General',
+                            updatedBy: currentUser?.name || 'User',
+                          });
+                          triggerToast('success', locale === 'vi' ? 'Đã xuất sang Docs' : 'Exported to Docs', title);
+                        }}
+                        triggerToast={triggerToast}
+                      />
+                    </MiniAppContainer>
+                  )}
+
+                  {activeTab === 'converter' && activeMiniApp && activeMiniApp.isEnabled !== false && (
+                    <MiniAppContainer
+                      app={activeMiniApp}
+                      onBackToHub={() => setActiveTab('miniapps')}
+                      triggerToast={triggerToast}
+                    >
+                      <ConverterMiniApp />
+                    </MiniAppContainer>
+                  )}
+
+                  {activeTab.startsWith('custom-') && activeMiniApp && activeMiniApp.isEnabled !== false && (
+                    <MiniAppContainer
+                      app={activeMiniApp}
+                      onBackToHub={() => setActiveTab('miniapps')}
+                      triggerToast={triggerToast}
+                    />
+                  )}
                 </motion.div>
               </AnimatePresence>
             </main>
@@ -6270,7 +6468,7 @@ export default function App() {
               animate={{ scale: 1, y: 0, opacity: 1 }} 
               exit={{ scale: 0.95, y: 14, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 420, damping: 30 }}
-              className="relative w-full max-w-[480px] rounded-3xl bg-white dark:bg-[#09090b]/98 border border-slate-200/90 dark:border-white/10 overflow-hidden z-10 text-left font-sans select-none shadow-[0_25px_60px_-15px_rgba(15,23,42,0.18)] dark:shadow-[0_30px_90px_rgba(0,0,0,0.85)] backdrop-blur-2xl max-h-[90vh] flex flex-col"
+              className="relative w-full max-w-[480px] rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 overflow-hidden z-10 text-left font-sans select-none shadow-2xl max-h-[90vh] flex flex-col"
             >
               {/* Top Accent Light Line */}
               <div 
@@ -6719,57 +6917,12 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* ── Global Time Tracker Widget ── */}
-      <AnimatePresence>
-        {activeTimerTaskId && (() => {
-          const timedTask = tasks.find(t => t.id === activeTimerTaskId);
-          if (!timedTask) return null;
-          return (
-            <motion.div 
-              initial={{ opacity: 0, y: 50, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 50, scale: 0.95 }}
-              className="fixed bottom-6 right-6 z-[80] font-sans flex items-center gap-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/60 dark:border-slate-800 shadow-2xl px-4 py-2.5 rounded-2xl select-none pointer-events-auto"
-            >
-              <div className="flex items-center gap-2">
-                <div className={`w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0 ${isTimerPaused ? '' : 'animate-ping'}`} />
-                <div className="flex flex-col text-left max-w-[140px] truncate">
-                  <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Đang theo dõi thời gian</span>
-                  <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-200 truncate mt-0.5" title={timedTask.title}>{timedTask.title}</span>
-                </div>
-              </div>
-
-              <div className="w-[1px] h-6 bg-slate-200 dark:bg-slate-800" />
-
-              <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-100 tabular-nums">
-                {formatTimerDuration(activeTimerElapsed)}
-              </span>
-
-              <div className="flex items-center gap-1">
-                {/* Pause/Resume Button */}
-                <button
-                  type="button"
-                  onClick={handleTogglePauseGlobalTimer}
-                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg cursor-pointer transition-colors"
-                  title={isTimerPaused ? 'Resume' : 'Pause'}
-                >
-                  {isTimerPaused ? <Play className="w-3.5 h-3.5 fill-current text-indigo-500" /> : <Pause className="w-3.5 h-3.5 fill-current text-indigo-500" />}
-                </button>
-
-                {/* Stop Button */}
-                <button
-                  type="button"
-                  onClick={handleStopGlobalTimer}
-                  className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-955/20 text-rose-600 dark:text-rose-450 rounded-lg cursor-pointer transition-colors"
-                  title="Dừng và ghi nhận thời gian"
-                >
-                  <Clock className="w-3.5 h-3.5 text-rose-500" />
-                </button>
-              </div>
-            </motion.div>
-          );
-        })()}
-      </AnimatePresence>
+      {/* ── Global Time Tracker Widget (Isolated & Memoized) ── */}
+      <GlobalTimerPill
+        tasks={tasks}
+        onStop={handleStopGlobalTimer}
+        onTogglePause={handleTogglePauseGlobalTimer}
+      />
 
       <MemberProfileModal
         memberId={viewingMemberProfileId}
@@ -6881,9 +7034,10 @@ export default function App() {
           setShowExportModal(true);
         }}
         onToggleDarkMode={() => {
-          setThemePreference(themePreference === 'dark' ? 'light' : 'dark');
+          setIsDarkMode(!isDarkMode);
+          setThemePreference(isDarkMode ? 'light' : 'dark');
         }}
-        isDarkMode={themePreference === 'dark'}
+        isDarkMode={isDarkMode}
         addSyncLog={addSyncLog}
       />
 
@@ -6908,6 +7062,14 @@ export default function App() {
           zone={editingZone}
           sidebarItemsMeta={sidebarItemsMeta}
           triggerToast={triggerToast}
+        />
+      )}
+
+      {showKeyboardShortcuts && (
+        <KeyboardShortcutsModal
+          isOpen={showKeyboardShortcuts}
+          onClose={() => setShowKeyboardShortcuts(false)}
+          locale={locale}
         />
       )}
 

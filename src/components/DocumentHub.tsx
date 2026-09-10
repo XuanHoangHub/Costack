@@ -3,13 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, getCleanChannel } from '../supabaseClient';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import dynamic from 'next/dynamic';
 import PageTreeSidebar from './PageTreeSidebar';
-import DocumentEditor from './DocumentEditor';
 import { Sparkles, FileText, PanelLeftOpen, PanelLeftClose, Plus, ChevronRight, Radio, CloudOff, Link2, Bot, UploadCloud, FolderKanban, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import DocumentStartModal from './DocumentStartModal';
-import DocumentAiPanel from './DocumentAiPanel';
 import type { ImportedApexaDocument } from '@/lib/documentImport';
+
+const DocumentEditor = dynamic(() => import('./DocumentEditor'), { ssr: false });
+const DocumentStartModal = dynamic(() => import('./DocumentStartModal'), { ssr: false });
+const DocumentAiPanel = dynamic(() => import('./DocumentAiPanel'), { ssr: false });
 
 interface DocumentHubProps {
   currentUser: any;

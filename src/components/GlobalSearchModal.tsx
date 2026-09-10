@@ -269,6 +269,71 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       },
     },
     {
+      id: 'goto-miniapps',
+      name: '/apps',
+      label: isVietnamese ? 'Kho ứng dụng Mini Apps' : 'Open Mini Apps Hub',
+      shortLabel: isVietnamese ? 'Kho ứng dụng' : 'Mini Apps',
+      description: isVietnamese ? 'Duyệt và khởi chạy các ứng dụng tiện ích trong workspace' : 'Browse and launch workspace mini apps',
+      icon: Boxes,
+      badge: isVietnamese ? 'Ứng dụng' : 'Apps',
+      action: () => {
+        onNavigateTab('miniapps');
+        addSyncLog(isVietnamese ? 'Lệnh: Mở Kho ứng dụng' : 'Command: Opened Mini Apps');
+      },
+    },
+    {
+      id: 'goto-crm',
+      name: '/crm',
+      label: isVietnamese ? 'Quản trị khách hàng (CRM)' : 'Open CRM Workspace',
+      shortLabel: 'CRM',
+      description: isVietnamese ? 'Quản lý phễu bán hàng, cơ hội giao dịch và khách hàng' : 'Deals pipeline, contacts and sales',
+      icon: Briefcase,
+      badge: 'CRM',
+      action: () => {
+        onNavigateTab('crm');
+        addSyncLog(isVietnamese ? 'Lệnh: Mở CRM' : 'Command: Opened CRM');
+      },
+    },
+    {
+      id: 'goto-erp',
+      name: '/erp',
+      label: isVietnamese ? 'Quản trị nguồn lực (ERP)' : 'Open ERP Hub',
+      shortLabel: 'ERP',
+      description: isVietnamese ? 'Kho vận, phiếu xuất nhập kho, đơn hàng và nhà cung cấp' : 'Inventory, warehouse, orders and supply',
+      icon: Boxes,
+      badge: 'ERP',
+      action: () => {
+        onNavigateTab('erp');
+        addSyncLog(isVietnamese ? 'Lệnh: Mở ERP' : 'Command: Opened ERP');
+      },
+    },
+    {
+      id: 'goto-base',
+      name: '/base',
+      label: isVietnamese ? 'Cơ sở dữ liệu Apexa Base' : 'Open Apexa Base',
+      shortLabel: 'Base',
+      description: isVietnamese ? 'Bảng dữ liệu quan hệ không mã (Bitable)' : 'Relational no-code bitable database',
+      icon: Layers3,
+      badge: 'Base',
+      action: () => {
+        onNavigateTab('base');
+        addSyncLog(isVietnamese ? 'Lệnh: Mở Base' : 'Command: Opened Base');
+      },
+    },
+    {
+      id: 'goto-planner',
+      name: '/planner',
+      label: isVietnamese ? 'Kế hoạch ngày (Day Planner)' : 'Open Day Planner',
+      shortLabel: isVietnamese ? 'Kế hoạch ngày' : 'Planner',
+      description: isVietnamese ? 'Timeboxing và lịch trình công việc trong ngày' : 'Daily schedule and timeboxing',
+      icon: Calendar,
+      badge: isVietnamese ? 'Kế hoạch' : 'Planner',
+      action: () => {
+        onNavigateTab('planner');
+        addSyncLog(isVietnamese ? 'Lệnh: Mở Kế hoạch ngày' : 'Command: Opened Day Planner');
+      },
+    },
+    {
       id: 'goto-analytics',
       name: '/analytics',
       label: isVietnamese ? 'Báo cáo & Phân tích' : 'Open Analytics',
@@ -630,14 +695,14 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: -16 }}
           transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-          className="relative bg-white/98 dark:bg-[#181818]/98 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800 rounded-3xl w-[min(95vw,672px)] max-sm:w-full max-sm:mx-2 overflow-hidden shadow-2xl flex flex-col max-h-[90dvh] z-10"
+          className="relative bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl w-[min(95vw,672px)] max-sm:w-full max-sm:mx-2 overflow-hidden shadow-2xl flex flex-col max-h-[90dvh] z-10"
         >
           <h2 id="global-search-title" className="sr-only">
             {isVietnamese ? 'Tìm kiếm toàn cục Apexa' : 'Apexa Global Search'}
           </h2>
 
           {/* Search Input Bar */}
-          <div className="px-5 py-4 border-b border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between gap-3 bg-white/60 dark:bg-slate-900/40 focus-within:border-indigo-500/60 transition-colors">
+          <div className="px-5 py-4 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-3 bg-slate-50/50 dark:bg-zinc-900 focus-within:border-indigo-500/60 transition-colors">
             {isCommandMode ? (
               <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
                 <Terminal className="w-4 h-4 animate-pulse" />

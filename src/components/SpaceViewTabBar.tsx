@@ -615,7 +615,7 @@ export default function SpaceViewTabBar({
       )}
 
       {/* Main Pill Segmented Container */}
-      <div className="apexa-space-view-dock relative flex items-center bg-slate-100/90 dark:bg-[#0c0f18]/90 p-1 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-3xs backdrop-blur-md max-w-full overflow-hidden">
+      <div className="apexa-space-view-dock relative flex items-center bg-slate-100/90 dark:bg-white/[0.04] p-1 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] shadow-3xs backdrop-blur-md max-w-full overflow-hidden">
         <div
           ref={scrollContainerRef}
           onScroll={checkScroll}
@@ -671,8 +671,8 @@ export default function SpaceViewTabBar({
                   onDoubleClick={() => handleStartRename(tab)}
                   className={`apexa-space-view-tab relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer select-none shrink-0 ${
                     isActive
-                      ? 'text-indigo-600 dark:text-indigo-300 font-bold'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/60 dark:hover:bg-slate-800/50'
+                      ? 'text-indigo-600 dark:text-white font-bold'
+                      : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.06]'
                   }`}
                 >
                   {/* Fluid Framer Motion Background Pill */}
@@ -680,7 +680,7 @@ export default function SpaceViewTabBar({
                     <motion.div
                       layoutId="activeSpaceViewTabPill"
                       transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-                      className="apexa-space-tab-active absolute inset-0 bg-white dark:bg-indigo-950/40 rounded-xl shadow-xs border border-slate-200/90 dark:border-indigo-500/30"
+                      className="apexa-space-tab-active absolute inset-0 bg-white dark:bg-white/[0.08] rounded-xl shadow-xs border border-slate-200/90 dark:border-white/10"
                     />
                   )}
 
@@ -703,7 +703,7 @@ export default function SpaceViewTabBar({
                           if (e.key === 'Enter') handleSaveRename(tab.id);
                           if (e.key === 'Escape') setEditingTabId(null);
                         }}
-                        className="bg-white dark:bg-slate-900 border border-indigo-500 rounded px-1.5 py-0.5 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none w-24"
+                        className="bg-white dark:bg-[#121214] border border-indigo-500 rounded px-1.5 py-0.5 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none w-24"
                         onClick={e => e.stopPropagation()}
                       />
                     ) : (
@@ -743,7 +743,7 @@ export default function SpaceViewTabBar({
                 <button
                   type="button"
                   onClick={e => handleTabContextMenu(e, tab.id)}
-                  className={`relative z-10 ml-0.5 p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-opacity cursor-pointer ${
+                  className={`relative z-10 ml-0.5 p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-white/[0.08] transition-opacity cursor-pointer ${
                     isActive ? 'opacity-70 hover:opacity-100' : 'opacity-0 group-hover/tab:opacity-100'
                   }`}
                   title="Tùy chọn chế độ xem"
@@ -960,17 +960,18 @@ export default function SpaceViewTabBar({
               </div>
 
               {/* Search view input */}
-              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 mb-2.5 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
-                <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <div className="group flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 mb-2.5 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
+                <Search className="w-3.5 h-3.5 text-slate-400 group-focus-within:text-indigo-500 dark:group-focus-within:text-indigo-400 transition-colors shrink-0" />
                 <input
                   type="text"
                   placeholder={locale === 'vi' ? 'Tìm loại chế độ xem...' : 'Search view types...'}
                   value={searchViewQuery}
                   onChange={e => setSearchViewQuery(e.target.value)}
-                  className="bg-transparent border-none outline-none text-xs font-semibold text-slate-800 dark:text-slate-100 w-full placeholder:text-slate-400"
+                  data-no-focus-outline="true"
+                  className="apexa-search-input bg-transparent border-none !border-0 outline-none !outline-none focus:outline-none focus:!outline-none focus-visible:outline-none focus-visible:!outline-none focus:ring-0 focus:!ring-0 text-xs font-semibold text-slate-800 dark:text-slate-100 w-full placeholder:text-slate-400 shadow-none"
                 />
                 {searchViewQuery && (
-                  <button onClick={() => setSearchViewQuery('')} className="text-slate-400 hover:text-slate-600 text-xs">✕</button>
+                  <button type="button" onClick={() => setSearchViewQuery('')} className="text-slate-400 hover:text-slate-600 text-xs cursor-pointer">✕</button>
                 )}
               </div>
 

@@ -491,3 +491,6 @@ export interface BaseApp {
   createdAt: string;
   updatedAt: string;
 }
+
+export * from './types/miniapp';
+

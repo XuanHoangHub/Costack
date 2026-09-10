@@ -4,11 +4,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Activity, AlertTriangle, Archive, Bell, Brain, BriefcaseBusiness, Building2, Check,
-  CheckCircle2, CheckSquare, ChevronRight, CircleUserRound, Clipboard, Cloud, Copy,
-  Database, Download, FileClock, FileText, FolderTree, Globe2, KeyRound, Laptop,
-  LockKeyhole, LogOut, Mail, Menu, MonitorCog, Moon, Palette, Plus,
+  CheckCircle2, CheckSquare, ChevronRight, CircleUserRound, Clipboard, Clock, Cloud, Copy,
+  Database, Download, FileClock, FileSpreadsheet, FileText, FolderTree, Globe2, KeyRound, Laptop,
+  LayoutGrid, Link2, LockKeyhole, LogOut, Mail, Menu, MonitorCog, Moon, Palette, Play, Plus,
   RefreshCw, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles,
-  Sun, Trash2, Upload, UserRoundCog, Users, UsersRound, Volume2, VolumeX, X,
+  Sun, Timer, Trash2, Upload, UserRoundCog, Users, UsersRound, Volume2, VolumeX, X,
   Zap, Smartphone, ShieldAlert
 } from 'lucide-react';
 import QRCode from 'qrcode';
@@ -156,6 +156,8 @@ export default function SettingsPanel({
   const { t, locale, isVietnamese } = useTranslation();
   const currentUser = useAuthStore(state => state.currentUser);
   const setShowPremiumModal = useUiStore(state => state.setShowPremiumModal);
+  const defaultStartupTab = useUiStore(state => state.defaultStartupTab);
+  const setDefaultStartupTab = useUiStore(state => state.setDefaultStartupTab);
 
   const accentOptions: Array<{ id: AccentPreset; name: string; hex: string; className: string }> = useMemo(() => [
     { id: 'indigo', name: isVietnamese ? 'Xanh Apexa (Mặc định)' : 'Apexa Blue (Default)', hex: '#2563EB', className: 'from-blue-600 to-cyan-600' },
@@ -202,6 +204,30 @@ export default function SettingsPanel({
   const [workspaceCover, setWorkspaceCover] = useState('');
   const [workspaceLogo, setWorkspaceLogo] = useState('');
   const [workspaceTheme, setWorkspaceTheme] = useState<AccentPreset>('indigo');
+  const [workspaceDescription, setWorkspaceDescription] = useState('');
+  const [workspaceTimezone, setWorkspaceTimezone] = useState('Asia/Ho_Chi_Minh');
+  const [workspaceWeekStartsOn, setWorkspaceWeekStartsOn] = useState<'monday' | 'sunday'>('monday');
+  const [workspaceDefaultRole, setWorkspaceDefaultRole] = useState<'member' | 'guest'>('member');
+  const [workspaceAllowInvites, setWorkspaceAllowInvites] = useState(false);
+  const [workspaceClickApps, setWorkspaceClickApps] = useState<{
+    timeTracking?: boolean;
+    multipleAssignees?: boolean;
+    customFields?: boolean;
+    relationships?: boolean;
+    subtasks?: boolean;
+    priorities?: boolean;
+  }>({
+    timeTracking: true,
+    multipleAssignees: true,
+    customFields: true,
+    relationships: true,
+    subtasks: true,
+    priorities: true,
+  });
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const [isSavingWorkspace, setIsSavingWorkspace] = useState(false);
   const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
@@ -235,6 +261,20 @@ export default function SettingsPanel({
   const [copiedSecret, setCopiedSecret] = useState(false);
   const [browserPerm, setBrowserPerm] = useState<NotificationPermission>(() => getBrowserNotificationPermission());
 
+  const passwordStrength = useMemo(() => {
+    const hasLength = newPassword.length >= 10;
+    const hasUpper = /[A-Z]/.test(newPassword);
+    const hasLower = /[a-z]/.test(newPassword);
+    const hasNumber = /\d/.test(newPassword);
+    const isMatch = Boolean(newPassword && confirmPassword && newPassword === confirmPassword);
+    let score = 0;
+    if (hasLength) score++;
+    if (hasUpper) score++;
+    if (hasLower) score++;
+    if (hasNumber) score++;
+    return { score, hasLength, hasUpper, hasLower, hasNumber, isMatch };
+  }, [newPassword, confirmPassword]);
+
   useEffect(() => {
     if (activeTab === 'notifications') {
       setBrowserPerm(getBrowserNotificationPermission());
@@ -248,6 +288,20 @@ export default function SettingsPanel({
     setWorkspaceCover(activeWorkspace.coverUrl || '');
     setWorkspaceLogo(activeWorkspace.logoUrl || '');
     setWorkspaceTheme((activeWorkspace.theme as AccentPreset) || 'indigo');
+    const wsSettings = (activeWorkspace.settings || {}) as any;
+    setWorkspaceDescription(wsSettings.description || '');
+    setWorkspaceTimezone(wsSettings.timezone || 'Asia/Ho_Chi_Minh');
+    setWorkspaceWeekStartsOn(wsSettings.weekStartsOn || 'monday');
+    setWorkspaceDefaultRole(wsSettings.defaultRole || 'member');
+    setWorkspaceAllowInvites(Boolean(wsSettings.allowMemberInvites));
+    setWorkspaceClickApps({
+      timeTracking: wsSettings.defaultClickApps?.timeTracking ?? true,
+      multipleAssignees: wsSettings.defaultClickApps?.multipleAssignees ?? true,
+      customFields: wsSettings.defaultClickApps?.customFields ?? true,
+      relationships: wsSettings.defaultClickApps?.relationships ?? true,
+      subtasks: wsSettings.defaultClickApps?.subtasks ?? true,
+      priorities: wsSettings.defaultClickApps?.priorities ?? true,
+    });
   }, [activeWorkspace]);
 
   useEffect(() => {
@@ -332,6 +386,7 @@ export default function SettingsPanel({
     if (!activeWorkspace || !workspaceName.trim() || !onUpdateWorkspace) return;
     const invalidAssetUrl = [workspaceCover, workspaceLogo].find(value => {
       if (!value) return false;
+      if (value.startsWith('data:image/')) return false;
       try { const url = new URL(value); return !['http:', 'https:'].includes(url.protocol); } catch { return true; }
     });
     if (invalidAssetUrl) {
@@ -340,14 +395,139 @@ export default function SettingsPanel({
     }
     setIsSavingWorkspace(true);
     try {
-      await Promise.resolve(onUpdateWorkspace(activeWorkspace.id, workspaceName.trim(), workspaceTheme, workspaceCover || undefined, workspaceLogo || undefined, activeWorkspace.settings));
+      const updatedSettings = {
+        ...((activeWorkspace.settings as any) || {}),
+        description: workspaceDescription.trim(),
+        timezone: workspaceTimezone,
+        weekStartsOn: workspaceWeekStartsOn,
+        defaultRole: workspaceDefaultRole,
+        allowMemberInvites: workspaceAllowInvites,
+        defaultClickApps: workspaceClickApps,
+      };
+
+      await Promise.resolve(onUpdateWorkspace(
+        activeWorkspace.id,
+        workspaceName.trim(),
+        workspaceTheme,
+        workspaceCover || undefined,
+        workspaceLogo || undefined,
+        updatedSettings
+      ));
       onAddSyncLog?.(isVietnamese ? `Đã cập nhật cài đặt không gian “${workspaceName.trim()}”` : `Updated settings for workspace "${workspaceName.trim()}"`);
-      triggerToast?.('success', t('changesSaved') || 'Changes saved', isVietnamese ? 'Đã lưu thay đổi về nhận diện và thương hiệu.' : 'Saved identity and branding changes.');
+      triggerToast?.('success', t('changesSaved') || 'Changes saved', isVietnamese ? 'Đã lưu cấu hình không gian làm việc.' : 'Workspace settings saved successfully.');
     } catch (error) {
       triggerToast?.('error', isVietnamese ? 'Không thể lưu workspace' : 'Could not save workspace', error instanceof Error ? error.message : 'Please try again.');
     } finally {
       window.setTimeout(() => setIsSavingWorkspace(false), 350);
     }
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeWorkspace) return;
+    if (file.size > 2 * 1024 * 1024) {
+      triggerToast?.('warning', isVietnamese ? 'Ảnh quá lớn' : 'File too large', isVietnamese ? 'Vui lòng chọn ảnh nhỏ hơn 2MB.' : 'Please select an image smaller than 2MB.');
+      return;
+    }
+    setIsUploadingLogo(true);
+    try {
+      const fileExt = file.name.split('.').pop() || 'png';
+      const fileName = `${currentUser?.id || 'user'}/workspaces/${activeWorkspace.id}_logo_${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, file, { cacheControl: '3600', upsert: true });
+      if (uploadError) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          setWorkspaceLogo(reader.result as string);
+          triggerToast?.('success', isVietnamese ? 'Đã tải ảnh lên' : 'Logo uploaded', isVietnamese ? 'Ảnh logo đã được cập nhật thành công.' : 'Logo updated successfully.');
+        };
+        reader.readAsDataURL(file);
+      } else {
+        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
+        setWorkspaceLogo(publicUrl);
+        triggerToast?.('success', isVietnamese ? 'Đã tải ảnh lên' : 'Logo uploaded', isVietnamese ? 'Ảnh logo đã được tải lên thành công.' : 'Logo uploaded successfully.');
+      }
+      if (typeof window !== 'undefined') (window as any).playSystemSound?.('success');
+    } catch (error) {
+      console.warn('Upload fallback to data url:', error);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setWorkspaceLogo(reader.result as string);
+        triggerToast?.('success', isVietnamese ? 'Đã tải ảnh lên' : 'Logo uploaded', isVietnamese ? 'Ảnh logo đã được cập nhật.' : 'Logo updated.');
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+    }
+  };
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeWorkspace) return;
+    if (file.size > 5 * 1024 * 1024) {
+      triggerToast?.('warning', isVietnamese ? 'Ảnh quá lớn' : 'File too large', isVietnamese ? 'Vui lòng chọn ảnh nhỏ hơn 5MB.' : 'Please select an image smaller than 5MB.');
+      return;
+    }
+    setIsUploadingCover(true);
+    try {
+      const fileExt = file.name.split('.').pop() || 'jpg';
+      const fileName = `${currentUser?.id || 'user'}/workspaces/${activeWorkspace.id}_cover_${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, file, { cacheControl: '3600', upsert: true });
+      if (uploadError) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          setWorkspaceCover(reader.result as string);
+          triggerToast?.('success', isVietnamese ? 'Đã tải ảnh bìa' : 'Cover uploaded', isVietnamese ? 'Ảnh bìa đã được cập nhật thành công.' : 'Cover updated successfully.');
+        };
+        reader.readAsDataURL(file);
+      } else {
+        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
+        setWorkspaceCover(publicUrl);
+        triggerToast?.('success', isVietnamese ? 'Đã tải ảnh bìa' : 'Cover uploaded', isVietnamese ? 'Ảnh bìa đã được tải lên thành công.' : 'Cover updated successfully.');
+      }
+      if (typeof window !== 'undefined') (window as any).playSystemSound?.('success');
+    } catch (error) {
+      console.warn('Cover upload fallback to data url:', error);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setWorkspaceCover(reader.result as string);
+        triggerToast?.('success', isVietnamese ? 'Đã tải ảnh bìa' : 'Cover uploaded', isVietnamese ? 'Ảnh bìa đã được cập nhật.' : 'Cover updated.');
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsUploadingCover(false);
+      if (coverInputRef.current) coverInputRef.current.value = '';
+    }
+  };
+
+  const exportTasksToCsv = () => {
+    const workspaceTasks = tasks.filter(task => !activeWorkspace || task.workspaceId === activeWorkspace.id);
+    if (!workspaceTasks.length) {
+      triggerToast?.('info', isVietnamese ? 'Không có công việc' : 'No tasks', isVietnamese ? 'Không có công việc nào trong không gian này để xuất.' : 'No tasks found in this workspace.');
+      return;
+    }
+
+    const headers = ['ID', 'Tiêu đề (Title)', 'Mô tả (Description)', 'Trạng thái (Status)', 'Mức ưu tiên (Priority)', 'Hạn chót (Due Date)', 'Người thực hiện (Assignee)'];
+    const rows = workspaceTasks.map(t => [
+      `"${(t.id || '').replace(/"/g, '""')}"`,
+      `"${(t.title || '').replace(/"/g, '""')}"`,
+      `"${(t.description || '').replace(/"/g, '""')}"`,
+      `"${(t.status || '').replace(/"/g, '""')}"`,
+      `"${(t.priority || '').replace(/"/g, '""')}"`,
+      `"${(t.dueDate || '').replace(/"/g, '""')}"`,
+      `"${(members.find(m => m.id === t.assigneeId)?.name || t.assigneeId || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `apexa-tasks-${activeWorkspace?.name || 'workspace'}-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    triggerToast?.('success', isVietnamese ? 'Đã xuất tệp CSV' : 'CSV exported', isVietnamese ? `Đã xuất ${workspaceTasks.length} công việc ra tệp CSV.` : `Exported ${workspaceTasks.length} tasks to CSV.`);
+    onAddSyncLog?.(isVietnamese ? 'Đã xuất danh sách công việc sang CSV' : 'Exported tasks to CSV');
   };
 
   const createWorkspace = (event: React.FormEvent) => {
@@ -769,20 +949,100 @@ export default function SettingsPanel({
                           <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{t('workspaceName') || (isVietnamese ? 'Tên không gian' : 'Workspace Name')}</span>
                           <input value={workspaceName} onChange={event => setWorkspaceName(event.target.value)} maxLength={60} className={inputClass} />
                         </label>
+                        <div>
+                          <div className="flex items-center justify-between gap-3 mb-1.5">
+                            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                              {isVietnamese ? 'Logo không gian' : 'Workspace Logo'}
+                            </span>
+                            {workspaceLogo && (
+                              <button
+                                type="button"
+                                onClick={() => setWorkspaceLogo('')}
+                                className="text-[10px] font-bold text-rose-500 hover:underline cursor-pointer"
+                              >
+                                {t('removeLogo') || (isVietnamese ? 'Gỡ logo' : 'Remove logo')}
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2.5">
+                            <input
+                              ref={logoInputRef}
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp"
+                              onChange={handleLogoUpload}
+                              className="hidden"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => logoInputRef.current?.click()}
+                              disabled={isUploadingLogo}
+                              className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors shadow-3xs cursor-pointer"
+                            >
+                              {isUploadingLogo ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                              <span>{isUploadingLogo ? (isVietnamese ? 'Tải...' : '...') : (t('uploadLogo') || (isVietnamese ? 'Tải logo' : 'Upload'))}</span>
+                            </button>
+                            <input
+                              type="url"
+                              value={workspaceLogo}
+                              onChange={event => setWorkspaceLogo(event.target.value)}
+                              placeholder={isVietnamese ? 'Hoặc dán URL logo...' : 'Or paste URL...'}
+                              className={inputClass}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-5">
                         <label className="space-y-1.5">
-                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{isVietnamese ? 'URL logo' : 'Logo URL'}</span>
-                          <input type="url" value={workspaceLogo} onChange={event => setWorkspaceLogo(event.target.value)} placeholder="https://…/logo.png" className={inputClass} />
+                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                            {t('workspaceDescription') || (isVietnamese ? 'Mô tả không gian làm việc' : 'Workspace Description')}
+                          </span>
+                          <textarea
+                            value={workspaceDescription}
+                            onChange={event => setWorkspaceDescription(event.target.value)}
+                            rows={2}
+                            maxLength={300}
+                            placeholder={t('workspaceDescriptionPlaceholder') || (isVietnamese ? 'Mô tả ngắn gọn mục tiêu, phòng ban hoặc phạm vi của không gian này...' : 'Briefly describe the goal, team or scope of this workspace...')}
+                            className="w-full rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-950 p-3 text-xs font-semibold text-slate-850 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-3 focus:ring-indigo-500/10 placeholder:text-slate-400 resize-none"
+                          />
                         </label>
                       </div>
+
                       <div className="mt-5">
                         <div className="mb-2 flex items-center justify-between gap-3">
                           <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{isVietnamese ? 'Ảnh bìa không gian' : 'Workspace Cover'}</p>
-                          {workspaceCover && <button type="button" onClick={() => setWorkspaceCover('')} className="text-[10px] font-bold text-rose-500 hover:underline">{isVietnamese ? 'Xóa ảnh bìa' : 'Remove cover'}</button>}
+                          <div className="flex items-center gap-2">
+                            <input
+                              ref={coverInputRef}
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp"
+                              onChange={handleCoverUpload}
+                              className="hidden"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => coverInputRef.current?.click()}
+                              disabled={isUploadingCover}
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-600 hover:underline dark:text-sky-400 cursor-pointer"
+                            >
+                              {isUploadingCover ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                              <span>{isUploadingCover ? (isVietnamese ? 'Đang tải...' : 'Uploading...') : (t('uploadCover') || (isVietnamese ? 'Tải ảnh bìa' : 'Upload cover'))}</span>
+                            </button>
+                            {workspaceCover && (
+                              <button
+                                type="button"
+                                onClick={() => setWorkspaceCover('')}
+                                className="text-[10px] font-bold text-rose-500 hover:underline cursor-pointer"
+                              >
+                                {t('removeCover') || (isVietnamese ? 'Xóa ảnh bìa' : 'Remove cover')}
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <input type="url" value={workspaceCover} onChange={event => setWorkspaceCover(event.target.value)} placeholder="https://…/cover.jpg" className={inputClass} />
                         <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
                           {WORKSPACE_COVERS.map(cover => (
-                            <button type="button" key={cover.id} onClick={() => setWorkspaceCover(cover.url)} aria-label={cover.name} aria-pressed={workspaceCover === cover.url} className={`aspect-[16/9] overflow-hidden rounded-lg border transition ${workspaceCover === cover.url ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-slate-200 opacity-75 hover:opacity-100 dark:border-slate-800'}`}>
+                            <button type="button" key={cover.id} onClick={() => setWorkspaceCover(cover.url)} aria-label={cover.name} aria-pressed={workspaceCover === cover.url} className={`aspect-[16/9] overflow-hidden rounded-lg border transition cursor-pointer ${workspaceCover === cover.url ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-slate-200 opacity-75 hover:opacity-100 dark:border-slate-800'}`}>
                               <img src={cover.url} alt="" className="h-full w-full object-cover" />
                             </button>
                           ))}
@@ -802,6 +1062,134 @@ export default function SettingsPanel({
                             </button>
                           ))}
                         </div>
+                      </div>
+                      <div className="mt-5 flex justify-end">
+                        <button type="button" onClick={saveWorkspace} disabled={!workspaceName.trim() || isSavingWorkspace} className="inline-flex h-9 items-center gap-2 rounded-xl bg-slate-950 px-4 text-xs font-extrabold text-white transition hover:bg-slate-800 disabled:opacity-50 dark:bg-white dark:text-slate-950 cursor-pointer">
+                          {isSavingWorkspace ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                          {t('saveChanges') || (isVietnamese ? 'Lưu thay đổi' : 'Save Changes')}
+                        </button>
+                      </div>
+                    </SettingsCard>
+
+                    <SettingsCard
+                      title={isVietnamese ? 'Múi giờ & Lịch làm việc' : 'Timezone & Working Calendar'}
+                      description={isVietnamese ? 'Định cấu hình múi giờ chính và ngày bắt đầu tuần cho các công việc trong không gian.' : 'Set the primary timezone and first day of the week for all workspace schedules.'}
+                      icon={Clock}
+                    >
+                      <div className="grid gap-5 sm:grid-cols-2">
+                        <label className="space-y-1.5">
+                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{t('workspaceTimezone') || (isVietnamese ? 'Múi giờ chính' : 'Primary Timezone')}</span>
+                          <Select
+                            value={workspaceTimezone}
+                            onChange={setWorkspaceTimezone}
+                            className="w-full"
+                            ariaLabel="Workspace Timezone"
+                            options={[
+                              { value: 'Asia/Ho_Chi_Minh', label: 'Asia/Ho Chi Minh (GMT+7)' },
+                              { value: 'Asia/Bangkok', label: 'Asia/Bangkok (GMT+7)' },
+                              { value: 'Asia/Singapore', label: 'Asia/Singapore (GMT+8)' },
+                              { value: 'Asia/Tokyo', label: 'Asia/Tokyo (GMT+9)' },
+                              { value: 'UTC', label: 'UTC (GMT+0)' },
+                              { value: 'Europe/London', label: 'Europe/London (GMT+0 / GMT+1)' },
+                              { value: 'America/New_York', label: 'America/New York (GMT-5 / GMT-4)' },
+                              { value: 'America/Los_Angeles', label: 'America/Los Angeles (GMT-8 / GMT-7)' },
+                              { value: 'Australia/Sydney', label: 'Australia/Sydney (GMT+10 / GMT+11)' },
+                            ]}
+                          />
+                        </label>
+                        <label className="space-y-1.5">
+                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{t('weekStartsOn') || (isVietnamese ? 'Ngày bắt đầu tuần' : 'Week Starts On')}</span>
+                          <Select
+                            value={workspaceWeekStartsOn}
+                            onChange={v => setWorkspaceWeekStartsOn(v as 'monday' | 'sunday')}
+                            className="w-full"
+                            ariaLabel="Week Starts On"
+                            options={[
+                              { value: 'monday', label: t('monday') || (isVietnamese ? 'Thứ Hai (Mặc định)' : 'Monday (Default)') },
+                              { value: 'sunday', label: t('sunday') || (isVietnamese ? 'Chủ Nhật' : 'Sunday') },
+                            ]}
+                          />
+                        </label>
+                      </div>
+                      <div className="mt-5 flex justify-end">
+                        <button type="button" onClick={saveWorkspace} disabled={!workspaceName.trim() || isSavingWorkspace} className="inline-flex h-9 items-center gap-2 rounded-xl bg-slate-950 px-4 text-xs font-extrabold text-white transition hover:bg-slate-800 disabled:opacity-50 dark:bg-white dark:text-slate-950 cursor-pointer">
+                          {isSavingWorkspace ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                          {t('saveChanges') || (isVietnamese ? 'Lưu thay đổi' : 'Save Changes')}
+                        </button>
+                      </div>
+                    </SettingsCard>
+
+                    <SettingsCard
+                      title={isVietnamese ? 'Quyền hạn & Thành viên mặc định' : 'Member Defaults & Permissions'}
+                      description={isVietnamese ? 'Cài đặt vai trò mặc định cho thành viên mới tham gia và quyền mời thành viên.' : 'Configure default roles for newly joined teammates and invitation privileges.'}
+                      icon={Users}
+                    >
+                      <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                        <SettingRow
+                          title={t('defaultMemberRole') || (isVietnamese ? 'Vai trò mặc định cho thành viên mới' : 'Default Role for New Members')}
+                          description={isVietnamese ? 'Vai trò được gán tự động khi người dùng tham gia qua liên kết hoặc lời mời.' : 'Role assigned automatically when someone joins via invite or link.'}
+                        >
+                          <Select
+                            value={workspaceDefaultRole}
+                            onChange={v => setWorkspaceDefaultRole(v as 'member' | 'guest')}
+                            className="w-48"
+                            ariaLabel="Default Member Role"
+                            options={[
+                              { value: 'member', label: t('roleMember') || (isVietnamese ? 'Thành viên (Member)' : 'Member') },
+                              { value: 'guest', label: t('roleGuest') || (isVietnamese ? 'Khách (Guest)' : 'Guest') },
+                            ]}
+                          />
+                        </SettingRow>
+                        <SettingRow
+                          title={t('allowMemberInvites') || (isVietnamese ? 'Cho phép thành viên gửi lời mời' : 'Allow Members to Invite')}
+                          description={t('allowMemberInvitesDesc') || (isVietnamese ? 'Thành viên thông thường có thể mời người khác vào không gian này.' : 'Regular members can invite other people to this workspace.')}
+                          last
+                        >
+                          <Toggle
+                            checked={workspaceAllowInvites}
+                            onChange={setWorkspaceAllowInvites}
+                            label={t('allowMemberInvites') || 'Allow Member Invites'}
+                          />
+                        </SettingRow>
+                      </div>
+                      <div className="mt-5 flex justify-end">
+                        <button type="button" onClick={saveWorkspace} disabled={!workspaceName.trim() || isSavingWorkspace} className="inline-flex h-9 items-center gap-2 rounded-xl bg-slate-950 px-4 text-xs font-extrabold text-white transition hover:bg-slate-800 disabled:opacity-50 dark:bg-white dark:text-slate-950 cursor-pointer">
+                          {isSavingWorkspace ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                          {t('saveChanges') || (isVietnamese ? 'Lưu thay đổi' : 'Save Changes')}
+                        </button>
+                      </div>
+                    </SettingsCard>
+
+                    <SettingsCard
+                      title={t('workspaceClickApps') || (isVietnamese ? 'Tính năng không gian (ClickApps)' : 'Workspace Features (ClickApps)')}
+                      description={t('workspaceClickAppsDesc') || (isVietnamese ? 'Bật hoặc tắt các module chức năng chuyên sâu trong không gian này.' : 'Enable or disable functional modules in this workspace.')}
+                      icon={LayoutGrid}
+                    >
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {[
+                          { key: 'timeTracking', title: t('appTimeTracking') || (isVietnamese ? 'Theo dõi thời gian' : 'Time Tracking'), desc: t('appTimeTrackingDesc') || (isVietnamese ? 'Ghi nhận giờ làm việc và ước lượng thời gian.' : 'Log hours and estimate task duration.'), icon: Timer },
+                          { key: 'subtasks', title: t('appSubtasks') || (isVietnamese ? 'Công việc con' : 'Subtasks'), desc: t('appSubtasksDesc') || (isVietnamese ? 'Chia nhỏ công việc thành nhiều bước cụ thể.' : 'Break down work into smaller, actionable steps.'), icon: CheckSquare },
+                          { key: 'priorities', title: t('appPriorities') || (isVietnamese ? 'Mức độ ưu tiên' : 'Task Priorities'), desc: t('appPrioritiesDesc') || (isVietnamese ? 'Phân loại Khẩn cấp, Cao, Trung bình, Thấp.' : 'Classify tasks as Urgent, High, Normal, or Low.'), icon: Zap },
+                          { key: 'relationships', title: t('appRelationships') || (isVietnamese ? 'Mối liên kết & Phụ thuộc' : 'Task Relationships'), desc: t('appRelationshipsDesc') || (isVietnamese ? 'Thiết lập phụ thuộc và liên kết giữa các công việc.' : 'Set up blockers, waiting on, and linked task relations.'), icon: Link2 },
+                          { key: 'customFields', title: t('appCustomFields') || (isVietnamese ? 'Trường tùy chỉnh' : 'Custom Fields'), desc: t('appCustomFieldsDesc') || (isVietnamese ? 'Thêm các trường dữ liệu tùy biến theo nhu cầu.' : 'Add custom data fields tailored to your workflow.'), icon: SlidersHorizontal },
+                        ].map(app => (
+                          <div key={app.key} className="flex items-center justify-between gap-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 transition-all hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/40 dark:hover:border-slate-700">
+                            <div className="flex items-start gap-3 min-w-0 flex-1">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400">
+                                <app.icon className="h-4 w-4" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{app.title}</p>
+                                <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">{app.desc}</p>
+                              </div>
+                            </div>
+                            <Toggle
+                              checked={Boolean((workspaceClickApps as any)[app.key])}
+                              onChange={val => setWorkspaceClickApps(prev => ({ ...prev, [app.key]: val }))}
+                              label={app.title}
+                            />
+                          </div>
+                        ))}
                       </div>
                       <div className="mt-5 flex justify-end">
                         <button type="button" onClick={saveWorkspace} disabled={!workspaceName.trim() || isSavingWorkspace} className="inline-flex h-9 items-center gap-2 rounded-xl bg-slate-950 px-4 text-xs font-extrabold text-white transition hover:bg-slate-800 disabled:opacity-50 dark:bg-white dark:text-slate-950 cursor-pointer">
@@ -924,8 +1312,45 @@ export default function SettingsPanel({
                         { value: 'clock', label: '20/08 · 14:30' },
                       ]} />
                     </SettingRow>
+                    <SettingRow
+                      title={t('defaultStartupTab') || (isVietnamese ? 'Màn hình khởi động mặc định' : 'Default Startup Screen')}
+                      description={t('defaultStartupTabDesc') || (isVietnamese ? 'Chọn màn hình hiển thị đầu tiên khi bạn mở Apexa.' : 'Choose which screen opens by default when you launch Apexa.')}
+                    >
+                      <Select
+                        value={defaultStartupTab}
+                        onChange={setDefaultStartupTab}
+                        className="w-48"
+                        ariaLabel={t('defaultStartupTab') || 'Default Startup Screen'}
+                        options={[
+                          { value: 'dashboard', label: t('dashboard') || (isVietnamese ? 'Tổng quan (Dashboard)' : 'Dashboard') },
+                          { value: 'tasks', label: t('tasks') || (isVietnamese ? 'Công việc (Tasks)' : 'Tasks') },
+                          { value: 'inbox', label: t('inbox') || (isVietnamese ? 'Hộp thư (Inbox)' : 'Inbox') },
+                          { value: 'calendar', label: t('calendar') || (isVietnamese ? 'Lịch biểu (Calendar)' : 'Calendar') },
+                          { value: 'docs', label: t('docs') || (isVietnamese ? 'Tài liệu (Docs)' : 'Docs') },
+                          { value: 'finance', label: t('finance') || (isVietnamese ? 'Tài chính (Finance)' : 'Finance') },
+                          { value: 'chat', label: t('chat') || (isVietnamese ? 'Trò chuyện (Chat)' : 'Chat') },
+                        ]}
+                      />
+                    </SettingRow>
                     <SettingRow title={t('uiSounds') || (isVietnamese ? 'Âm thanh giao diện' : 'Interface Sounds')} description={t('uiSoundsDesc') || (isVietnamese ? 'Phát âm thanh phản hồi nhẹ cho các thao tác quan trọng.' : 'Play subtle audio feedback for key interactions.')} last>
-                      <Toggle checked={soundEnabled} onChange={setSoundEnabled} label={t('uiSounds') || 'Interface Sounds'} />
+                      <div className="flex items-center gap-2.5">
+                        {soundEnabled && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (typeof window !== 'undefined') {
+                                (window as any).playSystemSound?.('toggle');
+                              }
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
+                            title={t('testSound') || 'Play test'}
+                          >
+                            <Play className="h-3 w-3 fill-current text-sky-500" />
+                            <span>{t('testSound') || (isVietnamese ? 'Thử âm' : 'Play test')}</span>
+                          </button>
+                        )}
+                        <Toggle checked={soundEnabled} onChange={setSoundEnabled} label={t('uiSounds') || 'Interface Sounds'} />
+                      </div>
                     </SettingRow>
                   </div>
                 </SettingsCard>
@@ -992,7 +1417,24 @@ export default function SettingsPanel({
                     <Toggle checked={notificationSettings.enableAll} onChange={value => setNotificationSettings(previous => ({ ...previous, enableAll: value }))} label="Enable Notifications" />
                   </SettingRow>
                   <SettingRow title={t('enableNotificationSound') || (isVietnamese ? 'Âm thanh thông báo' : 'Notification Sound')} description={t('enableNotificationSoundDesc') || (isVietnamese ? 'Phát âm thanh ngắn khi có cảnh báo.' : 'Play a chime when a notification arrives.')}>
-                    <Toggle checked={notificationSettings.enableSound} disabled={!notificationSettings.enableAll} onChange={value => { setNotificationSettings(previous => ({ ...previous, enableSound: value })); setSoundEnabled(value); }} label="Notification Sound" />
+                    <div className="flex items-center gap-2.5">
+                      {notificationSettings.enableSound && notificationSettings.enableAll && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (typeof window !== 'undefined') {
+                              (window as any).playSystemSound?.('notification');
+                            }
+                          }}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
+                          title={t('testSound') || 'Play test'}
+                        >
+                          <Play className="h-3 w-3 fill-current text-sky-500" />
+                          <span>{t('testSound') || (isVietnamese ? 'Thử chuông' : 'Play test')}</span>
+                        </button>
+                      )}
+                      <Toggle checked={notificationSettings.enableSound} disabled={!notificationSettings.enableAll} onChange={value => { setNotificationSettings(previous => ({ ...previous, enableSound: value })); setSoundEnabled(value); }} label="Notification Sound" />
+                    </div>
                   </SettingRow>
                   <SettingRow title={t('onlyImportantUpdates') || (isVietnamese ? 'Chỉ cập nhật quan trọng' : 'Only Important Updates')} description={t('onlyImportantUpdatesDesc') || (isVietnamese ? 'Giảm nhiễu bằng cách ưu tiên việc được giao và hạn chót.' : 'Reduce noise by prioritizing assignments and deadlines.')}>
                     <Toggle checked={notificationSettings.onlyImportant} disabled={!notificationSettings.enableAll} onChange={value => setNotificationSettings(previous => ({ ...previous, onlyImportant: value }))} label="Only Important Updates" />
@@ -1373,6 +1815,76 @@ export default function SettingsPanel({
                         <input type="password" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} className={inputClass} />
                       </label>
                     </div>
+                    {newPassword && (
+                      <div className="space-y-2.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 p-3.5 border border-slate-200/70 dark:border-slate-800">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-slate-700 dark:text-slate-300">
+                            {t('passwordStrengthTitle') || (isVietnamese ? 'Độ mạnh mật khẩu' : 'Password strength')}
+                          </span>
+                          <span className={`font-extrabold text-[11px] ${
+                            passwordStrength.score <= 1 
+                              ? 'text-rose-500' 
+                              : passwordStrength.score === 2 
+                                ? 'text-amber-500' 
+                                : passwordStrength.score === 3 
+                                  ? 'text-sky-500' 
+                                  : 'text-emerald-500'
+                          }`}>
+                            {passwordStrength.score <= 1
+                              ? (isVietnamese ? 'Yếu' : 'Weak')
+                              : passwordStrength.score === 2
+                                ? (isVietnamese ? 'Trung bình' : 'Fair')
+                                : passwordStrength.score === 3
+                                  ? (isVietnamese ? 'Khá tốt' : 'Good')
+                                  : (isVietnamese ? 'Mạnh' : 'Strong')}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-4 gap-1.5 h-1.5">
+                          {[1, 2, 3, 4].map(seg => (
+                            <div
+                              key={seg}
+                              className={`rounded-full transition-colors ${
+                                passwordStrength.score >= seg
+                                  ? passwordStrength.score <= 1
+                                    ? 'bg-rose-500'
+                                    : passwordStrength.score === 2
+                                      ? 'bg-amber-500'
+                                      : passwordStrength.score === 3
+                                        ? 'bg-sky-500'
+                                        : 'bg-emerald-500'
+                                  : 'bg-slate-200 dark:bg-slate-800'
+                              }`}
+                            />
+                          ))}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                          <div className={`flex items-center gap-1.5 text-[11px] ${passwordStrength.hasLength ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-400'}`}>
+                            {passwordStrength.hasLength ? <Check className="h-3 w-3" /> : <div className="h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-700 ml-0.5 mr-1" />}
+                            <span>{t('passwordRequirementLength') || (isVietnamese ? 'Tối thiểu 10 ký tự' : 'At least 10 characters')}</span>
+                          </div>
+                          <div className={`flex items-center gap-1.5 text-[11px] ${passwordStrength.hasUpper ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-400'}`}>
+                            {passwordStrength.hasUpper ? <Check className="h-3 w-3" /> : <div className="h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-700 ml-0.5 mr-1" />}
+                            <span>{t('passwordRequirementUpper') || (isVietnamese ? 'Chữ hoa (A-Z)' : 'Uppercase letter (A-Z)')}</span>
+                          </div>
+                          <div className={`flex items-center gap-1.5 text-[11px] ${passwordStrength.hasLower ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-400'}`}>
+                            {passwordStrength.hasLower ? <Check className="h-3 w-3" /> : <div className="h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-700 ml-0.5 mr-1" />}
+                            <span>{t('passwordRequirementLower') || (isVietnamese ? 'Chữ thường (a-z)' : 'Lowercase letter (a-z)')}</span>
+                          </div>
+                          <div className={`flex items-center gap-1.5 text-[11px] ${passwordStrength.hasNumber ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-400'}`}>
+                            {passwordStrength.hasNumber ? <Check className="h-3 w-3" /> : <div className="h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-700 ml-0.5 mr-1" />}
+                            <span>{t('passwordRequirementNumber') || (isVietnamese ? 'Chữ số (0-9)' : 'Number (0-9)')}</span>
+                          </div>
+                          {confirmPassword && (
+                            <div className={`flex items-center gap-1.5 text-[11px] sm:col-span-2 ${passwordStrength.isMatch ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-rose-500 font-semibold'}`}>
+                              {passwordStrength.isMatch ? <Check className="h-3 w-3" /> : <div className="h-1.5 w-1.5 rounded-full bg-rose-400 ml-0.5 mr-1" />}
+                              <span>{t('passwordMatch') || (isVietnamese ? 'Mật khẩu khớp nhau' : 'Passwords match')}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     {passwordError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/20 dark:text-rose-300">{passwordError}</p>}
                     <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
                       <p className="text-[10px] leading-4 text-slate-400">{isVietnamese ? 'Tối thiểu 10 ký tự, gồm chữ hoa, chữ thường và số.' : 'At least 10 characters with uppercase, lowercase and a number.'}</p>
@@ -1656,6 +2168,37 @@ export default function SettingsPanel({
                     </div>
                   </div>
                 </SettingsCard>
+
+                <SettingsCard 
+                  title={t('exportTasksCsv') || (isVietnamese ? 'Xuất công việc ra bảng tính (CSV)' : 'Export Tasks (CSV)')} 
+                  description={t('exportTasksCsvDesc') || (isVietnamese ? 'Tải công việc dạng bảng tính CSV tương thích với Microsoft Excel và Google Sheets.' : 'Download tasks as a CSV spreadsheet compatible with Excel & Google Sheets.')} 
+                  icon={FileSpreadsheet}
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">
+                        <FileSpreadsheet className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{isVietnamese ? 'Tệp bảng tính công việc (.csv)' : 'Task Spreadsheet (.csv)'}</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {isVietnamese 
+                            ? `Bao gồm ${tasks.filter(task => !activeWorkspace || task.workspaceId === activeWorkspace.id).length} công việc trong không gian này.` 
+                            : `Includes ${tasks.filter(task => !activeWorkspace || task.workspaceId === activeWorkspace.id).length} tasks in this workspace.`}
+                        </p>
+                      </div>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={exportTasksToCsv} 
+                      className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-xs font-extrabold text-white hover:bg-emerald-700 transition cursor-pointer shrink-0"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      <span>{t('exportTasksCsv') || (isVietnamese ? 'Xuất tệp CSV' : 'Export CSV')}</span>
+                    </button>
+                  </div>
+                </SettingsCard>
+
                 <SettingsCard title={isVietnamese ? 'Bộ nhớ đệm cục bộ' : 'Local Cache'} description={isVietnamese ? 'Đặt lại tùy chọn hiển thị trên thiết bị mà không xóa dữ liệu không gian.' : 'Reset device display preferences without touching cloud data.'} icon={RefreshCw}>
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>

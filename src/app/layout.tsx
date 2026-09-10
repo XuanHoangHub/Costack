@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, JetBrains_Mono, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "./workspace.css";
 import "../components/spaces/spaces.css";
@@ -16,21 +16,27 @@ const INITIAL_LOCALE_SCRIPT = `(function(){try{var stored=localStorage.getItem('
 const CHUNK_RECOVERY_SCRIPT = `(function(){if(typeof window!=='undefined'){function checkChunk(r){var m=(r&&(r.message||r.stack||String(r)))||'';var n=(r&&r.name)||'';if(n==='ChunkLoadError'||m.indexOf('Loading chunk')!==-1||m.indexOf('missing:')!==-1||m.indexOf('Failed to fetch dynamically imported module')!==-1){var k='chunk_recovery_reload';var now=Date.now();var last=Number(sessionStorage.getItem(k)||0);if(now-last>6000){sessionStorage.setItem(k,String(now));window.location.reload();}}}window.addEventListener('error',function(e){checkChunk(e&&(e.error||e));});window.addEventListener('unhandledrejection',function(e){checkChunk(e&&(e.reason||(e.detail&&e.detail.reason)));});}})();`;
 
 const inter = Inter({
-  variable: "--font-sans",
+  variable: "--font-inter",
   subsets: ["latin", "vietnamese"],
   weight: ["400", "500", "600", "700", "800", "900"],
   display: "swap",
 });
 
 const plusJakarta = Plus_Jakarta_Sans({
-  variable: "--font-display",
+  variable: "--font-plus-jakarta",
   subsets: ["latin", "vietnamese"],
   weight: ["400", "500", "600", "700", "800"],
   display: "swap",
 });
 
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin", "vietnamese"],
+  display: "swap",
+});
+
 const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-mono",
+  variable: "--font-jetbrains-mono",
   subsets: ["latin", "vietnamese"],
   display: "swap",
 });
@@ -106,7 +112,7 @@ export default function RootLayout({
     <html
       lang="vi"
       suppressHydrationWarning
-      className={`${inter.variable} ${plusJakarta.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${plusJakarta.variable} ${geistMono.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <head>
         <InlineHeadScript id="initial-theme" html={INITIAL_THEME_SCRIPT} />

@@ -794,7 +794,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                 </header>
 
                 <div className="relative mx-auto mb-5 max-w-3xl px-4 sm:px-6">
-                  <div className="rounded-2xl border border-slate-200/90 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
+                  <div className="rounded-2xl border border-slate-200/90 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                     <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4" role="radiogroup" aria-label={isVietnamese ? 'Phương thức thanh toán' : 'Payment method'}>
                       {([
                         {

@@ -13,12 +13,12 @@
 }
 .dark .task-studio,
 .dark .task-create-studio {
-  --task-ink: #e4e7ed;
-  --task-muted: #98a0af;
-  --task-line: #2a2e38;
-  --task-surface: #17191f;
-  --task-soft: #1c1f27;
-  --task-brand: #a5a0ff;
+  --task-ink: #f4f4f5;
+  --task-muted: #a1a1aa;
+  --task-line: rgba(255, 255, 255, 0.08);
+  --task-surface: #121214;
+  --task-soft: #18181b;
+  --task-brand: #3b82f6;
 }
 .task-studio.apexa-task-dialog { background: var(--task-surface); border: 1px solid var(--task-line); border-radius: 20px; transition: box-shadow 0.2s ease, border-radius 0.2s ease; }
 .task-studio[data-layout="modal"] { width: min(1240px, 94vw); height: min(900px, 90dvh); border-radius: 26px; box-shadow: 0 28px 85px rgba(15, 23, 42, 0.22); }
@@ -31,8 +31,18 @@
 .task-studio.apexa-task-dialog > div { background: var(--task-surface); }
 .task-studio.apexa-task-dialog .task-studio-header { min-height: 62px; padding: 12px 24px; overflow: visible; border-color: var(--task-line); background: var(--task-surface); z-index: 40; }
 .task-studio.apexa-task-dialog .task-studio-header > div:first-child { overflow: visible; }
-.task-studio.apexa-task-dialog :where(button, input, textarea, select):focus-visible,
-.task-create-studio :where(button, input, textarea, select):focus-visible { outline: 2px solid #818cf8; outline-offset: 3px; }
+.task-studio.apexa-task-dialog :where(button, textarea, select):focus-visible,
+.task-studio.apexa-task-dialog input:not([data-no-focus-outline="true"]):not(.border-none):not(.outline-none):not(.apexa-search-input):focus-visible,
+.task-create-studio :where(button, textarea, select):focus-visible,
+.task-create-studio input:not([data-no-focus-outline="true"]):not(.border-none):not(.outline-none):not(.apexa-search-input):focus-visible { outline: 2px solid #818cf8; outline-offset: 3px; }
+.task-studio.apexa-task-dialog :where(input[data-no-focus-outline="true"], input.border-none, input.outline-none, .apexa-search-input):focus,
+.task-studio.apexa-task-dialog :where(input[data-no-focus-outline="true"], input.border-none, input.outline-none, .apexa-search-input):focus-visible,
+.task-create-studio :where(input[data-no-focus-outline="true"], input.border-none, input.outline-none, .apexa-search-input):focus,
+.task-create-studio :where(input[data-no-focus-outline="true"], input.border-none, input.outline-none, .apexa-search-input):focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+}
 .task-studio :where(button, input, select) { min-height: 30px; }
 .task-studio button { -webkit-tap-highlight-color: transparent; }
 .task-studio .font-black,
@@ -140,17 +150,17 @@
 
 /* Lists, boards and the task workspace use the same spacing and typography. */
 .apexa-space-list .apexa-list-columns { text-transform: none; letter-spacing: 0; font-weight: 500; background: #fafbfc; }
-.dark .apexa-space-list .apexa-list-columns { background: #1a1d24; }
+.dark .apexa-space-list .apexa-list-columns { background: #121214; }
 .apexa-space-list [data-task-row] { min-height: 48px; box-shadow: none; border-left-width: 2px; }
 .apexa-space-list [data-task-row] .font-black,
 .apexa-space-list [data-task-row] .font-extrabold { font-weight: 600; }
 .apexa-space-board .apexa-board-controls { border-radius: 10px; box-shadow: none; backdrop-filter: none; }
-.apexa-space-board .apexa-board-column { border-radius: 12px; padding: 12px; box-shadow: none; backdrop-filter: none; background: #f6f7f9; border-color: #e9ebef; }
-.dark .apexa-space-board .apexa-board-column { background: #1b1e26; border-color: #2a2e38; }
+.apexa-space-board .apexa-board-column { border-radius: 18px; padding: 16px; box-shadow: none; backdrop-filter: none; background: #f6f7f9; border-color: #e9ebef; }
+.dark .apexa-space-board .apexa-board-column { background: #121214; border-color: rgba(255, 255, 255, 0.08); }
 .apexa-space-board .font-black,
 .apexa-space-board .font-extrabold { font-weight: 600; }
 .task-center .task-center-header { background: #fff; }
-.dark .task-center .task-center-header { background: #17191f; }
+.dark .task-center .task-center-header { background: #121214; }
 .task-center .font-black, .task-center .font-extrabold { font-weight: 600; }
 .task-center .task-primary-button { box-shadow: 0 2px 4px #4f46e518; border-radius: 8px; }
 @media (max-width: 767px) {

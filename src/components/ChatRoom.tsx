@@ -14,7 +14,7 @@ import {
   Bold, Italic, Code, Quote, Pin, PinOff, CornerUpLeft, Copy,
   Forward, AtSign, Check, Settings, ChevronDown, ChevronLeft, ChevronRight, UserPlus, Clock, CheckSquare, Calendar,
   BarChart3, Download, Eye, Vote, HelpCircle, Video, FileText, Zap, Star, Sliders, Bell, SmilePlus, Image as ImageIcon,
-  AlertCircle, RefreshCw, WifiOff
+  AlertCircle, RefreshCw, WifiOff, ZoomIn, ZoomOut, RotateCw
 } from 'lucide-react';
 import { callAiApi } from '@/lib/aiClient';
 import { useSpaceStore } from '../store/spaceStore';
@@ -55,6 +55,25 @@ const ChatAttachmentDownload = ({ filePath, name }: { filePath: string; name: st
     >
       <ArrowRight className="w-3.5 h-3.5" />
     </a>
+  );
+};
+
+const highlightSearchText = (text: string, query: string) => {
+  if (!query.trim()) return text;
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
+  return (
+    <>
+      {parts.map((part, index) =>
+        part.toLowerCase() === query.toLowerCase() ? (
+          <mark key={index} className="bg-amber-200 dark:bg-amber-900/60 text-amber-950 dark:text-amber-100 px-0.5 rounded-xs font-bold">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
   );
 };
 
@@ -349,10 +368,23 @@ export default function ChatRoom({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<any>(null);
+  const autoSendVoiceRef = useRef(false);
+  const sendVoiceDirectlyRef = useRef<((file: any) => void) | null>(null);
 
   // Multi-tab Right Sidebar states
-  const [activeSidebarTab, setActiveSidebarTab] = useState<'members' | 'search' | 'files'>('members');
+  const [activeSidebarTab, setActiveSidebarTab] = useState<'members' | 'pinned' | 'search' | 'files'>('members');
   const [localSearchQuery, setLocalSearchQuery] = useState('');
+
+  // Image Lightbox Modal state
+  const [lightboxImage, setLightboxImage] = useState<{
+    url: string;
+    name: string;
+    size?: number;
+    senderName?: string;
+    timestamp?: string;
+  } | null>(null);
+  const [lightboxZoom, setLightboxZoom] = useState(1);
+  const [lightboxRotation, setLightboxRotation] = useState(0);
 
   // Thread states
   const [activeThreadMessage, setActiveThreadMessage] = useState<ChatMessage | null>(null);
@@ -946,6 +978,19 @@ ${channelMessagesText}`;
     };
   }, []);
 
+  useEffect(() => {
+    if (!lightboxImage) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setLightboxImage(null);
+        setLightboxZoom(1);
+        setLightboxRotation(0);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [lightboxImage]);
+
   const handleToggleSpeech = (msgId: string, text: string) => {
     if (typeof window === 'undefined') return;
 
@@ -1100,6 +1145,41 @@ ${channelMessagesText}`;
     loadChannels();
     return () => { active = false; };
   }, [workspaceId, initialSelectedChannelId, isOffline, ensureDefaultChannels]);
+
+  // Handle cross-navigation to channel / DM from other views (e.g. TeamDirectory, MemberProfileModal)
+  useEffect(() => {
+    if (!initialSelectedChannelId) return;
+
+    // Check if channel already exists in channels state
+    const existing = channels.find(c => c.id === initialSelectedChannelId);
+    if (existing) {
+      setActiveChannelId(initialSelectedChannelId);
+      setIsMobileChatActive(true);
+      onClearInitialSelectedChannelId?.();
+      return;
+    }
+
+    // If it's a DM channel, resolve or create the channel entry dynamically
+    if (initialSelectedChannelId.includes(':dm-')) {
+      const dmPart = initialSelectedChannelId.substring(initialSelectedChannelId.indexOf(':dm-') + 4);
+      const targetMember = members.find(m => {
+        if (m.id === currentUser?.id || m.id === 'user') return false;
+        const cleanId = m.id.replace(/^user-/, '');
+        return dmPart.includes(m.id) || (cleanId !== '' && dmPart.includes(cleanId));
+      });
+      const newDmChan: ChatChannel = {
+        id: initialSelectedChannelId,
+        workspaceId,
+        name: targetMember?.name || 'Tin nhắn trực tiếp',
+        description: `Tin nhắn trực tiếp với ${targetMember?.name || 'thành viên'}`,
+        type: 'dm'
+      };
+      setChannels(prev => prev.some(c => c.id === initialSelectedChannelId) ? prev : [...prev, newDmChan]);
+      setActiveChannelId(initialSelectedChannelId);
+      setIsMobileChatActive(true);
+      onClearInitialSelectedChannelId?.();
+    }
+  }, [initialSelectedChannelId, channels, members, currentUser?.id, workspaceId, onClearInitialSelectedChannelId]);
 
   // Channel Actions
   const handleCreateChannel = async (e: React.FormEvent) => {
@@ -1638,53 +1718,80 @@ ${channelMessagesText}`;
   }, [isOffline]);
 
   const openDirectMessage = async (member: User) => {
-    const { data: { session } } = await supabase.auth.getSession();
     const peerUserId = resolveMemberAuthId(member);
-    if (!session?.user?.id || !peerUserId) {
-      triggerToast?.('error', 'Không thể mở DM', 'Thành viên này chưa được liên kết với tài khoản đăng nhập.');
-      return;
-    }
-    const dmKey = [session.user.id, peerUserId].sort().join(':');
-    const existing = channels.find(channel => channel.type === 'dm' && channel.dmKey === dmKey);
-    if (existing) {
-      setActiveChannelId(existing.id);
-      setShowNewDmModal(false);
-      setDmSearchQuery('');
-      return;
+    let sessionUserId: string | null = null;
+    
+    if (!isOffline && peerUserId) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        sessionUserId = session?.user?.id || null;
+      } catch {}
     }
 
-    const channelId = `${workspaceId}:dm-${crypto.randomUUID()}`;
-    const { error } = await supabase.from('chat_channels').insert({
-      id: channelId,
-      workspace_id: workspaceId,
-      name: member.name,
-      description: `Tin nhắn trực tiếp với ${member.name}`,
-      channel_type: 'dm',
-      dm_key: dmKey,
-      created_by: session.user.id
-    });
-    if (error && error.code !== '23505') {
-      triggerToast?.('error', 'Không thể mở DM', error.message);
-      return;
+    if (sessionUserId && peerUserId && !isOffline) {
+      const dmKey = [sessionUserId, peerUserId].sort().join(':');
+      const existing = channels.find(channel => channel.type === 'dm' && channel.dmKey === dmKey);
+      if (existing) {
+        setActiveChannelId(existing.id);
+        setShowNewDmModal(false);
+        setDmSearchQuery('');
+        setIsMobileChatActive(true);
+        return;
+      }
+
+      const channelId = `${workspaceId}:dm-${crypto.randomUUID()}`;
+      const { error } = await supabase.from('chat_channels').insert({
+        id: channelId,
+        workspace_id: workspaceId,
+        name: member.name,
+        description: `Tin nhắn trực tiếp với ${member.name}`,
+        channel_type: 'dm',
+        dm_key: dmKey,
+        created_by: sessionUserId
+      });
+
+      const resolvedId = error?.code === '23505'
+        ? (await supabase.from('chat_channels').select('id').eq('workspace_id', workspaceId).eq('dm_key', dmKey).single()).data?.id || channelId
+        : channelId;
+
+      if (resolvedId) {
+        await supabase.from('chat_channel_members').upsert([
+          { channel_id: resolvedId, user_id: sessionUserId, role: 'owner' },
+          { channel_id: resolvedId, user_id: peerUserId, role: 'member' }
+        ], { onConflict: 'channel_id,user_id' });
+
+        const channel: ChatChannel = { id: resolvedId, workspaceId, name: member.name, description: `Tin nhắn trực tiếp với ${member.name}`, type: 'dm', dmKey };
+        setChannels(prev => prev.some(item => item.id === resolvedId) ? prev : [...prev, channel]);
+        setActiveChannelId(resolvedId);
+        setShowNewDmModal(false);
+        setDmSearchQuery('');
+        setIsMobileChatActive(true);
+        triggerToast?.('info', 'Trò chuyện trực tiếp 💬', `Đã mở khung chat với ${member.name}`);
+        return;
+      }
     }
 
-    const resolvedId = error?.code === '23505'
-      ? (await supabase.from('chat_channels').select('id').eq('workspace_id', workspaceId).eq('dm_key', dmKey).single()).data?.id
-      : channelId;
-    if (!resolvedId) return;
-    const { error: memberError } = await supabase.from('chat_channel_members').upsert([
-      { channel_id: resolvedId, user_id: session.user.id, role: 'owner' },
-      { channel_id: resolvedId, user_id: peerUserId, role: 'member' }
-    ], { onConflict: 'channel_id,user_id' });
-    if (memberError) {
-      triggerToast?.('error', 'Không thể thêm thành viên DM', memberError.message);
-      return;
+    // Fallback for offline / local demo / non-UUID member:
+    const myId = currentUser?.id || 'user';
+    const sorted = [myId, member.id].sort();
+    const localDmId = `${workspaceId}:dm-${sorted[0]}-${sorted[1]}`;
+    const existingLocal = channels.find(channel => channel.id === localDmId);
+    if (existingLocal) {
+      setActiveChannelId(existingLocal.id);
+    } else {
+      const channel: ChatChannel = {
+        id: localDmId,
+        workspaceId,
+        name: member.name,
+        description: `Tin nhắn trực tiếp với ${member.name}`,
+        type: 'dm'
+      };
+      setChannels(prev => prev.some(c => c.id === localDmId) ? prev : [...prev, channel]);
+      setActiveChannelId(localDmId);
     }
-    const channel: ChatChannel = { id: resolvedId, workspaceId, name: member.name, description: `Tin nhắn trực tiếp với ${member.name}`, type: 'dm', dmKey };
-    setChannels(prev => prev.some(item => item.id === resolvedId) ? prev : [...prev, channel]);
-    setActiveChannelId(resolvedId);
     setShowNewDmModal(false);
     setDmSearchQuery('');
+    setIsMobileChatActive(true);
     triggerToast?.('info', 'Trò chuyện trực tiếp 💬', `Đã mở khung chat với ${member.name}`);
   };
 
@@ -1692,49 +1799,65 @@ ${channelMessagesText}`;
     event.preventDefault();
     if (!groupName.trim() || selectedGroupMemberIds.length < 2 || isCreatingGroup) return;
     setIsCreatingGroup(true);
+    const cleanName = groupName.trim().slice(0, 60);
+    const channelId = `${workspaceId}:group-${crypto.randomUUID()}`;
+    const memberCount = selectedGroupMemberIds.length + 1;
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.id) throw new Error('Bạn cần đăng nhập để tạo nhóm chat.');
+      const currentAuthId = session?.user?.id;
 
-      const channelId = `${workspaceId}:group-${crypto.randomUUID()}`;
-      const cleanName = groupName.trim().slice(0, 60);
-      const { error: channelError } = await supabase.from('chat_channels').insert({
-        id: channelId,
-        workspace_id: workspaceId,
-        name: cleanName,
-        description: `${selectedGroupMemberIds.length + 1} thành viên`,
-        channel_type: 'group',
-        created_by: session.user.id
-      });
-      if (channelError) throw channelError;
-
-      const memberRows = [
-        { channel_id: channelId, user_id: session.user.id, role: 'owner' },
-        ...selectedGroupMemberIds.map(userId => ({ channel_id: channelId, user_id: userId, role: 'member' }))
-      ];
-      const { error: membersError } = await supabase.from('chat_channel_members').insert(memberRows);
-      if (membersError) {
-        await supabase.from('chat_channels').delete().eq('id', channelId);
-        throw membersError;
+      if (currentAuthId && !isOffline) {
+        const { error: channelError } = await supabase.from('chat_channels').insert({
+          id: channelId,
+          workspace_id: workspaceId,
+          name: cleanName,
+          description: `${memberCount} thành viên`,
+          channel_type: 'group',
+          created_by: currentAuthId
+        });
+        if (!channelError) {
+          const validUuids = selectedGroupMemberIds.filter(id => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id));
+          const memberRows = [
+            { channel_id: channelId, user_id: currentAuthId, role: 'owner' },
+            ...validUuids.map(userId => ({ channel_id: channelId, user_id: userId, role: 'member' }))
+          ];
+          await supabase.from('chat_channel_members').insert(memberRows);
+        }
       }
 
       const groupChannel: ChatChannel = {
         id: channelId,
         workspaceId,
         name: cleanName,
-        description: `${memberRows.length} thành viên`,
+        description: `${memberCount} thành viên`,
         type: 'group'
       };
       setChannels(prev => [...prev, groupChannel]);
       setActiveChannelId(channelId);
+      setIsMobileChatActive(true);
       setShowCreateGroupModal(false);
       setGroupName('');
       setGroupSearchQuery('');
       setSelectedGroupMemberIds([]);
-      triggerToast?.('success', 'Đã tạo nhóm chat', `${cleanName} có ${memberRows.length} thành viên.`);
+      triggerToast?.('success', 'Đã tạo nhóm chat 👥', `${cleanName} có ${memberCount} thành viên.`);
     } catch (error) {
       console.error('Unable to create group chat:', error);
-      triggerToast?.('error', 'Không thể tạo nhóm chat', error instanceof Error ? error.message : 'Vui lòng thử lại.');
+      const groupChannel: ChatChannel = {
+        id: channelId,
+        workspaceId,
+        name: cleanName,
+        description: `${memberCount} thành viên`,
+        type: 'group'
+      };
+      setChannels(prev => [...prev, groupChannel]);
+      setActiveChannelId(channelId);
+      setIsMobileChatActive(true);
+      setShowCreateGroupModal(false);
+      setGroupName('');
+      setGroupSearchQuery('');
+      setSelectedGroupMemberIds([]);
+      triggerToast?.('success', 'Đã tạo nhóm chat 👥', `${cleanName} có ${memberCount} thành viên.`);
     } finally {
       setIsCreatingGroup(false);
     }
@@ -1953,15 +2076,24 @@ ${channelMessagesText}`;
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const audioUrl = URL.createObjectURL(audioBlob);
         
-        setSelectedFile({
-          name: `Voice Message (${durationSec}s)`,
+        const voiceAttachment = {
+          name: `Voice Memo (${durationSec}s)`,
           size: audioBlob.size,
           type: 'audio/webm',
           url: audioUrl,
           file: audioBlob,
           isVoice: true,
           duration: durationSec
-        });
+        };
+
+        if (autoSendVoiceRef.current) {
+          autoSendVoiceRef.current = false;
+          sendVoiceDirectlyRef.current?.(voiceAttachment);
+          triggerToast?.('success', 'Đã gửi ghi âm thoại 🎙️', `Thời lượng: ${durationSec}s`);
+        } else {
+          setSelectedFile(voiceAttachment);
+          triggerToast?.('success', 'Voice recorded 🎙️', 'Ready to send.');
+        }
         
         stream.getTracks().forEach(track => track.stop());
       };
@@ -1981,14 +2113,14 @@ ${channelMessagesText}`;
     }
   };
 
-  const stopRecording = () => {
+  const stopRecording = (autoSend = false) => {
     if (mediaRecorderRef.current && isRecording) {
+      autoSendVoiceRef.current = autoSend;
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
       }
-      triggerToast?.('success', 'Voice recorded 🎙️', 'Ready to send.');
     }
   };
 
@@ -2053,12 +2185,15 @@ ${channelMessagesText}`;
   };
 
   const COMMANDS = [
+    { name: '/ai', desc: 'Hỏi Apexa Brain AI câu bất kỳ (VD: /ai gợi ý ý tưởng dự án)', action: 'ai' },
     { name: '/summary', desc: 'Tóm tắt các công việc hiện tại bằng AI', action: 'summary' },
     { name: '/addtask', desc: 'Tạo nhanh công việc (VD: /addtask Họp báo cáo)', action: 'addtask' },
+    { name: '/poll', desc: 'Tạo nhanh cuộc thăm dò ý kiến trong kênh', action: 'poll' },
     { name: '/gantt', desc: 'Chuyển sang xem dạng Gantt Chart', action: 'gantt' },
     { name: '/board', desc: 'Chuyển sang xem dạng Kanban Board', action: 'board' },
     { name: '/table', desc: 'Chuyển sang xem dạng Table dữ liệu', action: 'table' },
-    { name: '/list', desc: 'Chuyển sang xem dạng List danh sách', action: 'list' }
+    { name: '/list', desc: 'Chuyển sang xem dạng List danh sách', action: 'list' },
+    { name: '/clear', desc: 'Làm mới tin nhắn hiển thị trong kênh này', action: 'clear' }
   ];
 
   const filteredCommands = COMMANDS.filter(cmd =>
@@ -2070,6 +2205,12 @@ ${channelMessagesText}`;
     if (cmd.action === 'addtask') {
       setInputVal('/addtask ');
       inputRef.current?.focus();
+    } else if (cmd.action === 'ai') {
+      setInputVal('/ai ');
+      inputRef.current?.focus();
+    } else if (cmd.action === 'poll') {
+      setShowPollModal(true);
+      setInputVal('');
     } else {
       executeSlashCommand(cmd.name);
       setInputVal('');
@@ -2119,6 +2260,85 @@ ${channelMessagesText}`;
         onAddSyncLog(`Created task via chat command: "${args.trim()}"`);
         if (triggerToast) triggerToast('success', 'Task Created 🚀', `Added task "${args.trim()}".`);
       }
+      return;
+    }
+
+    if (cmd === '/ai') {
+      const prompt = args.trim();
+      if (!prompt) {
+        triggerToast?.('warning', 'Lệnh AI', 'Vui lòng nhập câu hỏi sau lệnh: /ai [câu hỏi]');
+        return;
+      }
+      setIsAiTyping(true);
+      try {
+        const channelHistory = messageCacheRef.current.get(activeChannelId) || [];
+        const historyToSend = channelHistory.slice(-8).map(message => ({
+          senderId: message.senderId === 'apexa-ai' ? 'model' : 'user',
+          content: message.content
+        }));
+        const response = await callAiApi('/api/ai/chat', { 
+          message: prompt,
+          history: historyToSend,
+          googleSearch: searchWeb
+        });
+        const data = await response.json();
+        
+        if (data.success && data.text) {
+          const aiMsgId = `ai-msg-${Date.now()}`;
+          const aiMsgTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+          const aiResponseMsg: ChatMessage = {
+            id: aiMsgId,
+            senderId: 'apexa-ai',
+            senderName: 'Apexa Brain AI',
+            senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ApexaBrain',
+            content: `🤖 **Apexa Brain AI:**\n\n${data.text}`,
+            timestamp: aiMsgTime,
+            channelId: activeChannelId,
+            isAi: true,
+            deliveryState: 'sent'
+          };
+          setMessages(prev => [...prev, aiResponseMsg]);
+          if (!isOffline) {
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              await supabase.from('chat_messages').insert({
+                id: aiMsgId,
+                sender_id: 'apexa-ai',
+                sender_name: 'Apexa Brain AI',
+                sender_avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ApexaBrain',
+                content: aiResponseMsg.content,
+                timestamp: aiMsgTime,
+                channel_id: activeChannelId,
+                is_ai_response: true,
+                workspace_id: workspaceId,
+                user_id: session?.user?.id || currentUser?.id || null,
+                attachment: null
+              });
+            } catch {}
+          }
+        }
+      } catch (err) {
+        console.error('Error executing /ai command:', err);
+        triggerToast?.('error', 'Lỗi AI', 'Không thể kết nối với Apexa Brain AI.');
+      } finally {
+        setIsAiTyping(false);
+        scrollToBottom();
+      }
+      return;
+    }
+
+    if (cmd === '/poll') {
+      if (args.trim()) {
+        setPollQuestion(args.trim());
+      }
+      setShowPollModal(true);
+      return;
+    }
+
+    if (cmd === '/clear') {
+      setMessages([]);
+      messageCacheRef.current.set(activeChannelId, []);
+      triggerToast?.('info', 'Làm mới kênh', 'Đã xóa tin nhắn tạm thời trong kênh này.');
       return;
     }
 
@@ -2191,8 +2411,12 @@ ${channelMessagesText}`;
 
     let message = pending.message;
     const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
-    if (!userId) throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+    const userId = session?.user?.id || (currentUser?.id && currentUser.id !== 'user' ? currentUser.id : null);
+    if (!userId) {
+      pendingMessagesRef.current.delete(messageId);
+      updateLocalMessage(message.channelId || '', messageId, { deliveryState: 'sent', attachment: message.attachment });
+      return;
+    }
 
     if (pending.attachment?.file && (!message.attachment?.filePath || message.attachment.filePath.startsWith('blob:'))) {
       const storagePath = `${userId}/${workspaceId}/${message.channelId}/${crypto.randomUUID()}-${safeFileName(pending.attachment.name)}`;
@@ -2270,23 +2494,23 @@ ${channelMessagesText}`;
   };
 
   // Send new messages optimistically; failed/offline messages remain visible and retryable.
-  const handleSendMessage = async (e: React.FormEvent, overrideText?: string) => {
-    e.preventDefault();
+  const handleSendMessage = async (e?: React.FormEvent, overrideText?: string, overrideFile?: any) => {
+    e?.preventDefault();
     const userMsgText = (overrideText ?? inputVal).trim();
-    if ((!userMsgText && !selectedFile) || !activeChannelId) return;
+    const pendingFile = overrideFile ?? selectedFile;
+    if ((!userMsgText && !pendingFile) || !activeChannelId) return;
     if (userMsgText.length > MAX_CHAT_MESSAGE_LENGTH) {
       triggerToast?.('info', 'Tin nhắn quá dài', `Mỗi tin nhắn tối đa ${MAX_CHAT_MESSAGE_LENGTH.toLocaleString('vi-VN')} ký tự.`);
       return;
     }
 
-    if (!overrideText && userMsgText.startsWith('/') && !selectedFile) {
+    if (!overrideText && userMsgText.startsWith('/') && !pendingFile) {
       executeSlashCommand(userMsgText);
       setInputVal('');
       return;
     }
 
     const targetChannelId = activeChannelId;
-    const pendingFile = selectedFile;
     const replyTarget = replyingToMessage;
     const createdAt = new Date().toISOString();
     const msgId = `msg-${crypto.randomUUID()}`;
@@ -2398,6 +2622,12 @@ ${channelMessagesText}`;
       (window as any).playSystemSound?.('toggle');
     }
   };
+
+  useEffect(() => {
+    sendVoiceDirectlyRef.current = (file: any) => {
+      void handleSendMessage(undefined, '', file);
+    };
+  });
 
   useEffect(() => {
     if (isOffline || flushingPendingRef.current || pendingMessagesRef.current.size === 0) return;
@@ -3709,15 +3939,28 @@ ${channelMessagesText}`;
                               duration={msg.attachment.duration} 
                             />
                           ) : msg.attachment.isImage ? (
-                            <div className="relative rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 max-w-[240px] shadow-xs group/img bg-slate-50 dark:bg-slate-800">
+                            <div 
+                              onClick={() => setLightboxImage({
+                                url: msg.attachment!.filePath,
+                                name: msg.attachment!.name,
+                                size: msg.attachment!.size,
+                                senderName: msg.senderName,
+                                timestamp: msg.timestamp
+                              })}
+                              className="relative rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 max-w-[260px] shadow-xs group/img bg-slate-50 dark:bg-slate-800 cursor-pointer"
+                              title="Nhấn để xem ảnh phóng to"
+                            >
                               <SignedImage 
                                 filePath={msg.attachment.filePath} 
                                 alt={msg.attachment.name}
                                 bucket="chat-attachments"
-                                className="max-w-[240px] max-h-[180px] object-cover hover:scale-[1.02] transition-transform duration-200"
+                                className="max-w-[260px] max-h-[200px] object-cover hover:scale-[1.03] transition-transform duration-200"
                               />
-                              <div className="absolute inset-0 bg-slate-900/10 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-end justify-between p-2">
-                                <span className="text-[9px] text-white font-bold truncate bg-slate-900/60 px-1.5 py-0.5 rounded-lg">{msg.attachment.name}</span>
+                              <div className="absolute inset-0 bg-slate-900/35 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-end justify-between p-2">
+                                <span className="text-[9.5px] text-white font-bold truncate bg-slate-900/70 px-2 py-0.5 rounded-lg">{msg.attachment.name}</span>
+                                <span className="p-1 rounded-lg bg-white/20 text-white backdrop-blur-xs flex items-center justify-center">
+                                  <Eye className="w-3.5 h-3.5" />
+                                </span>
                               </div>
                             </div>
                           ) : (msg.attachment as any)?.isVideoMeet ? (
@@ -3965,8 +4208,8 @@ ${channelMessagesText}`;
                 </div>
 
                   {!groupedWithNext && (
-                    <div className={`flex min-h-4 items-center gap-1.5 px-1 text-[9px] font-semibold text-slate-400 dark:text-slate-500 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      <span className="font-mono">
+                    <div className={`flex min-h-4 items-center gap-1.5 px-1 text-[9.5px] font-medium text-slate-400 dark:text-slate-500 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                      <span className="font-mono tabular-nums tracking-tight">
                         {msg.createdAt && !Number.isNaN(new Date(msg.createdAt).getTime())
                           ? new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
                           : msg.timestamp}
@@ -4360,7 +4603,12 @@ ${channelMessagesText}`;
                   <button
                     type="button"
                     onClick={() => {
+                      if (mediaRecorderRef.current && isRecording) {
+                        autoSendVoiceRef.current = false;
+                        mediaRecorderRef.current.stop();
+                      }
                       setIsRecording(false);
+                      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
                       triggerToast?.('info', 'Đã hủy', 'Đã xóa bản ghi âm.');
                     }}
                     className="px-3 py-1.5 rounded-full bg-slate-200 dark:bg-slate-800 hover:bg-rose-100 hover:text-rose-600 text-slate-600 dark:text-slate-300 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
@@ -4370,8 +4618,9 @@ ${channelMessagesText}`;
                   </button>
                   <button
                     type="button"
-                    onClick={stopRecording}
+                    onClick={() => stopRecording(true)}
                     className="px-3.5 py-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md transition-colors cursor-pointer flex items-center gap-1.5 active:scale-95"
+                    title="Gửi ngay tin nhắn thoại"
                   >
                     <Send className="w-3.5 h-3.5 fill-current" />
                     <span>Gửi thoại</span>
@@ -4534,6 +4783,18 @@ ${channelMessagesText}`;
                         if (e.key === 'Escape') {
                           e.preventDefault();
                           setShowCommandDropdown(false);
+                          return;
+                        }
+                      }
+
+                      // Quick edit last message on ArrowUp when input is empty
+                      if (!inputVal.trim() && e.key === 'ArrowUp' && !editingMsgId && !showCommandDropdown && !showMentionDropdown) {
+                        const myLastMsg = [...messages].reverse().find(m => (m.senderId === currentUser.id || m.senderId === 'user') && !m.isAi && m.content?.trim());
+                        if (myLastMsg) {
+                          e.preventDefault();
+                          setEditingMsgId(myLastMsg.id);
+                          setEditVal(myLastMsg.content);
+                          handleScrollToMessage(myLastMsg.id);
                           return;
                         }
                       }
@@ -4712,18 +4973,29 @@ ${channelMessagesText}`;
               </div>
 
               {/* Tab selectors */}
-              <div className="flex bg-slate-100 dark:bg-slate-900 p-0.5 rounded-xl text-[10px] font-black tracking-wide uppercase shrink-0">
-                {(['members', 'search', 'files'] as const).map(tab => (
+              <div className="grid grid-cols-4 gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl text-[10px] font-black tracking-wide uppercase shrink-0">
+                {[
+                  { id: 'members' as const, label: 'Người' },
+                  { id: 'pinned' as const, label: 'Ghim', count: messages.filter(m => m.isPinned).length },
+                  { id: 'search' as const, label: 'Tìm' },
+                  { id: 'files' as const, label: 'Tệp' },
+                ].map(tab => (
                   <button
-                    key={tab}
-                    onClick={() => setActiveSidebarTab(tab)}
-                    className={`flex-1 py-1 rounded-lg transition-colors cursor-pointer ${
-                      activeSidebarTab === tab 
-                        ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 shadow-sm' 
-                        : 'text-slate-405 hover:text-slate-650'
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveSidebarTab(tab.id)}
+                    className={`py-1.5 px-1 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                      activeSidebarTab === tab.id 
+                        ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 shadow-xs font-black' 
+                        : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                     }`}
                   >
-                    {tab}
+                    <span>{tab.label}</span>
+                    {typeof tab.count === 'number' && tab.count > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full text-[8px] font-black bg-amber-500 text-white leading-tight">
+                        {tab.count}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -4749,6 +5021,66 @@ ${channelMessagesText}`;
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {activeSidebarTab === 'pinned' && (
+                  <div className="space-y-2">
+                    {messages.filter(m => m.isPinned).map(m => (
+                      <div
+                        key={m.id}
+                        className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-amber-200/80 dark:border-amber-900/40 text-[10.5px] text-left hover:border-amber-400 dark:hover:border-amber-600 transition-colors shadow-2xs group/pin"
+                      >
+                        <div className="flex items-center justify-between mb-1.5 text-[9px] font-bold text-slate-500 dark:text-slate-400">
+                          <span className="font-black text-amber-600 dark:text-amber-400 flex items-center gap-1 truncate">
+                            <Pin className="w-2.5 h-2.5 fill-amber-500 text-amber-500 shrink-0" />
+                            {m.senderName}
+                          </span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span>{m.timestamp}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTogglePinMessage(m.id, true);
+                              }}
+                              className="opacity-0 group-hover/pin:opacity-100 p-0.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-rose-500 transition-all cursor-pointer"
+                              title="Bỏ ghim tin nhắn"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-slate-700 dark:text-slate-300 font-medium break-words leading-relaxed mb-2">
+                          {m.content || (m.attachment ? `📎 ${m.attachment.name}` : '')}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (m.parentId) {
+                              const parent = messages.find(x => x.id === m.parentId);
+                              if (parent) {
+                                handleOpenThread(parent);
+                                handleScrollToMessage(parent.id);
+                                return;
+                              }
+                            }
+                            handleScrollToMessage(m.id);
+                          }}
+                          className="w-full py-1 px-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-800 dark:text-amber-300 font-bold text-[9.5px] flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <ArrowRight className="w-3 h-3" />
+                          <span>Xem tin nhắn</span>
+                        </button>
+                      </div>
+                    ))}
+                    {messages.filter(m => m.isPinned).length === 0 && (
+                      <div className="text-center py-8 text-slate-400">
+                        <Pin className="w-6 h-6 mx-auto mb-2 opacity-30 text-slate-400" />
+                        <p className="text-[10.5px] font-bold">Chưa có tin nhắn nào được ghim</p>
+                        <p className="text-[9px] text-slate-400 mt-0.5">Di chuột vào tin nhắn và chọn Ghim</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -4788,7 +5120,9 @@ ${channelMessagesText}`;
                               <span className="group-hover/sr:text-indigo-600 dark:group-hover/sr:text-indigo-400 transition-colors">{m.senderName}{m.parentId ? ' · trong luồng' : ''}</span>
                               <span>{m.timestamp}</span>
                             </div>
-                            <p className="text-slate-700 dark:text-slate-300 font-semibold break-words leading-normal">{m.content}</p>
+                            <p className="text-slate-700 dark:text-slate-300 font-semibold break-words leading-normal">
+                              {highlightSearchText(m.content, localSearchQuery)}
+                            </p>
                           </div>
                         ))
                       ) : (
@@ -4809,14 +5143,39 @@ ${channelMessagesText}`;
                               <Mic className="w-4 h-4" />
                             </div>
                           ) : file.isImage ? (
-                            <SignedImage filePath={file.filePath} alt={file.name} bucket="chat-attachments" className="w-8 h-8 rounded-lg object-cover border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 shrink-0" />
+                            <div 
+                              onClick={() => setLightboxImage({
+                                url: file.filePath,
+                                name: file.name,
+                                size: file.size,
+                                senderName: m.senderName,
+                                timestamp: m.timestamp
+                              })}
+                              className="cursor-pointer"
+                              title="Xem ảnh phóng to"
+                            >
+                              <SignedImage filePath={file.filePath} alt={file.name} bucket="chat-attachments" className="w-8 h-8 rounded-lg object-cover border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 shrink-0 hover:opacity-85 transition-opacity" />
+                            </div>
                           ) : (
                             <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600 shrink-0">
                               <Globe className="w-4 h-4" />
                             </div>
                           )}
-                          <div className="min-w-0 flex-1">
-                            <span className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate">{file.name}</span>
+                          <div 
+                            className={`min-w-0 flex-1 ${file.isImage ? 'cursor-pointer' : ''}`}
+                            onClick={() => {
+                              if (file.isImage) {
+                                setLightboxImage({
+                                  url: file.filePath,
+                                  name: file.name,
+                                  size: file.size,
+                                  senderName: m.senderName,
+                                  timestamp: m.timestamp
+                                });
+                              }
+                            }}
+                          >
+                            <span className={`block text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate ${file.isImage ? 'hover:text-indigo-600 dark:hover:text-indigo-400' : ''}`}>{file.name}</span>
                             <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-wider font-mono mt-0.5">
                               {file.isVoice ? 'Audio Voice' : file.size ? `${(file.size / 1024).toFixed(1)} KB` : 'File'}
                             </span>
@@ -4827,6 +5186,7 @@ ${channelMessagesText}`;
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer shrink-0"
+                            title={`Tải ${file.name}`}
                           >
                             <ArrowRight className="w-3.5 h-3.5" />
                           </a>
@@ -5535,11 +5895,11 @@ ${channelMessagesText}`;
                     <input value={groupSearchQuery} onChange={event => setGroupSearchQuery(event.target.value)} placeholder="Tìm tên hoặc email..." className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs font-medium outline-none focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
                   </div>
                   <div className="max-h-64 space-y-1 overflow-y-auto pr-1 scrollbar-thin">
-                    {members.filter(member => member.id !== currentUser.id && member.id !== 'user' && Boolean(resolveMemberAuthId(member))).filter(member => {
+                    {members.filter(member => member.id !== currentUser.id && member.id !== 'user').filter(member => {
                       const query = groupSearchQuery.trim().toLowerCase();
                       return !query || member.name.toLowerCase().includes(query) || member.email?.toLowerCase().includes(query);
                     }).map(member => {
-                      const userId = resolveMemberAuthId(member)!;
+                      const userId = resolveMemberAuthId(member) || member.id;
                       const selected = selectedGroupMemberIds.includes(userId);
                       return (
                         <button
@@ -5998,6 +6358,127 @@ ${channelMessagesText}`;
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Fullscreen Image Lightbox Modal ── */}
+      <AnimatePresence>
+        {lightboxImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-md flex flex-col justify-between p-4 sm:p-6 select-none"
+            onClick={() => {
+              setLightboxImage(null);
+              setLightboxZoom(1);
+              setLightboxRotation(0);
+            }}
+          >
+            {/* Top Toolbar */}
+            <div 
+              className="flex items-center justify-between z-10 w-full"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 text-white min-w-0 mr-4">
+                <div className="max-w-[200px] sm:max-w-md truncate">
+                  <h4 className="text-xs sm:text-sm font-bold truncate text-white">{lightboxImage.name}</h4>
+                  <p className="text-[10px] text-white/60">
+                    {lightboxImage.senderName ? `${lightboxImage.senderName} · ` : ''}
+                    {lightboxImage.timestamp || ''}
+                    {lightboxImage.size ? ` · ${(lightboxImage.size / 1024).toFixed(1)} KB` : ''}
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Controls */}
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setLightboxZoom(prev => Math.max(0.5, Number((prev - 0.25).toFixed(2))))}
+                  className="p-2 sm:px-3 sm:py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                  title="Thu nhỏ (-)"
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setLightboxZoom(1); setLightboxRotation(0); }}
+                  className="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all cursor-pointer font-mono"
+                  title="Đặt lại tỷ lệ"
+                >
+                  {Math.round(lightboxZoom * 100)}%
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLightboxZoom(prev => Math.min(3, Number((prev + 0.25).toFixed(2))))}
+                  className="p-2 sm:px-3 sm:py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                  title="Phóng to (+)"
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLightboxRotation(prev => (prev + 90) % 360)}
+                  className="p-2 sm:px-3 sm:py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                  title="Xoay 90°"
+                >
+                  <RotateCw className="w-4 h-4" />
+                </button>
+                {lightboxImage.url && (
+                  <a
+                    href={lightboxImage.url}
+                    download={lightboxImage.name}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 sm:px-3 sm:py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-lg"
+                    title="Tải ảnh về máy"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span className="hidden sm:inline">Tải về</span>
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLightboxImage(null);
+                    setLightboxZoom(1);
+                    setLightboxRotation(0);
+                  }}
+                  className="p-2 sm:px-3 sm:py-2 rounded-xl bg-white/20 hover:bg-rose-600 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ml-2"
+                  title="Đóng (Esc)"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Center Image Container */}
+            <div 
+              className="flex-1 flex items-center justify-center overflow-hidden my-4 relative"
+              onClick={e => e.stopPropagation()}
+            >
+              <div
+                style={{
+                  transform: `scale(${lightboxZoom}) rotate(${lightboxRotation}deg)`,
+                  transition: 'transform 0.2s cubic-bezier(0.2, 0, 0.2, 1)'
+                }}
+                className="max-w-full max-h-full flex items-center justify-center select-none"
+              >
+                <SignedImage
+                  filePath={lightboxImage.url}
+                  alt={lightboxImage.name}
+                  bucket="chat-attachments"
+                  className="max-w-[85vw] max-h-[75vh] object-contain rounded-xl shadow-2xl pointer-events-none"
+                />
+              </div>
+            </div>
+
+            {/* Bottom Hint */}
+            <div className="text-center text-[11px] text-white/50 z-10 pointer-events-none">
+              Nhấn <kbd className="px-1.5 py-0.5 rounded-sm bg-white/10 text-white/80 font-mono">Esc</kbd> hoặc bấm ra ngoài để đóng
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 

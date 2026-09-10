@@ -334,7 +334,7 @@ interface TaskTableViewProps {
   triggerToast?: (type: 'success' | 'info' | 'comment', title: string, desc: string) => void;
   visibleFields: string[];
   customFields: any[];
-  onOpenFieldsPanel?: () => void;
+  onOpenFieldsPanel?: (anchor?: { x: number; y: number; rect?: DOMRect } | React.MouseEvent) => void;
   onStartFocus?: (task: Task) => void;
   setVisibleFields?: React.Dispatch<React.SetStateAction<string[]>>;
   setCustomFields?: React.Dispatch<React.SetStateAction<any[]>>;
@@ -798,12 +798,13 @@ export default function TaskTableView({
             ))}
 
             {/* Plus button at the end to add field */}
-            <th className="sticky top-0 z-10 w-11 h-10 px-2 text-center border-b border-slate-200/70 dark:border-white/[0.06] bg-white dark:bg-[#07080c]/95 backdrop-blur-md">
+            <th className="sticky top-0 z-10 w-11 h-10 px-2 text-center border-b border-slate-200/70 dark:border-white/[0.06] bg-white dark:bg-[#07080c]">
               <button 
                 type="button" 
                 onClick={(e) => {
                   e.stopPropagation();
-                  onOpenFieldsPanel?.();
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  onOpenFieldsPanel?.({ x: rect.left, y: rect.bottom, rect });
                 }}
                 aria-label="Thêm trường bảng"
                 className="bg-transparent hover:bg-slate-100 dark:hover:bg-white/[0.08] rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer flex items-center justify-center w-6 h-6 mx-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
@@ -885,32 +886,6 @@ export default function TaskTableView({
 
                     {task.isPinned && <Pin className="w-3 h-3 text-amber-500 fill-amber-400 shrink-0" />}
 
-                    {/* Table Row Timer Action */}
-                    {activeTimerTaskId === task.id ? (
-                      <button
-                        type="button"
-                        onClick={e => {
-                          e.stopPropagation();
-                          if (onStopGlobalTimer) onStopGlobalTimer();
-                        }}
-                        className="p-0.5 rounded bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 cursor-pointer transition-all hover:bg-rose-100 border border-rose-200/30"
-                        title="Dừng bấm giờ"
-                      >
-                        <Clock className="w-3 h-3 text-rose-500 animate-spin" />
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={e => {
-                          e.stopPropagation();
-                          if (onStartGlobalTimer) onStartGlobalTimer(task.id);
-                        }}
-                        className="p-1 rounded-md opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-slate-400 hover:text-emerald-600 cursor-pointer transition-all border border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-                        title="Bắt đầu bấm giờ"
-                      >
-                        <Play className="w-3 h-3 text-emerald-500 fill-emerald-500" />
-                      </button>
-                    )}
                     {/* Complete toggle circle button */}
                     <motion.button
                       type="button"
