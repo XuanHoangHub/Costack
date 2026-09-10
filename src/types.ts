@@ -88,6 +88,9 @@ export interface CustomFieldDefinition {
   defaultValue?: unknown;
 }
 
+export type ShareRole = 'view' | 'comment' | 'edit';
+export type ShareTargetType = 'space' | 'folder' | 'list' | 'doc' | 'task' | 'whiteboard';
+
 export interface Space {
   id: string;
   name: string;
@@ -96,9 +99,9 @@ export interface Space {
   themeColor?: string;
   workspaceId: string;
   position?: number;
-  lists: { id: string; name: string; folderId?: string; position?: number; isPrivate?: boolean; shareSettings?: Record<string, 'view' | 'edit'>; user_id?: string; isFavorite?: boolean; isArchived?: boolean }[];
-  folders?: { id: string; name: string; color?: string; position?: number; isFavorite?: boolean; isArchived?: boolean }[];
-  whiteboards?: { id: string; name: string; folderId?: string; position?: number }[];
+  lists: { id: string; name: string; folderId?: string; position?: number; isPrivate?: boolean; shareSettings?: Record<string, ShareRole>; user_id?: string; isFavorite?: boolean; isArchived?: boolean }[];
+  folders?: { id: string; name: string; color?: string; position?: number; isFavorite?: boolean; isArchived?: boolean; isPrivate?: boolean; shareSettings?: Record<string, ShareRole>; user_id?: string }[];
+  whiteboards?: { id: string; name: string; folderId?: string; position?: number; isPrivate?: boolean; shareSettings?: Record<string, ShareRole>; user_id?: string }[];
   channels?: { id: string; name: string; description?: string; type?: string }[];
   statuses?: { id: string; label: string; color: string; type: TaskStatus }[];
   clickApps?: {
@@ -124,7 +127,7 @@ export interface Space {
   isFavorite?: boolean;
   isHidden?: boolean;
   isArchived?: boolean;
-  shareSettings?: Record<string, 'view' | 'edit'>;
+  shareSettings?: Record<string, ShareRole>;
   user_id?: string;
   defaultPermission?: 'Full edit' | 'Edit only' | 'Read only' | 'Comment only';
 }
@@ -187,6 +190,8 @@ export interface Task {
     interval: number;
   };
   reminder?: 'none' | 'at_time' | '5m' | '10m' | '30m' | '1h' | '1d';
+  isPrivate?: boolean;
+  shareSettings?: Record<string, ShareRole>;
 }
 
 export interface Document {
@@ -205,6 +210,8 @@ export interface Document {
   parentId?: string;
   isProtected?: boolean;
   isFavorite?: boolean;
+  isPrivate?: boolean;
+  shareSettings?: Record<string, ShareRole>;
 }
 
 export interface Workspace {
@@ -368,6 +375,8 @@ export interface WhiteboardBoard {
   tags?: string[];
   elementsCount?: number;
   templateType?: string;
+  isPrivate?: boolean;
+  shareSettings?: Record<string, ShareRole>;
 }
 
 export interface WhiteboardElement {

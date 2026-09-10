@@ -145,7 +145,7 @@ export interface SidebarZone {
 }
 
 export const DEFAULT_SIDEBAR_ORDER: string[] = [
-  'dashboard', 'inbox', 'tasks', 'calendar', 'goals',
+  'dashboard', 'inbox', 'tasks', 'calendar', 'planner', 'goals',
   'finance', 'docs', 'chat', 'team'
 ];
 

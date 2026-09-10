@@ -1568,7 +1568,7 @@ export function PremiumDatePicker({
   );
 
   return (
-    <div ref={containerRef} className="relative inline-block">
+    <div ref={containerRef} className="relative inline-block max-w-full min-w-0">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -1576,7 +1576,7 @@ export function PremiumDatePicker({
         aria-expanded={isOpen}
         className={
           className ||
-          `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer select-none transition-all hover:shadow-xs ${
+          `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer select-none transition-all hover:shadow-xs truncate max-w-full ${
             activeDateValue
               ? 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
               : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'
@@ -1584,7 +1584,7 @@ export function PremiumDatePicker({
         }
       >
         <CalendarDays className={`w-3.5 h-3.5 shrink-0 ${isOverdue ? 'text-rose-500' : 'text-slate-400'}`} />
-        <span className={isOverdue ? 'text-rose-500' : ''}>{displayText}</span>
+        <span className={`truncate ${isOverdue ? 'text-rose-500' : ''}`}>{displayText}</span>
         {selectedReminder !== 'none' && (
           <Bell className="w-2.5 h-2.5 text-amber-500 shrink-0 ml-0.5" />
         )}

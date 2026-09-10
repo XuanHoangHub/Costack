@@ -7,3 +7,8 @@ export { default as DashboardCharts } from './DashboardCharts';
 export { default as DashboardFocusQueue } from './DashboardFocusQueue';
 export { default as DashboardAiReport } from './DashboardAiReport';
 export { default as DashboardActivityFeed } from './DashboardActivityFeed';
+export { default as DashboardUpcomingAgenda } from './DashboardUpcomingAgenda';
+export { default as DashboardTeamWorkload } from './DashboardTeamWorkload';
+export { default as DashboardScratchpad } from './DashboardScratchpad';
+export { default as DashboardMilestones } from './DashboardMilestones';
+export { default as DashboardQuickTaskModal } from './DashboardQuickTaskModal';

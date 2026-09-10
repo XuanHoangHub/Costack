@@ -12,14 +12,19 @@ import {
   CircleDot,
   Columns3,
   Filter,
+  Flag,
   GanttChartSquare,
   LayoutList,
   Plus,
   Search,
   Table2,
+  Trash2,
+  Users,
   X,
 } from 'lucide-react';
 import { Space, Task, TaskAttachment, TaskStatus, User, Workspace } from '../../types';
+import { useTranslation } from '../../contexts/TranslationContext';
+import { generateSubtasksWithAi } from '@/lib/aiClient';
 import TaskBoardView from './TaskBoardView';
 import TaskDetailsPanel from './TaskDetailsPanel';
 import TaskGanttView from './TaskGanttView';
@@ -120,6 +125,7 @@ export default function TaskCommandCenter({
   onStopGlobalTimer,
   onTogglePauseGlobalTimer,
 }: TaskCommandCenterProps) {
+  const { localize: l, isVietnamese } = useTranslation();
   const [view, setView] = useState<TaskView>(getStoredView);
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<ScopeFilter>('all');
@@ -266,8 +272,54 @@ export default function TaskCommandCenter({
       const task = tasks.find((item) => item.id === id);
       if (task && task.status !== 'completed') onUpdateTask({ ...task, status: 'completed', progress: 100, completedAt: new Date().toISOString() });
     });
-    triggerToast?.('success', 'Đã cập nhật', `${selectedTaskIds.length} công việc đã được hoàn thành.`);
+    triggerToast?.('success', l('Đã cập nhật', 'Updated'), l(`${selectedTaskIds.length} công việc đã được hoàn thành.`, `${selectedTaskIds.length} tasks marked as completed.`));
     setSelectedTaskIds([]);
+  };
+
+  const changeStatusSelected = (newStatus: TaskStatus) => {
+    selectedTaskIds.forEach((id) => {
+      const task = tasks.find((item) => item.id === id);
+      if (task) {
+        onUpdateTask({
+          ...task,
+          status: newStatus,
+          progress: newStatus === 'completed' ? 100 : task.progress,
+          completedAt: newStatus === 'completed' ? new Date().toISOString() : undefined,
+        });
+      }
+    });
+    triggerToast?.('success', l('Thao tác hàng loạt', 'Batch action'), l(`Đã đổi trạng thái ${selectedTaskIds.length} công việc`, `Updated status for ${selectedTaskIds.length} tasks`));
+    setSelectedTaskIds([]);
+  };
+
+  const changePrioritySelected = (newPriority: Task['priority']) => {
+    selectedTaskIds.forEach((id) => {
+      const task = tasks.find((item) => item.id === id);
+      if (task) {
+        onUpdateTask({ ...task, priority: newPriority });
+      }
+    });
+    triggerToast?.('success', l('Thao tác hàng loạt', 'Batch action'), l(`Đã đổi độ ưu tiên ${selectedTaskIds.length} công việc`, `Updated priority for ${selectedTaskIds.length} tasks`));
+    setSelectedTaskIds([]);
+  };
+
+  const assignSelected = (assigneeId: string) => {
+    selectedTaskIds.forEach((id) => {
+      const task = tasks.find((item) => item.id === id);
+      if (task) {
+        onUpdateTask({ ...task, assigneeId, assigneeIds: [assigneeId] });
+      }
+    });
+    triggerToast?.('success', l('Thao tác hàng loạt', 'Batch action'), l(`Đã gán người phụ trách cho ${selectedTaskIds.length} công việc`, `Assigned member to ${selectedTaskIds.length} tasks`));
+    setSelectedTaskIds([]);
+  };
+
+  const deleteSelected = () => {
+    if (window.confirm(l(`Bạn có chắc chắn muốn xóa ${selectedTaskIds.length} công việc đã chọn? Tất cả các công việc này sẽ bị xóa khỏi hệ thống.`, `Are you sure you want to delete ${selectedTaskIds.length} selected tasks? This action cannot be undone.`))) {
+      selectedTaskIds.forEach((id) => onDeleteTask(id));
+      triggerToast?.('info', l('Thao tác hàng loạt', 'Batch action'), l(`Đã xóa ${selectedTaskIds.length} công việc`, `Deleted ${selectedTaskIds.length} tasks`));
+      setSelectedTaskIds([]);
+    }
   };
 
   const handleAttachmentUpload = (task: Task, eventOrFile: React.ChangeEvent<HTMLInputElement> | File) => {
@@ -289,18 +341,22 @@ export default function TaskCommandCenter({
     reader.readAsDataURL(file);
   };
 
-  const handleAiSubtasks = (task: Task) => {
+  const handleAiSubtasks = async (task: Task) => {
     setAiGenerating(true);
-    window.setTimeout(() => {
-      const generated = ['Xác định yêu cầu và kết quả đầu ra', 'Thực hiện hạng mục chính', 'Kiểm tra và bàn giao'].map((title, index) => ({
+    try {
+      const generatedList = await generateSubtasksWithAi(task.title, task.description);
+      const generated = (generatedList || []).map((title, index) => ({
         id: `ai-subtask-${Date.now()}-${index}`,
         title,
         completed: false,
       }));
       onUpdateTask({ ...task, subtasks: [...(task.subtasks || []), ...generated] });
+      triggerToast?.('success', l('AI đã lập kế hoạch', 'AI Planned Checklist'), l(`Đã thêm ${generated.length} bước thực thi vào công việc.`, `Added ${generated.length} checklist steps to task.`));
+    } catch (err) {
+      console.error('Failed to generate subtasks with AI:', err);
+    } finally {
       setAiGenerating(false);
-      triggerToast?.('success', 'AI đã lập kế hoạch', 'Đã thêm 3 bước thực thi vào công việc.');
-    }, 500);
+    }
   };
 
   const handleAiSummary = (task: Task) => {
@@ -537,10 +593,111 @@ export default function TaskCommandCenter({
 
       <AnimatePresence>
         {selectedTaskIds.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: 20, x: '-50%' }} animate={{ opacity: 1, y: 0, x: '-50%' }} exit={{ opacity: 0, y: 20, x: '-50%' }} className="fixed bottom-5 left-1/2 z-[70] flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-950 px-2.5 py-2 text-white shadow-2xl">
-            <span className="px-2 text-[11px] font-extrabold">{selectedTaskIds.length} đã chọn</span>
-            <button type="button" onClick={completeSelected} className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-emerald-500 px-3 text-[10px] font-black hover:bg-emerald-400"><CheckCircle2 className="h-3.5 w-3.5" /> Hoàn thành</button>
-            <button type="button" onClick={() => setSelectedTaskIds([])} aria-label="Bỏ chọn" className="grid h-8 w-8 place-items-center rounded-xl text-slate-400 hover:bg-white/10 hover:text-white"><X className="h-4 w-4" /></button>
+          <motion.div
+            initial={{ opacity: 0, y: 20, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: 20, x: '-50%' }}
+            className="fixed bottom-5 left-1/2 z-[70] flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/95 px-3 py-2 text-white shadow-2xl backdrop-blur-xl"
+          >
+            <span className="px-2 text-[11px] font-extrabold text-indigo-400">
+              {l(`${selectedTaskIds.length} đã chọn`, `${selectedTaskIds.length} selected`)}
+            </span>
+
+            <button
+              type="button"
+              onClick={completeSelected}
+              className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-emerald-500 px-3 text-[10px] font-black hover:bg-emerald-400 text-white transition shadow-sm"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {l("Hoàn thành", "Complete")}
+            </button>
+
+            {/* Trạng thái */}
+            <div className="relative">
+              <select
+                onChange={(e) => {
+                  if (e.target.value) changeStatusSelected(e.target.value as TaskStatus);
+                  e.target.value = '';
+                }}
+                defaultValue=""
+                className="h-8 appearance-none rounded-xl border border-white/10 bg-white/10 pl-2.5 pr-7 text-[10px] font-black text-white hover:bg-white/20 focus:outline-none cursor-pointer"
+              >
+                <option value="" disabled className="bg-slate-900 text-slate-400">
+                  {l("Đổi trạng thái...", "Change status...")}
+                </option>
+                <option value="todo" className="bg-slate-900 text-white">{l("Cần làm", "To Do")}</option>
+                <option value="inprogress" className="bg-slate-900 text-white">{l("Đang làm", "In Progress")}</option>
+                <option value="review" className="bg-slate-900 text-white">{l("Chờ duyệt", "In Review")}</option>
+                <option value="completed" className="bg-slate-900 text-white">{l("Hoàn thành", "Done")}</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" />
+            </div>
+
+            {/* Độ ưu tiên */}
+            <div className="relative">
+              <select
+                onChange={(e) => {
+                  if (e.target.value) changePrioritySelected(e.target.value as Task['priority']);
+                  e.target.value = '';
+                }}
+                defaultValue=""
+                className="h-8 appearance-none rounded-xl border border-white/10 bg-white/10 pl-2.5 pr-7 text-[10px] font-black text-white hover:bg-white/20 focus:outline-none cursor-pointer"
+              >
+                <option value="" disabled className="bg-slate-900 text-slate-400">
+                  {l("Độ ưu tiên...", "Priority...")}
+                </option>
+                <option value="urgent" className="bg-slate-900 text-rose-400">{l("Khẩn cấp", "Urgent")}</option>
+                <option value="high" className="bg-slate-900 text-orange-400">{l("Cao", "High")}</option>
+                <option value="medium" className="bg-slate-900 text-amber-400">{l("Bình thường", "Normal")}</option>
+                <option value="low" className="bg-slate-900 text-slate-300">{l("Thấp", "Low")}</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" />
+            </div>
+
+            {/* Gán thành viên */}
+            {members.length > 0 && (
+              <div className="relative">
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) assignSelected(e.target.value);
+                    e.target.value = '';
+                  }}
+                  defaultValue=""
+                  className="h-8 appearance-none rounded-xl border border-white/10 bg-white/10 pl-2.5 pr-7 text-[10px] font-black text-white hover:bg-white/20 focus:outline-none cursor-pointer"
+                >
+                  <option value="" disabled className="bg-slate-900 text-slate-400">
+                    {l("Gán người phụ trách...", "Assign member...")}
+                  </option>
+                  {members.map(m => (
+                    <option key={m.id} value={m.id} className="bg-slate-900 text-white">
+                      {m.name || m.email}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" />
+              </div>
+            )}
+
+            {/* Xóa hàng loạt */}
+            <button
+              type="button"
+              onClick={deleteSelected}
+              title={l("Xóa công việc đã chọn", "Delete selected tasks")}
+              className="inline-flex h-8 items-center gap-1 rounded-xl bg-rose-500/20 px-2.5 text-[10px] font-black text-rose-400 hover:bg-rose-500 hover:text-white transition"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {l("Xóa", "Delete")}
+            </button>
+
+            {/* Bỏ chọn */}
+            <button
+              type="button"
+              onClick={() => setSelectedTaskIds([])}
+              aria-label={l("Bỏ chọn", "Deselect")}
+              className="grid h-8 w-8 place-items-center rounded-xl text-slate-400 hover:bg-white/10 hover:text-white transition"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

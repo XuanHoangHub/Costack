@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { useTranslation } from "@/contexts/TranslationContext";
 import { AccountBankIcon } from "./AccountBankIcon";
 import { BankAccountItem, DebtRecord, PaymentRecord } from "./DebtDetailModal";
 
@@ -47,6 +48,7 @@ export function DebtPaymentModal({
   onClose,
   onSubmit,
 }: DebtPaymentModalProps) {
+  const { localize: l, isVietnamese } = useTranslation();
   const isDebt = target.kind === "debt";
   const debt = isDebt ? (target.record as DebtRecord) : null;
   const invoice = !isDebt ? target.record : null;
@@ -94,10 +96,10 @@ export function DebtPaymentModal({
   };
 
   const methodOptions = [
-    { value: "bank_transfer", label: "Chuyển khoản ngân hàng" },
-    { value: "cash", label: "Tiền mặt" },
-    { value: "card", label: "Thẻ tín dụng / Ghi nợ" },
-    { value: "other", label: "Hình thức khác" },
+    { value: "bank_transfer", label: l("Chuyển khoản ngân hàng", "Bank transfer") },
+    { value: "cash", label: l("Tiền mặt", "Cash") },
+    { value: "card", label: l("Thẻ tín dụng / Ghi nợ", "Credit / Debit card") },
+    { value: "other", label: l("Hình thức khác", "Other method") },
   ];
 
   return (
@@ -110,9 +112,13 @@ export function DebtPaymentModal({
               <CreditCard className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-black text-[var(--cu-text-primary)]">Ghi nhận thanh toán</h3>
+              <h3 className="text-base font-black text-[var(--cu-text-primary)]">
+                {l("Ghi nhận thanh toán", "Record payment")}
+              </h3>
               <p className="text-xs text-[var(--cu-text-tertiary)]">
-                {isDebt ? `Thanh toán công nợ: ${title}` : `Thanh toán hóa đơn: ${title}`}
+                {isDebt
+                  ? l(`Thanh toán công nợ: ${title}`, `Debt payment: ${title}`)
+                  : l(`Thanh toán hóa đơn: ${title}`, `Invoice payment: ${title}`)}
               </p>
             </div>
           </div>
@@ -133,12 +139,14 @@ export function DebtPaymentModal({
                 <p className="text-xs font-black text-[var(--cu-text-primary)]">{title}</p>
                 <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-500">
                   {isDebt
-                    ? debt?.type === "receivable" ? "Công nợ phải thu (Khách trả)" : "Công nợ phải trả (Mình thanh toán)"
-                    : "Hóa đơn"}
+                    ? debt?.type === "receivable"
+                      ? l("Công nợ phải thu (Khách trả)", "Receivable (Customer pays)")
+                      : l("Công nợ phải trả (Mình thanh toán)", "Payable (You pay)")
+                    : l("Hóa đơn", "Invoice")}
                 </p>
               </div>
               <span className="text-sm font-black text-amber-500">
-                {formatMoney(remaining)} còn lại
+                {l(`${formatMoney(remaining)} còn lại`, `${formatMoney(remaining)} remaining`)}
               </span>
             </div>
 
@@ -150,8 +158,8 @@ export function DebtPaymentModal({
             </div>
 
             <div className="mt-2 flex justify-between text-[10px] font-semibold text-[var(--cu-text-tertiary)]">
-              <span>Đã thanh toán {formatMoney(paid)}</span>
-              <span>Tổng {formatMoney(total)}</span>
+              <span>{l(`Đã thanh toán ${formatMoney(paid)}`, `Paid ${formatMoney(paid)}`)}</span>
+              <span>{l(`Tổng ${formatMoney(total)}`, `Total ${formatMoney(total)}`)}</span>
             </div>
           </div>
 
@@ -159,10 +167,10 @@ export function DebtPaymentModal({
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-bold text-[var(--cu-text-secondary)]">
-                Số tiền thanh toán *
+                {l("Số tiền thanh toán *", "Payment amount *")}
               </label>
               <span className="text-[10px] text-[var(--cu-text-tertiary)]">
-                Tối đa: <strong>{formatMoney(remaining)}</strong>
+                {l("Tối đa:", "Max:")} <strong>{formatMoney(remaining)}</strong>
               </span>
             </div>
             <div className="grid grid-cols-[1fr_auto] gap-2">
@@ -173,7 +181,7 @@ export function DebtPaymentModal({
                 step="0.01"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
-                placeholder="Nhập số tiền..."
+                placeholder={l("Nhập số tiền...", "Enter amount...")}
                 className="w-full h-10 px-3 rounded-xl border border-[var(--cu-border)] bg-[var(--cu-surface-2)]/50 text-xs font-black text-[var(--cu-text-primary)] focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 required
                 autoFocus
@@ -198,7 +206,7 @@ export function DebtPaymentModal({
                   onClick={() => quickSetPercent(1)}
                   className="rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-2.5 text-[10px] font-black text-indigo-500 transition hover:bg-indigo-500 hover:text-white"
                 >
-                  Tất toán
+                  {l("Tất toán", "Settle all")}
                 </button>
               </div>
             </div>
@@ -208,7 +216,7 @@ export function DebtPaymentModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold text-[var(--cu-text-secondary)] mb-1.5 block">
-                Ngày thanh toán *
+                {l("Ngày thanh toán *", "Payment date *")}
               </label>
               <input
                 type="date"
@@ -221,11 +229,11 @@ export function DebtPaymentModal({
 
             <div>
               <label className="text-xs font-bold text-[var(--cu-text-secondary)] mb-1.5 block">
-                Phương thức *
+                {l("Phương thức *", "Method *")}
               </label>
               <Select
                 className="w-full"
-                ariaLabel="Phương thức thanh toán"
+                ariaLabel={l("Phương thức thanh toán", "Payment method")}
                 value={method}
                 onChange={v => setMethod(v as typeof method)}
                 options={methodOptions}
@@ -245,7 +253,7 @@ export function DebtPaymentModal({
                 />
                 <span className="text-xs font-black text-[var(--cu-text-primary)] flex items-center gap-1.5">
                   <Sparkles className="h-3.5 w-3.5 text-emerald-500" />
-                  Đồng thời ghi vào Sổ thu chi & cập nhật số dư tài khoản
+                  {l("Đồng thời ghi vào Sổ thu chi & cập nhật số dư tài khoản", "Sync to Cashbook & update account balance")}
                 </span>
               </label>
 
@@ -253,12 +261,12 @@ export function DebtPaymentModal({
                 <div className="pt-1 animate-in fade-in duration-150">
                   <span className="text-[11px] font-bold text-[var(--cu-text-secondary)] block mb-1">
                     {isDebt && debt?.type === "receivable"
-                      ? "Tiền vào tài khoản (Khoản thu):"
-                      : "Trừ tiền từ tài khoản (Khoản chi):"}
+                      ? l("Tiền vào tài khoản (Khoản thu):", "Inflow account (Income):")
+                      : l("Trừ tiền từ tài khoản (Khoản chi):", "Outflow account (Expense):")}
                   </span>
                   <Select
                     className="w-full"
-                    ariaLabel="Tài khoản thanh toán"
+                    ariaLabel={l("Tài khoản thanh toán", "Payment account")}
                     value={selectedAccountId}
                     onChange={v => setSelectedAccountId(v)}
                     options={accounts.map(a => ({
@@ -267,7 +275,10 @@ export function DebtPaymentModal({
                     }))}
                   />
                   <p className="mt-1 text-[10px] text-emerald-600 dark:text-emerald-400">
-                    Bút toán {isDebt && debt?.type === "receivable" ? "Thu" : "Chi"} sẽ được tạo tự động và số dư tài khoản sẽ được tính toán chính xác ngay lập tức.
+                    {l(
+                      `Bút toán ${isDebt && debt?.type === "receivable" ? "Thu" : "Chi"} sẽ được tạo tự động và số dư tài khoản sẽ được tính toán chính xác ngay lập tức.`,
+                      `A ${isDebt && debt?.type === "receivable" ? "income" : "expense"} record will be auto-created and account balance will update immediately.`
+                    )}
                   </p>
                 </div>
               )}
@@ -278,24 +289,24 @@ export function DebtPaymentModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold text-[var(--cu-text-secondary)] mb-1.5 block">
-                Mã tham chiếu / Số giao dịch
+                {l("Mã tham chiếu / Số giao dịch", "Reference / Transaction ID")}
               </label>
               <input
                 value={reference}
                 onChange={e => setReference(e.target.value)}
-                placeholder="VD: FT240901..., UNC001"
+                placeholder={l("VD: FT240901..., UNC001", "e.g. FT240901..., REF001")}
                 className="w-full h-10 px-3 rounded-xl border border-[var(--cu-border)] bg-[var(--cu-surface-2)]/50 text-xs font-semibold text-[var(--cu-text-primary)] focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
 
             <div>
               <label className="text-xs font-bold text-[var(--cu-text-secondary)] mb-1.5 block">
-                Ghi chú đối soát
+                {l("Ghi chú đối soát", "Settlement notes")}
               </label>
               <input
                 value={note}
                 onChange={e => setNote(e.target.value)}
-                placeholder="Nội dung thanh toán..."
+                placeholder={l("Nội dung thanh toán...", "Payment description...")}
                 className="w-full h-10 px-3 rounded-xl border border-[var(--cu-border)] bg-[var(--cu-surface-2)]/50 text-xs font-semibold text-[var(--cu-text-primary)] focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
@@ -306,13 +317,13 @@ export function DebtPaymentModal({
             <div className="space-y-1.5 pt-1">
               <span className="text-[11px] font-bold text-[var(--cu-text-tertiary)] flex items-center gap-1">
                 <History className="h-3 w-3" />
-                Các đợt thanh toán trước ({relevantPayments.length})
+                {l("Các đợt thanh toán trước", "Previous payments")} ({relevantPayments.length})
               </span>
               <div className="max-h-28 overflow-y-auto divide-y divide-[var(--cu-border)] rounded-xl border border-[var(--cu-border)]">
                 {relevantPayments.map(p => (
                   <div key={p.id} className="flex items-center justify-between px-3 py-2 text-[11px] bg-[var(--cu-surface-2)]/20">
                     <span className="text-[var(--cu-text-secondary)]">
-                      {new Date(`${p.date}T00:00:00`).toLocaleDateString("vi-VN")} · {p.reference || "Không có mã"}
+                      {new Date(`${p.date}T00:00:00`).toLocaleDateString(isVietnamese ? "vi-VN" : "en-US")} · {p.reference || l("Không có mã", "No code")}
                     </span>
                     <span className="font-bold text-emerald-500">+{formatMoney(p.amount)}</span>
                   </div>
@@ -324,10 +335,10 @@ export function DebtPaymentModal({
           {/* Actions */}
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--cu-border)]">
             <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
-              Hủy
+              {l("Hủy", "Cancel")}
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? "Đang xử lý..." : "Xác nhận thanh toán"}
+              {saving ? l("Đang xử lý...", "Processing...") : l("Xác nhận thanh toán", "Confirm payment")}
             </Button>
           </div>
         </form>

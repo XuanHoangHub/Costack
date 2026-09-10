@@ -1846,8 +1846,32 @@ export default function App() {
         setActiveTab('inbox');
         triggerToast('info', 'Workspace Invitation', 'You have a pending workspace invitation ready to review!');
       }
+
+      const taskParam = params.get('task');
+      const spaceParam = params.get('space');
+      const listParam = params.get('list');
+      const docParam = params.get('doc');
+      const whiteboardParam = params.get('whiteboard');
+
+      if (taskParam) {
+        if (spaceParam) setActiveSpaceId(spaceParam);
+        if (listParam) setActiveListId(listParam);
+        setActiveTab('tasks');
+        setInitialSelectedTaskId(taskParam);
+      } else if (docParam) {
+        setActiveTab('docs');
+      } else if (whiteboardParam) {
+        setActiveTab('whiteboard');
+      } else if (spaceParam) {
+        setActiveSpaceId(spaceParam);
+        if (listParam) setActiveListId(listParam);
+        setActiveTab('tasks');
+      } else if (listParam) {
+        setActiveListId(listParam);
+        setActiveTab('tasks');
+      }
     }
-  }, [setActiveTab, triggerToast]);
+  }, [setActiveTab, triggerToast, setActiveSpaceId, setActiveListId, setInitialSelectedTaskId]);
 
   // Auto-scan tasks for upcoming deadlines and alert user via Toast on login
   useEffect(() => {

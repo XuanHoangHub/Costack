@@ -3,7 +3,18 @@ import { Task, User, SyncLog, Document } from '@/types';
 export type DashboardScope = 'workspace' | 'mine';
 export type DashboardRange = 7 | 30 | 90;
 export type DashboardChartMode = 'area' | 'bar';
-export type DashboardWidgetKey = 'focus' | 'kpis' | 'health' | 'charts' | 'velocity' | 'ai' | 'activity';
+export type DashboardWidgetKey = 
+  | 'focus' 
+  | 'kpis' 
+  | 'health' 
+  | 'charts' 
+  | 'velocity' 
+  | 'ai' 
+  | 'activity'
+  | 'agenda'
+  | 'workload'
+  | 'scratchpad'
+  | 'milestones';
 export type DashboardPriorityTab = 'all' | 'urgent' | 'overdue' | 'today' | 'pinned';
 export type HealthFilterKey = 'none' | 'at_risk' | 'due_soon' | 'unassigned' | 'no_due_date';
 
@@ -31,6 +42,8 @@ export interface DashboardOverviewProps {
   isSynced?: boolean;
   workspaceName?: string;
   onAddTask?: (task: any) => void;
+  onUpdateTask?: (task: any) => void;
+  spaces?: any[];
 }
 
 export interface PeriodInsights {

@@ -44,6 +44,7 @@ interface NotionDocEditorProps {
   onBlur?: () => void;
   placeholder?: string;
   taskTitle?: string;
+  initialMode?: 'edit' | 'preview';
 }
 
 interface SlashCommandItem {
@@ -60,10 +61,11 @@ export default function NotionDocEditor({
   onChange,
   onBlur,
   placeholder = 'Nhập nội dung tài liệu, gõ / để mở danh mục khối, hoặc dùng AI để soạn thảo...',
-  taskTitle = ''
+  taskTitle = '',
+  initialMode = 'edit'
 }: NotionDocEditorProps) {
   const { isVietnamese } = useTranslation();
-  const [mode, setMode] = useState<'edit' | 'preview'>('edit');
+  const [mode, setMode] = useState<'edit' | 'preview'>(initialMode);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiMenuOpen, setAiMenuOpen] = useState(false);
   const [slashMenuOpen, setSlashMenuOpen] = useState(false);
@@ -331,7 +333,7 @@ export default function NotionDocEditor({
   };
 
   return (
-    <div className="space-y-3 text-left font-sans select-none">
+    <div className="task-document space-y-3 text-left font-sans">
       
       {/* ── Doc Header & Notion Action Bar ── */}
       <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2 border-b border-slate-100 dark:border-slate-800/80">
@@ -343,7 +345,7 @@ export default function NotionDocEditor({
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">
-              {isVietnamese ? 'Tài liệu & Mô tả (Notion Doc)' : 'Document & Description'}
+              {isVietnamese ? 'Mô tả công việc' : 'Description'}
             </span>
             <span className="text-[10px] font-mono font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
               {wordCount} {isVietnamese ? 'từ' : 'words'} · {charCount} {isVietnamese ? 'ký tự' : 'chars'}
@@ -370,7 +372,7 @@ export default function NotionDocEditor({
               ) : (
                 <>
                   <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
-                  <span>Notion AI Writer</span>
+                  <span>Apexa AI</span>
                   <ChevronDown className="w-3 h-3 opacity-70" />
                 </>
               )}
@@ -484,7 +486,7 @@ export default function NotionDocEditor({
 
       {/* ── Notion Formatting Toolbar (Available in Edit Mode) ── */}
       {mode === 'edit' && (
-        <div className="flex flex-wrap items-center gap-1 p-1.5 bg-slate-50/80 dark:bg-slate-900/60 rounded-2xl border border-slate-200/70 dark:border-slate-800/70 text-slate-600 dark:text-slate-300 text-xs">
+        <div className="task-editor-toolbar flex flex-wrap items-center gap-1 p-1.5 bg-slate-50/80 dark:bg-slate-900/60 rounded-2xl border border-slate-200/70 dark:border-slate-800/70 text-slate-600 dark:text-slate-300 text-xs">
           {/* Headings */}
           <button
             type="button"
@@ -683,7 +685,7 @@ export default function NotionDocEditor({
           </div>
         ) : (
           /* ── Interactive Notion Preview Canvas ── */
-          <div className="w-full min-h-[160px] p-6 sm:p-7 rounded-2xl bg-white dark:bg-[#121212] border border-slate-200/80 dark:border-slate-800/80 text-slate-800 dark:text-slate-200 font-sans shadow-xs space-y-3">
+          <div className="task-document-preview w-full min-h-[160px] p-6 sm:p-7 rounded-2xl bg-white dark:bg-[#121212] border border-slate-200/80 dark:border-slate-800/80 text-slate-800 dark:text-slate-200 font-sans shadow-xs space-y-3">
             {!value.trim() ? (
               <div className="py-8 text-center text-slate-400 italic text-xs">
                 {isVietnamese ? 'Tài liệu chưa có nội dung. Chuyển sang chế độ Soạn thảo để viết.' : 'Empty document. Switch to Write mode to add content.'}

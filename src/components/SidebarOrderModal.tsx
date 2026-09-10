@@ -67,6 +67,11 @@ export function SidebarOrderModal({
         icon: Layers,
         description: isVi ? 'Không gian làm việc & danh sách việc' : 'Spaces, lists & task tracking',
       },
+      planner: {
+        label: isVi ? 'Kế hoạch ngày' : 'Daily planner',
+        icon: Calendar,
+        description: isVi ? 'Xếp lịch công việc & tập trung mỗi ngày' : 'Time blocks & daily focus',
+      },
       calendar: {
         label: t('calendarView') || (isVi ? 'Lịch trình' : 'Calendar'),
         icon: Calendar,

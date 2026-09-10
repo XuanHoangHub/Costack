@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Task, TaskStatus, Priority, User, Space, Document, SyncLog, Workspace, TaskAttachment } from '../types';
+import { Task, TaskStatus, Priority, User, Space, Document, SyncLog, Workspace, TaskAttachment, ShareRole, ShareTargetType } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { callAiApi } from '@/lib/aiClient';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -255,11 +255,11 @@ export default function SpacePage({
 
   // Sharing states
   const [sharingModalOpen, setSharingModalOpen] = useState(false);
-  const [sharingTargetType, setSharingTargetType] = useState<'space' | 'list'>('space');
+  const [sharingTargetType, setSharingTargetType] = useState<ShareTargetType>('space');
   const [sharingTargetId, setSharingTargetId] = useState('');
   const [sharingTargetName, setSharingTargetName] = useState('');
   const [sharingTargetIsPrivate, setSharingTargetIsPrivate] = useState(false);
-  const [sharingTargetShareSettings, setSharingTargetShareSettings] = useState<Record<string, 'view' | 'edit'>>({});
+  const [sharingTargetShareSettings, setSharingTargetShareSettings] = useState<Record<string, ShareRole>>({});
 
   // Access check helpers (RBAC)
   const hasSpaceAccess = React.useCallback((space: Space) => {
@@ -338,7 +338,7 @@ export default function SpacePage({
     return isCreator || (canEditSpace(space) && isPublic);
   }, [currentUser, hasSpaceAccess, canEditSpace, activeWorkspace]);
 
-  const handleSaveSharingSettings = (newIsPrivate: boolean, newShareSettings: Record<string, 'view' | 'edit'>) => {
+  const handleSaveSharingSettings = (newIsPrivate: boolean, newShareSettings: Record<string, ShareRole>) => {
     if (sharingTargetType === 'space') {
       const updated = spaces.map(s => {
         if (s.id === sharingTargetId) {
@@ -352,6 +352,26 @@ export default function SpacePage({
       });
       onSaveSpaces?.(updated);
       onAddSyncLog(`Updated sharing settings for Space "${sharingTargetName}"`);
+    } else if (sharingTargetType === 'folder') {
+      const updated = spaces.map(s => {
+        const hasFolder = s.folders?.some(f => f.id === sharingTargetId);
+        if (hasFolder) {
+          const updatedFolders = (s.folders || []).map(f => {
+            if (f.id === sharingTargetId) {
+              return {
+                ...f,
+                isPrivate: newIsPrivate,
+                shareSettings: newShareSettings
+              };
+            }
+            return f;
+          });
+          return { ...s, folders: updatedFolders };
+        }
+        return s;
+      });
+      onSaveSpaces?.(updated);
+      onAddSyncLog(`Updated sharing settings for Folder "${sharingTargetName}"`);
     } else {
       const updated = spaces.map(s => {
         const hasList = s.lists?.some(l => l.id === sharingTargetId);
@@ -598,6 +618,48 @@ export default function SpacePage({
   };
 
   const [showBreadcrumbNav, setShowBreadcrumbNav] = useState(false);
+  const breadcrumbBtnRef = useRef<HTMLDivElement>(null);
+  const [breadcrumbCoords, setBreadcrumbCoords] = useState<{ top: number; left: number } | null>(null);
+
+  const toggleBreadcrumbNav = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!showBreadcrumbNav) {
+      if (breadcrumbBtnRef.current) {
+        const rect = breadcrumbBtnRef.current.getBoundingClientRect();
+        setBreadcrumbCoords({
+          top: rect.bottom + 6,
+          left: Math.max(8, Math.min(rect.left, window.innerWidth - 325)),
+        });
+      }
+      setShowBreadcrumbNav(true);
+    } else {
+      setShowBreadcrumbNav(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!showBreadcrumbNav) return;
+    const handleScrollOrResize = () => {
+      if (breadcrumbBtnRef.current) {
+        const rect = breadcrumbBtnRef.current.getBoundingClientRect();
+        setBreadcrumbCoords({
+          top: rect.bottom + 6,
+          left: Math.max(8, Math.min(rect.left, window.innerWidth - 325)),
+        });
+      }
+    };
+    window.addEventListener('resize', handleScrollOrResize);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    return () => {
+      window.removeEventListener('resize', handleScrollOrResize);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+    };
+  }, [showBreadcrumbNav]);
+
+  useEffect(() => {
+    setShowBreadcrumbNav(false);
+  }, [activeListId, activeSpaceId]);
+
   const [listNameInput, setListNameInput] = useState('');
   const [spacesAddDropdownOpen, setSpacesAddDropdownOpen] = useState(false);
   const [showSpaceOptionsDropdown, setShowSpaceOptionsDropdown] = useState(false);
@@ -2794,8 +2856,8 @@ export default function SpacePage({
           {/* Single Unified Header Row (UI/UX Upgraded, Clean & Compact) */}
           <div className="apexa-space-commandbar flex items-center justify-between px-3 sm:px-5 py-2 relative flex-wrap gap-2 sm:gap-3 min-h-[48px]">
             
-            {/* Left Side: Breadcrumbs, Divider, and View Switcher Tabs (Scrollable & Unified) */}
-            <div className="apexa-space-header-left flex w-full sm:w-auto items-center gap-2 overflow-x-auto scrollbar-none flex-grow flex-shrink min-w-0 sm:pr-2">
+            {/* Left Side: Breadcrumbs, Divider, and View Switcher Tabs (Unified) */}
+            <div className="apexa-space-header-left flex w-full sm:w-auto items-center gap-2 overflow-visible flex-grow flex-shrink min-w-0 sm:pr-2">
               {/* Mobile Spaces sub-sidebar trigger drawer button */}
               <button
                 onClick={() => setIsMobileSidebarOpen(true)}
@@ -2864,29 +2926,40 @@ export default function SpacePage({
                       <>
                         <span className="text-slate-300 dark:text-slate-700 mx-0.5 font-normal">/</span>
                         
-                        <div className="relative flex items-center">
-                          <div 
-                            onClick={() => setShowBreadcrumbNav(!showBreadcrumbNav)}
-                            className="flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors py-1 px-2 rounded-lg text-slate-850 dark:text-slate-200"
+                        <div className="relative flex items-center" ref={breadcrumbBtnRef}>
+                          <button
+                            type="button"
+                            onClick={toggleBreadcrumbNav}
+                            className="flex items-center gap-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors py-1 px-2 rounded-lg text-slate-800 dark:text-slate-200"
+                            title="Chuyển danh sách / Tùy chọn"
                           >
                             <List className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span className="text-slate-850 dark:text-slate-200 font-black text-xs">{currentList.name}</span>
-                            <ChevronDown className="w-3 h-3 text-slate-400 transition-transform duration-200" />
-                          </div>
+                            <span className="text-slate-800 dark:text-slate-200 font-bold text-xs max-w-[140px] sm:max-w-[220px] truncate">{currentList.name}</span>
+                            <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${showBreadcrumbNav ? 'rotate-180' : ''}`} />
+                          </button>
 
                           {/* Interactive Breadcrumb Dropdown Navigator */}
                           <AnimatePresence>
-                            {showBreadcrumbNav && (
-                              <>
-                                <div className="fixed inset-0 z-40" onClick={() => setShowBreadcrumbNav(false)} />
-                                <motion.div 
-                                  initial={{ opacity: 0, y: 5, scale: 0.96 }}
+                            {showBreadcrumbNav && breadcrumbCoords && (
+                              <Portal>
+                                <div
+                                  className="fixed inset-0 z-[140] bg-transparent cursor-default"
+                                  onClick={() => setShowBreadcrumbNav(false)}
+                                />
+                                <motion.div
+                                  initial={{ opacity: 0, y: 4, scale: 0.96 }}
                                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                                  exit={{ opacity: 0, y: 5, scale: 0.96 }}
-                                  className="absolute left-0 top-full mt-2 w-[310px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-3 z-50 text-left font-sans select-none"
+                                  exit={{ opacity: 0, y: 4, scale: 0.96 }}
+                                  transition={{ duration: 0.15, ease: 'easeOut' }}
+                                  style={{
+                                    position: 'fixed',
+                                    top: breadcrumbCoords.top,
+                                    left: breadcrumbCoords.left,
+                                  }}
+                                  className="w-[310px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-3 z-[150] text-left font-sans select-none"
                                 >
                                   {/* Header Box: Rename list input & options */}
-                                  <div className="flex items-center gap-2 p-1.5 border border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/20 rounded-xl mb-3 shadow-3xs">
+                                  <div className="flex items-center gap-2 p-1.5 border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 rounded-xl mb-3 shadow-3xs">
                                     <List className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
                                     <input
                                       type="text"
@@ -2900,19 +2973,21 @@ export default function SpacePage({
                                         }
                                       }}
                                       placeholder="Tên danh sách..."
-                                      className="flex-1 bg-transparent border-none outline-none font-bold text-slate-800 dark:text-slate-105 text-xs px-1 py-0.5"
+                                      className="flex-1 bg-transparent border-none outline-none font-bold text-slate-800 dark:text-slate-100 text-xs px-1 py-0.5"
                                     />
                                     <button 
+                                      type="button"
                                       onClick={() => {
                                         navigator.clipboard.writeText(window.location.href);
                                         if (triggerToast) triggerToast('success', 'Link Copied', 'Copied list link to clipboard!');
                                       }}
-                                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-650 cursor-pointer transition-colors"
+                                      className="p-1 hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition-colors"
                                       title="Sao chép liên kết danh sách"
                                     >
                                       <LinkIcon className="w-3.5 h-3.5" />
                                     </button>
                                     <button 
+                                      type="button"
                                       onClick={() => {
                                         triggerConfirm({
                                           title: 'Xóa danh sách',
@@ -2923,7 +2998,7 @@ export default function SpacePage({
                                           }
                                         });
                                       }}
-                                      className="p-1 hover:bg-rose-50 dark:hover:bg-rose-955/20 rounded-lg text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
+                                      className="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
                                       title="Xóa danh sách"
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
@@ -2943,7 +3018,7 @@ export default function SpacePage({
                                           {activeSpace.name.charAt(0).toUpperCase()}
                                         </div>
                                       )}
-                                      <span>{activeSpace.name}</span>
+                                      <span className="truncate">{activeSpace.name}</span>
                                     </div>
 
                                     {/* Lists lists */}
@@ -2961,11 +3036,11 @@ export default function SpacePage({
                                             }}
                                             className={`w-full flex items-center gap-2 py-1.5 px-3 rounded-xl text-left font-bold transition-all cursor-pointer ${
                                               isSelected 
-                                                ? 'bg-blue-55 dark:bg-indigo-950/30 text-blue-600 dark:text-indigo-400 shadow-3xs border border-blue-100/10 dark:border-indigo-900/10' 
-                                                : 'text-slate-655 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850'
+                                                ? 'bg-blue-50 dark:bg-indigo-950/30 text-blue-600 dark:text-indigo-400 shadow-3xs border border-blue-100/10 dark:border-indigo-900/10' 
+                                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                                             }`}
                                           >
-                                            <List className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-blue-500' : 'text-slate-450'}`} />
+                                            <List className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-blue-500' : 'text-slate-400'}`} />
                                             <span className="truncate text-xs">{list.name}</span>
                                           </button>
                                         );
@@ -2973,7 +3048,7 @@ export default function SpacePage({
                                     </div>
                                   </div>
                                 </motion.div>
-                              </>
+                              </Portal>
                             )}
                           </AnimatePresence>
                         </div>
@@ -4191,6 +4266,7 @@ export default function SpacePage({
           <TaskDetailsPanel 
             task={selectedTask}
             members={members}
+            currentUser={currentUser}
             workspaces={allWorkspaces || []}
             spaces={spaces}
             onClose={() => setSelectedTask(null)}
@@ -6264,13 +6340,12 @@ export default function SpacePage({
                   onClick={(e) => {
                     e.stopPropagation();
                     setActiveFolderSettings(null);
-                    setSharingTargetType('space');
-                    setSharingTargetId(space.id);
-                    setSharingTargetName(space.name);
-                    setSharingTargetIsPrivate(!!space.isPrivate);
-                    setSharingTargetShareSettings(space.shareSettings || {});
+                    setSharingTargetType('folder');
+                    setSharingTargetId(folder.id);
+                    setSharingTargetName(folder.name);
+                    setSharingTargetIsPrivate(!!folder.isPrivate);
+                    setSharingTargetShareSettings(folder.shareSettings || {});
                     setSharingModalOpen(true);
-                    triggerToast?.('info', 'Quyền của thư mục', 'Thư mục đang kế thừa quyền truy cập từ Space.');
                   }}
                   className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl bg-gradient-to-r from-blue-600 via-sky-500 to-blue-600 hover:from-blue-500 hover:to-cyan-500 text-white font-black text-xs shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/35 hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
                 >
@@ -6288,11 +6363,11 @@ export default function SpacePage({
         <Portal>
           {/* Backdrop with click outside */}
           <div 
-            className="fixed inset-0 z-[80] bg-slate-950/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-150" 
+            className="fixed inset-0 z-[140] bg-slate-950/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-150" 
             onClick={() => setShowFieldsPanel(false)} 
           />
           <div 
-            className="fixed top-0 right-0 h-full w-[360px] sm:w-[400px] bg-white/95 dark:bg-[#0f141e]/95 backdrop-blur-xl border-l border-slate-200/80 dark:border-slate-800/80 z-[90] shadow-2xl flex flex-col p-4 sm:p-5 font-sans select-none animate-slideInRight"
+            className="fixed top-0 right-0 h-full w-[360px] sm:w-[400px] bg-white/95 dark:bg-[#0f141e]/95 backdrop-blur-xl border-l border-slate-200/80 dark:border-slate-800/80 z-[150] shadow-2xl flex flex-col p-4 sm:p-5 font-sans select-none animate-slideInRight"
             style={{ boxShadow: '-12px 0 40px rgba(0,0,0,0.15)' }}
           >
             <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800 shrink-0">
@@ -6362,8 +6437,11 @@ export default function SpacePage({
           members={members}
           currentUser={currentUser}
           onSave={handleSaveSharingSettings}
+          spaceId={activeSpace?.id}
           canEdit={sharingTargetType === 'space' 
             ? canEditSpace(spaces.find(s => s.id === sharingTargetId) || activeSpace) 
+            : sharingTargetType === 'folder'
+            ? canEditSpace(activeSpace)
             : canEditList(activeSpace, activeSpace.lists?.find(l => l.id === sharingTargetId))}
         />
       )}

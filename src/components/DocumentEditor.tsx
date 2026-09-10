@@ -21,9 +21,12 @@ import {
   RotateCcw, RotateCw, UserPlus, CheckCircle2, ListTodo, ShieldCheck, Pilcrow, Minus, Wand2, Eye,
   Printer, BookOpen, Sliders, Lightbulb, AlertTriangle, Pin, ChevronDown, Lock, Unlock, Trash2,
   Cloud, CloudOff, WifiOff, LoaderCircle, Table2, Underline as UnderlineIcon, Palette,
-  Plus, ExternalLink, RefreshCw, Columns3, Rows3, CheckCheck, Shuffle, Search
+  Plus, ExternalLink, RefreshCw, Columns3, Rows3, CheckCheck, Shuffle, Search,
+  QrCode, ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import ShareSettingsModal from './ShareSettingsModal';
+import { ShareRole } from '../types';
 import { useMemberStore } from '@/store/memberStore';
 import { callAiApi } from '@/lib/aiClient';
 import EmojiIconPicker, { renderSpaceIcon } from './EmojiIconPicker';
@@ -320,6 +323,7 @@ export default function DocumentEditor({
   const [versions, setVersions] = useState<DocumentVersion[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [showFullShareModal, setShowFullShareModal] = useState(false);
   const [collaborators, setCollaborators] = useState<any[]>([]);
   const [shareRole, setShareRole] = useState<'editor' | 'commenter' | 'viewer'>('editor');
   const [selectedCollaboratorId, setSelectedCollaboratorId] = useState('');
@@ -2581,7 +2585,7 @@ export default function DocumentEditor({
                   <Link2 className="w-4 h-4 text-slate-400 shrink-0" />
                   <input 
                     readOnly 
-                    value={typeof window !== 'undefined' ? `${window.location.origin}/docs/${documentId}` : ''} 
+                    value={typeof window !== 'undefined' ? `${window.location.origin}/?doc=${documentId}` : ''} 
                     className="w-full text-xs font-mono text-slate-600 dark:text-slate-300 bg-transparent border-none outline-none select-all truncate" 
                   />
                 </div>
@@ -2589,7 +2593,7 @@ export default function DocumentEditor({
                   type="button"
                   onClick={() => {
                     if (typeof window === 'undefined') return;
-                    navigator.clipboard.writeText(`${window.location.origin}/docs/${documentId}`);
+                    navigator.clipboard.writeText(`${window.location.origin}/?doc=${documentId}`);
                     setCopiedDocLink(true);
                     setTimeout(() => setCopiedDocLink(false), 2500);
                   }}
@@ -2669,10 +2673,70 @@ export default function DocumentEditor({
                   </div>
                 </div>
               )}
+              {/* Advanced Share Modal Trigger */}
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => { setShowShareMenu(false); setShowFullShareModal(true); }}
+                  className="w-full py-2.5 px-3 rounded-2xl bg-blue-50 hover:bg-blue-100/80 dark:bg-sky-950/40 dark:hover:bg-sky-900/40 text-blue-600 dark:text-sky-400 text-xs font-bold transition-all flex items-center justify-between cursor-pointer border border-blue-100 dark:border-sky-800/50"
+                >
+                  <span className="flex items-center gap-2">
+                    <QrCode className="w-4 h-4" />
+                    <span>Mã QR, Nhúng Iframe & Chia sẻ MXH...</span>
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-blue-500" />
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
+
+      {/* Unified Apexa Share Modal for Document */}
+      {showFullShareModal && (
+        <ShareSettingsModal
+          isOpen={showFullShareModal}
+          onClose={() => setShowFullShareModal(false)}
+          targetType="doc"
+          targetId={documentId}
+          targetName={docDetails?.title || 'Tài liệu không tên'}
+          isPrivate={!docDetails?.is_published}
+          shareSettings={(() => {
+            const map: Record<string, ShareRole> = {};
+            collaborators.forEach(c => {
+              if (c.user_id) {
+                map[c.user_id] = c.role === 'editor' ? 'edit' : c.role === 'commenter' ? 'comment' : 'view';
+              }
+            });
+            return map;
+          })()}
+          members={members}
+          currentUser={currentUser || members[0] || { name: 'Tôi' }}
+          canEdit={canEdit}
+          customShareUrl={typeof window !== 'undefined' ? `${window.location.origin}/?doc=${documentId}` : ''}
+          spaceId={docDetails?.spaceId || docDetails?.space_id}
+          onSave={async (newIsPrivate, newShareSettings) => {
+            const nextPublished = !newIsPrivate;
+            if (docDetails?.is_published !== nextPublished) {
+              await supabase
+                .from('documents')
+                .update({ is_published: nextPublished })
+                .eq('id', documentId);
+              setDocDetails((current: any) => ({ ...current, is_published: nextPublished }));
+              onDocumentUpdated?.({ is_published: nextPublished });
+            }
+            for (const [userId, role] of Object.entries(newShareSettings)) {
+              const dbRole = role === 'edit' ? 'editor' : role === 'comment' ? 'commenter' : 'viewer';
+              await supabase.from('document_collaborators').upsert({
+                document_id: documentId,
+                user_id: userId,
+                role: dbRole
+              }, { onConflict: 'document_id,user_id' });
+            }
+            await loadCollaborators();
+          }}
+        />
+      )}
     </div>
   );
 }

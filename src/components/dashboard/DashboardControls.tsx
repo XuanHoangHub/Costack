@@ -10,7 +10,8 @@ import {
   BarChart3,
   RotateCcw,
   LockKeyhole,
-  Check
+  Check,
+  Plus
 } from 'lucide-react';
 import { useTranslation } from '@/contexts/TranslationContext';
 import type { DashboardRange, DashboardChartMode, DashboardWidgetKey, PeriodInsights } from './types';
@@ -27,6 +28,7 @@ interface DashboardControlsProps {
   visibleWidgets: Record<DashboardWidgetKey, boolean>;
   onToggleWidget: (key: DashboardWidgetKey) => void;
   onResetPreferences: () => void;
+  onOpenQuickTask?: () => void;
 }
 
 export default function DashboardControls({
@@ -41,6 +43,7 @@ export default function DashboardControls({
   visibleWidgets,
   onToggleWidget,
   onResetPreferences,
+  onOpenQuickTask,
 }: DashboardControlsProps) {
   const { locale } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
@@ -63,6 +66,10 @@ export default function DashboardControls({
     ['kpis', locale === 'vi' ? 'Thẻ chỉ số tổng quan (KPIs)' : 'Overview KPI Cards'],
     ['health', locale === 'vi' ? 'Thanh sức khỏe công việc' : 'Task Health Strip'],
     ['focus', locale === 'vi' ? 'Hàng công việc ưu tiên' : 'Priority Focus Queue'],
+    ['agenda', locale === 'vi' ? 'Lịch trình & Hạn chót 7 ngày' : 'Upcoming Deadlines & Agenda'],
+    ['workload', locale === 'vi' ? 'Tải công việc & Năng lực đội ngũ' : 'Team Workload & Capacity'],
+    ['scratchpad', locale === 'vi' ? 'Bảng nháp & Ghi chú nhanh' : 'Personal Scratchpad & Notes'],
+    ['milestones', locale === 'vi' ? 'Tiến độ mục tiêu & Dự án' : 'Project Milestones & Goals'],
     ['charts', locale === 'vi' ? 'Biểu đồ hiệu suất & trạng thái' : 'Performance & Status Charts'],
     ['velocity', locale === 'vi' ? 'Vận tốc hoàn thành 30 ngày' : '30-Day Team Velocity'],
     ['ai', locale === 'vi' ? 'Báo cáo năng suất AI' : 'AI Productivity Insights'],
@@ -164,6 +171,18 @@ export default function DashboardControls({
           >
             <Crown className="h-3.5 w-3.5" />
             <span>{locale === 'vi' ? 'Nâng cấp Pro' : 'Upgrade Pro'}</span>
+          </button>
+        )}
+
+        {/* Quick Task Button */}
+        {onOpenQuickTask && (
+          <button
+            type="button"
+            onClick={onOpenQuickTask}
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 text-xs font-black text-white shadow-xs hover:bg-indigo-700 active:scale-[0.98] transition-all cursor-pointer"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>{locale === 'vi' ? 'Tạo việc nhanh' : 'Quick Task'}</span>
           </button>
         )}
 

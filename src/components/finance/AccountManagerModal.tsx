@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Check, CreditCard, Landmark, Palette, Sparkles, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { useTranslation } from "@/contexts/TranslationContext";
 import { AccountBankIcon } from "./AccountBankIcon";
 import { BANK_DIRECTORY, POPULAR_BANKS, detectBank } from "./bankData";
 
@@ -58,7 +59,18 @@ export function AccountManagerModal({
   onSubmit,
   onDelete,
 }: AccountManagerModalProps) {
+  const { localize: l, isVietnamese } = useTranslation();
   const isEditing = Boolean(initialData?.id);
+
+  const accountTypes = [
+    { value: "Tài khoản thanh toán", label: l("Tài khoản thanh toán", "Checking account") },
+    { value: "Ví điện tử", label: l("Ví điện tử", "E-Wallet") },
+    { value: "Tiền mặt", label: l("Quỹ tiền mặt", "Cash fund") },
+    { value: "Thẻ tín dụng", label: l("Thẻ tín dụng", "Credit card") },
+    { value: "Tài khoản tiết kiệm", label: l("Tài khoản tiết kiệm", "Savings account") },
+    { value: "Tài khoản đầu tư", label: l("Tài khoản đầu tư / Crypto", "Investment / Crypto") },
+    { value: "Khác", label: l("Khác", "Other") },
+  ];
 
   const [form, setForm] = useState<AccountFormData>({
     id: initialData?.id,
@@ -102,10 +114,10 @@ export function AccountManagerModal({
             </div>
             <div>
               <h3 className="text-base font-black text-[var(--cu-text-primary)]">
-                {isEditing ? "Chỉnh sửa tài khoản ngân hàng / ví" : "Thêm tài khoản ngân hàng & ví mới"}
+                {isEditing ? l("Chỉnh sửa tài khoản ngân hàng / ví", "Edit bank / wallet account") : l("Thêm tài khoản ngân hàng & ví mới", "Add new bank & wallet account")}
               </h3>
               <p className="text-xs text-[var(--cu-text-tertiary)]">
-                {isEditing ? "Cập nhật thông tin nhận diện và số dư" : "Chọn nhanh ngân hàng để tự động áp dụng icon & màu sắc chuẩn"}
+                {isEditing ? l("Cập nhật thông tin nhận diện và số dư", "Update account identity and balance") : l("Chọn nhanh ngân hàng để tự động áp dụng icon & màu sắc chuẩn", "Quickly pick bank to apply logo & brand color")}
               </p>
             </div>
           </div>
@@ -123,7 +135,7 @@ export function AccountManagerModal({
           <div>
             <label className="text-xs font-bold text-[var(--cu-text-secondary)] mb-2 flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-              Chọn nhanh ngân hàng / Ví điện tử phổ biến
+              {l("Chọn nhanh ngân hàng / Ví điện tử phổ biến", "Quick select popular banks / e-wallets")}
             </label>
             <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 pt-1">
               {POPULAR_BANKS.map(b => {
@@ -153,7 +165,7 @@ export function AccountManagerModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-bold text-[var(--cu-text-secondary)] mb-1.5 block">
-                Tên ngân hàng / Quỹ / Ví *
+                {l("Tên ngân hàng / Quỹ / Ví *", "Bank / Fund / Wallet name *")}
               </label>
               <div className="relative">
                 <input
@@ -168,7 +180,7 @@ export function AccountManagerModal({
                       type: detected.code !== "CUSTOM" ? detected.defaultType : prev.type,
                     }));
                   }}
-                  placeholder="Ví dụ: Vietcombank, Techcombank, MoMo..."
+                  placeholder={l("Ví dụ: Vietcombank, Techcombank, MoMo...", "e.g. Vietcombank, Techcombank, MoMo...")}
                   className="w-full h-10 px-3 rounded-xl border border-[var(--cu-border)] bg-[var(--cu-surface-2)]/50 text-xs font-semibold text-[var(--cu-text-primary)] focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   required
                 />
@@ -177,12 +189,12 @@ export function AccountManagerModal({
 
             <div>
               <label className="text-xs font-bold text-[var(--cu-text-secondary)] mb-1.5 block">
-                Số tài khoản / Số ví / Định danh *
+                {l("Số tài khoản / Số ví / Định danh *", "Account / Wallet / ID number *")}
               </label>
               <input
                 value={form.number}
                 onChange={e => setForm(prev => ({ ...prev, number: e.target.value }))}
-                placeholder="Ví dụ: 19036528888, 0987654321..."
+                placeholder={l("Ví dụ: 19036528888, 0987654321...", "e.g. 19036528888, 0987654321...")}
                 className="w-full h-10 px-3 rounded-xl border border-[var(--cu-border)] bg-[var(--cu-surface-2)]/50 text-xs font-semibold text-[var(--cu-text-primary)] focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 required
               />
@@ -190,19 +202,19 @@ export function AccountManagerModal({
 
             <div>
               <label className="text-xs font-bold text-[var(--cu-text-secondary)] mb-1.5 block">
-                Chi nhánh / Nơi mở
+                {l("Chi nhánh / Nơi mở", "Branch / Issuing location")}
               </label>
               <input
                 value={form.branch}
                 onChange={e => setForm(prev => ({ ...prev, branch: e.target.value }))}
-                placeholder="Ví dụ: Sở giao dịch, Hội sở, CN Thăng Long..."
+                placeholder={l("Ví dụ: Sở giao dịch, Hội sở, CN Thăng Long...", "e.g. Head office, Thang Long branch...")}
                 className="w-full h-10 px-3 rounded-xl border border-[var(--cu-border)] bg-[var(--cu-surface-2)]/50 text-xs font-semibold text-[var(--cu-text-primary)] focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
 
             <div>
               <label className="text-xs font-bold text-[var(--cu-text-secondary)] mb-1.5 block">
-                {isEditing ? "Số dư hiện tại *" : "Số dư mở sổ *"}
+                {isEditing ? l("Số dư hiện tại *", "Current balance *") : l("Số dư mở sổ *", "Opening balance *")}
               </label>
               <input
                 type="number"
@@ -218,14 +230,14 @@ export function AccountManagerModal({
 
           <div>
             <label className="text-xs font-bold text-[var(--cu-text-secondary)] mb-1.5 block">
-              Phân loại tài khoản
+              {l("Phân loại tài khoản", "Account category")}
             </label>
             <Select
               className="w-full"
-              ariaLabel="Phân loại tài khoản"
+              ariaLabel={l("Phân loại tài khoản", "Account category")}
               value={form.type}
               onChange={v => setForm(prev => ({ ...prev, type: v }))}
-              options={ACCOUNT_TYPES}
+              options={accountTypes}
             />
           </div>
 
@@ -233,7 +245,7 @@ export function AccountManagerModal({
           <div>
             <label className="text-xs font-bold text-[var(--cu-text-secondary)] mb-2 flex items-center gap-1.5">
               <Palette className="h-3.5 w-3.5" />
-              Màu sắc chủ đạo thẻ tài khoản
+              {l("Màu sắc chủ đạo thẻ tài khoản", "Card primary theme color")}
             </label>
             <div className="flex flex-wrap items-center gap-2">
               {PRESET_COLORS.map(c => (
@@ -255,14 +267,14 @@ export function AccountManagerModal({
           {/* Live Preview Card */}
           <div className="rounded-2xl border border-[var(--cu-border)] bg-[var(--cu-surface-2)]/40 p-3.5">
             <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[var(--cu-text-tertiary)] mb-2">
-              <span>Xem trước thẻ tài khoản</span>
-              <span className="text-emerald-500">Đang hoạt động</span>
+              <span>{l("Xem trước thẻ tài khoản", "Card live preview")}</span>
+              <span className="text-emerald-500">{l("Đang hoạt động", "Active")}</span>
             </div>
             <div className="flex items-center gap-3.5">
-              <AccountBankIcon bank={form.bank || "Ngân hàng"} color={form.color} size="md" />
+              <AccountBankIcon bank={form.bank || l("Ngân hàng", "Bank")} color={form.color} size="md" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-black text-[var(--cu-text-primary)] truncate">
-                  {form.bank || "Tên ngân hàng / Quỹ"}
+                  {form.bank || l("Tên ngân hàng / Quỹ", "Bank / Fund name")}
                 </p>
                 <p className="text-[11px] text-[var(--cu-text-tertiary)] truncate">
                   {form.number || "0000000000"} · {form.branch || form.type}
@@ -270,7 +282,7 @@ export function AccountManagerModal({
               </div>
               <div className="text-right">
                 <span className="text-xs font-black text-[var(--cu-text-primary)]">
-                  {new Intl.NumberFormat("vi-VN").format(Number(form.balance || 0))} ₫
+                  {new Intl.NumberFormat(isVietnamese ? "vi-VN" : "en-US").format(Number(form.balance || 0))} {isVietnamese ? "₫" : "$"}
                 </span>
               </div>
             </div>
@@ -287,16 +299,16 @@ export function AccountManagerModal({
                 disabled={saving}
                 leftIcon={<Trash2 className="h-4 w-4" />}
               >
-                Xóa tài khoản
+                {l("Xóa tài khoản", "Delete account")}
               </Button>
             ) : <div />}
 
             <div className="flex items-center gap-2">
               <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
-                Hủy
+                {l("Hủy", "Cancel")}
               </Button>
               <Button type="submit" disabled={saving}>
-                {saving ? "Đang lưu..." : isEditing ? "Lưu thay đổi" : "Tạo tài khoản"}
+                {saving ? l("Đang lưu...", "Saving...") : isEditing ? l("Lưu thay đổi", "Save changes") : l("Tạo tài khoản", "Create account")}
               </Button>
             </div>
           </div>

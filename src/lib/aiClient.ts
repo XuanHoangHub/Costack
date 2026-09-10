@@ -148,3 +148,27 @@ export async function autofillTaskWithAi(params: {
   }
   return json.data;
 }
+
+export interface AiFinanceCategorizeResult {
+  type: 'income' | 'expense';
+  category: string;
+  suggestedTags: string[];
+  confidence: number;
+}
+
+/**
+ * Smart finance transaction categorization using Gemini AI.
+ */
+export async function categorizeExpenseWithAi(description: string, amount?: number): Promise<AiFinanceCategorizeResult> {
+  const res = await callAiApi("/api/ai/finance-categorize", { description, amount });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `AI error: ${res.statusText}`);
+  }
+  const json = await res.json();
+  if (!json.success || !json.result) {
+    throw new Error(json.error || 'Failed to categorize transaction');
+  }
+  return json.result;
+}
+

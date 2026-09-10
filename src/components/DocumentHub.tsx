@@ -205,6 +205,27 @@ export default function DocumentHub({
     }
   }, [initialSelectedDocId, documents, onClearInitialSelectedDocId]);
 
+  // Handle URL query parameter and custom event for shared docs
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      const urlDocId = p.get('doc');
+      if (urlDocId) {
+        setActiveDocId(urlDocId);
+      }
+    }
+
+    const handleOpenDocEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<{ docId: string }>;
+      const docId = customEvent.detail?.docId;
+      if (docId) {
+        setActiveDocId(docId);
+      }
+    };
+    window.addEventListener('apexa-open-doc', handleOpenDocEvent);
+    return () => window.removeEventListener('apexa-open-doc', handleOpenDocEvent);
+  }, []);
+
   // 4. Robust Document Operations
   const handleAddDoc = async (parentId?: string, seed: Partial<ImportedApexaDocument> = {}) => {
     const newDocId = typeof crypto !== 'undefined' && crypto.randomUUID 

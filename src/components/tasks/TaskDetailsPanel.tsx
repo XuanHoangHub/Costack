@@ -55,9 +55,11 @@ import {
   Link as LinkIcon,
   ChevronRight, ChevronsLeft, ChevronsRight,
   Hourglass, AlertTriangle, Folder, Download, Copy,
-  FileDown, FileCode, Share2, Link2,
-  PanelRightClose, PanelRightOpen
+  FileDown, FileCode, Share2, Link2, Shield,
+  PanelRightClose, PanelRightOpen,
+  AppWindow, Maximize2, PanelRight, Layout
 } from 'lucide-react';
+import ShareSettingsModal from '../ShareSettingsModal';
 
 // ── Priority accent mapping ──
 const PRIORITY_THEMES: Record<Priority, { gradient: string; accent: string; badge: string; glow: string }> = {
@@ -134,6 +136,7 @@ interface TaskDetailsPanelProps {
   onTogglePauseGlobalTimer?: () => void;
   visibleFields?: string[];
   onToggleFieldVisibility?: (fieldKey: string) => void;
+  currentUser?: any;
 }
 
 export default function TaskDetailsPanel({
@@ -142,9 +145,10 @@ export default function TaskDetailsPanel({
    onAiSummary, isSummarizing, aiSummary, allTasks = [], allDocs = [], onOpenFieldsPanel,
    globalActiveTaskId = null, globalActiveElapsed = 0, globalIsPaused = false,
    onStartGlobalTimer, onStopGlobalTimer, onTogglePauseGlobalTimer,
-   visibleFields, onToggleFieldVisibility
+   visibleFields, onToggleFieldVisibility, currentUser
  }: TaskDetailsPanelProps) {
   const { t, isVietnamese } = useTranslation();
+  const [detailTab, setDetailTab] = useState<'overview' | 'subtasks' | 'files' | 'activity'>('overview');
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(task.title);
   const [descValue, setDescValue] = useState(task.description);
@@ -179,14 +183,14 @@ export default function TaskDetailsPanel({
     }
   };
 
-  // Properties Sidebar toggle state (for modal & fullscreen layouts) - default closed per user request ("sidebar không hiện ra sẵn")
+  // Preserve the user's saved preference; show properties on spacious screens on first use.
   const [isPropertiesSidebarOpen, setIsPropertiesSidebarOpen] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('apexa_task_properties_sidebar_open');
       if (saved === 'open') return true;
       if (saved === 'closed' || saved === 'false' || saved === 'true') return false;
     }
-    return false;
+    return typeof window !== 'undefined' && window.innerWidth >= 1100;
   });
 
   const togglePropertiesSidebar = useCallback(() => {
@@ -219,35 +223,36 @@ export default function TaskDetailsPanel({
 
   // Layout styles mapping
   const overlayClass = 
-    modalLayout === 'modal' ? 'fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 md:p-6 bg-slate-950/40 backdrop-blur-sm transition-all duration-300' :
-    modalLayout === 'fullscreen' ? 'fixed inset-0 z-[100] flex items-stretch justify-stretch p-0 bg-slate-950/40 backdrop-blur-md transition-all duration-300' :
-    'fixed inset-0 z-[100] flex items-stretch justify-end p-0 bg-slate-950/20 backdrop-blur-xs pointer-events-none transition-all duration-300';
+    modalLayout === 'modal' ? 'fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 md:p-6 bg-slate-950/40 dark:bg-black/55 transition-all duration-200 cursor-pointer' :
+    modalLayout === 'fullscreen' ? 'fixed inset-0 z-[100] flex items-stretch justify-stretch p-0 bg-slate-950/40 transition-all duration-200' :
+    'fixed inset-0 z-[100] flex items-stretch justify-end p-0 bg-slate-950/20 dark:bg-black/35 transition-all duration-200 cursor-pointer';
 
   const panelClass =
-    modalLayout === 'modal' ? 'relative w-full sm:w-[92vw] max-w-[1240px] h-full sm:h-[90vh] bg-white dark:bg-[#121212] border-none sm:border border-slate-200/80 dark:border-white/10 rounded-none sm:rounded-[24px] flex flex-col overflow-hidden shadow-[0_24px_80px_rgba(15,23,42,0.16)] pointer-events-auto outline-none focus:outline-none ring-0' :
-    modalLayout === 'fullscreen' ? 'relative w-full h-full bg-white dark:bg-[#121212] flex flex-col overflow-hidden shadow-2xl pointer-events-auto outline-none focus:outline-none ring-0' :
-    `relative w-full ${isSidebarExpanded ? 'max-w-[1050px] md:max-w-[75vw]' : 'max-w-[640px]'} h-full bg-white dark:bg-[#121212] border-l border-slate-200/80 dark:border-white/10 rounded-none sm:rounded-l-3xl flex flex-col overflow-hidden shadow-2xl pointer-events-auto outline-none focus:outline-none ring-0`;
+    modalLayout === 'modal' ? 'relative w-full sm:w-[92vw] max-w-[1240px] h-full sm:h-[88vh] sm:max-h-[920px] bg-white dark:bg-[#11131c] border-none sm:border border-slate-200/90 dark:border-white/10 rounded-none sm:rounded-[26px] flex flex-col overflow-hidden shadow-[0_28px_85px_rgba(15,23,42,0.22)] dark:shadow-[0_32px_96px_rgba(0,0,0,0.7)] ring-1 ring-black/5 dark:ring-white/10 pointer-events-auto cursor-default outline-none focus:outline-none ring-0' :
+    modalLayout === 'fullscreen' ? 'relative w-full h-full bg-white dark:bg-[#0f1118] flex flex-col overflow-hidden shadow-2xl pointer-events-auto cursor-default outline-none focus:outline-none ring-0' :
+    `relative w-full ${isSidebarExpanded ? 'max-w-[1100px] xl:max-w-[80vw]' : 'max-w-[680px] lg:max-w-[740px]'} h-full bg-white dark:bg-[#11131c] border-l border-slate-200/90 dark:border-white/10 rounded-none sm:rounded-l-[26px] flex flex-col overflow-hidden shadow-[-20px_0_60px_rgba(15,23,42,0.2)] dark:shadow-[-20px_0_60px_rgba(0,0,0,0.65)] pointer-events-auto cursor-default outline-none focus:outline-none ring-0`;
 
   const panelAnimation: any =
     modalLayout === 'modal' ? {
-      initial: { scale: 0.96, opacity: 0, y: 10 },
+      initial: { scale: 0.96, opacity: 0, y: 14 },
       animate: { scale: 1, opacity: 1, y: 0 },
       exit: { scale: 0.96, opacity: 0, y: 10 },
-      transition: { type: 'spring', damping: 28, stiffness: 300 }
+      transition: { type: 'spring', damping: 28, stiffness: 320 }
     } : modalLayout === 'fullscreen' ? {
-      initial: { scale: 1, opacity: 0 },
+      initial: { scale: 0.99, opacity: 0 },
       animate: { scale: 1, opacity: 1 },
-      exit: { scale: 1, opacity: 0 },
-      transition: { duration: 0.18, ease: 'easeOut' }
+      exit: { scale: 0.99, opacity: 0 },
+      transition: { duration: 0.16, ease: 'easeOut' }
     } : {
-      initial: { x: '100%', opacity: 1 },
+      initial: { x: '100%', opacity: 0.9 },
       animate: { x: 0, opacity: 1 },
-      exit: { x: '100%', opacity: 1 },
-      transition: { type: 'tween', duration: 0.28, ease: 'easeOut' }
+      exit: { x: '100%', opacity: 0.9 },
+      transition: { type: 'spring', damping: 32, stiffness: 320 }
     };
   const [showAssigneesDropdown, setShowAssigneesDropdown] = useState(false);
   const [showSpaceDropdown, setShowSpaceDropdown] = useState(false);
   const [showSharePopover, setShowSharePopover] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [showLinkTaskDropdown, setShowLinkTaskDropdown] = useState(false);
   const [showLinkDocDropdown, setShowLinkDocDropdown] = useState(false);
   const [showBlockedByDropdown, setShowBlockedByDropdown] = useState(false);
@@ -348,6 +353,9 @@ export default function TaskDetailsPanel({
     const promptToSend = customPrompt || aiPrompt;
     if (!promptToSend.trim()) return;
     setAiGeneratingResponse(true);
+    setDetailTab('overview');
+    setCommentText('');
+    setNewSubtaskTitle('');
     setAiResponseText('');
     try {
       const res = await callAiApi('/api/ai/chat', {
@@ -423,7 +431,11 @@ export default function TaskDetailsPanel({
 
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing) return;
       if (event.key === 'Escape') {
+        if (editingTitle) { setEditingTitle(false); setTitleValue(task.title); return; }
+        if (showSharePopover) { setShowSharePopover(false); return; }
+        if (showLogTimeModal) { setShowLogTimeModal(false); return; }
         if (layoutMenuOpen || showMoreMenu || showSpaceDropdown || showAssigneesDropdown || showTagsDropdown || showLinkTaskDropdown || showLinkDocDropdown || showBlockedByDropdown || showBlocksDropdown) {
           setLayoutMenuOpen(false);
           setShowMoreMenu(false);
@@ -465,7 +477,7 @@ export default function TaskDetailsPanel({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [layoutMenuOpen, onClose, showAssigneesDropdown, showBlockedByDropdown, showBlocksDropdown, showLinkDocDropdown, showLinkTaskDropdown, showMoreMenu, showSpaceDropdown, showTagsDropdown, togglePropertiesSidebar]);
+  }, [editingTitle, task.title, showSharePopover, showLogTimeModal, layoutMenuOpen, onClose, showAssigneesDropdown, showBlockedByDropdown, showBlocksDropdown, showLinkDocDropdown, showLinkTaskDropdown, showMoreMenu, showSpaceDropdown, showTagsDropdown, togglePropertiesSidebar]);
 
   const saveTitle = () => {
     if (titleValue.trim() && titleValue !== task.title) {
@@ -762,14 +774,15 @@ export default function TaskDetailsPanel({
   };
 
   const focusSubtaskComposer = () => {
+    setDetailTab('subtasks');
     newSubtaskInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     window.setTimeout(() => newSubtaskInputRef.current?.focus(), 250);
   };
 
   const scrollToRelationships = () => {
     setRelationshipsExpanded(true);
-    const element = document.getElementById(isTwoColumn ? 'relationships-section' : 'relationships-section-single');
-    element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setDetailTab('overview');
+    window.setTimeout(() => document.getElementById('relationships-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
   const addComment = () => {
@@ -888,7 +901,26 @@ export default function TaskDetailsPanel({
   }, [timelineItems, timelineFilter]);
 
   const assigneeIds = task.assigneeIds || (task.assigneeId ? [task.assigneeId] : []);
-  const isTwoColumn = modalLayout === 'modal' || modalLayout === 'fullscreen';
+
+  const formatShortDate = (dateStr?: string) => {
+    if (!dateStr) return '';
+    const dateOnly = dateStr.split('T')[0];
+    const parts = dateOnly.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}`;
+    }
+    return dateOnly;
+  };
+
+  const formatFullDate = (dateStr?: string) => {
+    if (!dateStr) return '';
+    const dateOnly = dateStr.split('T')[0];
+    const parts = dateOnly.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return dateOnly;
+  };
 
   // ── Sub-component renders to reduce duplication ──
   const renderPropertiesTable = () => {
@@ -990,16 +1022,25 @@ export default function TaskDetailsPanel({
         {/* Dates (Start & Due Date) */}
         {(isShown('dueDate') || isShown('startDate')) && (
           <div className="py-1.5 px-2 -mx-1 rounded-xl flex items-center justify-between min-h-[38px] group/row relative hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
-            <span className="w-28 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
+            <span className="w-24 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none z-10">
               <Calendar className="w-3.5 h-3.5 text-slate-400" /> {isVietnamese ? 'Ngày tháng' : 'Dates'}
             </span>
-            <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
+            <div className="flex items-center gap-1 flex-1 min-w-0 justify-end overflow-hidden">
               <PremiumDatePicker 
                 startDateValue={task.startDate || ''}
                 onStartDateChange={v => onUpdateTask({ ...task, startDate: v || '' })}
                 dateValue={task.dueDate || ''}
                 onChange={v => onUpdateTask({ ...task, dueDate: v || '' })} 
-                label={isVietnamese ? "Bắt đầu" : "Start"} 
+                label={isVietnamese ? "Chọn ngày" : "Dates"} 
+                displayLabel={
+                  task.startDate && task.dueDate
+                    ? `${formatShortDate(task.startDate)} → ${formatShortDate(task.dueDate)}`
+                    : task.dueDate
+                    ? formatFullDate(task.dueDate)
+                    : task.startDate
+                    ? `${isVietnamese ? 'Từ ' : 'From '}${formatFullDate(task.startDate)}`
+                    : undefined
+                }
                 align="right"
                 taskId={task.id}
                 taskTitle={task.title}
@@ -1008,24 +1049,9 @@ export default function TaskDetailsPanel({
                   onUpdateTask({ ...task, reminder: r, custom_fields: { ...(task.custom_fields || {}), reminder: r } });
                   saveTaskReminder(task.id, task.title, task.dueDate || '', r);
                 }}
-                className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium cursor-pointer border border-slate-200/80 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 transition-all ${task.startDate ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-400'}`} 
-              />
-              <span className="text-slate-300 dark:text-slate-600 text-xs select-none">→</span>
-              <PremiumDatePicker 
-                startDateValue={task.startDate || ''}
-                onStartDateChange={v => onUpdateTask({ ...task, startDate: v || '' })}
-                dateValue={task.dueDate || ''}
-                onChange={v => onUpdateTask({ ...task, dueDate: v || '' })} 
-                label={isVietnamese ? "Hạn chót" : "Due"} 
-                align="right"
-                taskId={task.id}
-                taskTitle={task.title}
-                reminderValue={task.reminder || (task.custom_fields?.reminder as ReminderOption)}
-                onReminderChange={r => {
-                  onUpdateTask({ ...task, reminder: r, custom_fields: { ...(task.custom_fields || {}), reminder: r } });
-                  saveTaskReminder(task.id, task.title, task.dueDate || '', r);
-                }}
-                className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium cursor-pointer border border-slate-200/80 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 transition-all ${task.dueDate ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-400'}`} 
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer border border-slate-200/80 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 transition-all truncate max-w-full ${
+                  (task.dueDate || task.startDate) ? 'text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-50/40 dark:bg-indigo-950/30' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                }`} 
               />
               {onToggleFieldVisibility && (
                 <button 
@@ -1524,7 +1550,7 @@ export default function TaskDetailsPanel({
 
   const renderTimelineFeed = () => {
     return (
-      <div className="space-y-4 pt-6 border-t border-slate-200/80 dark:border-slate-800/80 text-left select-none relative z-10">
+      <div className="task-studio-activity space-y-4 text-left relative z-10">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/60">
           <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 uppercase tracking-wider">
             <Activity className="w-4 h-4 text-indigo-500" />
@@ -1553,7 +1579,9 @@ export default function TaskDetailsPanel({
         <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-1 py-1">
           {filteredTimelineItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-center select-none italic text-slate-400 text-xs">
-              Không có hoạt động hoặc bình luận phù hợp bộ lọc
+              <MessageSquare size={28} strokeWidth={1.4} className="mb-3 text-slate-300" />
+              <strong className="text-sm font-semibold not-italic text-slate-600 dark:text-slate-300">{isVietnamese ? 'Mọi trao đổi, cùng một nơi' : 'Keep the conversation together'}</strong>
+              <span className="mt-2 max-w-[290px] leading-relaxed not-italic">{isVietnamese ? 'Chia sẻ cập nhật, đặt câu hỏi hoặc để lại ghi chú cho công việc này.' : 'Share an update, ask a question or leave a note for this task.'}</span>
             </div>
           ) : (
             <div className="relative">
@@ -1627,7 +1655,7 @@ export default function TaskDetailsPanel({
               value={commentText}
               onChange={e => setCommentText(e.target.value)}
               onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
+                if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                   e.preventDefault();
                   addComment();
                 }
@@ -2084,14 +2112,14 @@ export default function TaskDetailsPanel({
           );
         })}
         {(task.attachments || []).length === 0 && (
-          <div 
+          <button type="button"
             onClick={() => fileInputRef.current?.click()}
             className="sm:col-span-2 text-center py-2.5 px-3 rounded-xl border border-dashed border-slate-200 dark:border-white/10 bg-slate-50/40 dark:bg-white/[0.02] hover:bg-slate-100/60 dark:hover:bg-white/[0.05] hover:border-amber-400/60 transition-all cursor-pointer flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400"
           >
             <Upload className="w-3.5 h-3.5 text-amber-500 shrink-0" />
             <span className="font-semibold text-slate-700 dark:text-slate-300">{isVietnamese ? 'Tải tệp lên' : 'Upload file'}</span>
             <span className="text-slate-400 text-[11px] hidden sm:inline">• {isVietnamese ? 'hoặc kéo thả vào đây (ảnh, PDF, DOCX tối đa 25MB)' : 'or drag & drop (up to 25MB)'}</span>
-          </div>
+          </button>
         )}
       </div>
     </div>
@@ -2116,7 +2144,7 @@ export default function TaskDetailsPanel({
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
-              onClick={() => onAiSummary(task)}
+              onClick={() => { setIsAiPanelOpen(true); onAiSummary(task); }}
               disabled={isSummarizing}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/90 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-850 border border-indigo-200/80 dark:border-indigo-800/60 text-[11px] font-bold text-indigo-600 dark:text-indigo-300 hover:text-indigo-700 dark:hover:text-indigo-200 transition-all cursor-pointer shadow-3xs disabled:opacity-50 active:scale-95"
             >
@@ -2125,7 +2153,7 @@ export default function TaskDetailsPanel({
             </button>
             <button
               type="button"
-              onClick={() => onAiSubtasks(task)}
+              onClick={() => { setDetailTab('subtasks'); onAiSubtasks(task); }}
               disabled={aiGenerating}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/90 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-850 border border-emerald-200/80 dark:border-emerald-800/60 text-[11px] font-bold text-emerald-600 dark:text-emerald-300 hover:text-emerald-700 dark:hover:text-emerald-200 transition-all cursor-pointer shadow-3xs disabled:opacity-50 active:scale-95"
             >
@@ -2259,21 +2287,33 @@ export default function TaskDetailsPanel({
       >
         <motion.div 
           {...panelAnimation}
+          data-layout={modalLayout}
           ref={dialogRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby="task-modal-title"
           tabIndex={-1}
           onClick={e => e.stopPropagation()}
-          className={`apexa-task-dialog ${panelClass} overflow-hidden outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0`}
+          className={`task-studio apexa-task-dialog ${panelClass} overflow-hidden outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0`}
         >
+          {/* Left-edge expand/collapse handle for sidebar layout */}
+          {modalLayout === 'sidebar' && (
+            <div 
+              onClick={toggleSidebarExpand}
+              className="hidden sm:flex absolute left-0 top-0 bottom-0 w-2.5 hover:w-3 bg-transparent hover:bg-indigo-500/15 active:bg-indigo-500/30 transition-all cursor-ew-resize z-30 items-center justify-center group"
+              title={isSidebarExpanded ? (isVietnamese ? "Thu gọn thanh bên" : "Collapse sidebar") : (isVietnamese ? "Mở rộng thanh bên" : "Expand sidebar")}
+            >
+              <div className="w-0.5 h-12 rounded-full bg-slate-300/80 dark:bg-slate-700/80 group-hover:bg-indigo-500 transition-colors" />
+            </div>
+          )}
+
           {/* ══════════════════════════════════════════════════════════════ */}
           {/* ── LEFT PANEL: Details & Properties ── */}
           {/* ══════════════════════════════════════════════════════════════ */}
-          <div className="flex-1 flex flex-col min-w-0 h-full relative z-10 bg-white dark:bg-[#121212]">
+          <div className="flex-1 flex flex-col min-w-0 h-full relative z-10 bg-white dark:bg-[#11131c]">
             
             {/* ── Header Bar ── */}
-            <div className="apexa-task-detail-header shrink-0 px-3 sm:px-5 md:px-6 py-2.5 sm:py-3 border-b border-slate-200/80 dark:border-white/[0.08] flex items-center justify-between gap-2 sm:gap-3 bg-white dark:bg-[#121212] select-none min-w-0 w-full overflow-hidden">
+            <div className="task-studio-header apexa-task-detail-header shrink-0 px-3 sm:px-5 md:px-6 py-2.5 sm:py-3 border-b border-slate-200/80 dark:border-white/[0.08] flex items-center justify-between gap-2 sm:gap-3 bg-white dark:bg-[#121212] select-none min-w-0 w-full overflow-hidden">
               
               {/* Left: Path Breadcrumb */}
               <div className="flex items-center gap-1 sm:gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 min-w-0 flex-1 overflow-hidden">
@@ -2368,25 +2408,31 @@ export default function TaskDetailsPanel({
                   </>
                 ) : null}
 
-                {/* Task Title Pill in Breadcrumb - shown only on md+ viewports to prevent crowding */}
-                <span className="text-slate-300 dark:text-slate-600 shrink-0 select-none hidden md:inline">/</span>
-                <div 
-                  onClick={() => setEditingTitle(true)}
-                  className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100/80 dark:bg-white/[0.06] text-slate-800 dark:text-white hover:bg-slate-200/70 dark:hover:bg-white/[0.1] transition-colors cursor-pointer min-w-0 max-w-[160px] lg:max-w-[260px] group shrink"
-                  title={isVietnamese ? `Tên công việc: "${task.title}" (Nhấp để chỉnh sửa)` : `Task: "${task.title}" (Click to edit)`}
-                >
-                  <CheckSquare className="w-3.5 h-3.5 text-indigo-500 shrink-0 group-hover:scale-110 transition-transform" />
-                  <span className="font-bold truncate text-xs">
-                    {task.title || (isVietnamese ? 'Chưa đặt tên' : 'Untitled')}
-                  </span>
-                </div>
+                {/* Task Title Pill in Breadcrumb - shown only on non-sidebar md+ viewports to prevent crowding */}
+                {modalLayout !== 'sidebar' && (
+                  <>
+                    <span className="text-slate-300 dark:text-slate-600 shrink-0 select-none hidden md:inline">/</span>
+                    <div 
+                      onClick={() => setEditingTitle(true)}
+                      className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100/80 dark:bg-white/[0.06] text-slate-800 dark:text-white hover:bg-slate-200/70 dark:hover:bg-white/[0.1] transition-colors cursor-pointer min-w-0 max-w-[160px] lg:max-w-[260px] group shrink"
+                      title={isVietnamese ? `Tên công việc: "${task.title}" (Nhấp để chỉnh sửa)` : `Task: "${task.title}" (Click to edit)`}
+                    >
+                      <CheckSquare className="w-3.5 h-3.5 text-indigo-500 shrink-0 group-hover:scale-110 transition-transform" />
+                      <span className="font-bold truncate text-xs">
+                        {task.title || (isVietnamese ? 'Chưa đặt tên' : 'Untitled')}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Right: Actions Row */}
               <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 ml-auto pl-1">
-                <span className="text-[10.5px] text-slate-400 dark:text-slate-500 hidden xl:inline-block font-medium pr-1 select-none whitespace-nowrap">
-                  {isVietnamese ? 'Đã tạo' : 'Created'} {new Date(task.createdAt || Date.now()).toLocaleDateString(isVietnamese ? 'vi-VN' : 'en-US', { day: 'numeric', month: 'short' })}
-                </span>
+                {modalLayout !== 'sidebar' && (
+                  <span className="text-[10.5px] text-slate-400 dark:text-slate-500 hidden xl:inline-block font-medium pr-1 select-none whitespace-nowrap">
+                    {isVietnamese ? 'Đã tạo' : 'Created'} {new Date(task.createdAt || Date.now()).toLocaleDateString(isVietnamese ? 'vi-VN' : 'en-US', { day: 'numeric', month: 'short' })}
+                  </span>
+                )}
 
                 {/* Share Button & Popover */}
                 <div className="relative">
@@ -2446,6 +2492,19 @@ export default function TaskDetailsPanel({
                             <span>{isVietnamese ? 'Sao chép dạng Markdown' : 'Copy as Markdown'}</span>
                           </span>
                           <Copy className="w-3 h-3 text-slate-400" />
+                        </button>
+
+                        {/* Advanced Share & QR Modal button */}
+                        <button
+                          type="button"
+                          onClick={() => { setShowSharePopover(false); setShowShareModal(true); }}
+                          className="w-full py-2 px-2.5 rounded-xl bg-blue-50 hover:bg-blue-100/80 dark:bg-sky-950/40 dark:hover:bg-sky-900/40 text-blue-600 dark:text-sky-400 text-xs font-bold transition-all flex items-center justify-between cursor-pointer border border-blue-100 dark:border-sky-800/50"
+                        >
+                          <span className="flex items-center gap-2">
+                            <Shield className="w-3.5 h-3.5" />
+                            <span>{isVietnamese ? 'Phân quyền, Mã QR & Nhúng...' : 'Access, QR Code & Embed...'}</span>
+                          </span>
+                          <ChevronRight className="w-3.5 h-3.5 text-blue-400" />
                         </button>
 
                         {/* Assignees quick view */}
@@ -2540,14 +2599,26 @@ export default function TaskDetailsPanel({
                   <Star className={`w-3.5 h-3.5 ${task.isPinned ? 'fill-amber-400' : ''}`} />
                 </button>
 
-                {/* Layout Switched Dropdown Button */}
+                {/* Layout Switcher Dropdown Button */}
                 <div className="relative flex items-center">
                   <button 
+                    type="button"
                     onClick={() => setLayoutMenuOpen(!layoutMenuOpen)}
-                    className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all cursor-pointer text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850 ${layoutMenuOpen ? 'bg-indigo-50 dark:bg-indigo-955/20 text-indigo-550' : ''}`}
-                    title="Đổi bố cục"
+                    className={`h-8 px-2 flex items-center gap-1.5 rounded-lg transition-all cursor-pointer text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 ${
+                      layoutMenuOpen 
+                        ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/20' 
+                        : ''
+                    }`}
+                    title={
+                      isVietnamese 
+                        ? `Đổi bố cục hiển thị (Đang chọn: ${modalLayout === 'modal' ? 'Hộp thoại' : modalLayout === 'fullscreen' ? 'Toàn màn hình' : 'Thanh bên'})`
+                        : `Change layout (Current: ${modalLayout === 'modal' ? 'Center Modal' : modalLayout === 'fullscreen' ? 'Full Screen' : 'Right Sidebar'})`
+                    }
                   >
-                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    {modalLayout === 'modal' && <AppWindow className="w-3.5 h-3.5" />}
+                    {modalLayout === 'fullscreen' && <Maximize2 className="w-3.5 h-3.5" />}
+                    {modalLayout === 'sidebar' && <PanelRight className="w-3.5 h-3.5" />}
+                    <ChevronDown className={`w-2.5 h-2.5 opacity-60 transition-transform duration-200 ${layoutMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
 
                   <AnimatePresence>
@@ -2555,13 +2626,38 @@ export default function TaskDetailsPanel({
                       <>
                         <div className="fixed inset-0 z-[190]" onClick={() => setLayoutMenuOpen(false)} />
                         <motion.div 
-                          initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                          initial={{ opacity: 0, y: 6, scale: 0.96 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 4, scale: 0.95 }}
-                          className="absolute right-0 top-full mt-2 z-[200] w-[310px] bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl p-4 text-left font-sans select-none"
+                          exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                          transition={{ duration: 0.15, ease: 'easeOut' }}
+                          className="absolute right-0 top-full mt-2 z-[200] w-[370px] sm:w-[410px] bg-white dark:bg-[#12141e] border border-slate-200/90 dark:border-slate-800 rounded-2xl sm:rounded-3xl shadow-2xl p-4 text-left font-sans select-none"
                         >
-                          <h4 className="text-[11px] font-black text-slate-405 uppercase tracking-wider mb-2.5">Đổi bố cục</h4>
-                          <div className="grid grid-cols-3 gap-2">
+                          {/* Header */}
+                          <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100 dark:border-slate-800/80">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                                <Layout className="w-3.5 h-3.5" />
+                              </div>
+                              <div>
+                                <h4 className="text-xs font-black text-slate-900 dark:text-white leading-tight">
+                                  {isVietnamese ? 'Bố cục hiển thị' : 'Display Layout'}
+                                </h4>
+                                <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight">
+                                  {isVietnamese ? 'Tùy chỉnh cách xem chi tiết công việc' : 'Choose how task details appear'}
+                                </p>
+                              </div>
+                            </div>
+                            <button 
+                              type="button"
+                              onClick={() => setLayoutMenuOpen(false)}
+                              className="w-6 h-6 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          {/* 3 Layout Cards */}
+                          <div className="grid grid-cols-3 gap-2.5">
                             {/* Option 1: Modal */}
                             <button
                               type="button"
@@ -2569,14 +2665,43 @@ export default function TaskDetailsPanel({
                                 handleLayoutChange('modal');
                                 setLayoutMenuOpen(false);
                               }}
-                              className={`flex flex-col items-center p-2 rounded-xl border text-center transition-all cursor-pointer ${
-                                modalLayout === 'modal' ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-955/20 text-blue-600 dark:text-blue-450' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-505'
+                              className={`group relative flex flex-col items-center p-2 rounded-2xl border transition-all cursor-pointer text-center ${
+                                modalLayout === 'modal'
+                                  ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 ring-2 ring-indigo-500/20 shadow-xs'
+                                  : 'border-slate-200/80 dark:border-slate-800/90 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
                               }`}
                             >
-                              <div className="w-12 h-8 rounded border border-current flex items-center justify-center mb-1.5 bg-white dark:bg-slate-955/40">
-                                <div className="w-8 h-5 rounded-xs border border-current bg-current/10" />
+                              {modalLayout === 'modal' && (
+                                <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-indigo-600 dark:bg-indigo-500 text-white flex items-center justify-center shadow-xs">
+                                  <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                </div>
+                              )}
+
+                              {/* Wireframe Mini Preview */}
+                              <div className="w-full h-15 rounded-xl bg-slate-200/60 dark:bg-slate-950/70 border border-slate-200/70 dark:border-slate-800/80 p-1 flex items-center justify-center relative overflow-hidden mb-2">
+                                <div className="absolute top-0 inset-x-0 h-2 bg-slate-300/60 dark:bg-slate-800/80 flex items-center px-1 gap-0.5">
+                                  <div className="w-1 h-1 rounded-full bg-slate-400 dark:bg-slate-600" />
+                                  <div className="w-1 h-1 rounded-full bg-slate-400 dark:bg-slate-600" />
+                                </div>
+                                <div className={`mt-1.5 w-[52px] h-[34px] rounded-md border shadow-xs flex flex-col p-1 gap-1 transition-all ${
+                                  modalLayout === 'modal'
+                                    ? 'bg-white dark:bg-[#1c1f2e] border-indigo-400 dark:border-indigo-500 shadow-indigo-500/10'
+                                    : 'bg-white dark:bg-slate-900 border-slate-300/80 dark:border-slate-700'
+                                }`}>
+                                  <div className={`w-4 h-1 rounded ${modalLayout === 'modal' ? 'bg-indigo-500' : 'bg-slate-400 dark:bg-slate-500'}`} />
+                                  <div className="space-y-0.5">
+                                    <div className="w-9 h-0.5 rounded bg-slate-200 dark:bg-slate-700" />
+                                    <div className="w-6 h-0.5 rounded bg-slate-200 dark:bg-slate-700" />
+                                  </div>
+                                </div>
                               </div>
-                              <span className="text-[10px] font-bold">Hộp thoại</span>
+
+                              <span className="text-xs font-black tracking-tight whitespace-nowrap">
+                                {isVietnamese ? 'Hộp thoại' : 'Modal'}
+                              </span>
+                              <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 whitespace-nowrap mt-0.5">
+                                {isVietnamese ? 'Cửa sổ nổi' : 'Floating'}
+                              </span>
                             </button>
 
                             {/* Option 2: Full screen */}
@@ -2586,14 +2711,44 @@ export default function TaskDetailsPanel({
                                 handleLayoutChange('fullscreen');
                                 setLayoutMenuOpen(false);
                               }}
-                              className={`flex flex-col items-center p-2 rounded-xl border text-center transition-all cursor-pointer ${
-                                modalLayout === 'fullscreen' ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-955/20 text-blue-600 dark:text-blue-450' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-505'
+                              className={`group relative flex flex-col items-center p-2 rounded-2xl border transition-all cursor-pointer text-center ${
+                                modalLayout === 'fullscreen'
+                                  ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 ring-2 ring-indigo-500/20 shadow-xs'
+                                  : 'border-slate-200/80 dark:border-slate-800/90 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
                               }`}
                             >
-                              <div className="w-12 h-8 rounded border border-current flex items-stretch justify-stretch p-0.5 mb-1.5 bg-white dark:bg-slate-955/40">
-                                <div className="flex-1 rounded-xs border border-current bg-current/10" />
+                              {modalLayout === 'fullscreen' && (
+                                <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-indigo-600 dark:bg-indigo-500 text-white flex items-center justify-center shadow-xs">
+                                  <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                </div>
+                              )}
+
+                              {/* Wireframe Mini Preview */}
+                              <div className="w-full h-15 rounded-xl bg-slate-200/60 dark:bg-slate-950/70 border border-slate-200/70 dark:border-slate-800/80 p-1 flex flex-col relative overflow-hidden mb-2">
+                                <div className="h-2 w-full bg-slate-300/60 dark:bg-slate-800/80 flex items-center px-1 gap-0.5 mb-0.5">
+                                  <div className="w-1 h-1 rounded-full bg-slate-400 dark:bg-slate-600" />
+                                  <div className="w-1 h-1 rounded-full bg-slate-400 dark:bg-slate-600" />
+                                </div>
+                                <div className={`flex-1 rounded-sm border p-1 flex gap-1 transition-all ${
+                                  modalLayout === 'fullscreen'
+                                    ? 'bg-white dark:bg-[#1c1f2e] border-indigo-400 dark:border-indigo-500'
+                                    : 'bg-white dark:bg-slate-900 border-slate-300/80 dark:border-slate-700'
+                                }`}>
+                                  <div className="flex-1 flex flex-col gap-0.5">
+                                    <div className={`w-5 h-1 rounded ${modalLayout === 'fullscreen' ? 'bg-indigo-500' : 'bg-slate-400 dark:bg-slate-500'}`} />
+                                    <div className="w-full h-0.5 rounded bg-slate-200 dark:bg-slate-700" />
+                                    <div className="w-4/5 h-0.5 rounded bg-slate-200 dark:bg-slate-700" />
+                                  </div>
+                                  <div className="w-4 h-full rounded-xs bg-slate-100 dark:bg-slate-950/60 border-l border-slate-200/60 dark:border-slate-800" />
+                                </div>
                               </div>
-                              <span className="text-[10px] font-bold">Toàn màn hình</span>
+
+                              <span className="text-xs font-black tracking-tight whitespace-nowrap">
+                                {isVietnamese ? 'Toàn màn hình' : 'Full Screen'}
+                              </span>
+                              <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 whitespace-nowrap mt-0.5">
+                                {isVietnamese ? 'Tràn viền' : 'Maximized'}
+                              </span>
                             </button>
 
                             {/* Option 3: Sidebar */}
@@ -2603,15 +2758,58 @@ export default function TaskDetailsPanel({
                                 handleLayoutChange('sidebar');
                                 setLayoutMenuOpen(false);
                               }}
-                              className={`flex flex-col items-center p-2 rounded-xl border text-center transition-all cursor-pointer ${
-                                modalLayout === 'sidebar' ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-955/20 text-blue-600 dark:text-blue-450' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-505'
+                              className={`group relative flex flex-col items-center p-2 rounded-2xl border transition-all cursor-pointer text-center ${
+                                modalLayout === 'sidebar'
+                                  ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 ring-2 ring-indigo-500/20 shadow-xs'
+                                  : 'border-slate-200/80 dark:border-slate-800/90 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
                               }`}
                             >
-                              <div className="w-12 h-8 rounded border border-current flex items-stretch justify-end p-0.5 mb-1.5 bg-white dark:bg-slate-955/40">
-                                <div className="w-4 rounded-xs border border-current bg-current/10" />
+                              {modalLayout === 'sidebar' && (
+                                <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-indigo-600 dark:bg-indigo-500 text-white flex items-center justify-center shadow-xs">
+                                  <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                </div>
+                              )}
+
+                              {/* Wireframe Mini Preview */}
+                              <div className="w-full h-15 rounded-xl bg-slate-200/60 dark:bg-slate-950/70 border border-slate-200/70 dark:border-slate-800/80 p-1 flex relative overflow-hidden mb-2">
+                                <div className="absolute top-0 inset-x-0 h-2 bg-slate-300/60 dark:bg-slate-800/80 flex items-center px-1 gap-0.5">
+                                  <div className="w-1 h-1 rounded-full bg-slate-400 dark:bg-slate-600" />
+                                  <div className="w-1 h-1 rounded-full bg-slate-400 dark:bg-slate-600" />
+                                </div>
+                                <div className="flex-1 mt-1.5 flex flex-col gap-1 pr-1">
+                                  <div className="w-full h-1 rounded bg-slate-300/70 dark:bg-slate-800" />
+                                  <div className="w-4/5 h-1 rounded bg-slate-300/70 dark:bg-slate-800" />
+                                  <div className="w-3/5 h-1 rounded bg-slate-300/70 dark:bg-slate-800" />
+                                </div>
+                                <div className={`mt-1.5 w-[38px] h-full rounded-l-md border-l border-t border-b shadow-xs p-1 flex flex-col gap-0.5 transition-all ${
+                                  modalLayout === 'sidebar'
+                                    ? 'bg-white dark:bg-[#1c1f2e] border-indigo-400 dark:border-indigo-500'
+                                    : 'bg-white dark:bg-slate-900 border-slate-300/80 dark:border-slate-700'
+                                }`}>
+                                  <div className={`w-3 h-1 rounded ${modalLayout === 'sidebar' ? 'bg-indigo-500' : 'bg-slate-400 dark:bg-slate-500'}`} />
+                                  <div className="w-full h-0.5 rounded bg-slate-200 dark:bg-slate-700" />
+                                  <div className="w-2/3 h-0.5 rounded bg-slate-200 dark:bg-slate-700" />
+                                </div>
                               </div>
-                              <span className="text-[10px] font-bold">Thanh bên</span>
+
+                              <span className="text-xs font-black tracking-tight whitespace-nowrap">
+                                {isVietnamese ? 'Thanh bên' : 'Sidebar'}
+                              </span>
+                              <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 whitespace-nowrap mt-0.5">
+                                {isVietnamese ? 'Cạnh phải' : 'Docked'}
+                              </span>
                             </button>
+                          </div>
+
+                          {/* Footer Note */}
+                          <div className="mt-3.5 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10.5px] text-slate-400 dark:text-slate-500">
+                            <span className="flex items-center gap-1.5">
+                              <Sparkles className="w-3 h-3 text-amber-500 shrink-0" />
+                              {isVietnamese ? 'Tự động lưu thiết lập cho lần sau' : 'Automatically saved for future tasks'}
+                            </span>
+                            <span className="font-mono text-[9px] px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 font-semibold">
+                              Esc
+                            </span>
                           </div>
                         </motion.div>
                       </>
@@ -2621,9 +2819,10 @@ export default function TaskDetailsPanel({
 
                 {modalLayout === 'sidebar' && (
                   <button 
+                    type="button"
                     onClick={toggleSidebarExpand}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-655 hover:bg-slate-105 dark:hover:bg-slate-800 transition-all cursor-pointer flex items-center justify-center"
-                    title={isSidebarExpanded ? "Thu gọn thanh bên" : "Mở rộng thanh bên"}
+                    className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer flex items-center justify-center ml-0.5"
+                    title={isSidebarExpanded ? (isVietnamese ? "Thu gọn thanh bên" : "Collapse sidebar") : (isVietnamese ? "Mở rộng thanh bên" : "Expand sidebar")}
                   >
                     {isSidebarExpanded ? (
                       <ChevronsRight className="w-4 h-4" />
@@ -2655,7 +2854,13 @@ export default function TaskDetailsPanel({
                   </button>
                 )}
 
-                <button type="button" onClick={onClose} aria-label="Đóng chi tiết công việc" className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer" title={isVietnamese ? "Đóng (Esc)" : "Close (Esc)"}>
+                <button 
+                  type="button" 
+                  onClick={onClose} 
+                  aria-label="Đóng chi tiết công việc" 
+                  className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 active:scale-95 transition-all cursor-pointer" 
+                  title={isVietnamese ? "Đóng (Esc)" : "Close (Esc)"}
+                >
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -2672,12 +2877,10 @@ export default function TaskDetailsPanel({
             />
 
             {/* ── Content Body Render ── */}
-            {isTwoColumn ? (
-              // ── Two Column Layout (Linear style) ──
-              <div className="flex-1 flex flex-col lg:flex-row min-w-0 overflow-y-auto lg:overflow-hidden relative">
+              <div className="task-studio-body">
                 
                 {/* Left: Main details (Scrollable) */}
-                <div className="flex-1 lg:overflow-y-auto custom-scrollbar p-4 sm:p-5 md:p-6 lg:px-7 space-y-5 sm:space-y-6">
+                <div className="task-studio-main custom-scrollbar">
                   
                   {/* Blocked Warning Banner */}
                   {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
@@ -2701,14 +2904,13 @@ export default function TaskDetailsPanel({
                     </div>
                   )}
 
-                  {/* AI Assistant panel */}
-                  {renderAiAssistantPanel()}
 
                   {/* Title & Complete Checkbox */}
-                  <div className="text-left flex items-start gap-3.5 pt-1">
+                  <div className="task-studio-title text-left flex items-start gap-3.5">
                     {/* Complete toggle circle button */}
                     <button
                       type="button"
+                      aria-pressed={task.status === 'completed'}
                       onClick={(e) => {
                         e.stopPropagation();
                         const newStatus = task.status === 'completed' ? 'todo' : 'completed';
@@ -2725,7 +2927,7 @@ export default function TaskDetailsPanel({
                       }`}
                       title={task.status === 'completed' ? (isVietnamese ? 'Đánh dấu chưa hoàn thành' : 'Mark incomplete') : (isVietnamese ? 'Đánh dấu hoàn thành' : 'Mark completed')}
                     >
-                      <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
+                      {task.status === 'completed' && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
                     </button>
 
                     <div className="flex-1 min-w-0">
@@ -2741,10 +2943,12 @@ export default function TaskDetailsPanel({
                       ) : (
                         <h2 
                           id="task-modal-title" 
+                          tabIndex={0}
+                          onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setEditingTitle(true); } }}
                           onClick={() => setEditingTitle(true)}
                           className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white cursor-text hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors group flex items-start gap-2.5 leading-tight"
                         >
-                          <span className={`${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>{task.title}</span>
+                          <span>{task.title}</span>
                           <Edit2 className="w-4 h-4 opacity-0 group-hover:opacity-100 text-slate-400 transition-opacity mt-2 shrink-0" />
                         </h2>
                       )}
@@ -2752,11 +2956,11 @@ export default function TaskDetailsPanel({
                   </div>
 
                   {/* Collapsed Sidebar Quick-Properties Strip (Linear style) */}
-                  {!isPropertiesSidebarOpen && (
+                  {(
                     <motion.div 
                       initial={{ opacity: 0, y: -6 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="flex flex-wrap items-center gap-2 p-2 px-3 rounded-2xl bg-slate-50/90 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08] shadow-3xs"
+                      className="task-studio-quick-properties"
                     >
                       <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mr-0.5 hidden sm:inline select-none">
                         {isVietnamese ? 'Thuộc tính:' : 'Properties:'}
@@ -2799,6 +3003,7 @@ export default function TaskDetailsPanel({
                         dateValue={task.dueDate || ''}
                         onChange={v => onUpdateTask({ ...task, dueDate: v || '' })} 
                         label={isVietnamese ? "Hạn chót" : "Due date"} 
+                        displayLabel={task.dueDate ? formatFullDate(task.dueDate) : undefined}
                         align="left"
                         taskId={task.id}
                         taskTitle={task.title}
@@ -2818,50 +3023,38 @@ export default function TaskDetailsPanel({
                         title={isVietnamese ? 'Mở bảng thuộc tính chi tiết (Ctrl+\\)' : 'Open full properties (Ctrl+\\)'}
                       >
                         <PanelRightOpen className="w-3.5 h-3.5" />
-                        <span>{isVietnamese ? 'Mở thuộc tính' : 'All properties'}</span>
+                        <span>{isVietnamese ? (isPropertiesSidebarOpen ? 'Thu gọn' : 'Thuộc tính') : (isPropertiesSidebarOpen ? 'Collapse' : 'Properties')}</span>
                       </button>
                     </motion.div>
                   )}
 
                   {/* Quick Actions Bar */}
-                  <div className="flex flex-wrap items-center gap-2 py-2 border-y border-slate-100 dark:border-white/[0.06]">
-                    <button 
-                      type="button"
-                      onClick={focusSubtaskComposer}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-indigo-50/60 dark:bg-white/[0.04] dark:hover:bg-indigo-950/30 border border-slate-200/80 hover:border-indigo-200/80 dark:border-white/[0.08] dark:hover:border-indigo-800/60 rounded-xl text-xs font-semibold text-slate-700 hover:text-indigo-600 dark:text-slate-200 dark:hover:text-indigo-400 transition-all cursor-pointer select-none shadow-3xs active:scale-95"
-                    >
-                      <CheckSquare className="w-3.5 h-3.5 text-indigo-500" />
-                      <span>{isVietnamese ? 'Công việc con' : 'Subtask'}</span>
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-amber-50/60 dark:bg-white/[0.04] dark:hover:bg-amber-950/30 border border-slate-200/80 hover:border-amber-200/80 dark:border-white/[0.08] dark:hover:border-amber-800/60 rounded-xl text-xs font-semibold text-slate-700 hover:text-amber-600 dark:text-slate-200 dark:hover:text-amber-400 transition-all cursor-pointer select-none shadow-3xs active:scale-95"
-                    >
-                      <Paperclip className="w-3.5 h-3.5 text-amber-500" />
-                      <span>{isVietnamese ? 'Đính kèm tệp' : 'Attach File'}</span>
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={scrollToRelationships}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-sky-50/60 dark:bg-white/[0.04] dark:hover:bg-sky-950/30 border border-slate-200/80 hover:border-sky-200/80 dark:border-white/[0.08] dark:hover:border-sky-800/60 rounded-xl text-xs font-semibold text-slate-700 hover:text-sky-600 dark:text-slate-200 dark:hover:text-sky-400 transition-all cursor-pointer select-none shadow-3xs active:scale-95"
-                    >
-                      <Tag className="w-3.5 h-3.5 text-sky-500" />
-                      <span>{isVietnamese ? 'Liên kết mục' : 'Link Items'}</span>
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={onOpenFieldsPanel} 
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-purple-50/60 dark:bg-white/[0.04] dark:hover:bg-purple-950/30 border border-slate-200/80 hover:border-purple-200/80 dark:border-white/[0.08] dark:hover:border-purple-800/60 rounded-xl text-xs font-semibold text-slate-700 hover:text-purple-600 dark:text-slate-200 dark:hover:text-purple-400 transition-all cursor-pointer select-none shadow-3xs active:scale-95"
-                    >
-                      <SlidersHorizontal className="w-3.5 h-3.5 text-purple-500" />
-                      <span>{isVietnamese ? 'Thêm trường' : 'Custom Field'}</span>
-                    </button>
+                  <div className="task-studio-meta">
+                    <span><CircleDot size={13} />{isVietnamese ? 'Công việc' : 'Task'} · {task.id.slice(-6).toUpperCase()}</span>
+                    <span><Clock size={13} />{isVietnamese ? 'Tạo ngày ' : 'Created '}{new Date(task.createdAt).toLocaleDateString(isVietnamese ? 'vi-VN' : 'en-US', { day: 'numeric', month: 'short' })}</span>
                   </div>
-
+                  <div className="task-studio-tabs" role="tablist" aria-label={isVietnamese ? 'Nội dung công việc' : 'Task sections'}>
+                    {([
+                      { id: 'overview', label: isVietnamese ? 'Tổng quan' : 'Overview', icon: FileText, count: null },
+                      { id: 'subtasks', label: isVietnamese ? 'Công việc con' : 'Subtasks', icon: CheckSquare, count: task.subtasks.length },
+                      { id: 'files', label: isVietnamese ? 'Tệp đính kèm' : 'Files', icon: Paperclip, count: task.attachments?.length || 0 },
+                      { id: 'activity', label: isVietnamese ? 'Thảo luận' : 'Activity', icon: MessageSquare, count: task.comments?.length || 0 },
+                    ] as const).map((tab, index) => <button key={tab.id} type="button" role="tab" id={'task-tab-' + tab.id}
+                      aria-selected={detailTab === tab.id} aria-controls={'task-panel-' + tab.id} tabIndex={detailTab === tab.id ? 0 : -1}
+                      onClick={() => setDetailTab(tab.id)}
+                      onKeyDown={event => {
+                        const ids = ['overview', 'subtasks', 'files', 'activity'] as const;
+                        const next = event.key === 'ArrowRight' ? (index + 1) % 4 : event.key === 'ArrowLeft' ? (index + 3) % 4 : event.key === 'Home' ? 0 : event.key === 'End' ? 3 : -1;
+                        if (next < 0) return;
+                        event.preventDefault(); setDetailTab(ids[next]); document.getElementById('task-tab-' + ids[next])?.focus();
+                      }}><tab.icon size={15} /><span>{tab.label}</span>{tab.count !== null && <small>{tab.count}</small>}</button>)}
+                  </div>
+                  <div role="tabpanel" id="task-panel-overview" aria-labelledby="task-tab-overview" hidden={detailTab !== 'overview'} className="task-studio-section">
                   {/* Notion Doc / Tài liệu & Mô tả chi tiết */}
                   <div className="pt-1">
                     <NotionDocEditor
+                      key={task.id}
+                      initialMode={descValue?.trim() ? 'preview' : 'edit'}
                       value={descValue}
                       onChange={val => {
                         setDescValue(val);
@@ -2872,8 +3065,15 @@ export default function TaskDetailsPanel({
                     />
                   </div>
 
+                  {renderRelationshipsSection('relationships-section')}
+                  {renderAiAssistantPanel()}
+                  <div className="task-studio-next-actions">
+                    <button type="button" onClick={focusSubtaskComposer}><Plus size={15} />{isVietnamese ? 'Thêm công việc con' : 'Add subtask'}<ChevronRight size={14} /></button>
+                    <button type="button" onClick={() => setDetailTab('activity')}><MessageSquare size={15} />{isVietnamese ? 'Bắt đầu trao đổi' : 'Start a conversation'}<ChevronRight size={14} /></button>
+                  </div>
+                  </div>
                   {/* Subtasks */}
-                  <div className="space-y-3 text-left">
+                  <div role="tabpanel" id="task-panel-subtasks" aria-labelledby="task-tab-subtasks" hidden={detailTab !== 'subtasks'} className="task-studio-section space-y-3 text-left">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 select-none">
                         <div className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-955/25 flex items-center justify-center">
@@ -2920,7 +3120,7 @@ export default function TaskDetailsPanel({
                                       <GripVertical className="w-3.5 h-3.5 text-slate-350 dark:text-slate-600 shrink-0 cursor-grab active:cursor-grabbing" />
                                     </div>
                                     
-                                    <button onClick={() => toggleSubtask(sub.id)}
+                                    <button type="button" aria-label={`${sub.completed ? 'Mở lại' : 'Hoàn thành'}: ${sub.title}`} aria-pressed={sub.completed} onClick={() => toggleSubtask(sub.id)}
                                       className={`w-[18px] h-[18px] rounded-md border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all ${sub.completed ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300 dark:border-slate-655 hover:border-indigo-400'}`}>
                                       {sub.completed && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
                                     </button>
@@ -2932,20 +3132,11 @@ export default function TaskDetailsPanel({
                                         onBlur={() => editSubtask(sub.id, editingSubtaskValue)}
                                         className="flex-1 w-full text-[12.5px] font-bold bg-transparent border-b-2 border-indigo-500 outline-none focus:outline-none focus:ring-0 py-0.5 text-slate-900 dark:text-slate-100" />
                                     ) : (
-                                      <span onDoubleClick={() => { setEditingSubtaskId(sub.id); setEditingSubtaskValue(sub.title); }}
+                                      <span tabIndex={0} onKeyDown={event => { if (event.key === 'Enter') { setEditingSubtaskId(sub.id); setEditingSubtaskValue(sub.title); } }} onDoubleClick={() => { setEditingSubtaskId(sub.id); setEditingSubtaskValue(sub.title); }}
                                         className={`flex-1 text-[12.5px] cursor-text text-left transition-all ${sub.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200 font-bold'}`}>
                                         {sub.title}
                                       </span>
                                     )}
-
-                                    <div className="w-4.5 h-4.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center text-[8px] font-black select-none shrink-0 border border-slate-200/50 dark:border-slate-700/50" title="Người phụ trách">
-                                      {members.find(m => m.id === task.assigneeId)?.name.substring(0, 1) || 'A'}
-                                    </div>
-
-                                    <span className="text-[8px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-1 py-0.5 rounded flex items-center gap-0.5 select-none shrink-0 font-bold">
-                                      <Calendar className="w-2.5 h-2.5" />
-                                      <span>Hôm nay</span>
-                                    </span>
 
                                     <button 
                                       onClick={() => convertChecklistItemToSubtask(sub.id, sub.title)}
@@ -2956,6 +3147,7 @@ export default function TaskDetailsPanel({
                                     </button>
 
                                     <button onClick={() => deleteSubtask(sub.id)}
+                                      aria-label={`Xóa công việc con: ${sub.title}`}
                                       className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-md opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0">
                                       <X className="w-3.5 h-3.5" />
                                     </button>
@@ -2993,13 +3185,8 @@ export default function TaskDetailsPanel({
                     </div>
                   </div>
 
-                  {renderAttachmentsSection()}
-
-                  {/* Relationships & References */}
-                  {renderRelationshipsSection('relationships-section')}
-
-                  {/* Chronological Timeline feed */}
-                  {renderTimelineFeed()}
+                  <div role="tabpanel" id="task-panel-files" aria-labelledby="task-tab-files" hidden={detailTab !== 'files'} className="task-studio-section">{renderAttachmentsSection()}</div>
+                  <div role="tabpanel" id="task-panel-activity" aria-labelledby="task-tab-activity" hidden={detailTab !== 'activity'} className="task-studio-section">{renderTimelineFeed()}</div>
                 </div>
 
                 {/* Docked Edge Tab to reopen sidebar when collapsed */}
@@ -3019,24 +3206,26 @@ export default function TaskDetailsPanel({
                   {isPropertiesSidebarOpen && (
                     <motion.div 
                       initial={{ width: 0, opacity: 0 }}
-                      animate={{ width: 350, opacity: 1 }}
+                      animate={{ width: 'var(--task-sidebar-width)', opacity: 1 }}
                       exit={{ width: 0, opacity: 0 }}
                       transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                      className="apexa-task-properties w-full lg:w-[350px] shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200/80 dark:border-white/[0.08] bg-slate-50/40 dark:bg-[#151515] lg:overflow-y-auto text-left relative z-10 custom-scrollbar overflow-x-hidden"
+                      className="apexa-task-properties w-full lg:w-[360px] shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200/80 dark:border-white/[0.08] bg-slate-50/40 dark:bg-[#151515] lg:overflow-y-auto text-left relative z-10 custom-scrollbar overflow-x-hidden"
                     >
-                      <div className="w-[350px] p-4 sm:p-5 space-y-4">
+                      <div className="task-studio-sidebar-content">
                         <div>
-                          <div className="flex items-center justify-between mb-2.5 select-none">
-                            <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                          <div className="flex items-center justify-between mb-2.5 select-none gap-2">
+                            <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">
                               {isVietnamese ? 'Thuộc tính công việc' : 'Task Properties'}
                             </h3>
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 shrink-0">
                               <button 
                                 type="button" 
-                                onClick={onOpenFieldsPanel} 
-                                className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:underline cursor-pointer"
+                                onClick={() => onOpenFieldsPanel ? onOpenFieldsPanel() : setShowAddCustomField(true)} 
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 border border-indigo-200/70 dark:border-indigo-800/60 transition-all cursor-pointer shadow-3xs"
+                                title={isVietnamese ? "Tùy chỉnh trường & cột (mở bảng bên phải)" : "Customize fields & columns (opens panel on right)"}
                               >
-                                + {isVietnamese ? 'Tùy chỉnh' : 'Customize'}
+                                <SlidersHorizontal className="w-3 h-3 text-indigo-500" />
+                                <span>{isVietnamese ? 'Tùy chỉnh' : 'Customize'}</span>
                               </button>
                               <button
                                 type="button"
@@ -3048,7 +3237,7 @@ export default function TaskDetailsPanel({
                               </button>
                             </div>
                           </div>
-                          <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-3.5 border border-slate-200/80 dark:border-white/[0.08] shadow-xs">
+                          <div className="task-studio-property-list">
                             {renderPropertiesTable()}
                           </div>
                         </div>
@@ -3061,231 +3250,36 @@ export default function TaskDetailsPanel({
                 </AnimatePresence>
 
               </div>
-            ) : (
-              // ── Single Column Scroll (Sidebar narrow layout) ──
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-5 md:p-6 space-y-5 sm:space-y-6 text-left relative z-10">
-                
-                {/* Blocked Warning Banner */}
-                {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
-                  <div className="flex items-start gap-2.5 p-3.5 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-2xl text-left select-none shadow-3xs relative z-10">
-                    <Hourglass className="w-4.5 h-4.5 text-amber-500 shrink-0 mt-0.5 animate-pulse" />
-                    <div className="space-y-1">
-                      <div className="text-xs font-black text-amber-900 dark:text-amber-200">Công việc này đang chờ các công việc khác</div>
-                      <div className="text-[11.5px] font-semibold text-amber-800 dark:text-amber-300 leading-relaxed">
-                        Trước khi bắt đầu, bạn phải hoàn thành: {' '}
-                        {task.relationships.blockedBy.map((id, index) => {
-                          const t = allTasks.find(item => item.id === id);
-                          return (
-                            <span key={id} className="font-extrabold text-amber-900 dark:text-amber-200">
-                              {index > 0 ? ', ' : ''}
-                              "{t?.title || id}"
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
 
-                {/* AI Assistant panel */}
-                {renderAiAssistantPanel()}
-
-                {/* Title & Complete Checkbox */}
-                <div className="text-left flex items-start gap-3.5 pt-1">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const newStatus = task.status === 'completed' ? 'todo' : 'completed';
-                      onUpdateTask({ ...task, status: newStatus as TaskStatus });
-                      onAddSyncLog(`Toggled completion of task "${task.title}" to: ${newStatus}`);
-                      if (typeof window !== 'undefined') {
-                        (window as any).playSystemSound?.('toggle');
-                      }
-                    }}
-                    className={`w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all hover:scale-110 mt-0.5 shadow-2xs ${
-                      task.status === 'completed'
-                        ? 'border-emerald-500 bg-emerald-500 text-white animate-pulse-once'
-                        : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-transparent hover:border-emerald-500 hover:text-emerald-500'
-                    }`}
-                    title={task.status === 'completed' ? 'Đánh dấu chưa hoàn thành' : 'Đánh dấu hoàn thành'}
-                  >
-                    <Check className="w-4 h-4 text-white" strokeWidth={3} />
-                  </button>
-
-                  <div className="flex-1 min-w-0">
-                    {editingTitle ? (
-                      <input autoFocus value={titleValue} onChange={e => setTitleValue(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false); }}
-                        onBlur={saveTitle}
-                        className="w-full text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white bg-transparent border-b-2 border-indigo-500 outline-none pb-1 leading-tight" />
-                    ) : (
-                      <h2 id="task-modal-title" onClick={() => setEditingTitle(true)}
-                        className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white cursor-text hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors group flex items-start gap-2.5 leading-tight">
-                        <span className={`${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>{task.title}</span>
-                        <Edit2 className="w-4 h-4 opacity-0 group-hover:opacity-100 text-slate-400 transition-opacity mt-2 shrink-0" />
-                      </h2>
-                    )}
-                  </div>
-                </div>
-
-                {/* Properties Table Grid Card */}
-                <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-3.5 sm:p-4 border border-slate-200/80 dark:border-white/[0.08] shadow-xs">
-                  {renderPropertiesTable()}
-                </div>
-
-                {/* Custom Fields Accordion */}
-                {renderCustomFieldsAccordion()}
-
-                {/* Actions Button row */}
-                <div className="flex flex-wrap items-center gap-2 py-2 border-y border-slate-100 dark:border-white/[0.06]">
-                  <button 
-                    type="button"
-                    onClick={focusSubtaskComposer}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/[0.08] rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer select-none shadow-3xs"
-                  >
-                    <CheckSquare className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>{isVietnamese ? 'Công việc con' : 'Subtask'}</span>
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/[0.08] rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer select-none shadow-3xs"
-                  >
-                    <Paperclip className="w-3.5 h-3.5 text-amber-500" />
-                    <span>{isVietnamese ? 'Đính kèm tệp' : 'Attach File'}</span>
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={scrollToRelationships}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/[0.08] rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer select-none shadow-3xs"
-                  >
-                    <Tag className="w-3.5 h-3.5 text-sky-500" />
-                    <span>{isVietnamese ? 'Liên kết mục' : 'Link Items'}</span>
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={onOpenFieldsPanel} 
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/[0.08] rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer select-none shadow-3xs"
-                  >
-                    <SlidersHorizontal className="w-3.5 h-3.5 text-purple-500" />
-                    <span>{isVietnamese ? 'Thêm trường' : 'Custom Field'}</span>
-                  </button>
-                </div>
-
-                {/* Notion Doc / Tài liệu & Mô tả chi tiết (Ngay dưới thanh tác vụ nhanh) */}
-                <div className="pt-2">
-                  <NotionDocEditor
-                    value={descValue}
-                    onChange={val => {
-                      setDescValue(val);
-                      onUpdateTask({ ...task, description: val });
-                    }}
-                    onBlur={saveDesc}
-                    taskTitle={task.title}
-                  />
-                </div>
-
-                {/* Checklist subtasks with Drag & Drop */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-955/25 flex items-center justify-center">
-                        <CheckSquare className="w-3.5 h-3.5 text-indigo-505" />
-                      </div>
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-205">Công việc con</label>
-                      <span className="text-[10px] font-medium text-slate-405">{task.subtasks.filter(s => s.completed).length}/{task.subtasks.length}</span>
-                    </div>
-                  </div>
-
-                  <DragDropContext onDragEnd={handleSubtasksDragEnd}>
-                    <Droppable droppableId="subtasks-list-single">
-                      {(provided) => (
-                        <div 
-                          ref={provided.innerRef} 
-                          {...provided.droppableProps}
-                          className="space-y-1"
-                        >
-                          {task.subtasks.map((sub, index) => (
-                            <Draggable key={sub.id} draggableId={sub.id} index={index}>
-                              {(provided) => (
-                                <motion.div 
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  className="flex items-center gap-2 group py-1.5 px-2 rounded-xl hover:bg-slate-55 dark:hover:bg-slate-900/50 transition-colors shadow-3xs bg-white dark:bg-slate-900"
-                                >
-                                  <div {...provided.dragHandleProps} className="px-0.5">
-                                    <GripVertical className="w-3 h-3 text-slate-350 dark:text-slate-600 shrink-0 cursor-grab active:cursor-grabbing" />
-                                  </div>
-                                  
-                                  <button onClick={() => toggleSubtask(sub.id)}
-                                    className={`w-[18px] h-[18px] rounded-md border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all ${sub.completed ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-355 dark:border-slate-600 hover:border-indigo-400'}`}>
-                                    {sub.completed && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                                  </button>
-                                  
-                                  {editingSubtaskId === sub.id ? (
-                                    <input autoFocus value={editingSubtaskValue}
-                                      onChange={e => setEditingSubtaskValue(e.target.value)}
-                                      onKeyDown={e => { if (e.key === 'Enter') editSubtask(sub.id, editingSubtaskValue); if (e.key === 'Escape') setEditingSubtaskId(null); }}
-                                      onBlur={() => editSubtask(sub.id, editingSubtaskValue)}
-                                      className="flex-1 text-[12.5px] font-bold bg-transparent border-b-2 border-indigo-500 outline-none focus:outline-none focus:ring-0 py-0.5 text-slate-900 dark:text-slate-100" />
-                                  ) : (
-                                    <span onDoubleClick={() => { setEditingSubtaskId(sub.id); setEditingSubtaskValue(sub.title); }}
-                                      className={`flex-1 text-[12.5px] cursor-text text-left transition-all ${sub.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-100 font-bold'}`}>
-                                      {sub.title}
-                                    </span>
-                                  )}
-
-                                  <button onClick={() => deleteSubtask(sub.id)}
-                                    className="p-1 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-md opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0">
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </motion.div>
-                              )}
-                            </Draggable>
-                          ))}
-                          {provided.placeholder}
-                        </div>
-                      )}
-                    </Droppable>
-                  </DragDropContext>
-
-                  <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-50/70 dark:bg-white/[0.02] border border-dashed border-slate-200/80 dark:border-white/[0.08] focus-within:border-indigo-500 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:border-solid focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all shadow-3xs">
-                    <div className="w-5 h-5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                      <Plus className="w-3 h-3" />
-                    </div>
-                    <input 
-                      ref={newSubtaskInputRef} 
-                      value={newSubtaskTitle} 
-                      onChange={e => setNewSubtaskTitle(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') addSubtask(); }}
-                      placeholder={isVietnamese ? "Thêm công việc con mới (nhấn Enter)..." : "Add subtask item (press Enter)..."}
-                      className="flex-1 text-xs font-medium text-slate-800 dark:text-slate-100 bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-none p-0 placeholder:text-slate-400" 
-                    />
-                    {newSubtaskTitle.trim() && (
-                      <button
-                        type="button"
-                        onClick={addSubtask}
-                        className="px-2 py-0.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
-                      >
-                        {isVietnamese ? "Thêm" : "Add"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {renderAttachmentsSection()}
-
-                {/* Relationships & References (Single Column) */}
-                {renderRelationshipsSection('relationships-section-single')}
-
-                {/* Timeline Comments block */}
-                {renderTimelineFeed()}
-              </div>
-            )}
           </div>
         </motion.div>
       </motion.div>
+
+      {/* Advanced Sharing & Permission Modal */}
+      {showShareModal && (
+        <ShareSettingsModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          targetType="task"
+          targetId={task.id}
+          targetName={task.title}
+          isPrivate={!!task.isPrivate}
+          shareSettings={task.shareSettings || {}}
+          members={members}
+          currentUser={currentUser || members[0] || { name: 'Me' }}
+          canEdit={true}
+          customShareUrl={createTaskLink()}
+          spaceId={task.spaceId}
+          onSave={(newIsPrivate, newShareSettings) => {
+            onUpdateTask({
+              ...task,
+              isPrivate: newIsPrivate,
+              shareSettings: newShareSettings
+            });
+            onAddSyncLog?.(`Updated sharing settings for task "${task.title}"`);
+          }}
+        />
+      )}
     </AnimatePresence>,
     document.body
   );

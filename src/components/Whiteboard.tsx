@@ -8,7 +8,8 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { motion, AnimatePresence } from 'motion/react';
-import { WhiteboardTool, WhiteboardElement, User, TeamMemberCursor, Task } from '../types';
+import { WhiteboardTool, WhiteboardElement, User, TeamMemberCursor, Task, ShareRole } from '../types';
+import ShareSettingsModal from './ShareSettingsModal';
 import { supabase, getCleanChannel } from '../supabaseClient';
 import { 
   Square, Circle, Edit2, Move, StickyNote, Grid,
@@ -194,15 +195,34 @@ export default function Whiteboard({
     reader.readAsText(file);
   };
 
-  const handleCopyShareLink = async () => {
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [whiteboardIsPrivate, setWhiteboardIsPrivate] = useState(false);
+  const [whiteboardShareSettings, setWhiteboardShareSettings] = useState<Record<string, ShareRole>>({});
+
+  useEffect(() => {
     try {
-      await navigator.clipboard.writeText(window.location.href);
-      setShareCopied(true);
-      onAddSyncLog('Whiteboard: Đã sao chép liên kết chia sẻ');
-      window.setTimeout(() => setShareCopied(false), 1800);
-    } catch {
-      onAddSyncLog('Whiteboard: Không thể sao chép liên kết chia sẻ');
-    }
+      const key = `apexa_whiteboard_share_${whiteboardId || 'default'}`;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.isPrivate !== undefined) setWhiteboardIsPrivate(parsed.isPrivate);
+        if (parsed.shareSettings) setWhiteboardShareSettings(parsed.shareSettings);
+      }
+    } catch {}
+  }, [whiteboardId]);
+
+  const handleSaveWhiteboardShare = (newIsPrivate: boolean, newShareSettings: Record<string, ShareRole>) => {
+    setWhiteboardIsPrivate(newIsPrivate);
+    setWhiteboardShareSettings(newShareSettings);
+    try {
+      const key = `apexa_whiteboard_share_${whiteboardId || 'default'}`;
+      localStorage.setItem(key, JSON.stringify({ isPrivate: newIsPrivate, shareSettings: newShareSettings }));
+    } catch {}
+    onAddSyncLog(`Whiteboard: Đã cập nhật quyền chia sẻ bảng "${boardName}"`);
+  };
+
+  const handleCopyShareLink = () => {
+    setIsShareModalOpen(true);
   };
 
   // Preset Board Templates loader
@@ -2643,12 +2663,12 @@ export default function Whiteboard({
             </button>
 
             <button
-              onClick={handleCopyShareLink}
-              className="hidden sm:flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-[11px] font-bold text-white shadow-sm transition hover:bg-indigo-700"
-              title="Sao chép liên kết chia sẻ"
+              onClick={() => setIsShareModalOpen(true)}
+              className="hidden sm:flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-[11px] font-bold text-white shadow-sm transition hover:bg-indigo-700 cursor-pointer"
+              title="Chia sẻ và phân quyền bảng trắng"
             >
-              {shareCopied ? <Check className="h-3.5 w-3.5" /> : <Share2 className="h-3.5 w-3.5" />}
-              {shareCopied ? 'Đã sao chép' : 'Chia sẻ'}
+              <Share2 className="h-3.5 w-3.5" />
+              <span>Chia sẻ</span>
             </button>
 
             <button
@@ -3196,6 +3216,24 @@ export default function Whiteboard({
           </div>
         )}
       </AnimatePresence>
+
+      {/* Share & Permissions Modal */}
+      {isShareModalOpen && (
+        <ShareSettingsModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          targetType="whiteboard"
+          targetId={whiteboardId || 'default'}
+          targetName={boardName || 'Bảng trắng'}
+          isPrivate={whiteboardIsPrivate}
+          shareSettings={whiteboardShareSettings}
+          members={members}
+          currentUser={currentUser || members[0] || { name: 'Tôi' }}
+          canEdit={true}
+          spaceId={spaceId}
+          onSave={handleSaveWhiteboardShare}
+        />
+      )}
 
     </div>
   );

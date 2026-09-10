@@ -12,6 +12,11 @@ import {
   DashboardFocusQueue,
   DashboardAiReport,
   DashboardActivityFeed,
+  DashboardUpcomingAgenda,
+  DashboardTeamWorkload,
+  DashboardScratchpad,
+  DashboardMilestones,
+  DashboardQuickTaskModal,
   DashboardScope,
   DashboardRange,
   DashboardChartMode,
@@ -25,6 +30,10 @@ const DEFAULT_DASHBOARD_WIDGETS: Record<DashboardWidgetKey, boolean> = {
   kpis: true,
   health: true,
   focus: true,
+  agenda: true,
+  workload: true,
+  scratchpad: true,
+  milestones: true,
   charts: true,
   velocity: true,
   ai: true,
@@ -74,6 +83,9 @@ function DashboardOverview({
   isSynced = false,
   workspaceName,
   onClearSyncLogs,
+  spaces = [],
+  onAddTask,
+  onUpdateTask,
 }: DashboardOverviewProps) {
   const { locale } = useTranslation();
 
@@ -83,6 +95,8 @@ function DashboardOverview({
   const [chartMode, setChartMode] = useState<DashboardChartMode>('area');
   const [activeHealthFilter, setActiveHealthFilter] = useState<HealthFilterKey>('none');
   const [visibleWidgets, setVisibleWidgets] = useState<Record<DashboardWidgetKey, boolean>>(DEFAULT_DASHBOARD_WIDGETS);
+  const [showQuickTaskModal, setShowQuickTaskModal] = useState(false);
+  const [selectedWorkloadMemberId, setSelectedWorkloadMemberId] = useState<string | null>(null);
 
   // Restore Preferences from localStorage
   useEffect(() => {
@@ -136,10 +150,17 @@ function DashboardOverview({
     [isAssignedToCurrentUser, tasks]
   );
 
-  const scopedTasks = useMemo(
+  const baseScopedTasks = useMemo(
     () => (dashboardScope === 'mine' ? tasks.filter(isAssignedToCurrentUser) : tasks),
     [dashboardScope, isAssignedToCurrentUser, tasks]
   );
+
+  const scopedTasks = useMemo(() => {
+    if (!selectedWorkloadMemberId) return baseScopedTasks;
+    return baseScopedTasks.filter(
+      (t) => t.assigneeId === selectedWorkloadMemberId || t.assigneeIds?.includes(selectedWorkloadMemberId)
+    );
+  }, [baseScopedTasks, selectedWorkloadMemberId]);
 
   const handleScopeChange = (scope: DashboardScope) => {
     setDashboardScope(scope);
@@ -450,6 +471,7 @@ function DashboardOverview({
         visibleWidgets={visibleWidgets}
         onToggleWidget={toggleWidget}
         onResetPreferences={resetDashboardPreferences}
+        onOpenQuickTask={() => setShowQuickTaskModal(true)}
       />
 
       {/* 3. 4 Core KPI Cards */}
@@ -489,7 +511,27 @@ function DashboardOverview({
         />
       )}
 
-      {/* 6. Performance Trends, Status Donut & Velocity */}
+      {/* 6. Upcoming Agenda & Deadlines */}
+      {visibleWidgets.agenda && (
+        <DashboardUpcomingAgenda
+          tasks={scopedTasks}
+          members={members}
+          onOpenTask={onOpenTask}
+          onUpdateTask={onUpdateTask}
+          onNavigate={onNavigate}
+        />
+      )}
+
+      {/* 7. Space & Milestones Progress */}
+      {visibleWidgets.milestones && spaces && spaces.length > 0 && (
+        <DashboardMilestones
+          tasks={baseScopedTasks}
+          spaces={spaces}
+          onNavigate={onNavigate}
+        />
+      )}
+
+      {/* 8. Performance Trends, Status Donut & Velocity */}
       {visibleWidgets.charts && metrics.total > 0 && (
         <DashboardCharts
           weeklyData={weeklyData}
@@ -506,7 +548,27 @@ function DashboardOverview({
         />
       )}
 
-      {/* 7. AI Smart Productivity Report */}
+      {/* 9. Team Workload & Capacity Matrix */}
+      {visibleWidgets.workload && members && members.length > 0 && (
+        <DashboardTeamWorkload
+          tasks={baseScopedTasks}
+          members={members}
+          onOpenTask={onOpenTask}
+          onNavigate={onNavigate}
+          selectedMemberId={selectedWorkloadMemberId}
+          onSelectMember={setSelectedWorkloadMemberId}
+        />
+      )}
+
+      {/* 10. Personal Scratchpad & Sticky Notes */}
+      {visibleWidgets.scratchpad && (
+        <DashboardScratchpad
+          onAddTask={onAddTask}
+          triggerToast={triggerToast}
+        />
+      )}
+
+      {/* 11. AI Smart Productivity Report */}
       {visibleWidgets.ai && metrics.total > 0 && (
         <div id="dashboard-ai-report-section">
           <DashboardAiReport
@@ -525,13 +587,23 @@ function DashboardOverview({
         </div>
       )}
 
-      {/* 8. Recent Activity Feed */}
+      {/* 12. Recent Activity Feed */}
       {visibleWidgets.activity && (
         <DashboardActivityFeed
           syncLogs={syncLogs}
           onClearSyncLogs={onClearSyncLogs}
         />
       )}
+
+      {/* 13. Quick Task Creation Modal */}
+      <DashboardQuickTaskModal
+        isOpen={showQuickTaskModal}
+        onClose={() => setShowQuickTaskModal(false)}
+        onAddTask={onAddTask}
+        members={members}
+        spaces={spaces}
+        triggerToast={triggerToast}
+      />
 
     </div>
   );

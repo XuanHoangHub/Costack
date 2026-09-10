@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { ArrowDownRight, ArrowUpRight, Calendar, Clock3, DollarSign, Mail, Phone, User, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { useTranslation } from "@/contexts/TranslationContext";
 
 export interface DebtFormData {
   id?: string;
@@ -29,6 +30,7 @@ export function DebtFormModal({
   onClose,
   onSubmit,
 }: DebtFormModalProps) {
+  const { localize: l, isVietnamese } = useTranslation();
   const isEditing = Boolean(initialData?.id);
 
   const [form, setForm] = useState<DebtFormData>({
@@ -66,10 +68,12 @@ export function DebtFormModal({
             </div>
             <div>
               <h3 className="text-base font-black text-[var(--cu-text-primary)]">
-                {isEditing ? "Chỉnh sửa khoản công nợ" : "Ghi nhận công nợ mới"}
+                {isEditing ? l("Chỉnh sửa khoản công nợ", "Edit debt record") : l("Ghi nhận công nợ mới", "New debt record")}
               </h3>
               <p className="text-xs text-[var(--cu-text-tertiary)]">
-                {form.type === "receivable" ? "Khoản phải thu từ khách hàng / đối tác" : "Khoản phải trả cho nhà cung cấp"}
+                {form.type === "receivable"
+                  ? l("Khoản phải thu từ khách hàng / đối tác", "Receivable from customer / partner")
+                  : l("Khoản phải trả cho nhà cung cấp", "Payable to supplier / partner")}
               </p>
             </div>
           </div>
@@ -86,7 +90,7 @@ export function DebtFormModal({
           {/* Chọn Loại công nợ */}
           <div>
             <label className="text-xs font-bold text-[var(--cu-text-secondary)] mb-1.5 block">
-              Phân loại công nợ *
+              {l("Phân loại công nợ *", "Debt classification *")}
             </label>
             <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[var(--cu-surface-2)]/60 p-1.5">
               <button
@@ -99,7 +103,7 @@ export function DebtFormModal({
                 }`}
               >
                 <ArrowDownRight className="h-4 w-4" />
-                <span>Nợ Phải Thu (Khách nợ)</span>
+                <span>{l("Nợ Phải Thu (Khách nợ)", "Receivable (Customer owes)")}</span>
               </button>
               <button
                 type="button"
@@ -111,7 +115,7 @@ export function DebtFormModal({
                 }`}
               >
                 <ArrowUpRight className="h-4 w-4" />
-                <span>Nợ Phải Trả (Mình nợ)</span>
+                <span>{l("Nợ Phải Trả (Mình nợ)", "Payable (You owe)")}</span>
               </button>
             </div>
           </div>
@@ -120,12 +124,12 @@ export function DebtFormModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold text-[var(--cu-text-secondary)] mb-1.5 block">
-                Tên khách hàng / Nhà cung cấp *
+                {l("Tên khách hàng / Nhà cung cấp *", "Customer / Supplier name *")}
               </label>
               <input
                 value={form.partnerName}
                 onChange={e => setForm(f => ({ ...f, partnerName: e.target.value }))}
-                placeholder="Ví dụ: Công ty TNHH ABC, Anh Nam..."
+                placeholder={l("Ví dụ: Công ty TNHH ABC, Anh Nam...", "e.g. ABC Co., Ltd, Mr. John...")}
                 className="w-full h-10 px-3 rounded-xl border border-[var(--cu-border)] bg-[var(--cu-surface-2)]/50 text-xs font-semibold text-[var(--cu-text-primary)] focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 required
               />
@@ -133,7 +137,7 @@ export function DebtFormModal({
 
             <div>
               <label className="text-xs font-bold text-[var(--cu-text-secondary)] mb-1.5 block">
-                Hạn thanh toán *
+                {l("Hạn thanh toán *", "Due date *")}
               </label>
               <input
                 type="date"
@@ -149,7 +153,7 @@ export function DebtFormModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold text-[var(--cu-text-secondary)] mb-1.5 block">
-                Tổng giá trị công nợ *
+                {l("Tổng giá trị công nợ *", "Total debt amount *")}
               </label>
               <input
                 type="number"
@@ -165,7 +169,7 @@ export function DebtFormModal({
 
             <div>
               <label className="text-xs font-bold text-[var(--cu-text-secondary)] mb-1.5 block">
-                Đã thanh toán trước (nếu có)
+                {l("Đã thanh toán trước (nếu có)", "Prepaid amount (if any)")}
               </label>
               <input
                 type="number"
@@ -183,26 +187,26 @@ export function DebtFormModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold text-[var(--cu-text-secondary)] mb-1.5 block">
-                Số điện thoại liên hệ
+                {l("Số điện thoại liên hệ", "Contact phone")}
               </label>
               <input
                 type="tel"
                 value={form.phone}
                 onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                placeholder="Ví dụ: 0912345678"
+                placeholder={l("Ví dụ: 0912345678", "e.g. 0912345678")}
                 className="w-full h-10 px-3 rounded-xl border border-[var(--cu-border)] bg-[var(--cu-surface-2)]/50 text-xs font-semibold text-[var(--cu-text-primary)] focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
 
             <div>
               <label className="text-xs font-bold text-[var(--cu-text-secondary)] mb-1.5 block">
-                Email đối tác
+                {l("Email đối tác", "Partner email")}
               </label>
               <input
                 type="email"
                 value={form.email}
                 onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                placeholder="doi-tac@cong-ty.com"
+                placeholder="partner@company.com"
                 className="w-full h-10 px-3 rounded-xl border border-[var(--cu-border)] bg-[var(--cu-surface-2)]/50 text-xs font-semibold text-[var(--cu-text-primary)] focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
@@ -211,10 +215,10 @@ export function DebtFormModal({
           {/* Actions */}
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--cu-border)]">
             <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
-              Hủy
+              {l("Hủy", "Cancel")}
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? "Đang lưu..." : isEditing ? "Lưu thay đổi" : "Lưu khoản nợ"}
+              {saving ? l("Đang lưu...", "Saving...") : isEditing ? l("Lưu thay đổi", "Save changes") : l("Lưu khoản nợ", "Save debt")}
             </Button>
           </div>
         </form>

@@ -170,6 +170,7 @@ export default function TaskModal({
 }: TaskModalProps) {
   const { isVietnamese } = useTranslation();
   const isEditMode = Boolean(initialData?.id);
+  const createDialogRef = useRef<HTMLDivElement>(null);
   const isMac = typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
   const modKey = isMac ? '⌘' : 'Ctrl';
 
@@ -577,8 +578,29 @@ export default function TaskModal({
 
   // Keyboard shortcuts
   useEffect(() => {
+    if (!isOpen) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const frame = requestAnimationFrame(() => titleInputRef.current?.focus());
+    return () => {
+      cancelAnimationFrame(frame);
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return;
+      if (e.defaultPrevented || e.isComposing) return;
+      if (e.key === 'Tab' && createDialogRef.current?.contains(document.activeElement)) {
+        const controls = Array.from(createDialogRef.current.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex="0"]')).filter(element => element.getClientRects().length > 0);
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+        if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
       if (e.key === 'Escape') { onClose(); }
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
@@ -770,11 +792,13 @@ export default function TaskModal({
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.96, opacity: 0, y: 12 }}
           transition={{ type: 'spring', stiffness: 420, damping: 30 }}
-          className="relative z-10 w-full max-w-2xl bg-white dark:bg-[#1a1a1a] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] outline-none"
+          ref={createDialogRef}
+          role="dialog" aria-modal="true" aria-label={isVietnamese ? (isEditMode ? 'Chỉnh sửa công việc' : 'Tạo công việc mới') : (isEditMode ? 'Edit task' : 'Create task')}
+          className="task-create-studio relative z-10 w-full max-w-2xl bg-white dark:bg-[#1a1a1a] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] outline-none"
           style={{ boxShadow: '0 20px 50px -12px rgba(0,0,0,0.3)' }}
         >
           {/* Top Accent Bar */}
-          <div className="h-[3px] bg-gradient-to-r from-indigo-500 via-blue-500 to-emerald-400 shrink-0" />
+          <div className="task-create-accent" />
 
           {/* ── HEADER ── */}
           <div className="px-5 py-3 flex items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/70 bg-slate-50/60 dark:bg-white/[0.02] shrink-0">
@@ -802,7 +826,7 @@ export default function TaskModal({
                     }}
                     size="sm"
                     ariaLabel={isVietnamese ? 'Không gian' : 'Space'}
-                    options={spaces.map(sp => ({ value: sp.id, label: `${sp.emoji ? `${sp.emoji} ` : '📁 '} ${sp.name}` }))}
+                    options={spaces.map(sp => ({ value: sp.id, label: sp.name }))}
                   />
                   {selectedSpace?.lists && selectedSpace.lists.length > 0 && (
                     <>
@@ -836,13 +860,13 @@ export default function TaskModal({
 
           {/* ── SCROLLABLE CONTENT ── */}
           <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto custom-scrollbar">
-            <div className="px-5 py-4 space-y-4">
+            <div className="task-create-content">
 
               {/* ─── SECTION 1: Title + AI Autofill ─── */}
               <div className="space-y-2">
                 {/* Quick Templates (Create Mode Only) */}
                 {!isEditMode && (
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                  <div className="task-create-templates">
                     <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider shrink-0 flex items-center gap-1">
                       <LayoutTemplate className="w-3 h-3 text-indigo-500" />
                       {isVietnamese ? 'Mẫu nhanh:' : 'Templates:'}
@@ -872,7 +896,8 @@ export default function TaskModal({
                       setTitle(e.target.value);
                       if (validationError) setValidationError('');
                     }}
-                    placeholder={isVietnamese ? 'Tên công việc...' : 'Task title...'}
+                    aria-label={isVietnamese ? 'Tên công việc' : 'Task title'}
+                    placeholder={isVietnamese ? 'Bạn cần hoàn thành việc gì?' : 'What needs to get done?'}
                     className={`flex-1 text-lg font-bold text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600 bg-transparent border-none outline-none p-0 leading-snug ${
                       validationError ? 'text-rose-600 dark:text-rose-400 placeholder:text-rose-300' : ''
                     }`}
@@ -946,7 +971,7 @@ export default function TaskModal({
 
                 <AssigneePillSelect
                   value={assigneeIds}
-                  members={members.filter(m => !activeWorkspaceId || m.workspaceIds?.includes(activeWorkspaceId))}
+                  members={members.filter(m => !activeWorkspaceId || !m.workspaceIds?.length || m.workspaceIds.includes(activeWorkspaceId))}
                   onChange={(ids) => setAssigneeIds(ids || [])}
                 />
 
@@ -1030,12 +1055,8 @@ export default function TaskModal({
               {/* ─── SECTION 4: Subtasks (Collapsible) ─── */}
               <div className="border-t border-slate-100 dark:border-slate-800/60 pt-3">
                 {/* Section Header */}
-                <button
-                  type="button"
-                  onClick={() => setShowSubtasks(!showSubtasks)}
-                  className="w-full flex items-center justify-between group cursor-pointer mb-2"
-                >
-                  <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                <div className="w-full flex items-center justify-between gap-2 mb-2">
+                  <button type="button" aria-expanded={showSubtasks} onClick={() => setShowSubtasks(!showSubtasks)} className="flex items-center gap-2 text-[11px] font-semibold text-slate-600 dark:text-slate-300 cursor-pointer">
                     {showSubtasks ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />}
                     <ListTodo className="w-3.5 h-3.5 text-indigo-500" />
                     <span>{isVietnamese ? 'Công việc con' : 'Subtasks'}</span>
@@ -1048,9 +1069,9 @@ export default function TaskModal({
                         {completedSubtasksCount}/{subtasks.length}
                       </span>
                     )}
-                  </div>
+                  </button>
 
-                  <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center gap-1.5">
                     {subtasks.length > 0 && (
                       <button
                         type="button"
@@ -1094,7 +1115,7 @@ export default function TaskModal({
                       <span className="hidden sm:inline">{isGeneratingSubtasks ? (isVietnamese ? 'Đang tạo...' : 'Generating...') : (isVietnamese ? 'AI gợi ý' : 'AI')}</span>
                     </button>
                   </div>
-                </button>
+                </div>
 
                 <AnimatePresence initial={false}>
                   {showSubtasks && (
@@ -1219,7 +1240,7 @@ export default function TaskModal({
                 >
                   {showMoreDetails ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                   <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-500" />
-                  <span>{isVietnamese ? 'Thêm chi tiết' : 'More details'}</span>
+                  <span>{isVietnamese ? 'Thuộc tính nâng cao' : 'Advanced properties'}</span>
                   {/* Indicator badges for filled data */}
                   {!showMoreDetails && (
                     <div className="flex flex-wrap items-center gap-1 ml-1">
@@ -1757,7 +1778,7 @@ export default function TaskModal({
           </form>
 
           {/* ── FOOTER ── */}
-          <div className="px-5 py-3 border-t border-slate-100 dark:border-slate-800/70 bg-slate-50/60 dark:bg-white/[0.02] flex items-center justify-between gap-3 shrink-0">
+          <div className="task-create-footer px-5 py-3 border-t border-slate-100 dark:border-slate-800/70 bg-slate-50/60 dark:bg-white/[0.02] flex items-center justify-between gap-3 shrink-0">
             {/* Left: Create another / Edit mode indicator */}
             <div className="flex items-center gap-2">
               {!isEditMode ? (

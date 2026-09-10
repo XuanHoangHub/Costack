@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { useTranslation } from "@/contexts/TranslationContext";
 
 export interface DebtRecord {
   id: string;
@@ -79,6 +80,7 @@ export function DebtDetailModal({
   onEditDebt,
   onDeleteDebt,
 }: DebtDetailModalProps) {
+  const { localize: l, isVietnamese } = useTranslation();
   const [reminderTone, setReminderTone] = useState<"friendly" | "standard" | "urgent">("standard");
   const [copiedReminder, setCopiedReminder] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
@@ -100,11 +102,23 @@ export function DebtDetailModal({
 
   // Tạo nội dung tin nhắn nhắc nợ
   const generateReminderMessage = () => {
-    const formattedDue = dueDateObj.toLocaleDateString("vi-VN");
+    const formattedDue = dueDateObj.toLocaleDateString(isVietnamese ? "vi-VN" : "en-US");
     const remainingStr = formatMoney(debt.remainingAmount);
     const bankInfoStr = defaultAccount
-      ? `\n- Ngân hàng: ${defaultAccount.bank}\n- Số tài khoản: ${defaultAccount.number}`
+      ? isVietnamese
+        ? `\n- Ngân hàng: ${defaultAccount.bank}\n- Số tài khoản: ${defaultAccount.number}`
+        : `\n- Bank: ${defaultAccount.bank}\n- Account No: ${defaultAccount.number}`
       : "";
+
+    if (!isVietnamese) {
+      if (reminderTone === "friendly") {
+        return `Hello ${debt.partnerName}, Apexa sends warm greetings. Your outstanding balance of ${remainingStr} is due on ${formattedDue}. We would appreciate it if you could arrange payment on time.${bankInfoStr}\nThank you!`;
+      }
+      if (reminderTone === "urgent") {
+        return `Dear ${debt.partnerName}, your balance of ${remainingStr} became overdue on ${formattedDue}. Please settle the remaining amount urgently.${bankInfoStr}\nBest regards.`;
+      }
+      return `Dear ${debt.partnerName}, this is a notice regarding your current debt balance of ${remainingStr}, due date: ${formattedDue}. Please check and arrange payment.${bankInfoStr}\nSincerely thank you!`;
+    }
 
     if (reminderTone === "friendly") {
       return `Xin chào ${debt.partnerName}, Apexa xin gửi lời chào trân trọng. Khoản công nợ trị giá ${remainingStr} của bạn sẽ đến hạn vào ngày ${formattedDue}. Rất mong bạn sắp xếp thanh toán đúng hạn.${bankInfoStr}\nCảm ơn bạn!`;
@@ -138,10 +152,10 @@ export function DebtDetailModal({
 
   const methodLabel = (method: PaymentRecord["method"]) => {
     switch (method) {
-      case "bank_transfer": return "Chuyển khoản";
-      case "cash": return "Tiền mặt";
-      case "card": return "Thẻ tín dụng";
-      default: return "Khác";
+      case "bank_transfer": return l("Chuyển khoản", "Bank transfer");
+      case "cash": return l("Tiền mặt", "Cash");
+      case "card": return l("Thẻ tín dụng", "Credit card");
+      default: return l("Khác", "Other");
     }
   };
 
@@ -162,11 +176,13 @@ export function DebtDetailModal({
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-black text-[var(--cu-text-primary)]">{debt.partnerName}</h3>
                 <Badge variant={debt.type === "receivable" ? "success" : "danger"}>
-                  {debt.type === "receivable" ? "Phải thu" : "Phải trả"}
+                  {debt.type === "receivable" ? l("Phải thu", "Receivable") : l("Phải trả", "Payable")}
                 </Badge>
               </div>
               <p className="text-xs text-[var(--cu-text-tertiary)]">
-                {debt.type === "receivable" ? "Khách hàng nợ bạn" : "Bạn nợ nhà cung cấp / đối tác"}
+                {debt.type === "receivable"
+                  ? l("Khách hàng nợ bạn", "Customer owes you")
+                  : l("Bạn nợ nhà cung cấp / đối tác", "You owe supplier / partner")}
               </p>
             </div>
           </div>
@@ -196,7 +212,7 @@ export function DebtDetailModal({
                     type="button"
                     onClick={handleCopyPhone}
                     className="text-[var(--cu-text-tertiary)] hover:text-indigo-500 p-0.5"
-                    title="Sao chép số điện thoại"
+                    title={l("Sao chép số điện thoại", "Copy phone number")}
                   >
                     {copiedPhone ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
                   </button>
@@ -221,7 +237,7 @@ export function DebtDetailModal({
             <div className="grid grid-cols-3 gap-2 text-center divide-x divide-[var(--cu-border)]">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--cu-text-tertiary)]">
-                  Tổng công nợ
+                  {l("Tổng công nợ", "Total Debt")}
                 </span>
                 <p className="mt-1 text-base font-black text-[var(--cu-text-primary)]">
                   {formatMoney(debt.totalAmount)}
@@ -229,7 +245,7 @@ export function DebtDetailModal({
               </div>
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500">
-                  Đã thanh toán
+                  {l("Đã thanh toán", "Paid")}
                 </span>
                 <p className="mt-1 text-base font-black text-emerald-500">
                   {formatMoney(debt.paidAmount)}
@@ -237,7 +253,7 @@ export function DebtDetailModal({
               </div>
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500">
-                  Còn lại
+                  {l("Còn lại", "Remaining")}
                 </span>
                 <p className="mt-1 text-base font-black text-amber-500">
                   {formatMoney(debt.remainingAmount)}
@@ -248,7 +264,9 @@ export function DebtDetailModal({
             {/* Thanh tiến độ */}
             <div className="pt-2">
               <div className="flex items-center justify-between text-[11px] font-bold mb-1.5">
-                <span className="text-[var(--cu-text-tertiary)]">Tiến độ thanh toán: {progressPercent}%</span>
+                <span className="text-[var(--cu-text-tertiary)]">
+                  {l("Tiến độ thanh toán", "Payment progress")}: {progressPercent}%
+                </span>
                 <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
                   debt.remainingAmount <= 0
                     ? "bg-emerald-500/10 text-emerald-500"
@@ -256,7 +274,11 @@ export function DebtDetailModal({
                     ? "bg-amber-500/10 text-amber-500"
                     : "bg-indigo-500/10 text-indigo-500"
                 }`}>
-                  {debt.remainingAmount <= 0 ? "Đã tất toán" : debt.paidAmount > 0 ? "Thanh toán một phần" : "Chưa thanh toán"}
+                  {debt.remainingAmount <= 0
+                    ? l("Đã tất toán", "Settled")
+                    : debt.paidAmount > 0
+                    ? l("Thanh toán một phần", "Partially paid")
+                    : l("Chưa thanh toán", "Unpaid")}
                 </span>
               </div>
               <div className="h-2.5 w-full overflow-hidden rounded-full bg-[var(--cu-surface-2)] border border-[var(--cu-border)]">
@@ -271,28 +293,30 @@ export function DebtDetailModal({
             <div className="flex items-center justify-between pt-1 text-xs">
               <div className="flex items-center gap-1.5 text-[var(--cu-text-secondary)]">
                 <Calendar className="h-3.5 w-3.5 text-[var(--cu-text-tertiary)]" />
-                <span>Hạn thanh toán: <strong>{dueDateObj.toLocaleDateString("vi-VN")}</strong></span>
+                <span>
+                  {l("Hạn thanh toán", "Due date")}: <strong>{dueDateObj.toLocaleDateString(isVietnamese ? "vi-VN" : "en-US")}</strong>
+                </span>
               </div>
               <div>
                 {debt.remainingAmount <= 0 ? (
                   <span className="text-emerald-500 font-bold flex items-center gap-1">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Tất toán hoàn tất
+                    <CheckCircle2 className="h-3.5 w-3.5" /> {l("Tất toán hoàn tất", "Settlement complete")}
                   </span>
                 ) : diffDays < 0 ? (
                   <span className="text-rose-500 font-black flex items-center gap-1">
-                    <AlertCircle className="h-3.5 w-3.5" /> Quá hạn {Math.abs(diffDays)} ngày
+                    <AlertCircle className="h-3.5 w-3.5" /> {l(`Quá hạn ${Math.abs(diffDays)} ngày`, `Overdue by ${Math.abs(diffDays)} days`)}
                   </span>
                 ) : diffDays === 0 ? (
                   <span className="text-amber-500 font-black flex items-center gap-1">
-                    <Clock3 className="h-3.5 w-3.5" /> Đến hạn hôm nay
+                    <Clock3 className="h-3.5 w-3.5" /> {l("Đến hạn hôm nay", "Due today")}
                   </span>
                 ) : diffDays <= 7 ? (
                   <span className="text-amber-500 font-bold flex items-center gap-1">
-                    <Clock3 className="h-3.5 w-3.5" /> Còn {diffDays} ngày nữa
+                    <Clock3 className="h-3.5 w-3.5" /> {l(`Còn ${diffDays} ngày nữa`, `${diffDays} days left`)}
                   </span>
                 ) : (
                   <span className="text-emerald-500 font-bold">
-                    Còn {diffDays} ngày nữa
+                    {l(`Còn ${diffDays} ngày nữa`, `${diffDays} days left`)}
                   </span>
                 )}
               </div>
@@ -304,11 +328,11 @@ export function DebtDetailModal({
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-[var(--cu-text-secondary)] flex items-center gap-1.5">
                 <History className="h-3.5 w-3.5 text-indigo-500" />
-                Lịch sử các đợt thanh toán ({debtPayments.length})
+                {l("Lịch sử các đợt thanh toán", "Payment history")} ({debtPayments.length})
               </span>
               {debt.remainingAmount > 0 && (
                 <Button size="sm" variant="ghost" className="text-indigo-500 hover:text-indigo-600" onClick={() => onOpenPayment(debt)}>
-                  + Ghi thanh toán
+                  {l("+ Ghi thanh toán", "+ Record payment")}
                 </Button>
               )}
             </div>
@@ -323,10 +347,10 @@ export function DebtDetailModal({
                       </div>
                       <div>
                         <p className="font-black text-[var(--cu-text-primary)]">
-                          {new Date(`${p.date}T00:00:00`).toLocaleDateString("vi-VN")} · {methodLabel(p.method)}
+                          {new Date(`${p.date}T00:00:00`).toLocaleDateString(isVietnamese ? "vi-VN" : "en-US")} · {methodLabel(p.method)}
                         </p>
                         <p className="text-[11px] text-[var(--cu-text-tertiary)]">
-                          {p.reference || p.note || "Ghi nhận thanh toán đối soát"}
+                          {p.reference || p.note || l("Ghi nhận thanh toán đối soát", "Recorded settlement payment")}
                         </p>
                       </div>
                     </div>
@@ -338,7 +362,7 @@ export function DebtDetailModal({
               </div>
             ) : (
               <div className="rounded-2xl border border-dashed border-[var(--cu-border)] p-4 text-center text-xs text-[var(--cu-text-tertiary)]">
-                Chưa có đợt thanh toán nào được ghi nhận cho khoản nợ này.
+                {l("Chưa có đợt thanh toán nào được ghi nhận cho khoản nợ này.", "No payment records found for this debt.")}
               </div>
             )}
           </div>
@@ -349,7 +373,7 @@ export function DebtDetailModal({
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-indigo-500 flex items-center gap-1.5">
                   <MessageSquare className="h-3.5 w-3.5" />
-                  Mẫu tin nhắn nhắc nợ (Gửi qua Zalo / SMS / Email)
+                  {l("Mẫu tin nhắn nhắc nợ (Gửi qua Zalo / SMS / Email)", "Payment reminder template (Zalo / SMS / Email)")}
                 </span>
                 <div className="flex gap-1">
                   <button
@@ -361,7 +385,7 @@ export function DebtDetailModal({
                         : "bg-[var(--cu-surface)] text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"
                     }`}
                   >
-                    Nhẹ nhàng
+                    {l("Nhẹ nhàng", "Friendly")}
                   </button>
                   <button
                     type="button"
@@ -372,7 +396,7 @@ export function DebtDetailModal({
                         : "bg-[var(--cu-surface)] text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"
                     }`}
                   >
-                    Tiêu chuẩn
+                    {l("Tiêu chuẩn", "Standard")}
                   </button>
                   <button
                     type="button"
@@ -383,7 +407,7 @@ export function DebtDetailModal({
                         : "bg-[var(--cu-surface)] text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"
                     }`}
                   >
-                    Khẩn cấp
+                    {l("Khẩn cấp", "Urgent")}
                   </button>
                 </div>
               </div>
@@ -399,7 +423,7 @@ export function DebtDetailModal({
                   onClick={handleCopyReminder}
                   leftIcon={copiedReminder ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-indigo-500" />}
                 >
-                  {copiedReminder ? "Đã sao chép vào bộ nhớ tạm!" : "Sao chép tin nhắn"}
+                  {copiedReminder ? l("Đã sao chép vào bộ nhớ tạm!", "Copied to clipboard!") : l("Sao chép tin nhắn", "Copy message")}
                 </Button>
               </div>
             </div>
@@ -413,7 +437,7 @@ export function DebtDetailModal({
               onClick={() => onDeleteDebt(debt)}
               leftIcon={<Trash2 className="h-4 w-4" />}
             >
-              Xóa khoản nợ
+              {l("Xóa khoản nợ", "Delete debt")}
             </Button>
 
             <div className="flex items-center gap-2">
@@ -422,14 +446,14 @@ export function DebtDetailModal({
                 onClick={() => onEditDebt(debt)}
                 leftIcon={<Edit2 className="h-3.5 w-3.5" />}
               >
-                Chỉnh sửa
+                {l("Chỉnh sửa", "Edit")}
               </Button>
               {debt.remainingAmount > 0 && (
                 <Button
                   onClick={() => onOpenPayment(debt)}
                   leftIcon={<CreditCard className="h-4 w-4" />}
                 >
-                  Ghi nhận thanh toán
+                  {l("Ghi nhận thanh toán", "Record payment")}
                 </Button>
               )}
             </div>
