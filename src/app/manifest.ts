@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Không gian làm việc hợp nhất cho tasks, docs, chat, CRM, ERP, finance và AI.',
     start_url: '/',
     display: 'standalone',
-    background_color: '#000000',
+    background_color: '#0b0c12',
     theme_color: '#2563eb',
     orientation: 'any',
     icons: [

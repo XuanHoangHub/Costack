@@ -2831,10 +2831,10 @@ ${channelMessagesText}`;
   }, [filteredChannels]);
 
   return (
-    <div className="apexa-chat flex min-h-[500px] h-full w-full rounded-3xl bg-white dark:bg-[#000000] border border-slate-200/60 dark:border-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden font-sans select-none animate-fadeIn text-slate-800 dark:text-slate-100">
+    <div className="apexa-chat flex min-h-[500px] h-full w-full rounded-3xl bg-white dark:bg-[var(--cu-surface)] border border-slate-200/60 dark:border-[var(--cu-border)] shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden font-sans select-none animate-fadeIn text-slate-800 dark:text-slate-100">
       
       {/* ── COLUMN 1: Channels Sidebar (w-68) ── */}
-      <div className={`w-full md:w-[268px] border-r border-slate-200/70 dark:border-slate-800/80 bg-slate-50/70 dark:bg-[#0a0c10] flex flex-col justify-between shrink-0 text-left ${
+      <div className={`w-full md:w-[268px] border-r border-slate-200/70 dark:border-[var(--cu-border)] bg-slate-50/70 dark:bg-[var(--cu-bg-subtle)] flex flex-col justify-between shrink-0 text-left ${
           isMobileChatActive ? 'hidden md:flex' : 'flex'
         }`}>
         
@@ -3389,7 +3389,7 @@ ${channelMessagesText}`;
 
       {/* ── COLUMN 2: Main Chat Workspace ── */}
       <div 
-        className={`flex-1 flex flex-col justify-between relative bg-white dark:bg-[#000000] ${isDragOver ? 'ring-2 ring-indigo-400 ring-inset' : ''} ${
+        className={`flex-1 flex flex-col justify-between relative bg-white dark:bg-[var(--cu-surface)] ${isDragOver ? 'ring-2 ring-indigo-400 ring-inset' : ''} ${
           isMobileChatActive ? 'flex' : 'hidden md:flex'
         }`}
         onDragOver={handleDragOver}

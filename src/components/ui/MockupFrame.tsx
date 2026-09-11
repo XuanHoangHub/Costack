@@ -71,7 +71,7 @@ export function MockupFrame({
           className={[
             "relative mx-auto rounded-2xl overflow-hidden border border-white/20 dark:border-white/10",
             shadow ? "shadow-[0_25px_70px_rgba(0,0,0,0.45)]" : "",
-            "bg-slate-900/90 dark:bg-[#121212]/95 backdrop-blur-2xl text-slate-100",
+            "bg-slate-900/90 dark:bg-[var(--cu-surface)]/95 backdrop-blur-2xl text-slate-100",
             innerClassName,
           ]
             .filter(Boolean)

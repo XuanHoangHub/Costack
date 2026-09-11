@@ -12,12 +12,12 @@
   background: var(--space-canvas);
 }
 .dark .apexa-app-shell .apexa-space-shell {
-  --space-canvas: #09090b;
-  --space-surface: #121214;
-  --space-ink: #f4f4f5;
-  --space-muted: #a1a1aa;
-  --space-border: rgba(255, 255, 255, 0.08);
-  --space-track: #18181b;
+  --space-canvas: var(--cu-bg);
+  --space-surface: var(--cu-surface);
+  --space-ink: var(--cu-text-primary);
+  --space-muted: var(--cu-text-muted);
+  --space-border: var(--cu-border);
+  --space-track: var(--cu-surface-2);
   --space-accent: #3b82f6;
   --space-shadow: none;
 }
@@ -40,7 +40,7 @@
 }
 .apexa-app-shell .apexa-space-shell .apexa-space-content { background: var(--space-canvas) !important; scrollbar-width: thin; scrollbar-color: var(--space-border) transparent; }
 .apexa-app-shell .apexa-space-shell .apexa-space-sidebar { background: var(--space-surface); border-right: 1px solid var(--space-border); }
-.dark .apexa-app-shell .apexa-space-shell .apexa-space-sidebar { background: #09090b !important; border-right: 1px solid rgba(255, 255, 255, 0.08) !important; }
+.dark .apexa-app-shell .apexa-space-shell .apexa-space-sidebar { background: var(--sidebar-bg) !important; border-right: 1px solid var(--sidebar-border) !important; }
 .apexa-app-shell .apexa-space-shell .apexa-space-commandbar { padding-inline: 22px !important; min-height: 64px !important; border-bottom: 0; }
 .apexa-app-shell .apexa-space-shell .apexa-space-view-dock { border: 0 !important; padding: 3px !important; background: var(--space-canvas) !important; border-radius: 10px !important; }
 .apexa-app-shell .apexa-space-shell .apexa-space-view-tab { padding-inline: 11px; min-height: 34px; }
@@ -70,7 +70,7 @@
 .apexa-app-shell .apexa-space-shell .apexa-space-board { padding: 16px 20px 24px; }
 .apexa-app-shell .apexa-space-shell .apexa-board-controls { background: transparent !important; border: 0 !important; box-shadow: none !important; padding: 0 0 12px !important; margin-bottom: 0; }
 .apexa-app-shell .apexa-space-shell .apexa-board-column { background: var(--space-surface) !important; border: 1px solid var(--space-border) !important; border-top: 3.5px solid var(--column-accent, #8190a8) !important; border-radius: 18px !important; min-height: 400px; padding: 16px !important; box-shadow: var(--space-shadow) !important; width: 335px !important; min-width: 320px !important; flex: 0 0 335px !important; }
-.dark .apexa-app-shell .apexa-space-shell .apexa-board-column { background: #121214 !important; border-color: rgba(255, 255, 255, 0.08) !important; }
+.dark .apexa-app-shell .apexa-space-shell .apexa-board-column { background: var(--space-surface) !important; border-color: var(--space-border) !important; }
 @media (min-width: 1536px) {
   .apexa-app-shell .apexa-space-shell .apexa-board-column { width: 350px !important; min-width: 335px !important; flex: 0 0 350px !important; }
 }
@@ -81,7 +81,7 @@
 .apexa-space-shell .space-hub { padding: 26px; font-size: 13px; color: var(--space-ink); user-select: text; }
 .space-hub-inner { max-width: 1480px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
 .apexa-space-shell .space-hub .space-hero { background: linear-gradient(115deg, #eef0ff 0%, #f0f4ff 48%, #e8f4f3 100%) !important; border: 1px solid #e2e6f5 !important; border-radius: 18px; padding: 26px 30px 0; position: relative; overflow: hidden; box-shadow: none; }
-.dark .apexa-space-shell .space-hub .space-hero { background: linear-gradient(115deg, #18181b, #121214 65%, #141416) !important; border-color: rgba(255, 255, 255, 0.08) !important; }
+.dark .apexa-space-shell .space-hub .space-hero { background: linear-gradient(115deg, var(--cu-surface-2), var(--cu-surface) 65%, var(--cu-surface-2)) !important; border-color: var(--cu-border) !important; }
 
 /* Compact Space Hero */
 .apexa-space-shell .space-hub .space-hero-compact {

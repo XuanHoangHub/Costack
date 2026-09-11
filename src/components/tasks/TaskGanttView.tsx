@@ -523,7 +523,7 @@ export default function TaskGanttView({
   const ROW_HEIGHT = 44;
 
   return (
-    <div className="w-full h-full flex flex-col bg-white dark:bg-[#000000] text-slate-800 dark:text-slate-100 select-none overflow-hidden font-sans border-0 rounded-none">
+    <div className="w-full h-full flex flex-col bg-white dark:bg-[var(--cu-bg)] text-slate-800 dark:text-slate-100 select-none overflow-hidden font-sans border-0 rounded-none">
 
       {/* ── 1. Project Roadmap Summary Banner ── */}
       {showRoadmapBanner && (
@@ -590,7 +590,7 @@ export default function TaskGanttView({
       )}
 
       {/* ── 2. Control Bar Top Toolbar ── */}
-      <div className="flex flex-wrap items-center justify-between px-4 py-2.5 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-[#0a0a0a]/90 backdrop-blur-md shrink-0 gap-3">
+      <div className="flex flex-wrap items-center justify-between px-4 py-2.5 border-b border-slate-200/80 dark:border-[var(--cu-border)] bg-white/90 dark:bg-[var(--cu-surface)]/90 backdrop-blur-md shrink-0 gap-3">
         
         {/* Navigation & Controls */}
         <div className="flex items-center gap-2">
@@ -848,7 +848,7 @@ export default function TaskGanttView({
         <div ref={scrollRef} className="flex-1 overflow-x-auto overflow-y-auto relative">
 
           {/* Date Headers Sticky Row */}
-          <div className="sticky top-0 z-20 bg-white dark:bg-[#0a0a0a] border-b border-slate-200/80 dark:border-slate-800/80" style={{ width: visibleDays * cellWidth }}>
+          <div className="sticky top-0 z-20 bg-white dark:bg-[var(--cu-surface-2)] border-b border-slate-200/80 dark:border-[var(--cu-border)]" style={{ width: visibleDays * cellWidth }}>
             {/* Month row */}
             <div className="flex h-[30px]">
               {monthHeaders.map((mh, i) => (

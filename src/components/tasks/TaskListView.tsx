@@ -610,7 +610,7 @@ const TaskListView = React.memo(function TaskListView({
                                         </motion.button>
 
                                         {/* Status select dropdown */}
-                                        <div className="shrink-0" onClick={e => e.stopPropagation()}>
+                                        <div className="task-list-status shrink-0" onClick={e => e.stopPropagation()}>
                                           <StatusPillSelect value={task.status} onChange={newS => {
                                             onUpdateTask({ ...task, status: newS });
                                             onAddSyncLog(`Status "${task.title}" → ${newS}`);
@@ -618,7 +618,7 @@ const TaskListView = React.memo(function TaskListView({
                                         </div>
 
                                         {/* Title & Metadata badges */}
-                                        <div className="flex-1 min-w-[120px]" onClick={e => e.stopPropagation()}>
+                                        <div className="task-list-title flex-1 min-w-[240px]" onClick={e => e.stopPropagation()}>
                                           {inlineEditTaskId === task.id ? (
                                             <input 
                                               autoFocus 
@@ -630,7 +630,7 @@ const TaskListView = React.memo(function TaskListView({
                                             />
                                           ) : (
                                             <div className="flex items-center justify-between min-w-0 gap-2" onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}>
-                                              <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                                              <div className="flex flex-1 items-center gap-2 min-w-0 flex-wrap">
                                                 <span 
                                                   onClick={() => {
                                                     setInlineEditTaskId(task.id);

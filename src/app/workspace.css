@@ -38,25 +38,26 @@
   -webkit-font-smoothing: antialiased;
 }
 .dark .apexa-app-shell.apexa-design-system {
-  --cu-bg: #000000;
-  --cu-bg-subtle: #0a0a0c;
-  --cu-surface: #121214;
-  --cu-surface-2: #161618;
-  --cu-surface-3: #1c1c1e;
-  --cu-border: rgba(255, 255, 255, 0.07);
-  --cu-border-strong: rgba(255, 255, 255, 0.14);
-  --cu-text-primary: #f5f5f7;
-  --cu-text-secondary: #a1a1a6;
-  --cu-text-muted: #86868b;
-  --cu-text-tertiary: #636366;
-  --cu-primary: #0a84ff;
-  --cu-primary-hover: #409cff;
-  --cu-primary-subtle: rgba(10, 132, 255, 0.12);
-  --sidebar-bg: #09090b;
-  --sidebar-border: rgba(255, 255, 255, 0.07);
-  --sidebar-text: #f5f5f7;
-  --sidebar-muted: #86868b;
-  --sidebar-signal: #0a84ff;
+  --cu-bg: #0b0c12;
+  --cu-bg-subtle: #0f1118;
+  --cu-surface: #141622;
+  --cu-surface-2: #1b1e2e;
+  --cu-surface-3: #23273b;
+  --cu-border: rgba(255, 255, 255, 0.08);
+  --cu-border-strong: rgba(255, 255, 255, 0.15);
+  --cu-text-primary: #f8fafc;
+  --cu-text-secondary: #cbd5e1;
+  --cu-text-muted: #94a3b8;
+  --cu-text-tertiary: #64748b;
+  --cu-primary: #3b82f6;
+  --cu-primary-hover: #60a5fa;
+  --cu-primary-subtle: rgba(59, 130, 246, 0.12);
+  --sidebar-bg: #10121a;
+  --sidebar-surface: #141622;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-text: #f8fafc;
+  --sidebar-muted: #94a3b8;
+  --sidebar-signal: #3b82f6;
 }
 
 /* Readable type without making every label a heading. */

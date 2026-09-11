@@ -6,6 +6,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Task, TaskStatus, Priority, User, Space, Document, SyncLog, Workspace, TaskAttachment, ShareRole, ShareTargetType } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { callAiApi } from '@/lib/aiClient';
+import { restoreBulkTaskFields } from '@/lib/taskLifecycle';
+import { matchesSpaceFocus, type SpaceFocus } from '@/lib/spaceInsights';
+import SpaceFocusBar from './spaces/SpaceFocusBar';
 import { useTranslation } from '../contexts/TranslationContext';
 
 function Portal({ children }: { children: React.ReactNode }) {
@@ -107,7 +110,7 @@ const STATUS_LABELS: Record<TaskStatus, { label: string }> = {
 interface SpacePageProps {
   tasks: Task[];
   members: User[];
-  onAddTask: (task: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress'>) => void;
+  onAddTask: (task: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress'>) => void | Promise<void>;
   onUpdateTask: (task: Task) => void;
   onDeleteTask: (id: string) => void | Promise<void>;
   isOffline: boolean;
@@ -126,7 +129,7 @@ interface SpacePageProps {
 
   // Space context props
   spaces?: Space[];
-  onSaveSpaces?: (newSpaces: Space[]) => void;
+  onSaveSpaces?: (newSpaces: Space[]) => void | Promise<void>;
   activeSpaceId?: string | null;
   setActiveSpaceId?: (id: string | null) => void;
   activeListId?: string | null;
@@ -172,12 +175,12 @@ export default function SpacePage({
 
 // Local handler to insert space/list context
    const onAddTask = (taskObj: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress'> & { workspaceId?: string; spaceId?: string; listId?: string }) => {
-     const requestedSpaceId = taskObj.spaceId === 'all-tasks' ? undefined : taskObj.spaceId;
-     rawOnAddTask({
+     return rawOnAddTask({
        ...taskObj,
        workspaceId: taskObj.workspaceId || activeWorkspaceId,
-       spaceId: requestedSpaceId || activeSpaceId || undefined,
-       listId: taskObj.listId || activeListId || undefined,
+       spaceId: taskObj.spaceId || activeSpaceId || undefined,
+       ...(!Object.prototype.hasOwnProperty.call(taskObj, 'listId') && (!taskObj.spaceId || taskObj.spaceId === activeSpaceId)
+         ? { listId: activeListId || undefined } : {}),
      });
    };
 
@@ -187,7 +190,7 @@ export default function SpacePage({
   };
   const guardedAddTask = (task: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress'> & { workspaceId?: string; spaceId?: string; listId?: string }) => {
     if (activeViewProtectedRef.current) return notifyProtectedView();
-    onAddTask(task);
+    return onAddTask(task);
   };
   const guardedUpdateTask = (task: Task) => {
     if (activeViewProtectedRef.current) return notifyProtectedView();
@@ -200,7 +203,7 @@ export default function SpacePage({
 
   // Auto-select first space if activeSpaceId is null/unset
   useEffect(() => {
-    if (!activeSpaceId && spaces && spaces.length > 0 && setActiveSpaceId) {
+    if (activeSpaceId && !spaces.some(space => space.id === activeSpaceId) && spaces.length > 0 && setActiveSpaceId) {
       setActiveSpaceId(spaces[0].id);
     }
   }, [activeSpaceId, spaces, setActiveSpaceId]);
@@ -230,6 +233,12 @@ export default function SpacePage({
       shareSettings: {},
     };
   }, [spaces, activeSpaceId, activeWorkspaceId]);
+
+  useEffect(() => {
+    if (activeListId && !activeSpace.lists.some(list => list.id === activeListId)) {
+      setActiveListId?.(null);
+    }
+  }, [activeListId, activeSpace, setActiveListId]);
 
   // Active workspace configuration
   const activeWorkspace = useMemo(() => {
@@ -732,7 +741,7 @@ export default function SpacePage({
     onAddSyncLog(`${space.isFavorite ? 'Unfavorited' : 'Favorited'} Space "${space.name}"`);
   };
 
-  const duplicateSpace = (space: Space) => {
+  const duplicateSpace = async (space: Space) => {
     if (!onSaveSpaces) return;
     const suffix = crypto.randomUUID();
     const folderIdMap = new Map((space.folders || []).map(folder => [folder.id, `folder-${crypto.randomUUID()}`]));
@@ -763,11 +772,12 @@ export default function SpacePage({
       channels: (space.channels || []).map(channel => ({ ...channel, id: `channel-${crypto.randomUUID()}` }))
     };
 
-    // Duplicate all tasks inside the space
+    // Create the destination and its lists before inserting linked tasks.
+    await onSaveSpaces([...spaces, clonedSpace]);
     const spaceTasks = tasks.filter(t => t.spaceId === space.id);
-    spaceTasks.forEach(task => {
+    await Promise.all(spaceTasks.map(task => {
       const newListId = task.listId ? listIdMap.get(task.listId) : undefined;
-      onAddTask({
+      return onAddTask({
         ...task,
         spaceId: clonedSpaceId,
         listId: newListId,
@@ -776,9 +786,7 @@ export default function SpacePage({
         subtasks: (task.subtasks || []).map(st => ({ ...st, id: `sub-${crypto.randomUUID()}` })),
         tags: task.tags ? [...task.tags] : []
       });
-    });
-
-    onSaveSpaces([...spaces, clonedSpace]);
+    }));
     setActiveSpaceId?.(clonedSpace.id);
     setActiveListId?.(null);
     setActiveFolderId(null);
@@ -1301,31 +1309,34 @@ export default function SpacePage({
   const [newPresetName, setNewPresetName] = useState('');
   // Selection and Sorting states
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [taskFocus, setTaskFocus] = useState<SpaceFocus>('all');
   const [isSmartSort, setIsSmartSort] = useState(false);
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   
   // Bulk Actions State & Handlers
-  const [undoAction, setUndoAction] = useState<{ previousTasks: Task[] } | null>(null);
+  const [undoAction, setUndoAction] = useState<{ previousTasks: Task[]; fields: (keyof Task)[] } | null>(null);
+  useEffect(() => {
+    if (!undoAction) return;
+    const timeout = setTimeout(() => setUndoAction(null), 5000);
+    return () => clearTimeout(timeout);
+  }, [undoAction]);
 
   const handleBulkStatusChange = (newStatus: TaskStatus) => {
     if (activeViewProtectedRef.current) return notifyProtectedView();
-    const prev = [...tasks];
-    setUndoAction({ previousTasks: prev });
+    const prev = tasks.filter(task => selectedTaskIds.includes(task.id));
+    setUndoAction({ previousTasks: prev, fields: ['status', 'progress', 'completedAt'] });
     selectedTaskIds.forEach(id => {
       const task = tasks.find(t => t.id === id);
       if (task) {
         guardedUpdateTask({ ...task, status: newStatus });
       }
     });
-    setTimeout(() => {
-      setUndoAction(null);
-    }, 5000);
   };
 
   const handleBulkAssigneeChange = (assigneeId: string | null) => {
     if (activeViewProtectedRef.current) return notifyProtectedView();
-    const prev = [...tasks];
-    setUndoAction({ previousTasks: prev });
+    const prev = tasks.filter(task => selectedTaskIds.includes(task.id));
+    setUndoAction({ previousTasks: prev, fields: ['assigneeId', 'assigneeIds'] });
     selectedTaskIds.forEach(id => {
       const task = tasks.find(t => t.id === id);
       if (task) {
@@ -1339,15 +1350,12 @@ export default function SpacePage({
     if (triggerToast) {
       triggerToast('success', 'Bulk Assignees Updated', `Updated assignees for ${selectedTaskIds.length} tasks.`);
     }
-    setTimeout(() => {
-      setUndoAction(null);
-    }, 5000);
   };
 
   const handleBulkPriorityChange = (newPriority: Priority | undefined) => {
     if (activeViewProtectedRef.current) return notifyProtectedView();
-    const prev = [...tasks];
-    setUndoAction({ previousTasks: prev });
+    const prev = tasks.filter(task => selectedTaskIds.includes(task.id));
+    setUndoAction({ previousTasks: prev, fields: ['priority'] });
     selectedTaskIds.forEach(id => {
       const task = tasks.find(t => t.id === id);
       if (task) {
@@ -1357,9 +1365,6 @@ export default function SpacePage({
     if (triggerToast) {
       triggerToast('success', 'Bulk Priority Updated', `Updated priority for ${selectedTaskIds.length} tasks.`);
     }
-    setTimeout(() => {
-      setUndoAction(null);
-    }, 5000);
   };
 
   const handleBulkDelete = () => {
@@ -1383,7 +1388,8 @@ export default function SpacePage({
   const handleBulkComplete = () => {
     if (activeViewProtectedRef.current) return notifyProtectedView();
     setUndoAction({
-      previousTasks: tasks.filter(t => selectedTaskIds.includes(t.id))
+      previousTasks: tasks.filter(t => selectedTaskIds.includes(t.id)),
+      fields: ['status', 'progress', 'completedAt'],
     });
     selectedTaskIds.forEach(id => {
       const task = tasks.find(t => t.id === id);
@@ -1395,9 +1401,6 @@ export default function SpacePage({
       triggerToast('success', 'Đã hoàn thành', `Đã đánh dấu hoàn thành ${selectedTaskIds.length} công việc.`);
     }
     setSelectedTaskIds([]);
-    setTimeout(() => {
-      setUndoAction(null);
-    }, 5000);
   };
 
   const handleBulkDuplicate = () => {
@@ -1419,9 +1422,11 @@ export default function SpacePage({
   };
 
   const handleUndoBulkAction = () => {
+    if (activeViewProtectedRef.current) return notifyProtectedView();
     if (undoAction) {
       undoAction.previousTasks.forEach(pt => {
-        onUpdateTask(pt);
+        const current = tasks.find(task => task.id === pt.id);
+        if (current) guardedUpdateTask(restoreBulkTaskFields(current, pt, undoAction.fields));
       });
       setUndoAction(null);
       if (triggerToast) {
@@ -1633,6 +1638,12 @@ export default function SpacePage({
     setSelectedTaskIds(previous => previous.filter(id => validTaskIds.has(id)));
   }, [tasks]);
 
+  useEffect(() => {
+    setSelectedTaskIds([]);
+    setUndoAction(null);
+    setTaskFocus('all');
+  }, [activeWorkspaceId, activeSpaceId, activeListId, activeFolderId]);
+
 // Pomodoro countdown effect
    useEffect(() => {
      let interval: NodeJS.Timeout | null = null;
@@ -1675,8 +1686,7 @@ export default function SpacePage({
   const MORE_VIEWS: any[] = [];
 
   // Filtering and Sorting operations
-  const filteredTasks = useMemo(() => {
-    let result = tasks.filter(t => {
+  const scopedTasks = useMemo(() => tasks.filter(t => {
       // Space filter
       if (activeSpaceId && t.spaceId !== activeSpaceId) return false;
       // Folder filter
@@ -1692,14 +1702,17 @@ export default function SpacePage({
         if (!currentUserId || (t.assigneeId !== currentUserId && !t.assigneeIds?.includes(currentUserId))) return false;
       }
       return true;
-    });
+    }), [tasks, activeSpaceId, activeListId, activeFolderId, activeSpace.lists, myTasksOnly, currentUser?.id]);
+
+  const filteredTasks = useMemo(() => {
+    let result = scopedTasks.filter(task => matchesSpaceFocus(task, taskFocus, currentUser?.id));
 
     // Search query filter
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase();
       result = result.filter(t => 
         t.title.toLowerCase().includes(q) || 
-        t.description.toLowerCase().includes(q) ||
+        (t.description || '').toLowerCase().includes(q) ||
         (t.tags && t.tags.some(tag => tag.toLowerCase().includes(q)))
       );
     }
@@ -1790,7 +1803,12 @@ export default function SpacePage({
     }
 
     return result;
-  }, [tasks, activeSpaceId, activeListId, activeFolderId, activeSpace.lists, myTasksOnly, currentUser?.id, searchQuery, filterPriority, filterAssignee, filterTag, sortBy, sortDirection, taskOrder, filterConjunction, filterConditions]);
+  }, [scopedTasks, taskFocus, currentUser?.id, searchQuery, filterPriority, filterAssignee, filterTag, sortBy, sortDirection, taskOrder, filterConjunction, filterConditions]);
+
+  useEffect(() => {
+    const visible = new Set(filteredTasks.map(task => task.id));
+    setSelectedTaskIds(previous => previous.filter(id => visible.has(id)));
+  }, [filteredTasks]);
 
   // Handle Form Submission for Quick Add Task Modal
   const handleCreateTaskSubmit = (e: React.FormEvent) => {
@@ -2064,14 +2082,14 @@ export default function SpacePage({
             transition={isResizing ? { duration: 0 } : { duration: 0.2, ease: 'easeInOut' }}
             data-testid="space-sidebar"
             ref={sidebarRef}
-            className={`apexa-space-sidebar h-full border-r border-slate-100 dark:border-white/[0.08] bg-white dark:bg-[#09090b] flex flex-col overflow-hidden shrink-0 ${
+            className={`apexa-space-sidebar h-full border-r border-slate-100 dark:border-white/[0.08] bg-white dark:bg-[var(--sidebar-bg)] flex flex-col overflow-hidden shrink-0 ${
               isMobileSidebarOpen
                 ? 'fixed inset-y-0 left-0 z-50 shadow-2xl w-[280px] max-w-[85vw] flex'
                 : 'hidden md:flex'
             }`}
           >
             {/* Header: Spaces */}
-            <div className="relative shrink-0 px-3.5 py-3 border-b border-slate-100 dark:border-white/[0.08] bg-white dark:bg-[#09090b]">
+            <div className="relative shrink-0 px-3.5 py-3 border-b border-slate-100 dark:border-white/[0.08] bg-white dark:bg-[var(--sidebar-bg)]">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-[13px] font-bold tracking-tight text-slate-900 dark:text-zinc-100">
@@ -2826,7 +2844,7 @@ export default function SpacePage({
             </div>
 
             {/* Create space row */}
-            <div className="shrink-0 border-t border-slate-100 bg-white p-2.5 dark:border-white/[0.08] dark:bg-[#09090b]">
+            <div className="shrink-0 border-t border-slate-100 bg-white p-2.5 dark:border-white/[0.08] dark:bg-[var(--sidebar-bg)]">
               <button
                 type="button"
                 onClick={() => onAddSpace?.()}
@@ -2857,7 +2875,7 @@ export default function SpacePage({
       {isSubSidebarCollapsed && (
         <button
           onClick={() => setIsSubSidebarCollapsed(false)}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-40 bg-white dark:bg-[#121214] border border-l-0 border-slate-200/80 dark:border-white/[0.08] rounded-r-xl shadow-md p-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all cursor-pointer shrink-0 hidden md:block"
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-40 bg-white dark:bg-[var(--cu-surface)] border border-l-0 border-slate-200/80 dark:border-white/[0.08] rounded-r-xl shadow-md p-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all cursor-pointer shrink-0 hidden md:block"
           title="Mở rộng thanh khu vực"
         >
           <ChevronRight className="w-4 h-4" />
@@ -2866,7 +2884,7 @@ export default function SpacePage({
 
       {/* Main Page Workspace Content Container (Right) */}
       <div className="apexa-space-workspace flex-grow flex-1 flex flex-col h-full overflow-hidden relative bg-white dark:bg-transparent">
-        <header className="apexa-space-header shrink-0 bg-white dark:bg-[#09090b]/80 backdrop-blur-xl border-b border-slate-200/30 dark:border-white/[0.06] flex flex-col relative z-30 select-none">
+        <header className="apexa-space-header shrink-0 bg-white dark:bg-[var(--cu-surface)]/80 backdrop-blur-xl border-b border-slate-200/30 dark:border-white/[0.06] flex flex-col relative z-30 select-none">
           {/* Single Unified Header Row (UI/UX Upgraded, Clean & Compact) */}
           <div className="apexa-space-commandbar flex items-center justify-between px-3 sm:px-5 py-2 relative flex-wrap gap-2 sm:gap-3 min-h-[48px]">
             
@@ -3270,10 +3288,14 @@ export default function SpacePage({
             </div>
           </div>
         </header>
+        {TASK_WORKSPACE_VIEWS.has(activeView) && (
+          <SpaceFocusBar tasks={scopedTasks} focus={taskFocus} onFocusChange={setTaskFocus}
+            userId={currentUser?.id} locale={locale} resultCount={filteredTasks.length} />
+        )}
 
       {/* ── Filter / Sorter Bar (Seamless & Gentle Workspace Toolbar) ── */}
       {isTaskWorkspaceView && (
-        <div className="apexa-space-filterbar shrink-0 border-b border-slate-200/60 dark:border-white/[0.06] px-3 sm:px-6 py-1.5 flex items-center justify-between gap-2.5 bg-white/80 dark:bg-[#09090b]/60 backdrop-blur-xs min-h-[42px] overflow-x-auto no-scrollbar" role="search" aria-label={locale === 'vi' ? 'Tìm kiếm và lọc công việc' : 'Search and filter tasks'}>
+        <div className="apexa-space-filterbar shrink-0 border-b border-slate-200/60 dark:border-white/[0.06] px-3 sm:px-6 py-1.5 flex items-center justify-between gap-2.5 bg-white/80 dark:bg-[var(--cu-surface)]/60 backdrop-blur-xs min-h-[42px] overflow-x-auto no-scrollbar" role="search" aria-label={locale === 'vi' ? 'Tìm kiếm và lọc công việc' : 'Search and filter tasks'}>
           
           {/* Left section: Search + (if Board view) Group & Swimlane */}
           <div className="flex items-center gap-2 shrink-0">
@@ -3861,6 +3883,10 @@ export default function SpacePage({
               if (setActiveListId) setActiveListId(listId);
               setActiveView('table');
             }}
+            onBrowseTasks={(focus) => {
+              setTaskFocus(focus);
+              setActiveView('list');
+            }}
             onAddList={() => onAddListSpace?.(activeSpace.id)}
             onAddTask={guardedAddTask}
             triggerToast={triggerToast}
@@ -3957,8 +3983,8 @@ export default function SpacePage({
         {activeView === 'table' && (
           <TaskTableView 
             filteredTasks={filteredTasks}
-            totalTaskCount={tasks.length}
-            isSearchingOrFiltering={Boolean(searchQuery.trim() || activeFilterCount > 0 || myTasksOnly)}
+            totalTaskCount={scopedTasks.length}
+            isSearchingOrFiltering={Boolean(searchQuery.trim() || activeFilterCount > 0 || myTasksOnly || taskFocus !== 'all')}
             members={members}
             workspaces={allWorkspaces || []}
             selectedTaskIds={selectedTaskIds}
@@ -4541,17 +4567,13 @@ export default function SpacePage({
       <TaskModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onSave={(taskData, createAnother) => {
-          guardedAddTask({
+        onSave={async (taskData) => {
+          if (activeViewProtectedRef.current) throw new Error('Chế độ xem đã khóa. Hãy mở khóa trước khi tạo công việc.');
+          await guardedAddTask({
             ...taskData,
-            spaceId: taskData.spaceId || activeSpaceId || undefined,
-            listId: taskData.listId || activeListId || undefined,
             isPinned: taskData.isPinned ?? false,
           });
           (window as any).playSystemSound?.('success');
-          if (!createAnother) {
-            setShowAddModal(false);
-          }
         }}
         spaces={spaces}
         activeSpaceId={activeSpaceId}

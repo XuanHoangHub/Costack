@@ -583,7 +583,7 @@ export default function GoalsHub({
   };
 
   return (
-    <div className="min-h-full bg-slate-50/70 px-3 py-4 dark:bg-[#000000] sm:px-5 sm:py-6 lg:px-7">
+    <div className="min-h-full bg-slate-50/70 px-3 py-4 dark:bg-[var(--cu-bg)] sm:px-5 sm:py-6 lg:px-7">
       <div className="mx-auto max-w-[1500px] space-y-5">
         <header className="apexa-module-heading overflow-hidden rounded-[30px] border border-slate-200/80 bg-gradient-to-br from-white via-white to-indigo-50/70 p-5 shadow-sm dark:border-slate-800/90 dark:from-slate-950 dark:via-slate-950 dark:to-indigo-950/30 sm:p-7">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">

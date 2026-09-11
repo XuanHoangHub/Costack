@@ -111,9 +111,9 @@
   --ax-shadow-danger: 0 2px 10px rgba(255, 69, 58, 0.2);
 
   /* Apple Dark Materials */
-  --apple-canvas: #000000;
-  --apple-surface: #121214;
-  --apple-surface-secondary: #18181b;
+  --apple-canvas: #0b0c12;
+  --apple-surface: #141622;
+  --apple-surface-secondary: #1b1e2e;
   --apple-grouped-bg: rgba(255, 255, 255, 0.03);
   --apple-hairline: rgba(255, 255, 255, 0.08);
   --apple-hairline-strong: rgba(255, 255, 255, 0.16);

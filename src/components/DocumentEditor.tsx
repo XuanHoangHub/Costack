@@ -1200,13 +1200,13 @@ export default function DocumentEditor({
     <div 
       style={getPaperBgStyle()}
       className={`flex-1 flex flex-col h-full ${
-        paperStyle === 'warm' ? 'bg-[#fdfcf9] dark:bg-[#121212]' : 'bg-[#fbfbfc] dark:bg-[#0b0c0f]'
+        paperStyle === 'warm' ? 'bg-[#fdfcf9] dark:bg-[var(--cu-surface)]' : 'bg-[#fbfbfc] dark:bg-[var(--cu-bg)]'
       } select-text overflow-y-auto font-sans relative scrollbar-thin print:bg-white print:p-0`}
     >
       
       {/* ── TOP STICKY PRO FORMATTING RIBBON & CONTROLS ── */}
       {!isFocusMode && (
-        <div className="sticky top-0 z-40 flex min-h-12 items-center justify-between gap-2 overflow-x-auto border-b border-slate-200/80 bg-white/95 px-2.5 py-1.5 shadow-xs backdrop-blur-xl scrollbar-none sm:px-4 dark:border-slate-800/90 dark:bg-[#111318]/95 select-none print:hidden">
+        <div className="sticky top-0 z-40 flex min-h-12 items-center justify-between gap-2 overflow-x-auto border-b border-slate-200/80 bg-white/95 px-2.5 py-1.5 shadow-xs backdrop-blur-xl scrollbar-none sm:px-4 dark:border-slate-800/90 dark:bg-[var(--cu-surface)]/95 select-none print:hidden">
           
           {/* Left Ribbon: Text Styles & Block Types */}
           <div className="flex items-center gap-1 flex-nowrap shrink-0 overflow-x-auto scrollbar-none py-0.5">

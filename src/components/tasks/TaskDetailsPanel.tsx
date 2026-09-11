@@ -228,9 +228,9 @@ export default function TaskDetailsPanel({
     'fixed inset-0 z-[100] flex items-stretch justify-end p-0 bg-slate-950/20 dark:bg-black/35 transition-all duration-200 cursor-pointer';
 
   const panelClass =
-    modalLayout === 'modal' ? 'relative w-full sm:w-[92vw] max-w-[1240px] h-full sm:h-[88vh] sm:max-h-[920px] bg-white dark:bg-[#11131c] border-none sm:border border-slate-200/90 dark:border-white/10 rounded-none sm:rounded-[26px] flex flex-col overflow-hidden shadow-[0_28px_85px_rgba(15,23,42,0.22)] dark:shadow-[0_32px_96px_rgba(0,0,0,0.7)] ring-1 ring-black/5 dark:ring-white/10 pointer-events-auto cursor-default outline-none focus:outline-none ring-0' :
-    modalLayout === 'fullscreen' ? 'relative w-full h-full bg-white dark:bg-[#0f1118] flex flex-col overflow-hidden shadow-2xl pointer-events-auto cursor-default outline-none focus:outline-none ring-0' :
-    `relative w-full ${isSidebarExpanded ? 'max-w-[1100px] xl:max-w-[80vw]' : 'max-w-[680px] lg:max-w-[740px]'} h-full bg-white dark:bg-[#11131c] border-l border-slate-200/90 dark:border-white/10 rounded-none sm:rounded-l-[26px] flex flex-col overflow-hidden shadow-[-20px_0_60px_rgba(15,23,42,0.2)] dark:shadow-[-20px_0_60px_rgba(0,0,0,0.65)] pointer-events-auto cursor-default outline-none focus:outline-none ring-0`;
+    modalLayout === 'modal' ? 'relative w-full sm:w-[92vw] max-w-[1240px] h-full sm:h-[88vh] sm:max-h-[920px] bg-white dark:bg-[var(--cu-surface)] border-none sm:border border-slate-200/90 dark:border-white/10 rounded-none sm:rounded-[26px] flex flex-col overflow-hidden shadow-[0_28px_85px_rgba(15,23,42,0.22)] dark:shadow-[0_32px_96px_rgba(0,0,0,0.55)] ring-1 ring-black/5 dark:ring-white/10 pointer-events-auto cursor-default outline-none focus:outline-none ring-0' :
+    modalLayout === 'fullscreen' ? 'relative w-full h-full bg-white dark:bg-[var(--cu-bg)] flex flex-col overflow-hidden shadow-2xl pointer-events-auto cursor-default outline-none focus:outline-none ring-0' :
+    `relative w-full ${isSidebarExpanded ? 'max-w-[1100px] xl:max-w-[80vw]' : 'max-w-[680px] lg:max-w-[740px]'} h-full bg-white dark:bg-[var(--cu-surface)] border-l border-slate-200/90 dark:border-white/10 rounded-none sm:rounded-l-[26px] flex flex-col overflow-hidden shadow-[-20px_0_60px_rgba(15,23,42,0.2)] dark:shadow-[-20px_0_60px_rgba(0,0,0,0.5)] pointer-events-auto cursor-default outline-none focus:outline-none ring-0`;
 
   const panelAnimation: any =
     modalLayout === 'modal' ? {
@@ -2310,10 +2310,10 @@ export default function TaskDetailsPanel({
           {/* ══════════════════════════════════════════════════════════════ */}
           {/* ── LEFT PANEL: Details & Properties ── */}
           {/* ══════════════════════════════════════════════════════════════ */}
-          <div className="flex-1 flex flex-col min-w-0 h-full relative z-10 bg-white dark:bg-[#11131c]">
+          <div className="flex-1 flex flex-col min-w-0 h-full relative z-10 bg-white dark:bg-[var(--cu-surface)]">
             
             {/* ── Header Bar ── */}
-            <div className="task-studio-header apexa-task-detail-header shrink-0 px-3 sm:px-5 md:px-6 py-2.5 sm:py-3 border-b border-slate-200/80 dark:border-white/[0.08] flex items-center justify-between gap-2 sm:gap-3 bg-white dark:bg-[#121212] select-none min-w-0 w-full overflow-hidden">
+            <div className="task-studio-header apexa-task-detail-header shrink-0 px-3 sm:px-5 md:px-6 py-2.5 sm:py-3 border-b border-slate-200/80 dark:border-white/[0.08] flex items-center justify-between gap-2 sm:gap-3 bg-white dark:bg-[var(--cu-surface)] select-none min-w-0 w-full overflow-hidden">
               
               {/* Left: Path Breadcrumb */}
               <div className="flex items-center gap-1 sm:gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 min-w-0 flex-1 overflow-hidden">

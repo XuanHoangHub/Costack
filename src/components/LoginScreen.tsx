@@ -644,7 +644,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
   };
 
   return (
-    <div className="apexa-auth-shell fixed inset-0 overflow-y-auto overflow-x-clip bg-[#f7f7f2] dark:bg-[#000000] text-slate-800 dark:text-slate-100 font-sans selection:bg-indigo-100 selection:text-indigo-800 dark:selection:bg-indigo-900 dark:selection:text-indigo-100">
+    <div className="apexa-auth-shell fixed inset-0 overflow-y-auto overflow-x-clip bg-[#f7f7f2] dark:bg-[var(--cu-bg)] text-slate-800 dark:text-slate-100 font-sans selection:bg-indigo-100 selection:text-indigo-800 dark:selection:bg-indigo-900 dark:selection:text-indigo-100">
       <LandingPage
         onSignUp={() => openAuth(true)}
         onSignIn={() => openAuth(false)}
@@ -679,11 +679,11 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
               aria-modal="true"
               aria-labelledby="auth-dialog-title"
               ref={dialogRef}
-              className="apexa-auth-dialog relative z-10 my-auto grid max-h-[calc(100vh-24px)] w-full max-w-[940px] overflow-hidden rounded-2xl sm:rounded-[26px] border border-white/10 bg-[#172a46] shadow-[0_40px_120px_-36px_rgba(0,0,0,0.85)] dark:border-white/10 dark:bg-[#121212] lg:grid-cols-[0.88fr_1.12fr]"
+              className="apexa-auth-dialog relative z-10 my-auto grid max-h-[calc(100vh-24px)] w-full max-w-[940px] overflow-hidden rounded-2xl sm:rounded-[26px] border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[var(--cu-surface)] shadow-[0_40px_120px_-36px_rgba(0,0,0,0.45)] dark:shadow-[0_40px_120px_-36px_rgba(0,0,0,0.85)] lg:grid-cols-[0.88fr_1.12fr]"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Product story panel */}
-              <aside className="relative hidden min-h-[660px] overflow-hidden bg-gradient-to-b from-[#181818] via-[#121212] to-[#0a0a0a] p-8 text-white lg:flex lg:flex-col lg:justify-between select-none">
+              <aside className="relative hidden min-h-[660px] overflow-hidden bg-gradient-to-b from-[#0f172a] via-[#0b1120] to-[#020617] dark:from-[#131728] dark:via-[#0e111d] dark:to-[#090b12] p-8 text-white lg:flex lg:flex-col lg:justify-between select-none border-r border-slate-800/80 dark:border-white/10">
                 {/* Multi-layer Ambient Backlight Glows */}
                 <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full bg-blue-600/20 blur-[100px]" />
                 <div className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-indigo-500/15 blur-[100px]" />
@@ -766,7 +766,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                 </div>
               </aside>
 
-              <section className="relative max-h-[calc(100vh-24px)] space-y-5 overflow-x-hidden overflow-y-auto bg-[#fdfdf9] px-6 py-7 text-left sm:px-9 sm:py-8 dark:bg-[#121212]">
+              <section className="relative max-h-[calc(100vh-24px)] space-y-5 overflow-x-hidden overflow-y-auto bg-[#fdfdf9] px-6 py-7 text-left sm:px-9 sm:py-8 dark:bg-[var(--cu-surface)]">
                 <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-indigo-500/10 blur-3xl" />
 
               {/* Header Actions */}

@@ -10,7 +10,8 @@ import { disconnectUserPresence, setUserPresenceStatus, useUserPresence } from '
 import { presenceDotClass, uiStatusToPresence } from '@/lib/presence';
 import { isCreationConfirmation, shouldPersistInInbox } from '@/lib/notificationPolicy';
 import { embedTaskRelationships, extractTaskRelationships, getIncompleteBlockers, getNextRecurringDate } from '@/lib/taskRelationships';
-import { checkAndFirePendingReminders } from '@/lib/notificationManager';
+import { checkAndFirePendingReminders, saveTaskReminder } from '@/lib/notificationManager';
+import { normalizeTaskCompletion, resolveTaskLocation } from '@/lib/taskLifecycle';
 import { getTaskAssigneeIds, isUserAssignedToTask } from '@/lib/taskAssignees';
 import { useUiStore, SidebarZone } from '@/store/uiStore';
 import { SidebarZoneGroup } from '@/components/sidebar/SidebarZoneGroup';
@@ -3769,31 +3770,29 @@ export default function App() {
       );
     }
 
-    const workspaceSpaces = spaces.filter(s => s.workspaceId === (t.workspaceId || activeWorkspaceId));
-    const targetSpace = (t.spaceId && workspaceSpaces.find(s => s.id === t.spaceId))
-      || (activeSpaceId && workspaceSpaces.find(s => s.id === activeSpaceId))
-      || workspaceSpaces[0];
-    const targetSpaceId = targetSpace?.id;
-    const requestedList = targetSpace?.lists?.find(list => list.id === t.listId);
-    const activeList = targetSpace?.lists?.find(list => list.id === activeListId);
-    const targetListId = requestedList?.id || activeList?.id || targetSpace?.lists?.[0]?.id;
-
-    const taskId = `task-${Date.now()}`;
-    const newTask: Task = {
+    const location = resolveTaskLocation(t, useSpaceStore.getState().spaces, {
+      workspaceId: activeWorkspaceId, spaceId: activeSpaceId || undefined, listId: activeListId || undefined,
+    });
+    const taskId = `task-${crypto.randomUUID()}`;
+    const newTask = normalizeTaskCompletion({
       ...t,
       id: taskId,
       createdAt: new Date().toISOString(),
       commentsCount: 0,
       progress: (t as any).progress !== undefined ? (t as any).progress : 0,
       comments: [],
-      attachments: [],
-      workspaceId: t.workspaceId || activeWorkspaceId,
-      spaceId: targetSpaceId,
-      listId: targetListId
-    };
+      attachments: t.attachments || [],
+      ...location,
+    });
 
     // Update locally instantly for smooth UI response
     setTasks(prev => [...prev, newTask]);
+    saveTaskReminder(newTask.id, newTask.title, newTask.dueDate || '', newTask.status === 'completed' ? 'none' : newTask.reminder || 'none');
+
+    const queueTask = () => {
+      setOfflineTasksQueue(prev => ({ ...prev, [newTask.id]: newTask }));
+      setOfflineDeletedTasks(prev => prev.filter(id => id !== newTask.id));
+    };
 
     if (!isOffline) {
       try {
@@ -3810,6 +3809,7 @@ export default function App() {
             dueDate: newTask.dueDate || null,
             subtasks: newTask.subtasks,
             progress: newTask.progress,
+            completedAt: newTask.completedAt || null,
             created_at: newTask.createdAt,
             hoursEstimate: newTask.hoursEstimate || null,
             hoursLogged: newTask.hoursLogged || null,
@@ -3818,7 +3818,7 @@ export default function App() {
             isPinned: newTask.isPinned || false,
             comments: newTask.comments,
             user_id: session.user.id,
-            workspace_id: activeWorkspaceId,
+            workspace_id: newTask.workspaceId,
             space_id: newTask.spaceId || null,
             list_id: newTask.listId || null,
             custom_fields: buildTaskCustomFields(newTask),
@@ -3828,27 +3828,18 @@ export default function App() {
 
           const { error } = await supabase.from('tasks').insert([payload]);
           
-          if (error) {
-            console.warn('First task insert attempt failed, retrying without incompatible columns:', error.message);
-            if (error.message && (error.message.includes('workspace_id') || error.message.includes('assigneeIds') || error.message.includes('assignee_ids') || error.message.includes('column') || error.message.includes('relation'))) {
-              delete payload.workspace_id;
-              const { error: retryError } = await supabase.from('tasks').insert([payload]);
-              if (retryError) {
-                console.error('Retry task insert failed:', retryError);
-                triggerToast('info', 'Task Save Error', `${retryError.message}`);
-              }
-            } else {
-              triggerToast('info', 'Task Save Error', `${error.message}`);
-            }
-          }
+          if (error) throw error;
           addSyncLog(`Đã tạo công việc mới: "${newTask.title}"`, 'task');
+        } else {
+          throw new Error('No active session');
         }
       } catch (err) {
         console.error('Task sync failure:', err);
+        queueTask();
+        triggerToast('info', 'Đã lưu trên thiết bị', 'Công việc đang chờ đồng bộ. Hãy kết nối lại hoặc dùng Đồng bộ để thử lại.');
       }
     } else {
-      setOfflineTasksQueue(prev => ({ ...prev, [newTask.id]: newTask }));
-      setOfflineDeletedTasks(prev => prev.filter(id => id !== newTask.id));
+      queueTask();
       addSyncLog(`Đã tạo công việc mới (Ngoại tuyến): "${newTask.title}"`, 'task');
     }
   }, [currentUser, members, triggerToast, spaces, activeWorkspaceId, activeSpaceId, activeListId, setTasks, isOffline, addSyncLog, setOfflineTasksQueue, setOfflineDeletedTasks]);
@@ -3900,9 +3891,7 @@ export default function App() {
       }
     }
 
-    if (updated.status === 'completed' && !updated.completedAt) {
-      updated = { ...updated, completedAt: new Date().toISOString() };
-    }
+    updated = normalizeTaskCompletion(updated, oldTask);
 
     const finalAssigneeIds = Array.isArray(updated.assigneeIds)
       ? updated.assigneeIds
@@ -3919,6 +3908,9 @@ export default function App() {
     };
 
     setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
+    saveTaskReminder(updated.id, updated.title, updated.dueDate || '', updated.status === 'completed' ? 'none' : updated.reminder || 'none');
+    // A queued create must carry the latest edits when it is retried.
+    setOfflineTasksQueue(prev => prev[updated.id] ? { ...prev, [updated.id]: updated } : prev);
 
     if (!isOffline) {
       try {
@@ -3951,23 +3943,14 @@ export default function App() {
 
           const { error } = await supabase.from('tasks').update(payload).eq('id', updated.id);
           
-          if (error) {
-            console.warn('First task update attempt failed, retrying with fallback payload:', error.message || error);
-            if (error.message && (error.message.includes('workspace_id') || error.message.includes('space_id') || error.message.includes('list_id') || error.message.includes('column'))) {
-              delete payload.workspace_id;
-              delete payload.space_id;
-              delete payload.list_id;
-              const { error: retryError } = await supabase.from('tasks').update(payload).eq('id', updated.id);
-              if (retryError) {
-                console.error('Supabase Task Update Error:', retryError.message || JSON.stringify(retryError));
-              }
-            } else {
-              console.error('Supabase Task Update Error:', error.message || JSON.stringify(error));
-            }
-          }
+          if (error) throw error;
+        } else {
+          throw new Error('No active session');
         }
       } catch (err) {
         console.error('Task update sync failure:', err);
+        setOfflineTasksQueue(prev => ({ ...prev, [updated.id]: updated }));
+        triggerToast('info', 'Đã lưu trên thiết bị', 'Thay đổi công việc đang chờ đồng bộ. Hãy kết nối lại hoặc dùng Đồng bộ để thử lại.');
       }
     } else {
       setOfflineTasksQueue(prev => ({ ...prev, [updated.id]: updated }));
@@ -4040,16 +4023,26 @@ export default function App() {
     }
 
     setTasks(prev => prev.filter(t => t.id !== id));
+    saveTaskReminder(id, '', '', 'none');
+    setOfflineTasksQueue(prev => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
 
     if (!isOffline) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const { error } = await supabase.from('tasks').delete().eq('id', id);
-          if (error) console.error('Supabase Task Delete Error:', error.message || JSON.stringify(error));
+          if (error) throw error;
+        } else {
+          throw new Error('No active session');
         }
       } catch (err) {
         console.error('Task delete sync failure:', err);
+        setOfflineDeletedTasks(prev => Array.from(new Set([...prev, id])));
+        triggerToast('info', 'Đã xóa trên thiết bị', 'Thao tác xóa đang chờ đồng bộ lên máy chủ.');
       }
     } else {
       setOfflineTasksQueue(prev => {
@@ -4057,7 +4050,7 @@ export default function App() {
         delete copy[id];
         return copy;
       });
-      setOfflineDeletedTasks(prev => [...prev, id]);
+      setOfflineDeletedTasks(prev => Array.from(new Set([...prev, id])));
     }
   }, [triggerToast, addSyncLog, setTasks, isOffline, setOfflineTasksQueue, setOfflineDeletedTasks]);
 
@@ -4582,7 +4575,7 @@ export default function App() {
       {/* Modern Unified Desktop Sidebar Navigation */}
       <aside 
         data-collapsed={isMainSidebarCollapsed}
-        className={`apexa-desktop-sidebar cu-sidebar relative z-30 hidden shrink-0 cursor-default flex-col transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:flex h-full border-r border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[#09090b] ${
+        className={`apexa-desktop-sidebar cu-sidebar relative z-30 hidden shrink-0 cursor-default flex-col transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:flex h-full border-r border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[var(--sidebar-bg)] ${
           isMainSidebarCollapsed 
             ? 'w-[68px]' 
             : 'w-[var(--cu-sidebar-width)]'
@@ -4841,7 +4834,7 @@ export default function App() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8, scale: 0.96 }}
                 transition={{ duration: 0.16, ease: "easeOut" }}
-                className={`fixed top-14 mt-1 w-[280px] p-3.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl shadow-[0_20px_50px_rgba(15,23,42,0.14)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.8)] z-[150] space-y-3 text-left origin-top-left ${
+                className={`fixed top-14 mt-1 w-[280px] p-3.5 bg-white dark:bg-[var(--cu-surface)] border border-slate-200 dark:border-[var(--cu-border)] rounded-3xl shadow-[0_20px_50px_rgba(15,23,42,0.14)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.6)] z-[150] space-y-3 text-left origin-top-left ${
                   isMainSidebarCollapsed ? 'left-[74px]' : 'left-3'
                 }`}
               >
@@ -4985,7 +4978,7 @@ export default function App() {
       {/* Right Main Stage (Header + Content) */}
       <div className="apexa-main-stage flex flex-1 flex-col h-full min-w-0 overflow-hidden">
         {/* Apexa Top Header */}
-        <header className="apexa-app-header cu-header relative z-20 flex shrink-0 items-center h-14 transition-all duration-200 border-b border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[#09090b]">
+        <header className="apexa-app-header cu-header relative z-20 flex shrink-0 items-center h-14 transition-all duration-200 border-b border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[var(--cu-surface)]">
           {/* Mobile header trigger & workspace badge (< md screens) */}
           <div className="flex md:hidden items-center gap-2 pl-3 py-2 shrink-0">
             <button
@@ -5498,7 +5491,7 @@ export default function App() {
               >
                 <Bell className="w-4 h-4" />
                 {unreadNotificationsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 bg-rose-500 border-2 border-white dark:border-[#09090b] rounded-full text-[8.5px] font-black text-white items-center justify-center shadow-xs">
+                  <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 bg-rose-500 border-2 border-white dark:border-[var(--sidebar-bg)] rounded-full text-[8.5px] font-black text-white items-center justify-center shadow-xs">
                     {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
                   </span>
                 )}
@@ -5693,7 +5686,7 @@ export default function App() {
                 <div className="relative shrink-0 flex items-center">
                   <SignedImage filePath={currentUser.avatar} className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-zinc-800 object-cover border border-slate-200/60 dark:border-white/10 shadow-3xs transition-all relative z-10" alt={currentUser.name} />
                   {/* Status indicator absolute dot on avatar */}
-                  <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white dark:border-[#09090b] z-20 ${
+                  <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white dark:border-[var(--sidebar-bg)] z-20 ${
                     presenceDotClass(accountPresenceStatus, true)
                   }`} title={accountPresenceLabel} />
                 </div>
@@ -6833,7 +6826,7 @@ export default function App() {
                             onClick={() => setNewSpaceColor(col.key)}
                             className={`w-5 h-5 rounded-full transition-all flex items-center justify-center cursor-pointer ${
                               newSpaceColor === col.key 
-                                ? 'ring-2 ring-blue-500 dark:ring-white ring-offset-2 ring-offset-white dark:ring-offset-[#09090b] scale-110' 
+                                ? 'ring-2 ring-blue-500 dark:ring-white ring-offset-2 ring-offset-white dark:ring-offset-[var(--sidebar-bg)] scale-110' 
                                 : 'opacity-60 hover:opacity-100 hover:scale-105'
                             }`}
                             style={{ backgroundColor: col.hex }}

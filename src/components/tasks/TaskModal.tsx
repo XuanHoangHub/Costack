@@ -45,7 +45,7 @@ import { callAiApi, generateSubtasksWithAi, autofillTaskWithAi } from '@/lib/aiC
 import { useTranslation } from '../../contexts/TranslationContext';
 import { getColorOption, COLOR_PALETTE } from '../../utils/fieldConfig';
 import { supabase } from '../../lib/supabaseClient';
-import { ReminderOption, REMINDER_OPTIONS, saveTaskReminder } from '@/lib/notificationManager';
+import { ReminderOption, REMINDER_OPTIONS } from '@/lib/notificationManager';
 
 // ── Portal Wrapper ──
 function Portal({ children }: { children: React.ReactNode }) {
@@ -142,7 +142,7 @@ const QUICK_TEMPLATES: QuickTemplate[] = [
 export interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (taskData: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress'> & { progress?: number }, createAnother?: boolean) => void;
+  onSave: (taskData: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress'> & { progress?: number }, createAnother?: boolean) => void | Promise<void>;
   spaces?: Space[];
   activeSpaceId?: string | null;
   activeListId?: string | null;
@@ -223,6 +223,11 @@ export default function TaskModal({
   const [isAutofillingAi, setIsAutofillingAi] = useState(false);
   const [aiAutofillHint, setAiAutofillHint] = useState<string | null>(null);
   const [validationError, setValidationError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const savingRef = useRef(false);
+  const requestClose = useCallback(() => {
+    if (!savingRef.current) onClose();
+  }, [onClose]);
   const [showSubtasks, setShowSubtasks] = useState(true);
   const [showMoreDetails, setShowMoreDetails] = useState(false);
   const [newTagInput, setNewTagInput] = useState('');
@@ -245,10 +250,10 @@ export default function TaskModal({
 
     const nextSpaceId = initialData?.spaceId || activeSpaceId || spaces[0]?.id || '';
     const nextSpace = spaces.find(space => space.id === nextSpaceId);
-    const requestedListId = initialData?.listId || activeListId || null;
+    const requestedListId = initialData?.id ? initialData.listId : initialData?.listId || activeListId || null;
     const nextListId = requestedListId && nextSpace?.lists?.some(list => list.id === requestedListId)
       ? requestedListId
-      : nextSpace?.lists?.[0]?.id || null;
+      : initialData?.id ? null : nextSpace?.lists?.[0]?.id || null;
 
     setTitle(initialData?.title || '');
     setDescription(initialData?.description || '');
@@ -488,8 +493,9 @@ export default function TaskModal({
   // ═══════════════════════════════════════════════
   // SUBMIT HANDLER
   // ═══════════════════════════════════════════════
-  const handleSubmit = useCallback((e?: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (savingRef.current || isUploadingAttachment) return;
     if (!title.trim()) {
       setValidationError(isVietnamese ? 'Vui lòng nhập tên công việc.' : 'Please enter a task title.');
       titleInputRef.current?.focus();
@@ -513,6 +519,7 @@ export default function TaskModal({
       assigneeIds,
       spaceId: spaceId || undefined,
       listId: listId || undefined,
+      workspaceId: activeWorkspaceId,
       startDate: startDate || undefined,
       dueDate: dueDate || undefined,
       tags,
@@ -536,37 +543,41 @@ export default function TaskModal({
       }
     };
 
-    if (dueDate && reminder && reminder !== 'none') {
-      saveTaskReminder(initialData?.id || `new-${Date.now()}`, title.trim(), dueDate, reminder);
-    }
-
-    onSave(payload, createAnother);
-
-    if (createAnother) {
-      setTitle('');
-      setDescription('');
-      setSubtasks([]);
-      setNewSubtaskTitle('');
-      setTags([]);
-      setProgress(0);
-      setHoursEstimate('');
-      setHoursLogged('');
-      setCustomFieldValues({});
-      setIsPinned(false);
-      setIsMilestone(false);
-      setReminder('none');
-      setRecurrence({ frequency: 'none', interval: 1 });
-      setAttachments([]);
-      setBlockedByIds([]);
-      setTimeout(() => { titleInputRef.current?.focus(); }, 50);
-    } else {
-      onClose();
+    savingRef.current = true;
+    setIsSaving(true);
+    try {
+      await onSave(payload, createAnother);
+      if (createAnother) {
+        setTitle('');
+        setDescription('');
+        setSubtasks([]);
+        setNewSubtaskTitle('');
+        setTags([]);
+        setProgress(0);
+        setHoursEstimate('');
+        setHoursLogged('');
+        setCustomFieldValues({});
+        setIsPinned(false);
+        setIsMilestone(false);
+        setReminder('none');
+        setRecurrence({ frequency: 'none', interval: 1 });
+        setAttachments([]);
+        setBlockedByIds([]);
+        setTimeout(() => { titleInputRef.current?.focus(); }, 50);
+      } else {
+        onClose();
+      }
+    } catch (error) {
+      setValidationError(error instanceof Error ? error.message : (isVietnamese ? 'Không thể lưu công việc. Vui lòng thử lại.' : 'Could not save task. Please try again.'));
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
     }
   }, [
     title, description, status, priority, assigneeIds, spaceId, listId, startDate, dueDate,
     tags, progress, hoursEstimate, hoursLogged, customFieldValues, subtasks, createAnother,
     onSave, onClose, isVietnamese, isPinned, isMilestone, reminder, recurrence, attachments,
-    blockedByIds, initialData
+    blockedByIds, initialData, activeWorkspaceId, isUploadingAttachment
   ]);
 
   // Sync progress from subtasks
@@ -601,7 +612,7 @@ export default function TaskModal({
         if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
         if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
       }
-      if (e.key === 'Escape') { onClose(); }
+      if (e.key === 'Escape') { requestClose(); }
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
         handleSubmit();
@@ -609,7 +620,7 @@ export default function TaskModal({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, handleSubmit, onClose]);
+  }, [isOpen, handleSubmit, requestClose]);
 
   // ═══════════════════════════════════════════════
   // SUBTASK HANDLERS
@@ -780,7 +791,7 @@ export default function TaskModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.12 }}
-          onClick={onClose}
+          onClick={requestClose}
           className="fixed inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs cursor-pointer"
         />
 
@@ -837,7 +848,7 @@ export default function TaskModal({
                         size="sm"
                         ariaLabel={isVietnamese ? 'Danh sách' : 'List'}
                         options={[
-                          { value: '', label: isVietnamese ? '📋 Tất cả' : '📋 All' },
+                          { value: '', label: isVietnamese ? 'Không thuộc danh sách' : 'No list' },
                           ...selectedSpace.lists.map(lst => ({ value: lst.id, label: lst.name }))
                         ]}
                       />
@@ -850,7 +861,7 @@ export default function TaskModal({
             {/* Right: Close */}
             <button
               type="button"
-              onClick={onClose}
+              onClick={requestClose}
               className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer"
               title={isVietnamese ? 'Đóng (Esc)' : 'Close (Esc)'}
             >
@@ -859,7 +870,7 @@ export default function TaskModal({
           </div>
 
           {/* ── SCROLLABLE CONTENT ── */}
-          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto custom-scrollbar">
+          <form onSubmit={handleSubmit} inert={isSaving} className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="task-create-content">
 
               {/* ─── SECTION 1: Title + AI Autofill ─── */}
@@ -1786,6 +1797,7 @@ export default function TaskModal({
                   <input
                     type="checkbox"
                     checked={createAnother}
+                    disabled={isSaving}
                     onChange={e => setCreateAnother(e.target.checked)}
                     className="rounded text-indigo-600 focus:ring-0 cursor-pointer w-3.5 h-3.5"
                   />
@@ -1805,7 +1817,7 @@ export default function TaskModal({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={requestClose}
                 className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 {isVietnamese ? 'Hủy' : 'Cancel'}
@@ -1814,7 +1826,8 @@ export default function TaskModal({
               <button
                 type="button"
                 onClick={() => handleSubmit()}
-                disabled={!title.trim()}
+                disabled={!title.trim() || isSaving || isUploadingAttachment}
+                aria-busy={isSaving}
                 className={`px-4 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5 transition-all ${
                   title.trim()
                     ? 'bg-indigo-600 hover:bg-indigo-700 active:scale-[0.97] shadow-sm shadow-indigo-500/20 cursor-pointer'
@@ -1823,7 +1836,7 @@ export default function TaskModal({
               >
                 {isEditMode ? <Check className="w-3.5 h-3.5 stroke-[2.5]" /> : <Plus className="w-3.5 h-3.5 stroke-[2.5]" />}
                 <span>
-                  {isEditMode
+                  {isSaving ? (isVietnamese ? 'Đang lưu…' : 'Saving…') : isEditMode
                     ? (isVietnamese ? 'Lưu' : 'Save')
                     : (isVietnamese ? 'Tạo' : 'Create')}
                 </span>

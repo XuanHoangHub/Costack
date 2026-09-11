@@ -78,7 +78,7 @@ export default function MiniAppContainer({
   return (
     <div
       className={`w-full h-full flex flex-col bg-white dark:bg-transparent ${
-        isFullscreen ? 'fixed inset-0 z-[100] bg-white dark:bg-[#09090b]' : 'relative'
+        isFullscreen ? 'fixed inset-0 z-[100] bg-white dark:bg-[var(--cu-bg)]' : 'relative'
       }`}
     >
       {/* Mini App Top Header Bar */}

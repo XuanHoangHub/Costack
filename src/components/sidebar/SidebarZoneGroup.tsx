@@ -209,14 +209,14 @@ export function SidebarZoneGroup({
           }`}
         >
           {/* Zone Accent Dot */}
-          <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${zoneColor.dot} ring-2 ring-white dark:ring-[#09090b] shadow-sm`} />
+          <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${zoneColor.dot} ring-2 ring-white dark:ring-[var(--sidebar-bg)] shadow-sm`} />
 
           {/* Emoji */}
           <span className="text-sm select-none">{zone.emoji || '📁'}</span>
 
           {/* Unread badge if any */}
           {totalUnreadCount > 0 && (
-            <span className="absolute -bottom-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-rose-500 text-white font-black text-[8px] flex items-center justify-center ring-2 ring-white dark:ring-[#09090b] shadow-sm">
+            <span className="absolute -bottom-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-rose-500 text-white font-black text-[8px] flex items-center justify-center ring-2 ring-white dark:ring-[var(--sidebar-bg)] shadow-sm">
               {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
             </span>
           )}

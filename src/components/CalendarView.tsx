@@ -975,7 +975,7 @@ export default function CalendarView({
   }[priority]);
 
   return (
-    <div className="relative flex h-full w-full flex-row select-none overflow-hidden bg-slate-100/70 font-sans text-slate-800 dark:bg-[#000000] dark:text-slate-100">
+    <div className="relative flex h-full w-full flex-row select-none overflow-hidden bg-slate-100/70 font-sans text-slate-800 dark:bg-[var(--cu-bg)] dark:text-slate-100">
       
       {/* Collapsible Left Sidebar */}
       <AnimatePresence initial={false}>
@@ -985,7 +985,7 @@ export default function CalendarView({
             animate={{ width: '16.5rem', opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 240, damping: 28 }}
-            className="absolute inset-y-0 left-0 z-30 flex w-[16.5rem] shrink-0 flex-col divide-y divide-slate-200/80 overflow-y-auto border-r border-slate-200/90 bg-white text-left shadow-2xl backdrop-blur-xl dark:divide-slate-800/80 dark:border-slate-800 dark:bg-[#121212] lg:relative lg:z-auto lg:shadow-none"
+            className="absolute inset-y-0 left-0 z-30 flex w-[16.5rem] shrink-0 flex-col divide-y divide-slate-200/80 overflow-y-auto border-r border-slate-200/90 bg-white text-left shadow-2xl backdrop-blur-xl dark:divide-slate-800/80 dark:border-slate-800 dark:bg-[var(--cu-surface)] lg:relative lg:z-auto lg:shadow-none"
           >
             {/* Mini Calendar Navigator */}
             <MiniCalendarNavigator 
@@ -1137,7 +1137,7 @@ export default function CalendarView({
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: 4, scale: 0.96 }}
                           transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
-                          className="absolute left-0 right-0 top-full mt-1.5 z-50 overflow-hidden rounded-2xl border border-slate-200/90 bg-white/98 p-1.5 shadow-xl backdrop-blur-xl dark:border-slate-800 dark:bg-[#181818]/98 space-y-0.5"
+                          className="absolute left-0 right-0 top-full mt-1.5 z-50 overflow-hidden rounded-2xl border border-slate-200/90 bg-white/98 p-1.5 shadow-xl backdrop-blur-xl dark:border-[var(--cu-border)] dark:bg-[var(--cu-surface-2)]/98 space-y-0.5"
                         >
                           {[
                             { id: 'all', label: 'Tất cả mức ưu tiên', dot: 'bg-slate-300 dark:bg-slate-600' },
@@ -1244,7 +1244,7 @@ export default function CalendarView({
       <div className="relative flex min-w-0 flex-1 flex-col gap-2.5 overflow-hidden p-2 sm:p-3.5">
 
         {/* Calendar Navigation Header */}
-        <header className="z-20 shrink-0 rounded-2xl border border-slate-200/90 bg-white/95 p-3 shadow-xs backdrop-blur-xl dark:border-slate-800/90 dark:bg-[#121212]/95">
+        <header className="z-20 shrink-0 rounded-2xl border border-slate-200/90 bg-white/95 p-3 shadow-xs backdrop-blur-xl dark:border-[var(--cu-border)] dark:bg-[var(--cu-surface)]/95">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             
             {/* Left Nav controls */}
@@ -1376,10 +1376,10 @@ export default function CalendarView({
           {/* A. MONTH VIEW (Clean Google/Apple Calendar Design) */}
           {/* ============================================================ */}
           {viewMode === 'month' && (
-            <div className="flex h-full min-h-[600px] min-w-full md:min-w-[760px] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs dark:border-slate-800/80 dark:bg-[#121212]">
+            <div className="flex h-full min-h-[600px] min-w-full md:min-w-[760px] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs dark:border-[var(--cu-border)] dark:bg-[var(--cu-surface)]">
               
               {/* Weekday Row */}
-              <div className="grid grid-cols-7 border-b border-slate-200/80 bg-slate-50/90 dark:border-slate-800/80 dark:bg-[#181818] h-9 shrink-0">
+              <div className="grid grid-cols-7 border-b border-slate-200/80 bg-slate-50/90 dark:border-[var(--cu-border)] dark:bg-[var(--cu-surface-2)] h-9 shrink-0">
                 {['THỨ 2', 'THỨ 3', 'THỨ 4', 'THỨ 5', 'THỨ 6', 'THỨ 7', 'CHỦ NHẬT'].map((header) => (
                   <div 
                     key={header} 
@@ -1393,7 +1393,7 @@ export default function CalendarView({
               
               {/* Day Cells Grid */}
               <div 
-                className="grid flex-1 grid-cols-7 gap-px bg-slate-200/80 dark:bg-slate-800/70"
+                className="grid flex-1 grid-cols-7 gap-px bg-slate-200/80 dark:bg-[var(--cu-border)]"
                 style={{ gridTemplateRows: `repeat(${Math.ceil(daysInMonth.length / 7)}, minmax(95px, 1fr))` }}
               >
                 {daysInMonth.map((day, idx) => {
@@ -1415,8 +1415,8 @@ export default function CalendarView({
                       onDragLeave={handleDragLeave}
                       onDrop={e => handleDrop(e, dateStr)}
                       onClick={() => handleGridCellClick(dateStr)}
-                      className={`group relative flex min-h-0 flex-col gap-1 overflow-hidden bg-white dark:bg-[#121212] text-slate-900 dark:text-slate-100 p-1.5 text-left transition duration-150 cursor-pointer ${
-                        isDragOver ? 'z-10 bg-blue-50/80 dark:bg-blue-950/40 ring-2 ring-inset ring-blue-500' : 'hover:bg-slate-50/80 dark:hover:bg-[#181818]'
+                      className={`group relative flex min-h-0 flex-col gap-1 overflow-hidden bg-white dark:bg-[var(--cu-surface)] text-slate-900 dark:text-slate-100 p-1.5 text-left transition duration-150 cursor-pointer ${
+                        isDragOver ? 'z-10 bg-blue-50/80 dark:bg-blue-950/40 ring-2 ring-inset ring-blue-500' : 'hover:bg-slate-50/80 dark:hover:bg-[var(--cu-surface-2)]'
                       }`}
                     >
                       {/* Day Number Header */}
@@ -1532,11 +1532,11 @@ export default function CalendarView({
           {/* B. WEEK VIEW & 4-DAY VIEW & DAY VIEW (Hourly Grids) */}
           {/* ============================================================ */}
           {(viewMode === 'week' || viewMode === '4day' || viewMode === 'day') && (
-            <div className={`relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs dark:border-slate-800/80 dark:bg-[#121212] ${viewMode === 'day' ? 'min-w-0' : 'min-w-[320px] md:min-w-[680px]'}`}>
+            <div className={`relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs dark:border-[var(--cu-border)] dark:bg-[var(--cu-surface)] ${viewMode === 'day' ? 'min-w-0' : 'min-w-[320px] md:min-w-[680px]'}`}>
               
               {/* Header Days Row */}
-              <div className={`grid ${viewMode === 'week' ? 'grid-cols-8' : viewMode === '4day' ? 'grid-cols-5' : 'grid-cols-2'} gap-px border-b border-slate-200/80 bg-slate-100 dark:border-slate-800/80 dark:bg-slate-800/80`}>
-                <div className="bg-slate-50/90 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:bg-[#181818] dark:text-slate-500">
+              <div className={`grid ${viewMode === 'week' ? 'grid-cols-8' : viewMode === '4day' ? 'grid-cols-5' : 'grid-cols-2'} gap-px border-b border-slate-200/80 bg-slate-100 dark:border-[var(--cu-border)] dark:bg-[var(--cu-border)]`}>
+                <div className="bg-slate-50/90 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:bg-[var(--cu-surface-2)] dark:text-slate-500">
                   Giờ
                 </div>
                 {(viewMode === 'week' ? daysInWeek : viewMode === '4day' ? getDays4Day(currentDate) : [currentDate]).map((day, idx) => {
@@ -1546,7 +1546,7 @@ export default function CalendarView({
                   return (
                     <div 
                       key={idx} 
-                      className="flex flex-col items-center justify-center gap-0.5 py-2 text-center transition bg-slate-50/90 dark:bg-[#181818]"
+                      className="flex flex-col items-center justify-center gap-0.5 py-2 text-center transition bg-slate-50/90 dark:bg-[var(--cu-surface-2)]"
                     >
                       <span className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                         {['THỨ 2', 'THỨ 3', 'THỨ 4', 'THỨ 5', 'THỨ 6', 'THỨ 7', 'CHỦ NHẬT'][day.getDay() === 0 ? 6 : day.getDay() - 1]}
@@ -1602,7 +1602,7 @@ export default function CalendarView({
                   <div key={hour} className={`grid ${viewMode === 'week' ? 'grid-cols-8' : viewMode === '4day' ? 'grid-cols-5' : 'grid-cols-2'} gap-px bg-slate-100 dark:bg-slate-800/60`}>
                     
                     {/* Time Label column */}
-                    <div className="border-r border-slate-100 bg-white py-3.5 pr-3 text-right font-sans text-xs font-semibold tracking-tight tabular-nums text-slate-500 dark:border-slate-800/80 dark:bg-[#121212] dark:text-slate-400 select-none">
+                    <div className="border-r border-slate-100 bg-white py-3.5 pr-3 text-right font-sans text-xs font-semibold tracking-tight tabular-nums text-slate-500 dark:border-[var(--cu-border)] dark:bg-[var(--cu-surface)] dark:text-slate-400 select-none">
                       {`${String(hour).padStart(2, '0')}:00`}
                     </div>
 
@@ -1638,8 +1638,8 @@ export default function CalendarView({
                           onDragLeave={handleDragLeave}
                           onDrop={e => handleDrop(e, dateStr, hour)}
                           onClick={() => handleGridCellClick(dateStr, hour)}
-                          className={`relative flex min-h-[54px] flex-col gap-1 bg-white p-1.5 transition duration-150 dark:bg-[#121212] cursor-pointer ${
-                            isDragOver ? 'z-10 bg-blue-100/60 ring-2 ring-inset ring-blue-500 dark:bg-blue-950/40' : 'hover:bg-slate-50/80 dark:hover:bg-[#181818]'
+                          className={`relative flex min-h-[54px] flex-col gap-1 bg-white p-1.5 transition duration-150 dark:bg-[var(--cu-surface)] cursor-pointer ${
+                            isDragOver ? 'z-10 bg-blue-100/60 ring-2 ring-inset ring-blue-500 dark:bg-blue-950/40' : 'hover:bg-slate-50/80 dark:hover:bg-[var(--cu-surface-2)]'
                           }`}
                         >
                           {hourEvents.map((evt, idx) => (
@@ -1674,7 +1674,7 @@ export default function CalendarView({
                                 className={`flex min-h-[24px] cursor-grab items-center gap-1.5 truncate rounded-md border border-l-[3px] px-2 text-[10px] font-bold transition active:cursor-grabbing shadow-3xs ${
                                   isCompleted 
                                     ? 'border-emerald-200 bg-emerald-50 text-slate-400 line-through dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-slate-500'
-                                    : 'border-slate-200 bg-white text-slate-800 hover:border-blue-400 dark:border-slate-700/60 dark:bg-[#181818] dark:text-slate-200 dark:hover:border-blue-700'
+                                    : 'border-slate-200 bg-white text-slate-800 hover:border-blue-400 dark:border-slate-700/60 dark:bg-[var(--cu-surface-2)] dark:text-slate-200 dark:hover:border-blue-700'
                                 }`}
                                 style={{ borderLeftColor: isCompleted ? '#10b981' : task.priority === 'urgent' ? '#f43f5e' : task.priority === 'high' ? '#f97316' : task.priority === 'medium' ? '#3b82f6' : '#94a3b8' }}
                               >
@@ -1700,7 +1700,7 @@ export default function CalendarView({
           {/* C. SCHEDULE (AGENDA) VIEW */}
           {/* ============================================================ */}
           {viewMode === 'schedule' && (
-            <div className="flex max-h-[calc(100vh-260px)] flex-col gap-4 overflow-y-auto rounded-2xl border border-slate-200/90 bg-white p-4 text-left dark:border-slate-800/80 dark:bg-[#121212] sm:p-5 shadow-xs">
+            <div className="flex max-h-[calc(100vh-260px)] flex-col gap-4 overflow-y-auto rounded-2xl border border-slate-200/90 bg-white p-4 text-left dark:border-[var(--cu-border)] dark:bg-[var(--cu-surface)] sm:p-5 shadow-xs">
               {(() => {
                 const allItems: { date: string; dateObj: Date; items: any[] }[] = [];
                 const today = new Date(currentDate);
@@ -1830,7 +1830,7 @@ export default function CalendarView({
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.92, y: 20, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-              className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-[#181818]/95 shadow-[0_32px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl p-6 sm:p-7 text-left"
+              className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200/80 dark:border-[var(--cu-border)] bg-white/95 dark:bg-[var(--cu-surface)]/95 shadow-[0_32px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl p-6 sm:p-7 text-left"
             >
               <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-gradient-to-bl from-indigo-500/20 via-blue-500/10 to-transparent blur-2xl pointer-events-none" />
 
@@ -1910,7 +1910,7 @@ export default function CalendarView({
               animate={{ scale: 1, y: 0, opacity: 1 }} 
               exit={{ scale: 0.92, y: 20, opacity: 0 }} 
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-              className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-[#181818]/95 shadow-[0_32px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl p-6 sm:p-7 text-left"
+              className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200/80 dark:border-[var(--cu-border)] bg-white/95 dark:bg-[var(--cu-surface)]/95 shadow-[0_32px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl p-6 sm:p-7 text-left"
             >
               <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-gradient-to-bl from-indigo-500/20 via-blue-500/10 to-transparent blur-2xl pointer-events-none" />
               
@@ -2127,7 +2127,7 @@ export default function CalendarView({
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.92, y: 20, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-              className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-[#181818]/95 shadow-[0_32px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl p-6 sm:p-7 text-left"
+              className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200/80 dark:border-[var(--cu-border)] bg-white/95 dark:bg-[var(--cu-surface)]/95 shadow-[0_32px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl p-6 sm:p-7 text-left"
             >
               {/* Radiant Glow Behind Header */}
               <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-gradient-to-bl from-indigo-500/20 via-blue-500/10 to-transparent blur-2xl pointer-events-none" />

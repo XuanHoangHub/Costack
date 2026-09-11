@@ -705,11 +705,10 @@ export default function TaskCommandCenter({
       <TaskModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onSave={(payload, createAnother) => {
-          onAddTask({ ...payload, workspaceId: activeWorkspaceId });
+        onSave={async (payload) => {
+          await onAddTask({ ...payload, workspaceId: activeWorkspaceId });
           onAddSyncLog(`Created task: "${payload.title}"`);
           triggerToast?.('success', 'Đã tạo công việc', payload.title);
-          if (!createAnother) setIsCreateOpen(false);
         }}
         spaces={spaces}
         activeSpaceId={activeSpaceId}

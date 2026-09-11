@@ -238,7 +238,7 @@
 }
 
 .dark {
-  /* ── Apexa True Black / Deep Dark OLED Design Tokens (Zero Navy/Blue Tint) ── */
+  /* ── Apexa Atmospheric Dark System (Apple macOS / Linear / Raycast Standard) ── */
   --cu-primary: #3B82F6;
   --cu-primary-hover: #60A5FA;
   --cu-primary-light: rgba(59, 130, 246, 0.15);
@@ -246,70 +246,79 @@
   --cu-accent: #38BDF8;
   --cu-accent-subtle: rgba(56, 189, 248, 0.12);
 
-  /* Pure Pitch Black & Structured Surface Layers */
-  --cu-bg: #000000;
-  --cu-bg-subtle: #0A0A0A;
-  --cu-surface: #121212;
-  --cu-surface-2: #181818;
-  --cu-surface-3: #222222;
-  --cu-border: rgba(255, 255, 255, 0.09);
-  --cu-border-strong: rgba(255, 255, 255, 0.18);
+  /* Atmospheric Obsidian & Ergonomic Layer Surfaces */
+  --cu-bg: #0b0c12;
+  --cu-bg-subtle: #0f1118;
+  --cu-surface: #141622;
+  --cu-surface-2: #1b1e2e;
+  --cu-surface-3: #23273b;
+  --cu-border: rgba(255, 255, 255, 0.08);
+  --cu-border-strong: rgba(255, 255, 255, 0.15);
 
-  /* WCAG AAA High Contrast Typography */
-  --cu-text-primary: #FFFFFF;
-  --cu-text-secondary: #D4D4D8;
-  --cu-text-muted: #A0A0A0;
-  --cu-text-inverse: #000000;
+  /* Unified Sidebar & Navigation System */
+  --sidebar-bg: #10121a;
+  --sidebar-surface: #141622;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-text: #f8fafc;
+  --sidebar-muted: #94a3b8;
+  --sidebar-signal: #3B82F6;
 
-  --cu-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.8);
-  --cu-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.85);
-  --cu-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.9);
-  --cu-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.95);
-  --cu-shadow-primary: 0 8px 28px -6px rgba(59, 130, 246, 0.4);
+  /* High Legibility WCAG AA+ Typography (No harsh glare, high contrast) */
+  --cu-text-primary: #f8fafc;
+  --cu-text-secondary: #cbd5e1;
+  --cu-text-muted: #94a3b8;
+  --cu-text-tertiary: #64748b;
+  --cu-text-inverse: #0b0c12;
 
-  /* True Neutral Grayscale Palette for all Tailwind Slate classes in Dark Mode */
-  --slate-50: #ffffff;
-  --slate-100: #f4f4f5;
-  --slate-200: #e4e4e7;
-  --slate-300: #d4d4d8;
-  --slate-400: #a0a0a0;
-  --slate-500: #71717a;
-  --slate-600: #3f3f46;
-  --slate-700: #27272a;
-  --slate-800: #181818;
-  --slate-900: #0a0a0a;
-  --slate-950: #000000;
+  --cu-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --cu-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.55);
+  --cu-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.65);
+  --cu-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.75);
+  --cu-shadow-primary: 0 8px 28px -6px rgba(59, 130, 246, 0.35);
 
-  --slate-55: #fafafa;
-  --slate-101: #f4f4f5;
-  --slate-105: #f4f4f5;
-  --slate-150: #e4e4e7;
-  --slate-202: #e4e4e7;
-  --slate-205: #e4e4e7;
-  --slate-250: #d4d4d8;
-  --slate-255: #d4d4d8;
+  /* Harmonious Slate Palette for Tailwind classes in Dark Mode */
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #474f68;
+  --slate-700: #262b3d;
+  --slate-800: #1b1e2e;
+  --slate-900: #141622;
+  --slate-950: #0b0c12;
+
+  --slate-55: #f8fafc;
+  --slate-101: #f1f5f9;
+  --slate-105: #f1f5f9;
+  --slate-150: #e2e8f0;
+  --slate-202: #e2e8f0;
+  --slate-205: #e2e8f0;
+  --slate-250: #cbd5e1;
+  --slate-255: #cbd5e1;
   --slate-305: #cbd5e1;
-  --slate-350: #cbd5e1;
-  --slate-355: #cbd5e1;
-  --slate-404: #a0a0a0;
-  --slate-405: #a0a0a0;
-  --slate-450: #a0a0a0;
-  --slate-455: #a0a0a0;
-  --slate-505: #e4e4e7;
-  --slate-550: #d4d4d8;
-  --slate-555: #e4e4e7;
-  --slate-605: #f4f4f5;
-  --slate-650: #f4f4f5;
-  --slate-655: #f4f4f5;
-  --slate-705: #ffffff;
-  --slate-750: #ffffff;
-  --slate-755: #121212;
-  --slate-805: #0a0a0a;
-  --slate-808: #0a0a0a;
-  --slate-850: #0a0a0a;
-  --slate-855: #0a0a0a;
-  --slate-905: #050505;
-  --slate-955: #000000;
+  --slate-350: #94a3b8;
+  --slate-355: #94a3b8;
+  --slate-404: #94a3b8;
+  --slate-405: #94a3b8;
+  --slate-450: #64748b;
+  --slate-455: #64748b;
+  --slate-505: #64748b;
+  --slate-550: #64748b;
+  --slate-555: #474f68;
+  --slate-605: #474f68;
+  --slate-650: #333a4d;
+  --slate-655: #333a4d;
+  --slate-705: #262b3d;
+  --slate-750: #1b1e2e;
+  --slate-755: #1b1e2e;
+  --slate-805: #171926;
+  --slate-808: #171926;
+  --slate-850: #141622;
+  --slate-855: #141622;
+  --slate-905: #0f1118;
+  --slate-955: #0b0c12;
 
   /* Apexa Core Theme Color Gradients */
   --apexa-primary: #3B82F6;
@@ -319,6 +328,20 @@
   --apexa-gradient-end: #60A5FA;
   --apexa-liquid-color: #38BDF8;
   --apexa-ring: rgba(59, 130, 246, 0.35);
+}
+
+/* ── Smart Dark Mode Fallbacks for Un-prefixed Tailwind Utility Classes ── */
+.dark :where([class*="text-slate-900"]:not([class*="dark:text-"]), [class*="text-slate-850"]:not([class*="dark:text-"]), [class*="text-slate-800"]:not([class*="dark:text-"])) {
+  color: var(--cu-text-primary);
+}
+.dark :where([class*="text-slate-700"]:not([class*="dark:text-"]), [class*="text-slate-600"]:not([class*="dark:text-"])) {
+  color: var(--cu-text-secondary);
+}
+.dark :where([class*="bg-slate-50"]:not([class*="dark:bg-"]), [class*="bg-slate-100"]:not([class*="dark:bg-"])) {
+  background-color: var(--cu-surface-2);
+}
+.dark :where([class*="border-slate-200"]:not([class*="dark:border-"]), [class*="border-slate-100"]:not([class*="dark:border-"])) {
+  border-color: var(--cu-border);
 }
 
 html, body, #root {
@@ -567,7 +590,7 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur']:not(.modal-backdr
 }
 
 .dark .ios27-glass, .dark .liquid-glass {
-  background-color: rgba(18, 18, 18, 0.85);
+  background-color: rgba(20, 22, 34, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
@@ -579,9 +602,9 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur']:not(.modal-backdr
 }
 
 .dark .glass-panel, .dark .ios27-card {
-  background-color: #121212;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.7);
+  background-color: var(--cu-surface);
+  border: 1px solid var(--cu-border);
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.45);
 }
 
 /* Apple-standard modal backdrop: gentle, elegant, crystal-clean dimming (no murky black sludge) */
@@ -609,10 +632,10 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur']:not(.modal-backdr
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.03), 0 1px 2px 0 rgba(0, 0, 0, 0.02);
 }
 .dark .glass-panel {
-  background: rgba(18, 18, 18, 0.9);
+  background: rgba(20, 22, 34, 0.9);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.9), 0 1px 2px 0 rgba(0, 0, 0, 0.7);
+  border: 1px solid var(--cu-border);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5), 0 1px 2px 0 rgba(0, 0, 0, 0.4);
 }
 
 .liquid-glass {
@@ -622,10 +645,10 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur']:not(.modal-backdr
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04);
 }
 .dark .liquid-glass {
-  background: rgba(18, 18, 18, 0.9);
+  background: rgba(20, 22, 34, 0.9);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.9);
+  border: 1px solid var(--cu-border);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
 }
 
 .liquid-blob {
@@ -1114,8 +1137,8 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur']:not(.modal-backdr
 }
 
 .document-editor pre {
-  background: #121212;
-  border: 1px solid #262626;
+  background: var(--cu-surface-2);
+  border: 1px solid var(--cu-border);
   border-radius: 0.85rem;
   color: #f4f4f5;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -1571,28 +1594,28 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur']:not(.modal-backdr
 }
 
 .dark .cu-header {
-  background: rgba(0, 0, 0, 0.88);
+  background: rgba(20, 22, 34, 0.88);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border-bottom: none;
+  border-bottom: 1px solid var(--cu-border);
   box-shadow: none;
 }
 
 .cu-sidebar {
-  background: #09090b;
+  background: #ffffff;
   backdrop-filter: blur(28px) saturate(190%);
   -webkit-backdrop-filter: blur(28px) saturate(190%);
   border: none;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.02);
+  border-right: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.02);
 }
 
 .dark .cu-sidebar {
-  background: #09090b;
+  background: var(--sidebar-bg);
   backdrop-filter: blur(28px) saturate(190%);
   -webkit-backdrop-filter: blur(28px) saturate(190%);
   border: none;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid var(--sidebar-border);
   box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.02);
 }
 
@@ -1605,9 +1628,9 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur']:not(.modal-backdr
 }
 
 .dark .cu-search-bar {
-  background: rgba(18, 18, 18, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+  background: var(--cu-surface-2);
+  border: 1px solid var(--cu-border);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .cu-search-bar:hover,
@@ -1619,9 +1642,9 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur']:not(.modal-backdr
 
 .dark .cu-search-bar:hover,
 .dark .cu-search-bar:focus-within {
-  background: rgba(24, 24, 24, 0.98);
+  background: var(--cu-surface-3);
   border-color: rgba(56, 189, 248, 0.4);
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .cu-kpi-card {
@@ -1918,12 +1941,12 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur']:not(.modal-backdr
 }
 
 .dark .shots-dock {
-  background: #121212;
+  background: var(--cu-surface);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--cu-border);
   border-radius: 9999px;
-  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.5);
 }
 
 .shots-inset-highlight {
@@ -2673,8 +2696,8 @@ input[type="checkbox"]:not(.sr-only):disabled {
 
 /* ── Space command workspace ──────────────────────────────────────────────── */
 .apexa-space-shell {
-  --space-night: #09090b;
-  --space-night-soft: #121217;
+  --space-night: var(--cu-bg);
+  --space-night-soft: var(--cu-surface);
   --space-lime: #38bdf8;
   --space-blue: #2563eb;
   isolation: isolate;
@@ -2684,10 +2707,10 @@ input[type="checkbox"]:not(.sr-only):disabled {
   position: relative;
   color: #eef0f8;
   background:
-    radial-gradient(circle at 16% 0%, rgba(37, 99, 235, 0.2), transparent 27%),
-    linear-gradient(180deg, #09090b 0%, #09090b 100%) !important;
+    radial-gradient(circle at 16% 0%, rgba(37, 99, 235, 0.15), transparent 27%),
+    linear-gradient(180deg, var(--sidebar-bg) 0%, var(--sidebar-bg) 100%) !important;
   border-right: 0 !important;
-  box-shadow: 12px 0 34px -30px rgba(0, 0, 0, 0.95) !important;
+  box-shadow: 12px 0 34px -30px rgba(0, 0, 0, 0.75) !important;
 }
 
 .dark .apexa-space-sidebar::after {
@@ -3460,14 +3483,14 @@ input[type="checkbox"]:not(.sr-only):disabled {
   color: #eef0f8;
   background:
     radial-gradient(circle at 16% 0%, rgba(37,99,235,.15), transparent 27%),
-    linear-gradient(180deg, #09090b 0%, #09090b 100%) !important;
-  border-right: 1px solid rgba(255,255,255,.08) !important;
+    linear-gradient(180deg, var(--sidebar-bg) 0%, var(--sidebar-bg) 100%) !important;
+  border-right: 1px solid var(--sidebar-border) !important;
   box-shadow: inset -1px 0 rgba(255,255,255,.035) !important;
 }
 
 .dark .apexa-space-sidebar-header {
-  background: rgba(9,9,11,.82) !important;
-  border-bottom: 1px solid rgba(255,255,255,.07) !important;
+  background: var(--sidebar-bg) !important;
+  border-bottom: 1px solid var(--sidebar-border) !important;
 }
 
 .dark .apexa-space-sidebar-header [class*="text-slate-"],
