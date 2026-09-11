@@ -228,9 +228,9 @@ export default function TaskDetailsPanel({
     'fixed inset-0 z-[100] flex items-stretch justify-end p-0 bg-slate-950/20 dark:bg-black/35 transition-all duration-200 cursor-pointer';
 
   const panelClass =
-    modalLayout === 'modal' ? 'relative w-full sm:w-[92vw] max-w-[1240px] h-full sm:h-[88vh] sm:max-h-[920px] bg-white dark:bg-[var(--cu-surface)] border-none sm:border border-slate-200/90 dark:border-white/10 rounded-none sm:rounded-[26px] flex flex-col overflow-hidden shadow-[0_28px_85px_rgba(15,23,42,0.22)] dark:shadow-[0_32px_96px_rgba(0,0,0,0.55)] ring-1 ring-black/5 dark:ring-white/10 pointer-events-auto cursor-default outline-none focus:outline-none ring-0' :
+    modalLayout === 'modal' ? 'relative w-full sm:w-[92vw] max-w-[1240px] h-full sm:h-[88vh] sm:max-h-[920px] bg-white dark:bg-[var(--cu-surface)] border-none sm:border border-slate-200/90 dark:border-slate-800/80 rounded-none sm:rounded-[26px] flex flex-col overflow-hidden shadow-[0_28px_85px_rgba(15,23,42,0.22)] dark:shadow-[0_32px_96px_rgba(0,0,0,0.55)] ring-1 ring-black/5 dark:ring-white/[0.05] pointer-events-auto cursor-default outline-none focus:outline-none ring-0' :
     modalLayout === 'fullscreen' ? 'relative w-full h-full bg-white dark:bg-[var(--cu-bg)] flex flex-col overflow-hidden shadow-2xl pointer-events-auto cursor-default outline-none focus:outline-none ring-0' :
-    `relative w-full ${isSidebarExpanded ? 'max-w-[1100px] xl:max-w-[80vw]' : 'max-w-[680px] lg:max-w-[740px]'} h-full bg-white dark:bg-[var(--cu-surface)] border-l border-slate-200/90 dark:border-white/10 rounded-none sm:rounded-l-[26px] flex flex-col overflow-hidden shadow-[-20px_0_60px_rgba(15,23,42,0.2)] dark:shadow-[-20px_0_60px_rgba(0,0,0,0.5)] pointer-events-auto cursor-default outline-none focus:outline-none ring-0`;
+    `relative w-full ${isSidebarExpanded ? 'max-w-[1100px] xl:max-w-[80vw]' : 'max-w-[680px] lg:max-w-[740px]'} h-full bg-white dark:bg-[var(--cu-surface)] border-l border-slate-200/90 dark:border-slate-800/80 rounded-none sm:rounded-l-[26px] flex flex-col overflow-hidden shadow-[-20px_0_60px_rgba(15,23,42,0.2)] dark:shadow-[-20px_0_60px_rgba(0,0,0,0.5)] pointer-events-auto cursor-default outline-none focus:outline-none ring-0`;
 
   const panelAnimation: any =
     modalLayout === 'modal' ? {

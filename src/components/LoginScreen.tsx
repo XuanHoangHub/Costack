@@ -679,11 +679,11 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
               aria-modal="true"
               aria-labelledby="auth-dialog-title"
               ref={dialogRef}
-              className="apexa-auth-dialog relative z-10 my-auto grid max-h-[calc(100vh-24px)] w-full max-w-[940px] overflow-hidden rounded-2xl sm:rounded-[26px] border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[var(--cu-surface)] shadow-[0_40px_120px_-36px_rgba(0,0,0,0.45)] dark:shadow-[0_40px_120px_-36px_rgba(0,0,0,0.85)] lg:grid-cols-[0.88fr_1.12fr]"
+              className="apexa-auth-dialog relative z-10 my-auto grid max-h-[calc(100vh-24px)] w-full max-w-[940px] overflow-hidden rounded-2xl sm:rounded-[26px] border border-slate-800/80 dark:border-slate-800/80 bg-white dark:bg-[var(--cu-surface)] shadow-[0_40px_120px_-36px_rgba(0,0,0,0.45)] dark:shadow-[0_40px_120px_-36px_rgba(0,0,0,0.85)] lg:grid-cols-[0.88fr_1.12fr]"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Product story panel */}
-              <aside className="relative hidden min-h-[660px] overflow-hidden bg-gradient-to-b from-[#0f172a] via-[#0b1120] to-[#020617] dark:from-[#131728] dark:via-[#0e111d] dark:to-[#090b12] p-8 text-white lg:flex lg:flex-col lg:justify-between select-none border-r border-slate-800/80 dark:border-white/10">
+              <aside className="relative hidden min-h-[660px] overflow-hidden bg-gradient-to-b from-[#0f172a] via-[#0b1120] to-[#020617] dark:from-[#131728] dark:via-[#0e111d] dark:to-[#090b12] p-8 text-white lg:flex lg:flex-col lg:justify-between select-none border-r border-slate-800/80 dark:border-slate-800/80">
                 {/* Multi-layer Ambient Backlight Glows */}
                 <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full bg-blue-600/20 blur-[100px]" />
                 <div className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-indigo-500/15 blur-[100px]" />
