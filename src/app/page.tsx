@@ -1310,9 +1310,20 @@ export default function App() {
   const currentWorkspaceTasks = useMemo(() => {
     const workspaceSpaceIds = new Set(spaces.filter(s => s.workspaceId === activeWorkspaceId).map(s => s.id));
     return tasks.filter(t => {
+      if (t.deletedAt) return false;
       if (t.workspaceId) return t.workspaceId === activeWorkspaceId;
       if (t.spaceId) return workspaceSpaceIds.has(t.spaceId);
       return false;
+    });
+  }, [tasks, spaces, activeWorkspaceId]);
+
+  const deletedWorkspaceTasks = useMemo(() => {
+    const workspaceSpaceIds = new Set(spaces.filter(s => s.workspaceId === activeWorkspaceId).map(s => s.id));
+    return tasks.filter(t => {
+      if (!t.deletedAt) return false;
+      if (t.workspaceId) return t.workspaceId === activeWorkspaceId;
+      if (t.spaceId) return workspaceSpaceIds.has(t.spaceId);
+      return !t.workspaceId; // fallback for unassigned workspace tasks
     });
   }, [tasks, spaces, activeWorkspaceId]);
 
@@ -1627,7 +1638,7 @@ export default function App() {
     type: 'assignment' | 'deadline' | 'comment' | 'success' | 'info' | 'message' | 'chat_message',
     title: string,
     message: string,
-    options?: { taskId?: string; workspaceId?: string; persistInInbox?: boolean }
+    options?: { taskId?: string; workspaceId?: string; persistInInbox?: boolean; action?: { label: string; onClick: () => void } }
   ) => {
     // Creating an entity is already confirmed by the UI. Do not create a second
     // toast or pollute the durable Inbox with the current user's own action.
@@ -1798,7 +1809,8 @@ export default function App() {
       type,
       title,
       message,
-      duration: notificationSettings.toastDuration
+      duration: notificationSettings.toastDuration,
+      action: options?.action
     });
   }, [pomodoroActive, notificationSettings, addToast, setNotificationsList, activeWorkspaceId]);
 
@@ -4160,18 +4172,40 @@ export default function App() {
     }
   }, [currentUser, members, triggerToast, addSyncLog, setTasks, isOffline, handleAddTask, setOfflineTasksQueue, setOfflineDeletedTasks]);
 
-  const handleDeleteTask = useCallback(async (id: string) => {
+  const handleRestoreTask = useCallback(async (id: string) => {
     const currentTasks = useTaskStore.getState().tasks;
     const targetTask = currentTasks.find(t => t.id === id);
+
+    useTaskStore.getState().restoreTask(id);
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, deletedAt: undefined } : t));
+
     if (targetTask) {
       triggerToast(
-        'info',
-        'Task Deleted',
-        `Task "${targetTask.title}" has been removed from the system.`
+        'success',
+        locale === 'vi' ? 'Đã khôi phục công việc' : 'Task Restored',
+        locale === 'vi' ? `Công việc "${targetTask.title}" đã được khôi phục.` : `Task "${targetTask.title}" has been restored.`
       );
-      addSyncLog(`Đã xóa công việc "${targetTask.title}"`, 'task');
+      addSyncLog(`Đã khôi phục công việc "${targetTask.title}"`, 'task');
     }
 
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { error } = await supabase.from('tasks').update({ deleted_at: null }).eq('id', id);
+          if (error) throw error;
+        }
+      } catch (err) {
+        console.error('Task restore sync failure:', err);
+      }
+    }
+  }, [triggerToast, addSyncLog, setTasks, isOffline, locale]);
+
+  const handlePermanentDeleteTask = useCallback(async (id: string) => {
+    const currentTasks = useTaskStore.getState().tasks;
+    const targetTask = currentTasks.find(t => t.id === id);
+
+    useTaskStore.getState().permanentDeleteTask(id);
     setTasks(prev => prev.filter(t => t.id !== id));
     saveTaskReminder(id, '', '', 'none');
     setOfflineTasksQueue(prev => {
@@ -4180,29 +4214,104 @@ export default function App() {
       return copy;
     });
 
+    if (targetTask) {
+      triggerToast(
+        'info',
+        locale === 'vi' ? 'Đã xóa vĩnh viễn' : 'Task Permanently Deleted',
+        locale === 'vi' ? `Công việc "${targetTask.title}" đã được xóa hoàn toàn khỏi hệ thống.` : `Task "${targetTask.title}" permanently removed.`
+      );
+      addSyncLog(`Đã xóa vĩnh viễn công việc "${targetTask.title}"`, 'task');
+    }
+
     if (!isOffline) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const { error } = await supabase.from('tasks').delete().eq('id', id);
           if (error) throw error;
+        }
+      } catch (err) {
+        console.error('Permanent task delete sync failure:', err);
+        setOfflineDeletedTasks(prev => Array.from(new Set([...prev, id])));
+      }
+    }
+  }, [triggerToast, addSyncLog, setTasks, isOffline, setOfflineTasksQueue, setOfflineDeletedTasks, locale]);
+
+  const handleDeleteTask = useCallback(async (id: string) => {
+    const currentTasks = useTaskStore.getState().tasks;
+    const targetTask = currentTasks.find(t => t.id === id);
+    const nowIso = new Date().toISOString();
+
+    // Soft delete locally
+    useTaskStore.getState().softDeleteTask(id);
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, deletedAt: nowIso } : t));
+    saveTaskReminder(id, '', '', 'none');
+
+    if (targetTask) {
+      triggerToast(
+        'info',
+        locale === 'vi' ? 'Đã chuyển vào thùng rác' : 'Task Moved to Trash',
+        locale === 'vi' ? `Công việc "${targetTask.title}" đã được chuyển vào thùng rác.` : `Task "${targetTask.title}" moved to trash.`,
+        {
+          action: {
+            label: locale === 'vi' ? 'Hoàn tác' : 'Undo',
+            onClick: () => handleRestoreTask(id)
+          }
+        }
+      );
+      addSyncLog(`Đã chuyển công việc "${targetTask.title}" vào thùng rác`, 'task');
+    }
+
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { error } = await supabase.from('tasks').update({ deleted_at: nowIso }).eq('id', id);
+          if (error) throw error;
         } else {
           throw new Error('No active session');
         }
       } catch (err) {
-        console.error('Task delete sync failure:', err);
+        console.error('Task soft delete sync failure:', err);
         setOfflineDeletedTasks(prev => Array.from(new Set([...prev, id])));
-        triggerToast('info', 'Đã xóa trên thiết bị', 'Thao tác xóa đang chờ đồng bộ lên máy chủ.');
+        triggerToast('info', 'Đã lưu trên thiết bị', 'Thao tác chuyển thùng rác đang chờ đồng bộ lên máy chủ.');
       }
-    } else {
-      setOfflineTasksQueue(prev => {
-        const copy = { ...prev };
-        delete copy[id];
-        return copy;
-      });
-      setOfflineDeletedTasks(prev => Array.from(new Set([...prev, id])));
     }
-  }, [triggerToast, addSyncLog, setTasks, isOffline, setOfflineTasksQueue, setOfflineDeletedTasks]);
+  }, [triggerToast, addSyncLog, setTasks, isOffline, setOfflineDeletedTasks, locale, handleRestoreTask]);
+
+  const handleEmptyTrash = useCallback(async () => {
+    const targetTasks = deletedWorkspaceTasks;
+    if (targetTasks.length === 0) return;
+
+    const idsToDelete = targetTasks.map(t => t.id);
+    const idSet = new Set(idsToDelete);
+
+    setTasks(prev => prev.filter(t => !idSet.has(t.id)));
+    idsToDelete.forEach(id => {
+      useTaskStore.getState().permanentDeleteTask(id);
+      saveTaskReminder(id, '', '', 'none');
+    });
+
+    triggerToast(
+      'info',
+      locale === 'vi' ? 'Thùng rác đã được dọn sạch' : 'Trash Emptied',
+      locale === 'vi' ? `Đã xóa vĩnh viễn ${idsToDelete.length} công việc khỏi hệ thống.` : `Permanently removed ${idsToDelete.length} tasks.`
+    );
+    addSyncLog(`Đã dọn sạch thùng rác (${idsToDelete.length} công việc)`, 'task');
+
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { error } = await supabase.from('tasks').delete().in('id', idsToDelete);
+          if (error) throw error;
+        }
+      } catch (err) {
+        console.error('Empty trash sync failure:', err);
+        setOfflineDeletedTasks(prev => Array.from(new Set([...prev, ...idsToDelete])));
+      }
+    }
+  }, [deletedWorkspaceTasks, triggerToast, addSyncLog, setTasks, isOffline, setOfflineDeletedTasks, locale]);
 
   const handleUpdateTaskOrder = useCallback(async (workspaceId: string, orderedIds: string[]) => {
     if (currentUser && !isOffline) {
@@ -6347,6 +6456,10 @@ export default function App() {
                       onAddTask={handleAddTask}
                       onUpdateTask={handleUpdateTask}
                       onDeleteTask={handleDeleteTask}
+                      deletedTasks={deletedWorkspaceTasks}
+                      onRestoreTask={handleRestoreTask}
+                      onPermanentDeleteTask={handlePermanentDeleteTask}
+                      onEmptyTrash={handleEmptyTrash}
                       isOffline={isOffline}
                       onAddSyncLog={addSyncLog}
                       triggerToast={triggerToast}

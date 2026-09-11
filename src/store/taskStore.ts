@@ -8,6 +8,9 @@ interface TaskState {
   addTask: (task: Task) => void;
   updateTask: (task: Task) => void;
   deleteTask: (id: string) => void;
+  softDeleteTask: (id: string) => void;
+  restoreTask: (id: string) => void;
+  permanentDeleteTask: (id: string) => void;
 }
 
 export const useTaskStore = create<TaskState>()(
@@ -21,6 +24,18 @@ export const useTaskStore = create<TaskState>()(
           tasks: state.tasks.map((t) => (t.id === updated.id ? updated : t)),
         })),
       deleteTask: (id) =>
+        set((state) => ({
+          tasks: state.tasks.map((t) => (t.id === id ? { ...t, deletedAt: new Date().toISOString() } : t)),
+        })),
+      softDeleteTask: (id) =>
+        set((state) => ({
+          tasks: state.tasks.map((t) => (t.id === id ? { ...t, deletedAt: new Date().toISOString() } : t)),
+        })),
+      restoreTask: (id) =>
+        set((state) => ({
+          tasks: state.tasks.map((t) => (t.id === id ? { ...t, deletedAt: undefined } : t)),
+        })),
+      permanentDeleteTask: (id) =>
         set((state) => ({
           tasks: state.tasks.filter((t) => t.id !== id),
         })),

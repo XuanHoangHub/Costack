@@ -152,6 +152,7 @@ export interface Task {
   progress: number; // 0 to 100
   createdAt: string;
   completedAt?: string;
+  deletedAt?: string;
   aiSummary?: string;
   position?: number;
   hoursEstimate?: number;

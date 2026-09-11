@@ -18,9 +18,13 @@ export interface Toast {
   title: string;
   message: string;
   duration?: number;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
-interface ToastNotificationProps {
+export interface ToastNotificationProps {
   toasts: Toast[];
   onClose: (id: string) => void;
 }
@@ -131,6 +135,19 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
         <p className="text-[11.5px] text-slate-600 dark:text-slate-300 leading-snug break-words">
           {toast.message}
         </p>
+        {toast.action && (
+          <button
+            type="button"
+            onClick={() => {
+              toast.action?.onClick();
+              onClose(toast.id);
+            }}
+            className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-white bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 rounded-lg shadow-sm transition-all hover:scale-102 active:scale-98 cursor-pointer"
+          >
+            <span>{toast.action.label}</span>
+            <ArrowRight className="w-3 h-3" />
+          </button>
+        )}
       </div>
 
       {/* Manual close controller icon */}

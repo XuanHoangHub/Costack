@@ -42,6 +42,7 @@ import TaskModal from './tasks/TaskModal';
 import FieldSettingsModal, { ALL_FIELD_TYPES } from './tasks/FieldSettingsModal';
 import { ApexaAiIcon } from './ApexaAiIcon';
 import PromptModal, { PromptModalConfig } from './PromptModal';
+import TaskTrashModal from './tasks/TaskTrashModal';
 
 // Dynamically split heavy non-default views and dialogs
 const TaskGanttView = dynamic(() => import('./tasks/TaskGanttView'), { ssr: false });
@@ -157,6 +158,12 @@ interface SpacePageProps {
   onStartGlobalTimer?: (taskId: string) => void;
   onStopGlobalTimer?: () => void;
   onTogglePauseGlobalTimer?: () => void;
+
+  // Task Trash props
+  deletedTasks?: Task[];
+  onRestoreTask?: (id: string) => void | Promise<void>;
+  onPermanentDeleteTask?: (id: string) => void | Promise<void>;
+  onEmptyTrash?: () => void | Promise<void>;
 }
 
 export default function SpacePage({
@@ -169,7 +176,8 @@ export default function SpacePage({
   syncLogs = [], onNavigate, onToggleOffline,
   onAddFolderToSpace, onAddDocToSpace, onAddWhiteboardToSpace, onAddListToFolder,
   onAddDoc, onUpdateDoc, onDeleteDoc, onDeleteSpace, onOpenAutomations,
-  onStartGlobalTimer, onStopGlobalTimer, onTogglePauseGlobalTimer
+  onStartGlobalTimer, onStopGlobalTimer, onTogglePauseGlobalTimer,
+  deletedTasks = [], onRestoreTask, onPermanentDeleteTask, onEmptyTrash
 }: SpacePageProps) {
   const { t, locale } = useTranslation();
 
@@ -474,6 +482,7 @@ export default function SpacePage({
   const [sidebarWidth, setSidebarWidth] = useState<number>(272);
   const [isResizing, setIsResizing] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [showTrashModal, setShowTrashModal] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   // Handle mouse drag sidebar resizing
@@ -1823,8 +1832,8 @@ export default function SpacePage({
     } else if (sortBy === 'manual') {
       const orderMap = new Map(taskOrder.map((id, idx) => [id, idx]));
       result = [...result].sort((a, b) => {
-        const idxA = orderMap.has(a.id) ? orderMap.get(a.id)! : 9999;
-        const idxB = orderMap.has(b.id) ? orderMap.get(b.id)! : 9999;
+        const idxA = orderMap.has(a.id) ? orderMap.get(a.id)! : (typeof a.position === 'number' ? a.position : 9999);
+        const idxB = orderMap.has(b.id) ? orderMap.get(b.id)! : (typeof b.position === 'number' ? b.position : 9999);
         return idxA - idxB;
       });
     }
@@ -2207,6 +2216,25 @@ export default function SpacePage({
                                 <span className="text-[10px] font-mono opacity-70">
                                   {totalArchivedCount}
                                 </span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowTrashModal(true);
+                                  setShowSpaceOptionsDropdown(false);
+                                }}
+                                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                  <span>{locale === 'vi' ? 'Thùng rác' : 'Task Trash'}</span>
+                                </div>
+                                {deletedTasks && deletedTasks.length > 0 && (
+                                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
+                                    {deletedTasks.length}
+                                  </span>
+                                )}
                               </button>
                             </div>
                           </motion.div>
@@ -2870,8 +2898,8 @@ export default function SpacePage({
               </div>
             </div>
 
-            {/* Create space row */}
-            <div className="shrink-0 border-t border-slate-100 bg-white p-2.5 dark:border-white/[0.08] dark:bg-[var(--sidebar-bg)]">
+            {/* Create space & Trash rows */}
+            <div className="shrink-0 border-t border-slate-100 bg-white p-2.5 dark:border-white/[0.08] dark:bg-[var(--sidebar-bg)] space-y-1.5">
               <button
                 type="button"
                 onClick={() => onAddSpace?.()}
@@ -2881,6 +2909,24 @@ export default function SpacePage({
                   <Plus className="h-3.5 w-3.5" />
                 </span>
                 <span>{t('createNewSpace') || (locale === 'vi' ? 'Tạo không gian mới' : 'Create new space')}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowTrashModal(true)}
+                className="group/trash flex min-h-9 w-full items-center justify-between gap-2.5 rounded-xl border border-transparent hover:border-rose-200/60 dark:hover:border-rose-900/30 bg-transparent hover:bg-rose-50/50 dark:hover:bg-rose-950/20 px-2.5 py-2 text-left text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 transition-all cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-slate-200/80 bg-white text-slate-500 shadow-3xs transition group-hover/trash:border-rose-300 group-hover/trash:text-rose-600 group-hover/trash:bg-rose-50 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-zinc-400 dark:group-hover/trash:border-rose-500/40 dark:group-hover/trash:bg-rose-500/15 dark:group-hover/trash:text-rose-300">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </span>
+                  <span>{locale === 'vi' ? 'Thùng rác' : 'Task Trash'}</span>
+                </div>
+                {deletedTasks && deletedTasks.length > 0 && (
+                  <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
+                    {deletedTasks.length}
+                  </span>
+                )}
               </button>
             </div>
           </motion.div>
@@ -6724,6 +6770,22 @@ export default function SpacePage({
         type={confirmModal.type}
         onConfirm={confirmModal.onConfirm}
         onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
+
+      <TaskTrashModal
+        isOpen={showTrashModal}
+        onClose={() => setShowTrashModal(false)}
+        deletedTasks={deletedTasks}
+        onRestoreTask={async (id) => {
+          await onRestoreTask?.(id);
+        }}
+        onPermanentDeleteTask={async (id) => {
+          await onPermanentDeleteTask?.(id);
+        }}
+        onEmptyTrash={async () => {
+          await onEmptyTrash?.();
+        }}
+        spaces={spaces}
       />
 
       {/* Modern UI/UX Prompt Modal */}

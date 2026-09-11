@@ -269,27 +269,63 @@ const TaskListView = React.memo(function TaskListView({
   const handleDragEnd = (result: DropResult) => {
     setActiveDragId(null);
     if (!result.destination) return;
-    const { draggableId, destination } = result;
+    const { draggableId, destination, source } = result;
     const taskId = draggableId.replace('task_list_item_', '');
     const newStatus = destination.droppableId;
+    const sourceStatus = source.droppableId;
 
     const taskToUpdate = tasks.find(t => t.id === taskId);
-    if (taskToUpdate && taskToUpdate.status !== newStatus) {
-      const updatedTask = { ...taskToUpdate, status: newStatus as TaskStatus };
-      onUpdateTask(updatedTask);
-      onAddSyncLog(`Moved task "${taskToUpdate.title}" to status ${newStatus}`);
-    } else if (taskToUpdate && result.source.droppableId === destination.droppableId) {
-      const groupIds = filteredTasks.filter(task => task.status === newStatus).map(task => task.id);
+    if (!taskToUpdate) return;
+
+    if (sourceStatus === newStatus) {
+      // Reordering within the same status column
+      const groupTasks = filteredTasks.filter(task => task.status === newStatus);
+      const groupIds = groupTasks.map(task => task.id);
       const sourceIndex = groupIds.indexOf(taskId);
       if (sourceIndex >= 0) {
         const nextGroupIds = [...groupIds];
         nextGroupIds.splice(sourceIndex, 1);
         nextGroupIds.splice(destination.index, 0, taskId);
+
+        // Update position on each affected task
+        nextGroupIds.forEach((id, idx) => {
+          const item = tasks.find(t => t.id === id);
+          if (item && item.position !== idx) {
+            onUpdateTask({ ...item, position: idx });
+          }
+        });
+
         const groupSet = new Set(nextGroupIds);
         let groupIndex = 0;
         const orderedIds = filteredTasks.map(task => groupSet.has(task.id) ? nextGroupIds[groupIndex++] : task.id);
         onReorderTasks?.(orderedIds);
       }
+    } else {
+      // Moving across status columns
+      const targetGroupTasks = filteredTasks.filter(task => task.status === newStatus && task.id !== taskId);
+      const targetGroupIds = targetGroupTasks.map(task => task.id);
+      targetGroupIds.splice(destination.index, 0, taskId);
+
+      // Update the moved task with new status and position
+      const updatedTask: Task = { ...taskToUpdate, status: newStatus as TaskStatus, position: destination.index };
+      onUpdateTask(updatedTask);
+      onAddSyncLog(`Moved task "${taskToUpdate.title}" to status ${newStatus}`);
+
+      // Update positions for other tasks in target group
+      targetGroupIds.forEach((id, idx) => {
+        if (id === taskId) return;
+        const item = tasks.find(t => t.id === id);
+        if (item && item.position !== idx) {
+          onUpdateTask({ ...item, position: idx });
+        }
+      });
+
+      const targetGroupSet = new Set(targetGroupIds);
+      let targetIndex = 0;
+      const orderedIds = filteredTasks
+        .filter(t => t.id !== taskId)
+        .map(task => targetGroupSet.has(task.id) ? targetGroupIds[targetIndex++] : task.id);
+      onReorderTasks?.(orderedIds);
     }
   };
 
@@ -557,10 +593,19 @@ const TaskListView = React.memo(function TaskListView({
                                       <motion.div
                                         data-task-row
                                         onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
-                                        {...(dragProvided.dragHandleProps as any)}
                                         whileHover={{ y: -1, boxShadow: '0 4px 20px rgba(0,0,0,0.04)' }}
-                                        className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-3.5 ${isCompact ? 'py-1.5' : 'py-2'} border-l-[3px] border border-slate-200/50 dark:border-white/[0.04] rounded-lg ${dynamicStatusBorders[task.status] || STATUS_LEFT_BORDER[task.status]} cursor-grab active:cursor-grabbing transition-all group/row hover:bg-slate-50/80 dark:hover:bg-slate-850/50 ${isSelected ? 'bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-800' : 'bg-white/80 dark:bg-white/[0.02]'} ${dragSnapshot.isDragging ? 'shadow-2xl bg-white dark:bg-slate-900 z-50 opacity-95 ring-2 ring-indigo-500/40' : ''}`}
+                                        className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-3.5 ${isCompact ? 'py-1.5' : 'py-2'} border-l-[3px] border border-slate-200/50 dark:border-white/[0.04] rounded-lg ${dynamicStatusBorders[task.status] || STATUS_LEFT_BORDER[task.status]} cursor-pointer transition-all group/row hover:bg-slate-50/80 dark:hover:bg-slate-850/50 ${isSelected ? 'bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-800' : 'bg-white/80 dark:bg-white/[0.02]'} ${dragSnapshot.isDragging ? 'shadow-2xl bg-white dark:bg-slate-900 z-50 opacity-95 ring-2 ring-indigo-500/40' : ''}`}
                                       >
+
+                                        {/* Drag Handle */}
+                                        <div
+                                          {...(dragProvided.dragHandleProps as any)}
+                                          onClick={e => e.stopPropagation()}
+                                          className="opacity-0 group-hover/row:opacity-100 transition-opacity -ml-1 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-grab active:cursor-grabbing shrink-0"
+                                          title={locale === 'vi' ? 'Kéo để đổi vị trí' : 'Drag to reorder'}
+                                        >
+                                          <GripVertical className="w-3.5 h-3.5" />
+                                        </div>
 
                                         {/* Subtask Tree indentation */}
                                         {depth > 0 && (

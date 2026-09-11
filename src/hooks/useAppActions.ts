@@ -357,19 +357,49 @@ export function useAppActions() {
     }
   }, [tasks, members, isOffline, setTasks, triggerToast, currentUser, addSyncLog]);
 
-  const handleDeleteTask = useCallback(async (id: string) => {
+  const handleRestoreTask = useCallback(async (id: string) => {
     const targetTask = tasks.find(t => t.id === id);
+    useTaskStore.getState().restoreTask(id);
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, deletedAt: undefined } : t));
+
+    if (targetTask) {
+      triggerToast({
+        id: generateId(),
+        type: 'success',
+        title: 'Task Restored',
+        message: `Task "${targetTask.title}" has been restored.`,
+        duration: 4000
+      });
+      addSyncLog(`Đã khôi phục công việc "${targetTask.title}"`);
+    }
+
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          await supabase.from('tasks').update({ deleted_at: null }).eq('id', id);
+        }
+      } catch (err) {
+        console.error('Task restore sync failure:', err);
+      }
+    }
+  }, [tasks, isOffline, setTasks, triggerToast, addSyncLog]);
+
+  const handlePermanentDeleteTask = useCallback(async (id: string) => {
+    const targetTask = tasks.find(t => t.id === id);
+    useTaskStore.getState().permanentDeleteTask(id);
+    setTasks(prev => prev.filter(t => t.id !== id));
+
     if (targetTask) {
       triggerToast({
         id: generateId(),
         type: 'info',
-        title: 'Task Deleted',
-        message: `Task "${targetTask.title}" has been removed from the system.`,
+        title: 'Task Permanently Deleted',
+        message: `Task "${targetTask.title}" has been permanently removed.`,
         duration: 4000
       });
+      addSyncLog(`Đã xóa vĩnh viễn công việc "${targetTask.title}"`);
     }
-
-    setTasks(prev => prev.filter(t => t.id !== id));
 
     if (!isOffline) {
       try {
@@ -379,7 +409,71 @@ export function useAppActions() {
           if (error) console.error('Supabase Task Delete Error:', error);
         }
       } catch (err) {
+        console.error('Task permanent delete sync failure:', err);
+      }
+    }
+  }, [tasks, isOffline, setTasks, triggerToast, addSyncLog]);
+
+  const handleDeleteTask = useCallback(async (id: string) => {
+    const targetTask = tasks.find(t => t.id === id);
+    const nowIso = new Date().toISOString();
+
+    useTaskStore.getState().softDeleteTask(id);
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, deletedAt: nowIso } : t));
+
+    if (targetTask) {
+      triggerToast({
+        id: generateId(),
+        type: 'info',
+        title: 'Task Moved to Trash',
+        message: `Task "${targetTask.title}" has been moved to trash.`,
+        duration: 5000,
+        action: {
+          label: 'Hoàn tác',
+          onClick: () => handleRestoreTask(id)
+        }
+      });
+    }
+
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { error } = await supabase.from('tasks').update({ deleted_at: nowIso }).eq('id', id);
+          if (error) console.error('Supabase Task Soft Delete Error:', error);
+        }
+      } catch (err) {
         console.error('Task delete sync failure:', err);
+      }
+    }
+  }, [tasks, isOffline, setTasks, triggerToast, handleRestoreTask]);
+
+  const handleEmptyTrash = useCallback(async (workspaceId?: string) => {
+    const activeWs = workspaceId || useWorkspaceStore.getState().activeWorkspaceId;
+    const toDelete = tasks.filter(t => Boolean(t.deletedAt) && (!t.workspaceId || t.workspaceId === activeWs));
+    const ids = toDelete.map(t => t.id);
+    if (ids.length === 0) return;
+
+    const idSet = new Set(ids);
+    setTasks(prev => prev.filter(t => !idSet.has(t.id)));
+    ids.forEach(id => useTaskStore.getState().permanentDeleteTask(id));
+
+    triggerToast({
+      id: generateId(),
+      type: 'info',
+      title: 'Trash Emptied',
+      message: `Permanently removed ${ids.length} tasks.`,
+      duration: 4000
+    });
+
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          await supabase.from('tasks').delete().in('id', ids);
+        }
+      } catch (err) {
+        console.error('Empty trash failure:', err);
       }
     }
   }, [tasks, isOffline, setTasks, triggerToast]);
@@ -1224,6 +1318,9 @@ export function useAppActions() {
     handleAddTask,
     handleUpdateTask,
     handleDeleteTask,
+    handleRestoreTask,
+    handlePermanentDeleteTask,
+    handleEmptyTrash,
     handleUpdateTaskOrder,
     handleAddDoc,
     handleUpdateDoc,
