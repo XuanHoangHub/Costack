@@ -31,6 +31,10 @@ import { useMemberStore } from '@/store/memberStore';
 import { callAiApi } from '@/lib/aiClient';
 import EmojiIconPicker, { renderSpaceIcon } from './EmojiIconPicker';
 import { Select } from './ui/Select';
+import DocumentTools from './documents/DocumentTools';
+import { documentExtensions } from './documents/documentExtensions';
+import { documentToMarkdown, escapeDocumentHtml, normalizeDocumentContent } from '@/lib/documentModel';
+import { useDocumentAutosave } from '@/hooks/useDocumentAutosave';
 import { ApexaAiIcon } from './ApexaAiIcon';
 import {
   SupabaseYjsProvider,
@@ -48,6 +52,7 @@ interface DocumentEditorProps {
   onCreateTask?: (title: string, description: string) => void;
   pendingInsertion?: { id: number; text: string } | null;
   onInsertionHandled?: () => void;
+  onAddPage?: () => void;
 }
 
 interface DocumentVersion {
@@ -276,6 +281,7 @@ export default function DocumentEditor({
   onCreateTask,
   pendingInsertion,
   onInsertionHandled,
+  onAddPage,
 }: DocumentEditorProps) {
   const [docDetails, setDocDetails] = useState<any>(initialDocument || null);
   const [comments, setComments] = useState<any[]>([]);
@@ -309,7 +315,7 @@ export default function DocumentEditor({
   });
 
   const [isLocked, setIsLocked] = useState(false);
-  const [showOutline, setShowOutline] = useState(false);
+  const [showOutline, setShowOutline] = useState(true);
   const [showPaperSettings, setShowPaperSettings] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
@@ -361,8 +367,11 @@ export default function DocumentEditor({
     return 'editor';
   });
   const [realtimeStatus, setRealtimeStatus] = useState<DocumentRealtimeStatus>(isOffline ? 'offline' : 'connecting');
-  const [saveStatus, setSaveStatus] = useState<DocumentSaveStatus>('idle');
-  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const autosave = useDocumentAutosave(documentId, authUserId, isOffline, onDocumentUpdated);
+  const { saveStatus, lastSavedAt } = autosave;
+  const saveDocumentRef = useRef(autosave.save);
+  saveDocumentRef.current = autosave.save;
+  const [contentRevision, setContentRevision] = useState(0);
   
   const titleSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contentSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -557,8 +566,11 @@ export default function DocumentEditor({
   const editorExtensions = useMemo(() => {
     const baseExtensions: any[] = [
       StarterKit.configure({
-        history: !isOffline && yDoc && typeof yDoc.getXmlFragment === 'function' ? false : undefined,
-      } as any),
+        undoRedo: provider ? false : undefined,
+        link: false,
+        underline: false,
+      }),
+      ...documentExtensions,
       Underline,
       Link.configure({
         openOnClick: false,
@@ -702,6 +714,7 @@ export default function DocumentEditor({
   }, [closeSlashMenu]);
 
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: editorExtensions,
     editable: canEdit && !isLocked,
     editorProps: {
@@ -741,29 +754,9 @@ export default function DocumentEditor({
     },
     onUpdate({ editor }) {
       updateSlashMenu(editor);
-      if (isOffline || !canEdit) return;
-      setSaveStatus('saving');
-      const saveContent = async () => {
-        const { error } = await supabase
-          .from('documents')
-          .update({ 
-            content: editor.getJSON(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', documentId);
-
-        if (error) {
-          setSaveStatus('error');
-          return;
-        }
-
-        setSaveStatus('saved');
-        setLastSavedAt(new Date());
-        onDocumentUpdatedRef.current?.({ content: editor.getJSON(), updated_at: new Date().toISOString() });
-      };
-      
-      if (contentSaveTimeout.current) clearTimeout(contentSaveTimeout.current);
-      contentSaveTimeout.current = setTimeout(saveContent, 900);
+      setContentRevision(value => value + 1);
+      if (!canEdit) return;
+      saveDocumentRef.current({ content: editor.getJSON() });
     },
     onSelectionUpdate({ editor }) {
       if (!editor || !editor.state || !editor.view || !editor.state.doc) return;
@@ -814,13 +807,13 @@ export default function DocumentEditor({
 
   useEffect(() => {
     if (!editor || !docDetails || hydratedDocumentId.current === documentId) return;
-    const content = docDetails.content;
-    if (content && typeof content === 'object') {
-      editor.commands.setContent(content, { emitUpdate: false });
-    }
+    const content = autosave.draft?.content ?? docDetails.content;
+    editor.commands.setContent(normalizeDocumentContent(content), { emitUpdate: false });
+    if (autosave.draft) setDocDetails((previous: any) => ({ ...previous, ...autosave.draft }));
+    setContentRevision(value => value + 1);
     editor.setEditable(canEdit && !isLocked);
     hydratedDocumentId.current = documentId;
-  }, [canEdit, docDetails, documentId, editor, isLocked]);
+  }, [canEdit, docDetails, documentId, editor, isLocked, autosave.draft]);
 
   useEffect(() => {
     if (!editor || !pendingInsertion?.text || !canEdit || isLocked) return;
@@ -875,17 +868,7 @@ export default function DocumentEditor({
     setDocDetails((prev: any) => prev ? { ...prev, title: val } : null);
     onUpdateTitle(val);
     onDocumentUpdated?.({ title: val });
-    if (isOffline) return;
-    setSaveStatus('saving');
-    if (titleSaveTimeout.current) clearTimeout(titleSaveTimeout.current);
-    titleSaveTimeout.current = setTimeout(async () => {
-      const { error } = await supabase
-        .from('documents')
-        .update({ title: val, updated_at: new Date().toISOString() })
-        .eq('id', documentId);
-      setSaveStatus(error ? 'error' : 'saved');
-      if (!error) setLastSavedAt(new Date());
-    }, 500);
+    autosave.save({ title: val });
   };
 
   const selectEmoji = async (emoji: string | null) => {
@@ -893,11 +876,7 @@ export default function DocumentEditor({
     setDocDetails((prev: any) => prev ? { ...prev, icon: emoji } : null);
     onUpdateCoverAndIcon(docDetails?.cover_url || null, emoji);
     onDocumentUpdated?.({ icon: emoji });
-    if (isOffline) return;
-    await supabase
-      .from('documents')
-      .update({ icon: emoji })
-      .eq('id', documentId);
+    autosave.save({ icon: emoji });
   };
 
   const selectCover = async (cover: string | null) => {
@@ -906,11 +885,7 @@ export default function DocumentEditor({
     onUpdateCoverAndIcon(cover, docDetails?.icon || null);
     onDocumentUpdated?.({ cover_url: cover });
     setShowCoverPicker(false);
-    if (isOffline) return;
-    await supabase
-      .from('documents')
-      .update({ cover_url: cover })
-      .eq('id', documentId);
+    autosave.save({ cover_url: cover });
   };
 
   const handleRandomCover = () => {
@@ -967,7 +942,7 @@ export default function DocumentEditor({
 
   const handleExportMarkdown = () => {
     if (!editor) return;
-    const textContent = editor.getText();
+    const textContent = documentToMarkdown(editor.getJSON());
     const blob = new Blob([`# ${docDetails?.title || 'Tài liệu'}\n\n${textContent}`], { type: 'text/markdown;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -980,7 +955,8 @@ export default function DocumentEditor({
 
   const handleExportHtml = () => {
     if (!editor) return;
-    const htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${docDetails?.title || 'Tài liệu'}</title><style>body{font-family:sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.7;color:#1e293b;}</style></head><body><h1>${docDetails?.title || 'Tài liệu'}</h1>${editor.getHTML()}</body></html>`;
+    const title = escapeDocumentHtml(docDetails?.title || 'Tài liệu');
+    const htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title><style>body{font-family:sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.7;color:#1e293b;}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:8px}img{max-width:100%}[data-doc-columns]{display:flex;gap:24px}[data-doc-column]{flex:1}[data-doc-callout]{padding:16px;background:#eff6ff}</style></head><body><h1>${title}</h1>${editor.getHTML()}</body></html>`;
     const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -1165,7 +1141,7 @@ export default function DocumentEditor({
   const readTime = Math.max(1, Math.ceil(words / 200));
   const collaborationStatus = (() => {
     if (isOffline || realtimeStatus === 'offline') {
-      return { label: 'Ngoại tuyến', detail: 'Chỉnh sửa realtime đang tạm dừng', tone: 'amber', icon: CloudOff };
+      return { label: 'Lưu trên thiết bị', detail: 'Bản nháp được lưu trên trình duyệt; sẽ thử đồng bộ khi kết nối lại.', tone: 'amber', icon: CloudOff };
     }
     if (realtimeStatus === 'connecting') {
       return { label: 'Đang kết nối', detail: 'Đang mở phòng cộng tác riêng tư', tone: 'sky', icon: LoaderCircle };
@@ -1199,14 +1175,14 @@ export default function DocumentEditor({
   return (
     <div 
       style={getPaperBgStyle()}
-      className={`flex-1 flex flex-col h-full ${
+      className={`doc-editor-shell ${isFocusMode ? 'doc-focus-mode' : ''} flex-1 flex flex-col h-full ${
         paperStyle === 'warm' ? 'bg-[#fdfcf9] dark:bg-[var(--cu-surface)]' : 'bg-[#fbfbfc] dark:bg-[var(--cu-bg)]'
       } select-text overflow-y-auto font-sans relative scrollbar-thin print:bg-white print:p-0`}
     >
       
       {/* ── TOP STICKY PRO FORMATTING RIBBON & CONTROLS ── */}
       {!isFocusMode && (
-        <div className="sticky top-0 z-40 flex min-h-12 items-center justify-between gap-2 overflow-x-auto border-b border-slate-200/80 bg-white/95 px-2.5 py-1.5 shadow-xs backdrop-blur-xl scrollbar-none sm:px-4 dark:border-slate-800/90 dark:bg-[var(--cu-surface)]/95 select-none print:hidden">
+        <div className="doc-ribbon sticky top-0 z-40 flex min-h-12 items-center justify-between gap-2 border-b border-slate-200/80 bg-white/95 px-2.5 py-1.5 backdrop-blur-xl sm:px-4 dark:border-slate-800/90 dark:bg-[var(--cu-surface)]/95 select-none print:hidden">
           
           {/* Left Ribbon: Text Styles & Block Types */}
           <div className="flex items-center gap-1 flex-nowrap shrink-0 overflow-x-auto scrollbar-none py-0.5">
@@ -2018,11 +1994,13 @@ export default function DocumentEditor({
       </AnimatePresence>
 
       {/* ── MAIN WORKSPACE CONTAINER (FULL PAGE) ── */}
-      <div className="flex w-full flex-1 justify-center px-4 py-5 sm:px-7 md:px-10 min-h-[calc(100vh-200px)] print:p-0">
+      {!isFocusMode && <DocumentTools editor={editor} canEdit={canEdit} workspaceId={docDetails?.workspace_id || docDetails?.workspaceId} onAddPage={onAddPage} />}
+      {saveStatus === 'error' && !isOffline && <div className="doc-save-error" role="alert">Bản nháp đang chờ đồng bộ. <button type="button" onClick={() => void autosave.retry()}>Thử lưu lại</button></div>}
+      <div className="doc-workspace flex w-full flex-1 justify-center px-4 py-5 sm:px-7 md:px-10 min-h-[calc(100vh-200px)] print:p-0">
         
         {/* Outline Drawer (Table of Contents on the side) */}
-        {showOutline && (
-          <aside className="w-64 shrink-0 hidden lg:flex flex-col pr-6 sticky top-20 h-[calc(100vh-120px)] select-none text-left print:hidden">
+        {showOutline && !isFocusMode && (
+          <aside className="doc-outline w-64 shrink-0 flex flex-col sticky top-20 select-none text-left print:hidden">
             <div className="p-4 rounded-2xl bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col h-full">
               <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-slate-800">
                 <span className="text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
@@ -2054,7 +2032,7 @@ export default function DocumentEditor({
 
         {/* ── DOCUMENT CANVAS (FULL PAGE) ── */}
         <main
-          className={`flex-1 flex flex-col min-h-0 ${
+          className={`doc-canvas flex-1 flex flex-col min-h-0 ${
             pageWidth === 'full' 
               ? 'max-w-full w-full' 
               : pageWidth === 'standard' 

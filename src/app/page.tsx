@@ -749,10 +749,13 @@ export default function App() {
   };
 
   const handleOpenAddSpaceModal = () => {
-    const currentWorkspaceSpaces = spaces.filter(s => s.workspaceId === activeWorkspaceId);
+    const targetWsId = activeWorkspaceId || workspaces[0]?.id || 'w2';
+    // Check Free Plan limit: Max 5 spaces per workspace
+    const currentWorkspaceSpaces = spaces.filter(s => !s.workspaceId || s.workspaceId === targetWsId);
     const isPremiumUser = currentUser?.isPremium;
     if (!isPremiumUser && currentWorkspaceSpaces.length >= 5) {
       triggerToast('info', 'Giới hạn gói Free', 'Tài khoản Miễn phí chỉ tạo được tối đa 5 Spaces. Vui lòng nâng cấp gói Pro để không giới hạn!');
+      setShowAddSpaceModal(false);
       setShowPremiumModal(true);
       return;
     }
@@ -764,7 +767,7 @@ export default function App() {
     if (!newSpaceName.trim()) return;
 
     // Check Free Plan limit: Max 5 spaces per workspace
-    const currentWorkspaceSpaces = spaces.filter(s => !s.workspaceId || s.workspaceId === activeWorkspaceId);
+    const currentWorkspaceSpaces = spaces.filter(s => !s.workspaceId || s.workspaceId === (activeWorkspaceId || workspaces[0]?.id));
     const isPremiumUser = currentUser?.isPremium;
     if (!isPremiumUser && currentWorkspaceSpaces.length >= 5) {
       triggerToast('info', 'Giới hạn gói Free', 'Tài khoản Miễn phí chỉ tạo được tối đa 5 Spaces. Vui lòng nâng cấp gói Pro để không giới hạn!');
@@ -773,7 +776,7 @@ export default function App() {
       return;
     }
 
-    const targetWsId = activeWorkspaceId || workspaces[0]?.id || 'w1';
+    const targetWsId = activeWorkspaceId || workspaces[0]?.id || 'w2';
     const newSpace: Space & { description?: string; isPrivate?: boolean; defaultPermission?: string } = {
       id: `s-${Date.now()}`,
       name: newSpaceName.trim(),
@@ -2597,6 +2600,8 @@ export default function App() {
     let workspacesChannel: any = null;
     let spacesChannel: any = null;
     let listsChannel: any = null;
+    let spacesDebounceTimer: any = null;
+    let listsDebounceTimer: any = null;
     let baseAppsChannel: any = null;
     let invitationsChannel: any = null;
 
@@ -3089,7 +3094,7 @@ export default function App() {
             }
 
             const finalSpaces = dbSpaces || [];
-            const hasSeededSpaces = localStorage.getItem(`avaxa_seeded_spaces_${userId}`);
+            const hasSeededSpaces = localStorage.getItem(`avaxa_seeded_spaces_${userId}`) || localStorage.getItem(`apexa_seeded_spaces_${userId}`);
 
             if (finalSpaces.length > 0) {
               const currentLocalSpaces = useSpaceStore.getState().spaces;
@@ -3144,6 +3149,22 @@ export default function App() {
                 } catch (e) {}
               }
               return true;
+            }
+
+            // DB returned 0 spaces: check if user has locally stored spaces in localStorage
+            const savedSpacesStr = localStorage.getItem(`apexa_spaces_${userId}`) || localStorage.getItem(`avaxa_spaces_${userId}`);
+            if (savedSpacesStr) {
+              try {
+                const parsed = JSON.parse(savedSpacesStr);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  setSpaces(parsed);
+                  // Fire-and-forget sync to Supabase now that permissions are fixed
+                  handleSaveSpaces(parsed);
+                  return true;
+                }
+              } catch (e) {
+                console.error('Failed to parse saved spaces from localStorage:', e);
+              }
             }
 
             if (hasSeededSpaces) {
@@ -3495,7 +3516,10 @@ export default function App() {
                 table: 'spaces'
               },
               () => {
-                fetchSpacesAndLists();
+                if (spacesDebounceTimer) clearTimeout(spacesDebounceTimer);
+                spacesDebounceTimer = setTimeout(() => {
+                  fetchSpacesAndLists();
+                }, 350);
               }
             )
             .subscribe();
@@ -3509,7 +3533,10 @@ export default function App() {
                 table: 'lists'
               },
               () => {
-                fetchSpacesAndLists();
+                if (listsDebounceTimer) clearTimeout(listsDebounceTimer);
+                listsDebounceTimer = setTimeout(() => {
+                  fetchSpacesAndLists();
+                }, 350);
               }
             )
             .subscribe();
@@ -3551,6 +3578,8 @@ export default function App() {
     loadAndSubscribe();
     return () => {
       active = false;
+      if (spacesDebounceTimer) clearTimeout(spacesDebounceTimer);
+      if (listsDebounceTimer) clearTimeout(listsDebounceTimer);
       if (tasksChannel) supabase.removeChannel(tasksChannel);
       if (docsChannel) supabase.removeChannel(docsChannel);
       if (membersChannel) supabase.removeChannel(membersChannel);

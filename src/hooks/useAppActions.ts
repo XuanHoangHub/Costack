@@ -204,7 +204,8 @@ export function useAppActions() {
 
     const currentActiveSpaceId = useSpaceStore.getState().activeSpaceId;
     const currentActiveListId = useSpaceStore.getState().activeListId;
-    const workspaceSpaces = spaces.filter(s => s.workspaceId === (t.workspaceId || activeWorkspaceId));
+    const effectiveWsId = t.workspaceId || activeWorkspaceId || workspaces[0]?.id;
+    const workspaceSpaces = spaces.filter(s => s.workspaceId === effectiveWsId);
     const targetSpace = (t.spaceId && workspaceSpaces.find(s => s.id === t.spaceId))
       || (currentActiveSpaceId && workspaceSpaces.find(s => s.id === currentActiveSpaceId))
       || workspaceSpaces[0];
@@ -220,7 +221,7 @@ export function useAppActions() {
       progress: 0,
       comments: [],
       attachments: [],
-      workspaceId: t.workspaceId || activeWorkspaceId,
+      workspaceId: effectiveWsId,
       spaceId: targetSpaceId,
       listId: targetListId
     };
@@ -1024,8 +1025,9 @@ export function useAppActions() {
   const handleAddSpace = useCallback((name: string, emoji?: string, themeColor?: string) => {
     if (!name.trim()) return;
 
+    const targetWsId = activeWorkspaceId || workspaces[0]?.id;
     // Check Free Plan limit: Max 5 spaces per workspace
-    const workspaceSpacesCount = spaces.filter(s => s.workspaceId === activeWorkspaceId).length;
+    const workspaceSpacesCount = spaces.filter(s => s.workspaceId === targetWsId).length;
     const isPremiumUser = currentUser?.isPremium;
     if (!isPremiumUser && workspaceSpacesCount >= 5) {
       triggerToast({ id: generateId(), type: 'info', title: 'Giới hạn gói Free', message: 'Tài khoản Miễn phí chỉ tạo được tối đa 5 Spaces. Vui lòng nâng cấp gói Pro để không giới hạn!', duration: 4000 });
@@ -1038,7 +1040,7 @@ export function useAppActions() {
       name: name.trim(),
       emoji: emoji || 'Package',
       themeColor: themeColor || 'indigo',
-      workspaceId: activeWorkspaceId,
+      workspaceId: targetWsId,
       lists: [{ id: `l-${Date.now()}`, name: 'General Tasks' }],
       folders: [],
       whiteboards: [],

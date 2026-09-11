@@ -5,12 +5,12 @@ import {
   Bell, Check, Trash2, Eye, EyeOff, Pin, Archive, Clock, Search, 
   Inbox, ArchiveRestore, Sparkles, CheckSquare,
   Bookmark, User as UserIcon, Send, MessageSquare,
-  ChevronRight, Calendar, X, CheckCheck,
+  ChevronRight, ChevronDown, Minus, Calendar, X, CheckCheck,
   Flame, TrendingUp, Target, RefreshCw, ArrowLeft,
   CreditCard, Copy, Layers, SlidersHorizontal,
   AlertTriangle, ShieldCheck, CheckCircle2,
   ExternalLink, Share2, Plus, Flag, Award,
-  ListTodo, CheckCircle, ArrowUpRight
+  ListTodo, CheckCircle, ArrowUpRight, Mail, MailOpen
 } from 'lucide-react';
 import { Task, User, Workspace, WorkspaceInvitation, TaskStatus, Priority } from '../types';
 import TaskDetailsPanel from './tasks/TaskDetailsPanel';
@@ -72,8 +72,14 @@ export default function InboxView({
   const [showSnoozeDropdownId, setShowSnoozeDropdownId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   
-  // Bulk Multi-Select
+  // Bulk Multi-Select & Selection Mode
   const [selectedNotifIds, setSelectedNotifIds] = useState<string[]>([]);
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [isSelectDropdownOpen, setIsSelectDropdownOpen] = useState(false);
+  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+  const selectDropdownRef = useRef<HTMLDivElement>(null);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+  const lastSelectedIdRef = useRef<string | null>(null);
 
   // Quick Reply
   const [replyText, setReplyText] = useState('');
@@ -88,6 +94,20 @@ export default function InboxView({
   // AI Daily Digest
   const [aiDigestLoading, setAiDigestLoading] = useState(false);
   const [aiDigestText, setAiDigestText] = useState<string | null>(null);
+
+  // Close dropdowns on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (selectDropdownRef.current && !selectDropdownRef.current.contains(e.target as Node)) {
+        setIsSelectDropdownOpen(false);
+      }
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target as Node)) {
+        setIsFilterDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Auto recovery for expired snoozes on mount
   useEffect(() => {
@@ -506,17 +526,81 @@ export default function InboxView({
   // Bulk Multi-Select actions
   const handleToggleSelectNotif = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (e.shiftKey && lastSelectedIdRef.current) {
+      const currentIndex = filteredNotifications.findIndex(n => n.id === id);
+      const lastIndex = filteredNotifications.findIndex(n => n.id === lastSelectedIdRef.current);
+      if (currentIndex !== -1 && lastIndex !== -1) {
+        const start = Math.min(currentIndex, lastIndex);
+        const end = Math.max(currentIndex, lastIndex);
+        const rangeIds = filteredNotifications.slice(start, end + 1).map(n => n.id);
+        setSelectedNotifIds(prev => Array.from(new Set([...prev, ...rangeIds])));
+        lastSelectedIdRef.current = id;
+        return;
+      }
+    }
+    lastSelectedIdRef.current = id;
     setSelectedNotifIds(prev => 
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
+  };
+
+  const handleSelectAllVisible = () => {
+    if (filteredNotifications.length === 0) return;
+    const allVisibleIds = filteredNotifications.map(n => n.id);
+    const isAllSelected = allVisibleIds.every(id => selectedNotifIds.includes(id));
+    if (isAllSelected) {
+      setSelectedNotifIds(prev => prev.filter(id => !allVisibleIds.includes(id)));
+    } else {
+      setSelectedNotifIds(prev => Array.from(new Set([...prev, ...allVisibleIds])));
+      setIsMultiSelectMode(true);
+    }
+    setIsSelectDropdownOpen(false);
+  };
+
+  const handleSelectUnreadVisible = () => {
+    const unreadIds = filteredNotifications.filter(n => !n.read).map(n => n.id);
+    setSelectedNotifIds(unreadIds);
+    setIsMultiSelectMode(true);
+    setIsSelectDropdownOpen(false);
+  };
+
+  const handleSelectReadVisible = () => {
+    const readIds = filteredNotifications.filter(n => n.read).map(n => n.id);
+    setSelectedNotifIds(readIds);
+    setIsMultiSelectMode(true);
+    setIsSelectDropdownOpen(false);
+  };
+
+  const handleSelectImportantVisible = () => {
+    const importantIds = filteredNotifications.filter(n => {
+      const taskId = getAssociatedTaskId(n);
+      const task = tasks.find(t => t.id === taskId);
+      const isAssigned = task?.assigneeId === currentUser?.id || task?.assigneeIds?.includes(currentUser?.id);
+      const isMention = n.type === 'comment' || n.title?.includes('@') || n.message?.includes('@');
+      return n.type === 'assignment' || n.type === 'deadline' || isAssigned || isMention;
+    }).map(n => n.id);
+    setSelectedNotifIds(importantIds);
+    setIsMultiSelectMode(true);
+    setIsSelectDropdownOpen(false);
   };
 
   const handleClearSelected = () => {
     setNotificationsList(prev => prev.map(n => 
       selectedNotifIds.includes(n.id) ? { ...n, cleared: true } : n
     ));
+    if (selectedNotificationId && selectedNotifIds.includes(selectedNotificationId)) {
+      setSelectedNotificationId(null);
+    }
     setSelectedNotifIds([]);
     triggerToast?.('success', isVietnamese ? 'Đã lưu trữ' : 'Archived', isVietnamese ? 'Các thông báo đã chọn đã được chuyển vào lưu trữ.' : 'Selected items archived.');
+  };
+
+  const handleRestoreSelected = () => {
+    setNotificationsList(prev => prev.map(n => 
+      selectedNotifIds.includes(n.id) ? { ...n, cleared: false } : n
+    ));
+    setSelectedNotifIds([]);
+    triggerToast?.('success', isVietnamese ? 'Đã khôi phục' : 'Restored', isVietnamese ? 'Các thông báo đã chọn đã trở lại hộp thư.' : 'Selected notifications restored.');
   };
 
   const handleMarkReadSelected = () => {
@@ -525,6 +609,46 @@ export default function InboxView({
     ));
     setSelectedNotifIds([]);
     triggerToast?.('success', isVietnamese ? 'Đã đọc' : 'Marked read', isVietnamese ? 'Đã đánh dấu đã đọc các mục đã chọn.' : 'Selected items marked as read.');
+  };
+
+  const handleMarkUnreadSelected = () => {
+    setNotificationsList(prev => prev.map(n => 
+      selectedNotifIds.includes(n.id) ? { ...n, read: false } : n
+    ));
+    setSelectedNotifIds([]);
+    triggerToast?.('success', isVietnamese ? 'Chưa đọc' : 'Marked unread', isVietnamese ? 'Đã đánh dấu chưa đọc các mục đã chọn.' : 'Selected items marked as unread.');
+  };
+
+  const handlePinSelected = () => {
+    const allPinned = selectedNotifIds.every(id => notificationsList.find(n => n.id === id)?.pinned);
+    setNotificationsList(prev => prev.map(n => 
+      selectedNotifIds.includes(n.id) ? { ...n, pinned: !allPinned } : n
+    ));
+    triggerToast?.('success', allPinned ? (isVietnamese ? 'Đã bỏ ghim' : 'Unpinned') : (isVietnamese ? 'Đã ghim' : 'Pinned'), isVietnamese ? 'Đã cập nhật trạng thái ghim.' : 'Pin status updated.');
+  };
+
+  const handleDeleteSelected = () => {
+    setNotificationsList(prev => prev.filter(n => !selectedNotifIds.includes(n.id)));
+    if (selectedNotificationId && selectedNotifIds.includes(selectedNotificationId)) {
+      setSelectedNotificationId(null);
+    }
+    setSelectedNotifIds([]);
+    triggerToast?.('success', isVietnamese ? 'Đã xóa' : 'Deleted', isVietnamese ? 'Đã xóa các thông báo đã chọn.' : 'Selected items deleted.');
+  };
+
+  const isAllVisibleSelected = filteredNotifications.length > 0 && 
+    filteredNotifications.every(n => selectedNotifIds.includes(n.id));
+  const isSomeVisibleSelected = selectedNotifIds.length > 0 && !isAllVisibleSelected;
+
+  const handleMasterCheckboxClick = () => {
+    if (isAllVisibleSelected) {
+      const visibleIds = filteredNotifications.map(n => n.id);
+      setSelectedNotifIds(prev => prev.filter(id => !visibleIds.includes(id)));
+    } else {
+      const visibleIds = filteredNotifications.map(n => n.id);
+      setSelectedNotifIds(prev => Array.from(new Set([...prev, ...visibleIds])));
+      setIsMultiSelectMode(true);
+    }
   };
 
   // Quick Reply handler
@@ -742,21 +866,25 @@ export default function InboxView({
   // Tab configurations
   const TABS_CONFIG = [
     { id: 'all', label: isVietnamese ? 'Tất cả' : 'All', count: inboxStats.all, unread: inboxStats.allUnread, icon: Inbox },
-    { id: 'important', label: isVietnamese ? 'Quan trọng' : 'Important', count: inboxStats.important, unread: inboxStats.importantUnread, icon: Flame },
     { id: 'unread', label: isVietnamese ? 'Chưa đọc' : 'Unread', count: inboxStats.unread, unread: inboxStats.unread, icon: Bell },
+    { id: 'important', label: isVietnamese ? 'Quan trọng' : 'Important', count: inboxStats.important, unread: inboxStats.importantUnread, icon: Flame },
     { id: 'saved', label: isVietnamese ? 'Đã lưu' : 'Saved', count: inboxStats.saved, unread: 0, icon: Bookmark },
     { id: 'cleared', label: isVietnamese ? 'Lưu trữ' : 'Archived', count: inboxStats.cleared, unread: 0, icon: Archive },
   ];
 
   // Chip Filters
-  const CHIP_FILTERS = [
+  const CHIP_FILTERS = useMemo(() => [
     { id: 'all', label: isVietnamese ? 'Tất cả loại' : 'All types', icon: SlidersHorizontal, count: quickFilterCounts.all },
     { id: 'assigned', label: isVietnamese ? 'Được giao' : 'Assigned', icon: CheckSquare, count: quickFilterCounts.assigned },
     { id: 'comments', label: isVietnamese ? 'Nhắc đến' : 'Mentions', icon: MessageSquare, count: quickFilterCounts.comments },
     { id: 'deadlines', label: isVietnamese ? 'Hạn chót' : 'Deadlines', icon: Flame, count: quickFilterCounts.deadlines },
     { id: 'billing', label: isVietnamese ? 'Thanh toán' : 'Billing', icon: CreditCard, count: quickFilterCounts.billing },
     { id: 'system', label: isVietnamese ? 'Hệ thống' : 'System', icon: Bell, count: quickFilterCounts.system },
-  ];
+  ], [isVietnamese, quickFilterCounts]);
+
+  const activeChipMeta = useMemo(() => {
+    return CHIP_FILTERS.find(f => f.id === quickFilter) || CHIP_FILTERS[0];
+  }, [CHIP_FILTERS, quickFilter]);
 
   return (
     <div className="apexa-inbox w-full h-full flex flex-col md:flex-row gap-0 font-sans text-left text-slate-800 dark:text-slate-100 select-none overflow-hidden p-0 bg-slate-50/50 dark:bg-slate-950/50">
@@ -768,176 +896,456 @@ export default function InboxView({
           : 'flex-1 md:flex-initial md:w-[420px] lg:w-[450px] xl:w-[480px] shrink-0'
       }`}>
         
-        {/* Top Header & Scope Bar */}
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800/80 space-y-3 shrink-0 bg-gradient-to-b from-white via-white to-slate-50/50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950/40">
-          <div className="flex items-center justify-between gap-2.5">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/25 shrink-0">
-                <Inbox className="w-4 h-4" />
+        {/* Compact Top Header & Control Bar */}
+        <div className="px-3 pt-3 pb-2.5 border-b border-slate-200/80 dark:border-slate-800/80 space-y-2 shrink-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xs">
+          
+          {/* Row 1: Title, Scope, Multi-select mode toggle & Global actions */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 flex items-center justify-center text-white shadow-xs shrink-0">
+                <Inbox className="w-3.5 h-3.5" />
               </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h1 className="text-base font-black text-slate-900 dark:text-white tracking-tight truncate">
-                    {isVietnamese ? 'Hộp thư' : 'Inbox'}
-                  </h1>
-                  {inboxStats.unread > 0 && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/15 dark:bg-blue-500/25 text-blue-600 dark:text-sky-300 text-[10px] font-black border border-blue-500/20">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                      {inboxStats.unread} {isVietnamese ? 'mới' : 'new'}
-                    </span>
-                  )}
-                </div>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <h1 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight truncate">
+                  {isVietnamese ? 'Hộp thư' : 'Inbox'}
+                </h1>
+                {inboxStats.unread > 0 && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-blue-500/15 dark:bg-blue-500/25 text-blue-600 dark:text-sky-300 text-[10px] font-bold border border-blue-500/20 shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                    {inboxStats.unread} {isVietnamese ? 'mới' : 'new'}
+                  </span>
+                )}
               </div>
             </div>
 
             {/* Top Toolbar Actions */}
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1 shrink-0">
               {/* Workspace Scope Toggle */}
               <button
                 onClick={() => setWorkspaceScope(prev => prev === 'current' ? 'all' : 'current')}
-                className={`h-8 px-2.5 rounded-xl border text-[11px] font-bold transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 ${
+                className={`h-7 px-2 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer shadow-2xs flex items-center gap-1 ${
                   workspaceScope === 'current'
                     ? 'border-blue-200/80 dark:border-blue-800/60 bg-blue-50/80 dark:bg-blue-950/40 text-blue-700 dark:text-sky-300 hover:bg-blue-100/80'
                     : 'border-slate-200/80 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
                 }`}
                 title={isVietnamese ? 'Chuyển phạm vi không gian làm việc (Không gian này / Tất cả)' : 'Toggle workspace scope (This space / All spaces)'}
               >
-                <Layers className={`w-3.5 h-3.5 ${workspaceScope === 'current' ? 'text-blue-600 dark:text-sky-400' : 'text-slate-500'}`} />
+                <Layers className={`w-3 h-3 ${workspaceScope === 'current' ? 'text-blue-600 dark:text-sky-400' : 'text-slate-500'}`} />
                 <span>{workspaceScope === 'current' ? (isVietnamese ? 'Space này' : 'Current') : (isVietnamese ? 'Tất cả' : 'All')}</span>
+              </button>
+
+              {/* Toggle Multi-Select Mode */}
+              <button
+                onClick={() => {
+                  setIsMultiSelectMode(prev => !prev);
+                  if (isMultiSelectMode && selectedNotifIds.length > 0) {
+                    setSelectedNotifIds([]);
+                  }
+                }}
+                className={`h-7 px-2 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer shadow-2xs flex items-center gap-1 ${
+                  isMultiSelectMode || selectedNotifIds.length > 0
+                    ? 'border-blue-400 dark:border-blue-600 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-sky-300 font-bold'
+                    : 'border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100'
+                }`}
+                title={isVietnamese ? 'Bật/tắt chế độ chọn nhiều thư' : 'Toggle multi-select mode'}
+              >
+                <CheckSquare className="w-3.5 h-3.5" />
+                <span className="hidden xs:inline">{isVietnamese ? 'Chọn' : 'Select'}</span>
               </button>
 
               {/* Mark All Read */}
               <button 
                 onClick={handleMarkAllRead}
                 disabled={inboxStats.unread === 0 && filteredNotifications.length === 0}
-                className="w-8 h-8 rounded-xl flex items-center justify-center border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-800/80 text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-sky-300 hover:bg-blue-50/70 dark:hover:bg-blue-950/40 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-2xs"
+                className="w-7 h-7 rounded-lg flex items-center justify-center border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-800/80 text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-sky-300 hover:bg-blue-50/70 dark:hover:bg-blue-950/40 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-2xs"
                 title={isVietnamese ? 'Đánh dấu tất cả là đã đọc' : 'Mark all as read'}
                 aria-label={isVietnamese ? 'Đánh dấu tất cả là đã đọc' : 'Mark all as read'}
               >
-                <CheckCheck className="w-4 h-4" />
+                <CheckCheck className="w-3.5 h-3.5" />
               </button>
               
               {/* Archive All Visible */}
               <button 
                 onClick={handleClearAllVisible}
                 disabled={filteredNotifications.length === 0}
-                className="w-8 h-8 rounded-xl flex items-center justify-center border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-800/80 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 hover:bg-rose-50/70 dark:hover:bg-rose-950/40 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-2xs"
+                className="w-7 h-7 rounded-lg flex items-center justify-center border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-800/80 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 hover:bg-rose-50/70 dark:hover:bg-rose-950/40 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-2xs"
                 title={isVietnamese ? 'Lưu trữ tất cả thông báo hiển thị' : 'Archive all visible'}
                 aria-label={isVietnamese ? 'Lưu trữ tất cả thông báo hiển thị' : 'Archive all visible'}
               >
-                <Archive className="w-4 h-4" />
+                <Archive className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
 
-          {/* Segmented Navigation Tabs */}
-          <div className="flex items-center gap-1 p-1 bg-slate-100/90 dark:bg-slate-950/80 rounded-xl border border-slate-200/80 dark:border-slate-800/80 overflow-x-auto scrollbar-none">
-            {TABS_CONFIG.map(tab => {
-              const isTabActive = activeTab === tab.id;
-              const hasUnread = tab.unread > 0;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id as any);
-                    setSelectedNotificationId(null);
-                  }}
-                  aria-pressed={isTabActive}
-                  className={`flex-1 min-w-0 py-1.5 px-1.5 rounded-lg transition-all cursor-pointer relative flex items-center justify-center gap-1 text-center whitespace-nowrap ${
-                    isTabActive
-                      ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-sky-300 shadow-xs font-bold border border-slate-200/70 dark:border-slate-700/70'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-semibold hover:bg-white/50 dark:hover:bg-slate-800/40'
-                  }`}
-                >
-                  <tab.icon className={`w-3.5 h-3.5 shrink-0 transition-colors ${isTabActive ? 'text-blue-600 dark:text-sky-300' : 'text-slate-400 dark:text-slate-500'}`} />
-                  <span className="text-[11px] font-bold">{tab.label}</span>
-                  {tab.count > 0 && (
-                    <span className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-bold transition-colors ${
-                      isTabActive 
-                        ? 'bg-blue-100/90 dark:bg-blue-900/60 text-blue-700 dark:text-sky-300' 
-                        : 'bg-slate-200/80 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                    }`}>
-                      {tab.count}
-                    </span>
-                  )}
-                  {hasUnread && !isTabActive && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse absolute top-1 right-1" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Search Input */}
-          <div className="flex items-center gap-2.5 bg-slate-50/90 dark:bg-slate-950/70 border border-slate-200/90 dark:border-slate-800/90 rounded-xl px-3 py-2 transition-all focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 focus-within:bg-white dark:focus-within:bg-slate-950 group shadow-2xs">
-            <Search className="w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors shrink-0" />
-            <input 
-              ref={searchInputRef}
-              type="text" 
-              placeholder={isVietnamese ? "Tìm thông báo, công việc (nhấn /)..." : "Search notifications, tasks (press /)..."}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  if (searchQuery) {
-                    setSearchQuery('');
-                  } else {
-                    (e.target as HTMLInputElement).blur();
+          {/* Row 2: Search Input + Type Filter Popover */}
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1 min-w-0 flex items-center gap-2 bg-slate-50/90 dark:bg-slate-950/70 border border-slate-200/90 dark:border-slate-800/90 rounded-xl px-2.5 h-7.5 transition-all focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 focus-within:bg-white dark:focus-within:bg-slate-950 group shadow-2xs">
+              <Search className="w-3.5 h-3.5 text-slate-400 group-focus-within:text-blue-500 transition-colors shrink-0" />
+              <input 
+                ref={searchInputRef}
+                type="text" 
+                placeholder={isVietnamese ? "Tìm thông báo, công việc (nhấn /)..." : "Search notifications, tasks (press /)..."}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    if (searchQuery) {
+                      setSearchQuery('');
+                    } else {
+                      (e.target as HTMLInputElement).blur();
+                    }
                   }
-                }
-              }}
-              data-no-focus-outline="true"
-              className="apexa-search-input w-full bg-transparent text-xs font-medium text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 border-none !border-0 !outline-none focus:!outline-none focus-visible:!outline-none focus:!ring-0 focus-visible:!ring-0 shadow-none"
-            />
-            {searchQuery ? (
-              <button 
+                }}
+                data-no-focus-outline="true"
+                className="apexa-search-input w-full bg-transparent text-xs font-medium text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 border-none !border-0 !outline-none focus:!outline-none focus-visible:!outline-none focus:!ring-0 focus-visible:!ring-0 shadow-none p-0"
+              />
+              {searchQuery ? (
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    searchInputRef.current?.focus();
+                  }} 
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  title={isVietnamese ? 'Xóa tìm kiếm' : 'Clear search'}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              ) : (
+                <kbd className="hidden sm:inline-flex items-center text-[9px] font-mono font-bold text-slate-400 dark:text-slate-500 bg-slate-200/70 dark:bg-slate-800/80 px-1 py-0.2 rounded border border-slate-300/60 dark:border-slate-700/60 select-none">
+                  /
+                </kbd>
+              )}
+            </div>
+
+            {/* Type Filter Dropdown Popover */}
+            <div className="relative shrink-0" ref={filterDropdownRef}>
+              <button
                 type="button"
-                onClick={() => {
-                  setSearchQuery('');
-                  searchInputRef.current?.focus();
-                }} 
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded-md hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                title={isVietnamese ? 'Xóa tìm kiếm' : 'Clear search'}
+                onClick={() => setIsFilterDropdownOpen(prev => !prev)}
+                className={`h-7.5 px-2 rounded-xl border text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
+                  quickFilter !== 'all'
+                    ? 'border-blue-400 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-sky-300 font-bold'
+                    : 'border-slate-200/90 dark:border-slate-800 bg-white/90 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-750'
+                }`}
+                title={isVietnamese ? 'Lọc theo loại thông báo' : 'Filter by notification type'}
               >
-                <X className="w-3.5 h-3.5" />
+                <activeChipMeta.icon className={`w-3 h-3 shrink-0 ${quickFilter !== 'all' ? 'text-blue-600 dark:text-sky-400' : 'text-slate-500'}`} />
+                <span className="max-w-[90px] truncate">{activeChipMeta.label}</span>
+                {activeChipMeta.count > 0 && quickFilter !== 'all' && (
+                  <span className="text-[9px] px-1 py-0.2 rounded-full bg-blue-200/80 dark:bg-blue-900/80 text-blue-800 dark:text-sky-200 font-bold">
+                    {activeChipMeta.count}
+                  </span>
+                )}
+                {quickFilter !== 'all' ? (
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setQuickFilter('all');
+                    }}
+                    className="p-0.5 -mr-0.5 rounded hover:bg-blue-200 dark:hover:bg-blue-800 text-blue-600 dark:text-sky-300 cursor-pointer"
+                    title={isVietnamese ? 'Xóa lọc' : 'Clear filter'}
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </span>
+                ) : (
+                  <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isFilterDropdownOpen ? 'rotate-180' : ''}`} />
+                )}
               </button>
-            ) : (
-              <kbd className="hidden sm:inline-flex items-center text-[10px] font-mono font-bold text-slate-400 dark:text-slate-500 bg-slate-200/70 dark:bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-300/60 dark:border-slate-700/60 select-none">
-                /
-              </kbd>
-            )}
+
+              {isFilterDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 rounded-xl shadow-xl p-1 z-30 space-y-0.5 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-2 py-1 text-[9.5px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                    {isVietnamese ? 'Loại thông báo' : 'Notification Type'}
+                  </div>
+                  {CHIP_FILTERS.map(f => {
+                    const isChipActive = quickFilter === f.id;
+                    const ChipIcon = f.icon;
+                    return (
+                      <button
+                        key={f.id}
+                        onClick={() => {
+                          setQuickFilter(f.id as any);
+                          setIsFilterDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                          isChipActive
+                            ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-sky-300 font-bold'
+                            : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 font-medium'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <ChipIcon className={`w-3.5 h-3.5 ${isChipActive ? 'text-blue-600 dark:text-sky-400' : 'text-slate-400'}`} />
+                          <span>{f.label}</span>
+                        </div>
+                        {f.count > 0 && (
+                          <span className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-bold ${
+                            isChipActive 
+                              ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-sky-300' 
+                              : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                          }`}>
+                            {f.count}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Quick Filter Chips with Anti-Clipping & Counters */}
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5 pt-0.5 px-0.5">
-            {CHIP_FILTERS.map(f => {
-              const isChipActive = quickFilter === f.id;
-              const ChipIcon = f.icon;
-              return (
+          {/* Row 3: Master Checkbox + Navigation Tabs OR Bulk Action Toolbar */}
+          {selectedNotifIds.length > 0 ? (
+            /* Bulk Action Toolbar when items are selected */
+            <div className="flex items-center justify-between gap-1 p-1 bg-blue-50/90 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/60 rounded-xl transition-all">
+              <div className="flex items-center gap-1.5 min-w-0 pl-1" ref={selectDropdownRef}>
+                {/* Master Checkbox */}
                 <button
-                  key={f.id}
-                  onClick={() => setQuickFilter(f.id as any)}
-                  className={`shrink-0 px-2.5 py-1 rounded-xl text-[11px] font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
-                    isChipActive
-                      ? 'bg-blue-600 text-white shadow-2xs font-bold'
-                      : 'bg-slate-100/90 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/80 border border-slate-200/70 dark:border-slate-700/60'
+                  type="button"
+                  onClick={handleMasterCheckboxClick}
+                  className={`w-4 h-4 rounded flex items-center justify-center border transition-all cursor-pointer shrink-0 ${
+                    isAllVisibleSelected
+                      ? 'bg-blue-600 border-blue-600 text-white'
+                      : isSomeVisibleSelected
+                        ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-500 text-blue-600 dark:text-sky-400'
+                        : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
                   }`}
+                  title={isAllVisibleSelected ? (isVietnamese ? 'Bỏ chọn tất cả' : 'Deselect all') : (isVietnamese ? 'Chọn tất cả' : 'Select all')}
                 >
-                  <ChipIcon className={`w-3 h-3 shrink-0 ${isChipActive ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`} />
-                  <span>{f.label}</span>
-                  {f.count > 0 && (
-                    <span className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-bold ${
-                      isChipActive 
-                        ? 'bg-white/20 text-white' 
-                        : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-300'
-                    }`}>
-                      {f.count}
-                    </span>
-                  )}
+                  {isAllVisibleSelected ? (
+                    <Check className="w-3 h-3 stroke-[3]" />
+                  ) : isSomeVisibleSelected ? (
+                    <Minus className="w-3 h-3 stroke-[3]" />
+                  ) : null}
                 </button>
-              );
-            })}
-          </div>
+
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsSelectDropdownOpen(prev => !prev)}
+                    className="p-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+                    title={isVietnamese ? 'Tùy chọn chọn thư' : 'Selection options'}
+                  >
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+
+                  {isSelectDropdownOpen && (
+                    <div className="absolute left-0 top-full mt-1 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-1 z-30 space-y-0.5 animate-in fade-in zoom-in-95 duration-100">
+                      <button
+                        onClick={handleSelectAllVisible}
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 flex items-center justify-between cursor-pointer"
+                      >
+                        <span>{isVietnamese ? 'Tất cả' : 'All'}</span>
+                        <span className="text-[10px] text-slate-400">{filteredNotifications.length}</span>
+                      </button>
+                      <button
+                        onClick={handleSelectUnreadVisible}
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 flex items-center justify-between cursor-pointer"
+                      >
+                        <span>{isVietnamese ? 'Chưa đọc' : 'Unread'}</span>
+                        <span className="text-[10px] text-slate-400">{filteredNotifications.filter(n => !n.read).length}</span>
+                      </button>
+                      <button
+                        onClick={handleSelectReadVisible}
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 flex items-center justify-between cursor-pointer"
+                      >
+                        <span>{isVietnamese ? 'Đã đọc' : 'Read'}</span>
+                        <span className="text-[10px] text-slate-400">{filteredNotifications.filter(n => n.read).length}</span>
+                      </button>
+                      <button
+                        onClick={handleSelectImportantVisible}
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 flex items-center justify-between cursor-pointer"
+                      >
+                        <span>{isVietnamese ? 'Quan trọng' : 'Important'}</span>
+                      </button>
+                      <div className="h-px bg-slate-100 dark:bg-slate-700/80 my-1" />
+                      <button
+                        onClick={() => {
+                          setSelectedNotifIds([]);
+                          setIsSelectDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 text-slate-500 cursor-pointer"
+                      >
+                        {isVietnamese ? 'Bỏ chọn' : 'Deselect all'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <span className="text-[11px] font-black text-blue-700 dark:text-sky-300 truncate">
+                  {selectedNotifIds.length} {isVietnamese ? 'đã chọn' : 'selected'}
+                </span>
+              </div>
+
+              {/* Bulk Actions Buttons */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={handleMarkReadSelected}
+                  className="h-6 px-2 rounded-lg bg-white dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-slate-700 text-[10.5px] font-bold text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
+                  title={isVietnamese ? 'Đánh dấu đã đọc' : 'Mark as read'}
+                >
+                  <Check className="w-3 h-3 text-emerald-600" />
+                  <span className="hidden xs:inline">{isVietnamese ? 'Đã đọc' : 'Read'}</span>
+                </button>
+                <button
+                  onClick={handleMarkUnreadSelected}
+                  className="h-6 px-2 rounded-lg bg-white dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-slate-700 text-[10.5px] font-bold text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
+                  title={isVietnamese ? 'Đánh dấu chưa đọc' : 'Mark as unread'}
+                >
+                  <Mail className="w-3 h-3 text-blue-600" />
+                  <span className="hidden xs:inline">{isVietnamese ? 'Chưa đọc' : 'Unread'}</span>
+                </button>
+                <button
+                  onClick={handleClearSelected}
+                  className="h-6 px-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-[10.5px] font-bold text-white flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
+                  title={isVietnamese ? 'Lưu trữ các mục đã chọn' : 'Archive selected'}
+                >
+                  <Archive className="w-3 h-3" />
+                  <span className="hidden xs:inline">{isVietnamese ? 'Lưu trữ' : 'Archive'}</span>
+                </button>
+                <button
+                  onClick={handlePinSelected}
+                  className="w-6 h-6 rounded-lg bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-500 hover:text-amber-600 border border-slate-200/80 dark:border-slate-700 flex items-center justify-center cursor-pointer transition-all shadow-2xs"
+                  title={isVietnamese ? 'Ghim / Bỏ ghim' : 'Pin / Unpin'}
+                >
+                  <Pin className="w-3 h-3" />
+                </button>
+                {activeTab === 'cleared' && (
+                  <button
+                    onClick={handleRestoreSelected}
+                    className="h-6 px-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-[10.5px] font-bold text-white flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
+                    title={isVietnamese ? 'Khôi phục vào hộp thư chính' : 'Restore'}
+                  >
+                    <ArchiveRestore className="w-3 h-3" />
+                    <span className="hidden xs:inline">{isVietnamese ? 'Khôi phục' : 'Restore'}</span>
+                  </button>
+                )}
+                <button
+                  onClick={handleDeleteSelected}
+                  className="w-6 h-6 rounded-lg bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-500 hover:text-rose-600 border border-slate-200/80 dark:border-slate-700 flex items-center justify-center cursor-pointer transition-all shadow-2xs"
+                  title={isVietnamese ? 'Xóa vĩnh viễn' : 'Delete'}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => setSelectedNotifIds([])}
+                  className="w-6 h-6 rounded-lg hover:bg-slate-200/80 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition-all"
+                  title={isVietnamese ? 'Bỏ chọn' : 'Deselect'}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Normal Mode: Master Checkbox + Segmented Navigation Tabs */
+            <div className="flex items-center gap-1.5 min-w-0">
+              {/* Master Checkbox with Dropdown */}
+              <div className="flex items-center gap-0.5 shrink-0" ref={selectDropdownRef}>
+                <button
+                  type="button"
+                  onClick={handleMasterCheckboxClick}
+                  className={`w-4 h-4 rounded flex items-center justify-center border transition-all cursor-pointer shrink-0 ${
+                    isAllVisibleSelected
+                      ? 'bg-blue-600 border-blue-600 text-white'
+                      : isSomeVisibleSelected
+                        ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-500 text-blue-600 dark:text-sky-400'
+                        : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-blue-400'
+                  }`}
+                  title={isAllVisibleSelected ? (isVietnamese ? 'Bỏ chọn tất cả' : 'Deselect all') : (isVietnamese ? 'Chọn tất cả' : 'Select all')}
+                >
+                  {isAllVisibleSelected ? (
+                    <Check className="w-3 h-3 stroke-[3]" />
+                  ) : isSomeVisibleSelected ? (
+                    <Minus className="w-3 h-3 stroke-[3]" />
+                  ) : null}
+                </button>
+
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsSelectDropdownOpen(prev => !prev)}
+                    className="p-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+                    title={isVietnamese ? 'Tùy chọn chọn thư' : 'Selection options'}
+                  >
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+
+                  {isSelectDropdownOpen && (
+                    <div className="absolute left-0 top-full mt-1 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-1 z-30 space-y-0.5 animate-in fade-in zoom-in-95 duration-100">
+                      <button
+                        onClick={handleSelectAllVisible}
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 flex items-center justify-between cursor-pointer"
+                      >
+                        <span>{isVietnamese ? 'Tất cả' : 'All'}</span>
+                        <span className="text-[10px] text-slate-400">{filteredNotifications.length}</span>
+                      </button>
+                      <button
+                        onClick={handleSelectUnreadVisible}
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 flex items-center justify-between cursor-pointer"
+                      >
+                        <span>{isVietnamese ? 'Chưa đọc' : 'Unread'}</span>
+                        <span className="text-[10px] text-slate-400">{filteredNotifications.filter(n => !n.read).length}</span>
+                      </button>
+                      <button
+                        onClick={handleSelectReadVisible}
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 flex items-center justify-between cursor-pointer"
+                      >
+                        <span>{isVietnamese ? 'Đã đọc' : 'Read'}</span>
+                        <span className="text-[10px] text-slate-400">{filteredNotifications.filter(n => n.read).length}</span>
+                      </button>
+                      <button
+                        onClick={handleSelectImportantVisible}
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 flex items-center justify-between cursor-pointer"
+                      >
+                        <span>{isVietnamese ? 'Quan trọng' : 'Important'}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="h-3.5 w-px bg-slate-200 dark:bg-slate-800 shrink-0" />
+
+              {/* Segmented Navigation Tabs */}
+              <div className="flex-1 flex items-center gap-1 p-0.5 bg-slate-100/90 dark:bg-slate-950/80 rounded-xl border border-slate-200/80 dark:border-slate-800/80 overflow-x-auto scrollbar-none min-w-0">
+                {TABS_CONFIG.map(tab => {
+                  const isTabActive = activeTab === tab.id;
+                  const hasUnread = tab.unread > 0;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveTab(tab.id as any);
+                        setSelectedNotificationId(null);
+                      }}
+                      aria-pressed={isTabActive}
+                      className={`flex-1 min-w-0 py-1 px-1.5 rounded-lg transition-all cursor-pointer relative flex items-center justify-center gap-1 text-center whitespace-nowrap ${
+                        isTabActive
+                          ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-sky-300 shadow-xs font-bold border border-slate-200/70 dark:border-slate-700/70'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-semibold hover:bg-white/50 dark:hover:bg-slate-800/40'
+                      }`}
+                    >
+                      <tab.icon className={`w-3 h-3 shrink-0 transition-colors ${isTabActive ? 'text-blue-600 dark:text-sky-300' : 'text-slate-400 dark:text-slate-500'}`} />
+                      <span className="text-[11px] font-bold">{tab.label}</span>
+                      {tab.count > 0 && (
+                        <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold transition-colors ${
+                          isTabActive 
+                            ? 'bg-blue-100/90 dark:bg-blue-900/60 text-blue-700 dark:text-sky-300' 
+                            : 'bg-slate-200/80 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                        }`}>
+                          {tab.count}
+                        </span>
+                      )}
+                      {hasUnread && !isTabActive && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse absolute top-1 right-1" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Notification Stream Feed */}
@@ -1043,9 +1451,11 @@ export default function InboxView({
                       className={`group p-2.5 sm:p-3 rounded-xl border transition-all duration-150 flex flex-col gap-1.5 cursor-pointer relative overflow-hidden ${
                         isSelected
                           ? 'bg-blue-50/80 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500 ring-1 ring-blue-500/25 shadow-xs'
-                          : notif.read 
-                            ? 'bg-slate-50/40 dark:bg-slate-900/30 border-transparent hover:border-slate-200/80 dark:hover:border-slate-800 hover:bg-white dark:hover:bg-slate-900/70 text-slate-600 dark:text-slate-300' 
-                            : 'bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800/80 shadow-2xs hover:border-blue-300 dark:hover:border-blue-700/60'
+                          : isChecked
+                            ? 'bg-blue-50/60 dark:bg-blue-950/30 border-blue-300 dark:border-blue-700/80 shadow-2xs'
+                            : notif.read 
+                              ? 'bg-slate-50/40 dark:bg-slate-900/30 border-transparent hover:border-slate-200/80 dark:hover:border-slate-800 hover:bg-white dark:hover:bg-slate-900/70 text-slate-600 dark:text-slate-300' 
+                              : 'bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800/80 shadow-2xs hover:border-blue-300 dark:hover:border-blue-700/60'
                       }`}
                     >
                       {/* Left glowing accent line for unread items */}
@@ -1055,20 +1465,20 @@ export default function InboxView({
 
                       {/* Header Row: Checkbox, Icon, Category Badge, Title preview, Pin, Timestamp */}
                       <div className="flex items-center gap-2 min-w-0">
-                        {/* Interactive selection checkbox - visible on hover or when any items are selected */}
+                        {/* Interactive selection checkbox - visible on hover, when items are selected, or in multi-select mode */}
                         <div 
-                          onClick={(e) => e.stopPropagation()} 
-                          className={`shrink-0 transition-all duration-150 flex items-center justify-center ${
-                            isChecked || selectedNotifIds.length > 0 
-                              ? 'w-4 opacity-100' 
-                              : 'w-0 opacity-0 group-hover:w-4 group-hover:opacity-100 overflow-hidden'
+                          onClick={(e) => handleToggleSelectNotif(notif.id, e)} 
+                          className={`shrink-0 transition-all duration-150 flex items-center justify-center p-0.5 cursor-pointer ${
+                            isChecked || selectedNotifIds.length > 0 || isMultiSelectMode
+                              ? 'w-4.5 opacity-100' 
+                              : 'w-0 opacity-0 group-hover:w-4.5 group-hover:opacity-100 overflow-hidden'
                           }`}
                         >
                           <input
                             type="checkbox"
                             checked={isChecked}
-                            onChange={(e) => handleToggleSelectNotif(notif.id, e as any)}
-                            className="w-3.5 h-3.5 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            onChange={() => {}}
+                            className="w-3.5 h-3.5 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer pointer-events-none"
                           />
                         </div>
 
@@ -1238,7 +1648,7 @@ export default function InboxView({
 
         {/* Floating Capsule Bar for Multi-Select */}
         {selectedNotifIds.length > 0 && (
-          <div className="p-2.5 bg-slate-900/95 text-white dark:bg-white/95 dark:text-slate-900 backdrop-blur-xl rounded-2xl m-3 flex items-center justify-between shadow-2xl border border-white/10 dark:border-black/10 shrink-0">
+          <div className="p-2 bg-slate-900/95 text-white dark:bg-white/95 dark:text-slate-900 backdrop-blur-xl rounded-2xl m-2.5 flex items-center justify-between shadow-2xl border border-white/10 dark:border-black/10 shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-200">
             <div className="flex items-center gap-2">
               <span className="text-xs font-black px-1.5">
                 {selectedNotifIds.length} {isVietnamese ? 'đã chọn' : 'selected'}
@@ -1250,18 +1660,29 @@ export default function InboxView({
                 {isVietnamese ? 'Bỏ chọn' : 'Deselect'}
               </button>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               <button 
                 onClick={handleMarkReadSelected}
-                className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 dark:bg-slate-100 dark:hover:bg-slate-200 text-xs font-bold transition-all cursor-pointer"
+                className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 dark:bg-slate-100 dark:hover:bg-slate-200 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                title={isVietnamese ? 'Đánh dấu đã đọc' : 'Mark as read'}
               >
-                {isVietnamese ? 'Đã đọc' : 'Mark Read'}
+                <Check className="w-3 h-3 text-emerald-400 dark:text-emerald-600" />
+                <span>{isVietnamese ? 'Đã đọc' : 'Read'}</span>
+              </button>
+              <button 
+                onClick={handleMarkUnreadSelected}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 dark:bg-slate-100 dark:hover:bg-slate-200 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                title={isVietnamese ? 'Đánh dấu chưa đọc' : 'Mark as unread'}
+              >
+                <Mail className="w-3 h-3 text-blue-400 dark:text-blue-600" />
+                <span>{isVietnamese ? 'Chưa đọc' : 'Unread'}</span>
               </button>
               <button 
                 onClick={handleClearSelected}
-                className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+                className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                title={isVietnamese ? 'Lưu trữ các mục đã chọn' : 'Archive selected'}
               >
-                <Check className="w-3.5 h-3.5" />
+                <Archive className="w-3.5 h-3.5" />
                 <span>{isVietnamese ? 'Lưu trữ' : 'Archive'}</span>
               </button>
             </div>
