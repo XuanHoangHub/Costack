@@ -174,17 +174,35 @@ export default function DocumentHub({
         table: 'documents',
         filter: `workspace_id=eq.${activeWorkspaceId}`
       }, (payload) => {
-        const payloadSpaceId = (payload.new as any)?.space_id ?? (payload.old as any)?.space_id ?? null;
-        if (payloadSpaceId !== (spaceId ?? null)) return;
+        const targetSpaceId = spaceId ?? null;
+        const newSpaceId = (payload.new as any)?.space_id ?? null;
+
         if (payload.eventType === 'INSERT') {
-          setDocuments(prev => {
-            if (prev.some(d => d.id === payload.new.id)) return prev;
-            return [...prev, payload.new];
-          });
+          const doc = payload.new as any;
+          if (!doc || !doc.id) return;
+          if (newSpaceId === targetSpaceId) {
+            setDocuments(prev => {
+              if (prev.some(d => d.id === doc.id)) return prev;
+              return [doc, ...prev];
+            });
+          }
         } else if (payload.eventType === 'DELETE') {
-          setDocuments(prev => prev.filter(d => d.id !== payload.old.id));
+          const deletedId = payload.old?.id;
+          if (!deletedId) return;
+          setDocuments(prev => prev.filter(d => d.id !== deletedId));
         } else if (payload.eventType === 'UPDATE') {
-          setDocuments(prev => prev.map(d => d.id === payload.new.id ? payload.new : d));
+          const doc = payload.new as any;
+          if (!doc || !doc.id) return;
+          setDocuments(prev => {
+            const exists = prev.some(d => d.id === doc.id);
+            if (newSpaceId === targetSpaceId) {
+              return exists ? prev.map(d => d.id === doc.id ? doc : d) : [doc, ...prev];
+            }
+            if (exists) {
+              return prev.filter(d => d.id !== doc.id);
+            }
+            return prev;
+          });
         }
       })
       .subscribe();

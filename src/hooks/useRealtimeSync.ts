@@ -849,6 +849,7 @@ export function useWorkspaceInvitations(currentUserEmail?: string, isOffline?: b
 
     const handleUpdate = () => loadInvitations();
     window.addEventListener('apexa-invitation-updated', handleUpdate);
+    window.addEventListener('avaxa-invitation-updated', handleUpdate);
 
     let channel: any = null;
     if (!isOffline && currentUserEmail) {
@@ -871,6 +872,7 @@ export function useWorkspaceInvitations(currentUserEmail?: string, isOffline?: b
 
     return () => {
       window.removeEventListener('apexa-invitation-updated', handleUpdate);
+      window.removeEventListener('avaxa-invitation-updated', handleUpdate);
       if (channel) {
         supabase.removeChannel(channel);
       }

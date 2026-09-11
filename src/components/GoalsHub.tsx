@@ -26,7 +26,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, getCleanChannel } from '@/lib/supabaseClient';
 import { Task, User } from '@/types';
 import { useTranslation } from '@/contexts/TranslationContext';
 
@@ -334,6 +334,68 @@ export default function GoalsHub({
     void loadGoals();
     return () => { cancelled = true; };
   }, [activeWorkspaceId, isOffline, isVietnamese, offlineKey]);
+
+  // Realtime subscription for Goals and Key Results in active workspace
+  useEffect(() => {
+    if (isOffline || !activeWorkspaceId) return;
+
+    const channel = getCleanChannel(`realtime-goals-${activeWorkspaceId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'goals',
+          filter: `workspace_id=eq.${activeWorkspaceId}`
+        },
+        (payload) => {
+          const eventType = payload.eventType;
+          if (eventType === 'INSERT') {
+            const newGoal = payload.new as GoalRecord;
+            if (!newGoal?.id) return;
+            setGoals(prev => prev.some(g => g.id === newGoal.id) ? prev : [...prev, newGoal]);
+          } else if (eventType === 'UPDATE') {
+            const updatedGoal = payload.new as GoalRecord;
+            if (!updatedGoal?.id) return;
+            setGoals(prev => prev.map(g => g.id === updatedGoal.id ? { ...g, ...updatedGoal } : g));
+          } else if (eventType === 'DELETE') {
+            const deletedId = payload.old?.id;
+            if (!deletedId) return;
+            setGoals(prev => prev.filter(g => g.id !== deletedId));
+            setKeyResults(prev => prev.filter(kr => kr.goal_id !== deletedId));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'goal_key_results'
+        },
+        (payload) => {
+          const eventType = payload.eventType;
+          if (eventType === 'INSERT') {
+            const newKr = payload.new as KeyResultRecord;
+            if (!newKr?.id) return;
+            setKeyResults(prev => prev.some(kr => kr.id === newKr.id) ? prev : [...prev, newKr]);
+          } else if (eventType === 'UPDATE') {
+            const updatedKr = payload.new as KeyResultRecord;
+            if (!updatedKr?.id) return;
+            setKeyResults(prev => prev.map(kr => kr.id === updatedKr.id ? { ...kr, ...updatedKr } : kr));
+          } else if (eventType === 'DELETE') {
+            const deletedId = payload.old?.id;
+            if (!deletedId) return;
+            setKeyResults(prev => prev.filter(kr => kr.id !== deletedId));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeWorkspaceId, isOffline]);
 
   useEffect(() => {
     if (!isOffline) return;

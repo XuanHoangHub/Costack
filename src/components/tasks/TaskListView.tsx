@@ -7,9 +7,9 @@ import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, D
 import { 
   ChevronDown, Plus, Paperclip, X, MessageSquare, Check, Pin, Edit2, Tag, 
   MoreHorizontal, Play, Clock, AlertTriangle, Hourglass, Trash2, 
-  CheckCircle2, ListChecks, Copy, ChevronsUpDown, Sparkles, Layers, Users, Calendar, Flag, Repeat, GripVertical
+  CheckCircle2, ListChecks, Copy, ChevronsUpDown, Sparkles, Layers, Users, Calendar, Flag, Repeat, GripVertical, FolderInput
 } from 'lucide-react';
-import { Task, TaskStatus, Priority, User, Workspace } from '../../types';
+import { Task, TaskStatus, Priority, User, Workspace, Space } from '../../types';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker } from './TaskSelects';
 import { Select } from '../ui/Select';
 import { getStoredStatuses, getStoredPriorities, OptionConfig, getLocalizedOptionLabel, getColorOption } from '../../utils/fieldConfig';
@@ -38,6 +38,7 @@ interface TaskListViewProps {
   tasks: Task[];
   members: User[];
   workspaces?: Workspace[];
+  spaces?: Space[];
   selectedTaskIds: string[];
   setSelectedTaskIds: React.Dispatch<React.SetStateAction<string[]>>;
   setSelectedTask: (task: Task) => void;
@@ -62,7 +63,7 @@ interface TaskListViewProps {
 }
 
 const TaskListView = React.memo(function TaskListView({
-  filteredTasks, tasks, members, workspaces = [], selectedTaskIds, setSelectedTaskIds, setSelectedTask,
+  filteredTasks, tasks, members, workspaces = [], spaces = [], selectedTaskIds, setSelectedTaskIds, setSelectedTask,
   onUpdateTask, onDeleteTask, onAddSyncLog, triggerToast, filterTag, setFilterTag, isSmartSort, isUrgentNearDueTask,
   isMultiSelectMode, onAddTask, setViewType, statuses,
   activeTimerTaskId = null, onStartGlobalTimer, onStopGlobalTimer, onReorderTasks,
@@ -71,6 +72,18 @@ const TaskListView = React.memo(function TaskListView({
   const { t, locale } = useTranslation();
   const isVietnamese = locale === 'vi';
   
+  const [movingTask, setMovingTask] = useState<Task | null>(null);
+  const [moveTargetSpaceId, setMoveTargetSpaceId] = useState<string>('');
+  const [moveTargetListId, setMoveTargetListId] = useState<string>('');
+
+  const handleOpenMoveTask = (task: Task) => {
+    setMovingTask(task);
+    const initialSpaceId = task.spaceId || spaces[0]?.id || '';
+    setMoveTargetSpaceId(initialSpaceId);
+    const sp = spaces.find(s => s.id === initialSpaceId);
+    setMoveTargetListId(task.listId || sp?.lists?.[0]?.id || '');
+  };
+
   // View density mode: 'comfortable' | 'compact'
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
 
@@ -782,6 +795,18 @@ const TaskListView = React.memo(function TaskListView({
                                                   <Copy className="w-3.5 h-3.5" />
                                                 </button>
 
+                                                {/* Move Task */}
+                                                <button 
+                                                  onClick={e => {
+                                                    e.stopPropagation();
+                                                    handleOpenMoveTask(task);
+                                                  }}
+                                                  className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-all cursor-pointer"
+                                                  title={isVietnamese ? "Di chuyển công việc" : "Move task"}
+                                                >
+                                                  <FolderInput className="w-3.5 h-3.5" />
+                                                </button>
+
                                                 {/* Delete */}
                                                 {onDeleteTask && (
                                                   <button
@@ -995,6 +1020,111 @@ const TaskListView = React.memo(function TaskListView({
             );
           })}
         </div>
+        {/* Quick Move Task Modal */}
+        {movingTask && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-5 max-w-md w-full space-y-4 text-left">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                    <FolderInput className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                      {isVietnamese ? 'Di chuyển công việc' : 'Move Task'}
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[260px]">
+                      {movingTask.title}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMovingTask(null)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    {isVietnamese ? 'Chọn không gian làm việc đích' : 'Select target space'}
+                  </label>
+                  <select
+                    value={moveTargetSpaceId}
+                    onChange={(e) => {
+                      const nextSpaceId = e.target.value;
+                      setMoveTargetSpaceId(nextSpaceId);
+                      const targetSp = spaces.find(s => s.id === nextSpaceId);
+                      setMoveTargetListId(targetSp?.lists?.[0]?.id || '');
+                    }}
+                    className="w-full text-xs font-medium px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {spaces && spaces.length > 0 ? (
+                      spaces.map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))
+                    ) : (
+                      <option value="">{isVietnamese ? 'Không có không gian' : 'No spaces'}</option>
+                    )}
+                  </select>
+                </div>
+
+                {(() => {
+                  const targetSp = spaces?.find(s => s.id === moveTargetSpaceId);
+                  if (!targetSp || !targetSp.lists || targetSp.lists.length === 0) return null;
+                  return (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        {isVietnamese ? 'Chọn danh sách đích' : 'Select target list'}
+                      </label>
+                      <select
+                        value={moveTargetListId}
+                        onChange={(e) => setMoveTargetListId(e.target.value)}
+                        className="w-full text-xs font-medium px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 outline-hidden focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="">{isVietnamese ? '-- Không chọn danh sách (Toàn không gian) --' : '-- No list (Entire space) --'}</option>
+                        {targetSp.lists.map(l => (
+                          <option key={l.id} value={l.id}>{l.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setMovingTask(null)}
+                  className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                >
+                  {isVietnamese ? 'Hủy' : 'Cancel'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetSp = spaces.find(s => s.id === moveTargetSpaceId);
+                    onUpdateTask({
+                      ...movingTask,
+                      spaceId: moveTargetSpaceId,
+                      workspaceId: (targetSp as any)?.workspaceId || movingTask.workspaceId,
+                      listId: moveTargetListId || undefined,
+                    });
+                    if (onAddSyncLog) onAddSyncLog(`Moved task "${movingTask.title}" to ${targetSp?.name || 'new space'}`);
+                    if (triggerToast) triggerToast('success', isVietnamese ? 'Đã di chuyển công việc' : 'Task moved', `${movingTask.title} → ${targetSp?.name || ''}`);
+                    setMovingTask(null);
+                  }}
+                  className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-xs cursor-pointer"
+                >
+                  {isVietnamese ? 'Xác nhận di chuyển' : 'Confirm move'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DragDropContext>
   );

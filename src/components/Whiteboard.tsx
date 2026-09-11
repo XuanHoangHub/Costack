@@ -294,6 +294,7 @@ export default function Whiteboard({
   const dragSnapshotRef = useRef<WhiteboardElement[] | null>(null);
   const clipboardElementRef = useRef<WhiteboardElement | null>(null);
   const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
+  const [collaborators, setCollaborators] = useState<Array<{ userId: string; name: string; avatar: string; color: string }>>([]);
 
   // AI Analyst Sidepanel states
   const [showAiAnalyst, setShowAiAnalyst] = useState(false);
@@ -814,6 +815,7 @@ export default function Whiteboard({
           }, payload => {
             if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
               const m = payload.new;
+              if (!m) return;
               const formatted: WhiteboardElement = {
                  id: m.id,
                  type: m.type as any,
@@ -834,10 +836,45 @@ export default function Whiteboard({
                 return copy;
               });
             } else if (payload.eventType === 'DELETE') {
-              setElements(prev => prev.filter(m => m.id !== payload.old.id));
+              if (payload.old?.id) {
+                setElements(prev => prev.filter(m => m.id !== payload.old.id));
+              }
             }
           })
-          .subscribe();
+          .on('presence', { event: 'sync' }, () => {
+            if (!boardChannel) return;
+            const state = boardChannel.presenceState();
+            const users: Array<{ userId: string; name: string; avatar: string; color: string }> = [];
+            const seen = new Set<string>();
+            for (const presences of Object.values(state)) {
+              for (const p of (presences as any[])) {
+                if (p?.userId && !seen.has(p.userId)) {
+                  seen.add(p.userId);
+                  users.push({
+                    userId: p.userId,
+                    name: p.name || 'Thành viên',
+                    avatar: p.avatar || '',
+                    color: p.color || '#6366f1'
+                  });
+                }
+              }
+            }
+            setCollaborators(users);
+          })
+          .subscribe(async (status) => {
+            if (status === 'SUBSCRIBED' && boardChannel) {
+              const { data: { session } } = await supabase.auth.getSession();
+              const user = session?.user;
+              if (user) {
+                void boardChannel.track({
+                  userId: user.id,
+                  name: currentUser?.name || user.user_metadata?.full_name || 'Thành viên',
+                  avatar: currentUser?.avatar || user.user_metadata?.avatar_url || '',
+                  color: '#6366f1'
+                });
+              }
+            }
+          });
       } catch(e) {}
     }
 
@@ -845,7 +882,7 @@ export default function Whiteboard({
       active = false;
       if (boardChannel) supabase.removeChannel(boardChannel);
     };
-  }, [isOffline, whiteboardId]);
+  }, [currentUser?.avatar, currentUser?.name, isOffline, whiteboardId]);
 
   // Sync back to Supabase
   const saveToSupabase = async (el: WhiteboardElement) => {
@@ -876,9 +913,7 @@ export default function Whiteboard({
   const deleteFromSupabase = async (id: string) => {
     if (isOffline) return;
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
-      await supabase.from('whiteboard_elements').delete().eq('id', id).eq('user_id', session.user.id);
+      await supabase.from('whiteboard_elements').delete().eq('id', id);
     } catch (err) {}
   };
 
@@ -2661,6 +2696,30 @@ export default function Whiteboard({
             >
               <Sparkles className="w-4.5 h-4.5 text-indigo-500" />
             </button>
+
+            {collaborators.length > 0 && (
+              <div className="flex items-center -space-x-1.5 mr-1" title={`${collaborators.length} người đang trực tiếp trên bảng vẽ`}>
+                {collaborators.slice(0, 4).map((c) => (
+                  <div
+                    key={c.userId}
+                    className="w-7 h-7 rounded-full ring-2 ring-white dark:ring-slate-900 overflow-hidden bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center text-[10px] font-bold text-indigo-700 dark:text-indigo-300 relative"
+                    title={`${c.name} (Đang trực tiếp)`}
+                  >
+                    {c.avatar ? (
+                      <img src={c.avatar} alt={c.name} className="w-full h-full object-cover" />
+                    ) : (
+                      c.name.charAt(0).toUpperCase()
+                    )}
+                    <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-white dark:ring-slate-900" />
+                  </div>
+                ))}
+                {collaborators.length > 4 && (
+                  <div className="w-7 h-7 rounded-full ring-2 ring-white dark:ring-slate-900 bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-700 dark:text-slate-200">
+                    +{collaborators.length - 4}
+                  </div>
+                )}
+              </div>
+            )}
 
             <button
               onClick={() => setIsShareModalOpen(true)}

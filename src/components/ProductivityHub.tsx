@@ -16,7 +16,7 @@ import {
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
 import { Task, User } from '../types';
-import { supabase } from '../supabaseClient';
+import { supabase, getCleanChannel } from '../supabaseClient';
 import { useTranslation } from '../contexts/TranslationContext';
 import { callAiApi, isAiAccessError } from '@/lib/aiClient';
 
@@ -233,7 +233,94 @@ export default function ProductivityHub({
     }
     prevOfflineRef.current = isOffline;
   }, [isOffline, habits, focusSessions, onAddSyncLog]);
-  
+
+  // Realtime subscription for habits and focus sessions
+  useEffect(() => {
+    let active = true;
+    let channel: any = null;
+
+    const setupRealtime = async () => {
+      if (isOffline) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id || !active) return;
+      const userId = session.user.id;
+
+      channel = getCleanChannel(`realtime-productivity-${userId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'habits',
+            filter: `user_id=eq.${userId}`
+          },
+          (payload) => {
+            const eventType = payload.eventType;
+            if (eventType === 'INSERT' || eventType === 'UPDATE') {
+              const h = payload.new as any;
+              if (!h?.id) return;
+              const mappedHabit: Habit = {
+                id: h.id,
+                name: h.name,
+                history: h.history || {},
+                createdAt: h.created_at || new Date().toISOString(),
+                streak: h.streak || 0
+              };
+              setHabits(prev => {
+                const exists = prev.some(item => item.id === mappedHabit.id);
+                if (exists) return prev.map(item => item.id === mappedHabit.id ? { ...item, ...mappedHabit } : item);
+                return [...prev, mappedHabit];
+              });
+            } else if (eventType === 'DELETE') {
+              const deletedId = payload.old?.id;
+              if (!deletedId) return;
+              setHabits(prev => prev.filter(item => item.id !== deletedId));
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'focus_sessions',
+            filter: `user_id=eq.${userId}`
+          },
+          (payload) => {
+            const eventType = payload.eventType;
+            if (eventType === 'INSERT' || eventType === 'UPDATE') {
+              const f = payload.new as any;
+              if (!f?.id) return;
+              const mappedSession: FocusSession = {
+                id: f.id,
+                durationMinutes: f.duration_minutes,
+                type: f.type as FocusSession['type'],
+                timestamp: f.timestamp,
+                completed: f.completed
+              };
+              setFocusSessions(prev => {
+                const exists = prev.some(item => item.id === mappedSession.id);
+                if (exists) return prev.map(item => item.id === mappedSession.id ? { ...item, ...mappedSession } : item);
+                return [mappedSession, ...prev];
+              });
+            } else if (eventType === 'DELETE') {
+              const deletedId = payload.old?.id;
+              if (!deletedId) return;
+              setFocusSessions(prev => prev.filter(item => item.id !== deletedId));
+            }
+          }
+        )
+        .subscribe();
+    };
+
+    void setupRealtime();
+
+    return () => {
+      active = false;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [isOffline]);
+
   // Pomodoro States
   const [pomoMode, setPomoMode] = useState<'work' | 'short' | 'long'>('work');
   const [pomoActive, setPomoActive] = useState<boolean>(false);

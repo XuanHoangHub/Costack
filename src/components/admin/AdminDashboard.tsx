@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -256,29 +256,40 @@ export default function AdminDashboard() {
     } finally { setLoading(false); }
   }, [auditCursor, auditFilter, authorizedFetch]);
 
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+  const loadOverviewRef = useRef(loadOverview);
+  loadOverviewRef.current = loadOverview;
+  const loadAuditRef = useRef(loadAudit);
+  loadAuditRef.current = loadAudit;
+  const loadVersionsRef = useRef(loadVersions);
+  loadVersionsRef.current = loadVersions;
+  const loadSettingsRef = useRef(loadSettings);
+  loadSettingsRef.current = loadSettings;
+
   useEffect(() => { void loadOverview(); }, [loadOverview]);
 
   useEffect(() => {
     if (access !== 'authorized') return;
-    const timer = window.setInterval(() => void loadOverview(true), 20_000);
+    const timer = window.setInterval(() => void loadOverviewRef.current(true), 20_000);
     const channel = getCleanChannel('apexa-admin-control-center')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_audit_logs' }, () => {
-        void loadOverview(true);
-        if (activeTab === 'audit') void loadAudit(false);
+        void loadOverviewRef.current(true);
+        if (activeTabRef.current === 'audit') void loadAuditRef.current(false);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'app_versions' }, () => {
-        void loadOverview(true);
-        if (activeTab === 'versions') void loadVersions();
+        void loadOverviewRef.current(true);
+        if (activeTabRef.current === 'versions') void loadVersionsRef.current();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'app_admin_settings' }, () => {
-        if (activeTab === 'system') void loadSettings();
+        if (activeTabRef.current === 'system') void loadSettingsRef.current();
       })
       .subscribe((status) => setRealtimeState(status === 'SUBSCRIBED' ? 'live' : status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' ? 'degraded' : 'connecting'));
     return () => {
       window.clearInterval(timer);
       void supabase.removeChannel(channel);
     };
-  }, [access, activeTab, loadAudit, loadOverview, loadSettings, loadVersions]);
+  }, [access]);
 
   useEffect(() => {
     if (access !== 'authorized') return;

@@ -2600,8 +2600,6 @@ export default function App() {
     let workspacesChannel: any = null;
     let spacesChannel: any = null;
     let listsChannel: any = null;
-    let spacesDebounceTimer: any = null;
-    let listsDebounceTimer: any = null;
     let baseAppsChannel: any = null;
     let invitationsChannel: any = null;
 
@@ -2990,6 +2988,11 @@ export default function App() {
             commentsCount: t.commentsCount || 0,
             tags: t.tags || [],
             isPinned: t.isPinned || false,
+            isMilestone: t.isMilestone || t.custom_fields?.isMilestone || false,
+            reminder: t.reminder || t.custom_fields?.reminder || undefined,
+            position: typeof t.position === 'number' ? t.position : undefined,
+            parentId: t.parent_id || undefined,
+            aiSummary: t.aiSummary || undefined,
             comments: t.comments || [],
             attachments: t.attachments || [],
             workspaceId: t.workspace_id || undefined,
@@ -3285,14 +3288,6 @@ export default function App() {
 
         // Set up Realtime Postgres Changes Channels
         if (active) {
-          const getCleanChannel = (name: string) => {
-            const existing = supabase.getChannels().find(c => c.topic === name || c.topic === `realtime:${name}`);
-            if (existing) {
-              void supabase.removeChannel(existing);
-            }
-            return supabase.channel(name);
-          };
-
           tasksChannel = getCleanChannel('realtime-tasks')
             .on(
               'postgres_changes',
@@ -3327,6 +3322,11 @@ export default function App() {
                     commentsCount: t.commentsCount || 0,
                     tags: t.tags || [],
                     isPinned: t.isPinned || false,
+                    isMilestone: t.isMilestone || t.custom_fields?.isMilestone || false,
+                    reminder: t.reminder || t.custom_fields?.reminder || undefined,
+                    position: typeof t.position === 'number' ? t.position : undefined,
+                    parentId: t.parent_id || undefined,
+                    aiSummary: t.aiSummary || undefined,
                     comments: t.comments || [],
                     attachments: t.attachments || [],
                     workspaceId: t.workspace_id || undefined,
@@ -3515,11 +3515,75 @@ export default function App() {
                 schema: 'public',
                 table: 'spaces'
               },
-              () => {
-                if (spacesDebounceTimer) clearTimeout(spacesDebounceTimer);
-                spacesDebounceTimer = setTimeout(() => {
-                  fetchSpacesAndLists();
-                }, 350);
+              (payload) => {
+                const eventType = payload.eventType;
+                if (eventType === 'INSERT' || eventType === 'UPDATE') {
+                  const s = payload.new as any;
+                  if (!s || !s.id) return;
+                  setSpaces(prev => {
+                    const existing = prev.find(item => item.id === s.id);
+                    const updatedSpace: Space = {
+                      id: s.id,
+                      name: s.name,
+                      emoji: s.emoji || '📦',
+                      themeColor: s.theme_color || 'indigo',
+                      workspaceId: s.workspace_id,
+                      user_id: s.user_id,
+                      isPrivate: s.is_private || false,
+                      shareSettings: s.share_settings || {},
+                      description: s.click_apps?.spacePreferences?.description || existing?.description || '',
+                      isFavorite: !!s.is_favorite || !!s.click_apps?.spacePreferences?.isFavorite,
+                      isHidden: !!s.is_hidden || !!s.click_apps?.spacePreferences?.isHidden,
+                      isArchived: !!s.is_archived || !!s.click_apps?.spacePreferences?.isArchived,
+                      defaultPermission: s.click_apps?.spacePreferences?.defaultPermission || existing?.defaultPermission || 'Full edit',
+                      lists: existing ? existing.lists : [],
+                      folders: s.folders || existing?.folders || [],
+                      whiteboards: s.whiteboards || existing?.whiteboards || [],
+                      channels: s.channels || existing?.channels || [],
+                      statuses: s.statuses || existing?.statuses || [],
+                      clickApps: s.click_apps || existing?.clickApps || {},
+                      customFields: s.custom_fields_config || existing?.customFields || [],
+                      position: typeof s.position === 'number' ? s.position : existing?.position
+                    };
+
+                    if (existing) {
+                      return prev.map(item => item.id === s.id ? updatedSpace : item);
+                    }
+
+                    // Newly created space from another user: asynchronously fetch its lists to ensure none are missed
+                    void supabase.from('lists').select('*').eq('space_id', s.id).then(({ data: remoteLists }) => {
+                      if (remoteLists && remoteLists.length > 0) {
+                        setSpaces(currentSpaces => currentSpaces.map(sp => {
+                          if (sp.id !== s.id) return sp;
+                          const mappedRemoteLists = remoteLists.map(l => ({
+                            id: l.id,
+                            name: l.name,
+                            folderId: l.folder_id || undefined,
+                            user_id: l.user_id,
+                            isPrivate: l.is_private || false,
+                            shareSettings: l.share_settings || {},
+                            isFavorite: Boolean(l.is_favorite),
+                            isArchived: Boolean(l.is_archived),
+                            position: typeof l.position === 'number' ? l.position : 0
+                          }));
+                          const existingIds = new Set(sp.lists.map(li => li.id));
+                          const added = mappedRemoteLists.filter(li => !existingIds.has(li.id));
+                          if (added.length === 0) return sp;
+                          return {
+                            ...sp,
+                            lists: [...sp.lists, ...added].sort((a, b) => (a.position || 0) - (b.position || 0))
+                          };
+                        }));
+                      }
+                    });
+
+                    return [...prev, updatedSpace];
+                  });
+                } else if (eventType === 'DELETE') {
+                  if (payload.old && payload.old.id) {
+                    setSpaces(prev => prev.filter(item => item.id !== payload.old.id));
+                  }
+                }
               }
             )
             .subscribe();
@@ -3532,11 +3596,43 @@ export default function App() {
                 schema: 'public',
                 table: 'lists'
               },
-              () => {
-                if (listsDebounceTimer) clearTimeout(listsDebounceTimer);
-                listsDebounceTimer = setTimeout(() => {
-                  fetchSpacesAndLists();
-                }, 350);
+              (payload) => {
+                const eventType = payload.eventType;
+                if (eventType === 'INSERT' || eventType === 'UPDATE') {
+                  const l = payload.new as any;
+                  if (!l || !l.id || !l.space_id) return;
+                  const mappedList = {
+                    id: l.id,
+                    name: l.name,
+                    folderId: l.folder_id || undefined,
+                    user_id: l.user_id,
+                    isPrivate: l.is_private || false,
+                    shareSettings: l.share_settings || {},
+                    isFavorite: Boolean(l.is_favorite),
+                    isArchived: Boolean(l.is_archived),
+                    position: typeof l.position === 'number' ? l.position : 0
+                  };
+                  setSpaces(prev => prev.map(space => {
+                    if (space.id !== l.space_id) return space;
+                    const exists = space.lists.some(item => item.id === mappedList.id);
+                    const updatedLists = exists
+                      ? space.lists.map(item => item.id === mappedList.id ? { ...item, ...mappedList } : item)
+                      : [...space.lists, mappedList];
+                    updatedLists.sort((a, b) => (a.position || 0) - (b.position || 0));
+                    return {
+                      ...space,
+                      lists: updatedLists
+                    };
+                  }));
+                } else if (eventType === 'DELETE') {
+                  if (payload.old && payload.old.id) {
+                    const deletedId = payload.old.id;
+                    setSpaces(prev => prev.map(space => ({
+                      ...space,
+                      lists: space.lists.filter(list => list.id !== deletedId)
+                    })));
+                  }
+                }
               }
             )
             .subscribe();
@@ -3549,8 +3645,34 @@ export default function App() {
                 schema: 'public',
                 table: 'base_apps'
               },
-              () => {
-                fetchBaseApps();
+              (payload) => {
+                const eventType = payload.eventType;
+                if (eventType === 'INSERT' || eventType === 'UPDATE') {
+                  const b = payload.new as any;
+                  if (!b || !b.id) return;
+                  const mappedBase: BaseApp = {
+                    id: b.id,
+                    name: b.name,
+                    emoji: b.emoji || '📋',
+                    description: b.description || '',
+                    tables: b.tables || [],
+                    activeTableId: b.active_table_id || undefined,
+                    workspaceId: b.workspace_id || undefined,
+                    createdAt: b.created_at || new Date().toISOString(),
+                    updatedAt: b.updated_at || new Date().toISOString(),
+                  };
+                  setBases(prev => {
+                    const exists = prev.some(item => item.id === mappedBase.id);
+                    if (exists) {
+                      return prev.map(item => item.id === mappedBase.id ? mappedBase : item);
+                    }
+                    return [...prev, mappedBase];
+                  });
+                } else if (eventType === 'DELETE') {
+                  if (payload.old && payload.old.id) {
+                    setBases(prev => prev.filter(item => item.id !== payload.old.id));
+                  }
+                }
               }
             )
             .subscribe();
@@ -3565,6 +3687,7 @@ export default function App() {
               },
               () => {
                 // Dispatch event so that useWorkspaceInvitations hook updates automatically
+                window.dispatchEvent(new CustomEvent('apexa-invitation-updated'));
                 window.dispatchEvent(new CustomEvent('avaxa-invitation-updated'));
               }
             )
@@ -3578,8 +3701,6 @@ export default function App() {
     loadAndSubscribe();
     return () => {
       active = false;
-      if (spacesDebounceTimer) clearTimeout(spacesDebounceTimer);
-      if (listsDebounceTimer) clearTimeout(listsDebounceTimer);
       if (tasksChannel) supabase.removeChannel(tasksChannel);
       if (docsChannel) supabase.removeChannel(docsChannel);
       if (membersChannel) supabase.removeChannel(membersChannel);

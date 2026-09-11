@@ -19,7 +19,14 @@ if (!SUPABASE_URL || !SUPABASE_PUBLIC_KEY) {
 
 export const supabase = createClient(
   SUPABASE_URL || "https://placeholder.supabase.co",
-  SUPABASE_PUBLIC_KEY || "placeholder-anon-key"
+  SUPABASE_PUBLIC_KEY || "placeholder-anon-key",
+  {
+    realtime: {
+      params: {
+        eventsPerSecond: 40,
+      },
+    },
+  }
 );
 
 /**

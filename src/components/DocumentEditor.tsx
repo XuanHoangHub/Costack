@@ -551,6 +551,21 @@ export default function DocumentEditor({
           setComments(prev => prev.map(c => c.id === payload.new.id ? payload.new : c));
         }
       })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'documents',
+        filter: `id=eq.${documentId}`
+      }, (payload) => {
+        if (payload.eventType === 'UPDATE') {
+          const updated = payload.new as any;
+          if (!updated) return;
+          setDocDetails((prev: any) => ({ ...prev, ...updated }));
+          if (updated.is_locked !== undefined) {
+            setIsLocked(Boolean(updated.is_locked));
+          }
+        }
+      })
       .subscribe();
 
     return () => {

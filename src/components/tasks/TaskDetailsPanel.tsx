@@ -54,7 +54,7 @@ import {
   Star,
   Link as LinkIcon,
   ChevronRight, ChevronsLeft, ChevronsRight,
-  Hourglass, AlertTriangle, Folder, Download, Copy,
+  Hourglass, AlertTriangle, Folder, FolderInput, Download, Copy,
   FileDown, FileCode, Share2, Link2, Shield,
   PanelRightClose, PanelRightOpen,
   AppWindow, Maximize2, PanelRight, Layout
@@ -251,6 +251,10 @@ export default function TaskDetailsPanel({
     };
   const [showAssigneesDropdown, setShowAssigneesDropdown] = useState(false);
   const [showSpaceDropdown, setShowSpaceDropdown] = useState(false);
+  const [showListDropdown, setShowListDropdown] = useState(false);
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [selectedMoveSpaceId, setSelectedMoveSpaceId] = useState<string>(() => task.spaceId || (spaces[0]?.id ?? ''));
+  const [selectedMoveListId, setSelectedMoveListId] = useState<string>(() => task.listId || '');
   const [showSharePopover, setShowSharePopover] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showLinkTaskDropdown, setShowLinkTaskDropdown] = useState(false);
@@ -427,7 +431,11 @@ export default function TaskDetailsPanel({
     setConfirmDelete(false);
     setShowMoreMenu(false);
     setShowSpaceDropdown(false);
-  }, [task.id]);
+    setShowListDropdown(false);
+    setShowMoveModal(false);
+    setSelectedMoveSpaceId(task.spaceId || (spaces[0]?.id ?? ''));
+    setSelectedMoveListId(task.listId || '');
+  }, [task.id, task.spaceId, task.listId, spaces]);
 
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -436,10 +444,12 @@ export default function TaskDetailsPanel({
         if (editingTitle) { setEditingTitle(false); setTitleValue(task.title); return; }
         if (showSharePopover) { setShowSharePopover(false); return; }
         if (showLogTimeModal) { setShowLogTimeModal(false); return; }
-        if (layoutMenuOpen || showMoreMenu || showSpaceDropdown || showAssigneesDropdown || showTagsDropdown || showLinkTaskDropdown || showLinkDocDropdown || showBlockedByDropdown || showBlocksDropdown) {
+        if (showMoveModal) { setShowMoveModal(false); return; }
+        if (layoutMenuOpen || showMoreMenu || showSpaceDropdown || showListDropdown || showAssigneesDropdown || showTagsDropdown || showLinkTaskDropdown || showLinkDocDropdown || showBlockedByDropdown || showBlocksDropdown) {
           setLayoutMenuOpen(false);
           setShowMoreMenu(false);
           setShowSpaceDropdown(false);
+          setShowListDropdown(false);
           setConfirmDelete(false);
           setShowAssigneesDropdown(false);
           setShowTagsDropdown(false);
@@ -1094,6 +1104,28 @@ export default function TaskDetailsPanel({
             </div>
           </div>
         )}
+
+        {/* Vị trí / Di chuyển */}
+        <div className="py-1.5 px-2 -mx-1 rounded-xl flex items-center justify-between min-h-[38px] group/row relative hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
+          <span className="w-28 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
+            <FolderInput className="w-3.5 h-3.5 text-slate-400" /> {isVietnamese ? 'Vị trí' : 'Location'}
+          </span>
+          <div className="flex items-center gap-1 flex-1 min-w-0 justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedMoveSpaceId(task.spaceId || (spaces[0]?.id ?? ''));
+                setSelectedMoveListId(task.listId || '');
+                setShowMoveModal(true);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors border border-slate-200/60 dark:border-white/5 truncate max-w-[190px] cursor-pointer"
+              title={isVietnamese ? 'Di chuyển công việc sang không gian / danh sách khác' : 'Move task to another space / list'}
+            >
+              <Folder className="w-3 h-3 text-indigo-500 shrink-0" />
+              <span className="truncate">{spaceName}{listName ? ` / ${listName}` : ''}</span>
+            </button>
+          </div>
+        </div>
 
         {/* Time Tracking */}
         <div className="py-2 px-2 -mx-1 rounded-xl flex flex-col justify-center min-h-[38px] space-y-1.5 hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
@@ -2343,7 +2375,8 @@ export default function TaskDetailsPanel({
                               key={s.id}
                               type="button"
                               onClick={() => {
-                                onUpdateTask({ ...task, spaceId: s.id, workspaceId: (s as any).workspaceId || task.workspaceId });
+                                const targetListId = s.lists?.[0]?.id || undefined;
+                                onUpdateTask({ ...task, spaceId: s.id, workspaceId: (s as any).workspaceId || task.workspaceId, listId: targetListId });
                                 onAddSyncLog(`Space → ${s.name}`);
                                 setShowSpaceDropdown(false);
                               }}
@@ -2395,18 +2428,76 @@ export default function TaskDetailsPanel({
                   )}
                 </div>
 
-                {listName ? (
-                  <>
-                    <span className="text-slate-300 dark:text-slate-600 shrink-0 select-none">/</span>
-                    <div 
-                      className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer shrink min-w-0 max-w-[110px] sm:max-w-[150px]"
-                      title={listName}
-                    >
-                      <List className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate font-medium text-xs">{listName}</span>
-                    </div>
-                  </>
-                ) : null}
+                {(() => {
+                  const currentSpace = spaces?.find(s => s.id === task.spaceId);
+                  if (currentSpace && currentSpace.lists && currentSpace.lists.length > 0) {
+                    return (
+                      <>
+                        <span className="text-slate-300 dark:text-slate-600 shrink-0 select-none">/</span>
+                        <div className="relative shrink min-w-0 max-w-[120px] sm:max-w-[160px] md:max-w-[200px]">
+                          <button
+                            type="button"
+                            onClick={() => setShowListDropdown(!showListDropdown)}
+                            className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer text-slate-600 dark:text-slate-300 group w-full min-w-0"
+                            title={isVietnamese ? 'Chọn danh sách' : 'Select list'}
+                          >
+                            <List className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 transition-colors shrink-0" />
+                            <span className="truncate font-medium text-xs">{listName || (isVietnamese ? 'Chọn danh sách' : 'Select list')}</span>
+                            <ChevronDown className={`w-3 h-3 text-slate-400 group-hover:text-slate-600 transition-transform shrink-0 ${showListDropdown ? 'rotate-180' : ''}`} />
+                          </button>
+
+                          {showListDropdown && (
+                            <>
+                              <div className="fixed inset-0 z-30 cursor-default" onClick={() => setShowListDropdown(false)} />
+                              <div className="absolute left-0 mt-1 z-40 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl w-56 max-h-60 overflow-y-auto custom-scrollbar space-y-1 text-left">
+                                <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                  {isVietnamese ? 'Danh sách công việc' : 'Lists'}
+                                </div>
+                                {currentSpace.lists.map(l => (
+                                  <button
+                                    key={l.id}
+                                    type="button"
+                                    onClick={() => {
+                                      onUpdateTask({ ...task, listId: l.id });
+                                      onAddSyncLog(`List → ${l.name}`);
+                                      setShowListDropdown(false);
+                                    }}
+                                    className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors ${
+                                      task.listId === l.id 
+                                        ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold' 
+                                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                    }`}
+                                  >
+                                    <span className="flex items-center gap-2 truncate">
+                                      <List className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                      <span className="truncate">{l.name}</span>
+                                    </span>
+                                    {task.listId === l.id && <Check className="w-3 h-3 text-indigo-500 shrink-0" />}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </>
+                    );
+                  }
+                  if (listName) {
+                    return (
+                      <>
+                        <span className="text-slate-300 dark:text-slate-600 shrink-0 select-none">/</span>
+                        <div 
+                          className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer shrink min-w-0 max-w-[110px] sm:max-w-[150px]"
+                          title={listName}
+                        >
+                          <List className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="truncate font-medium text-xs">{listName}</span>
+                        </div>
+                      </>
+                    );
+                  }
+                  return null;
+                })()}
 
                 {/* Task Title Pill in Breadcrumb - shown only on non-sidebar md+ viewports to prevent crowding */}
                 {modalLayout !== 'sidebar' && (
@@ -2563,6 +2654,16 @@ export default function TaskDetailsPanel({
                           className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-xl cursor-pointer transition-colors">
                           <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
                           <span>{isVietnamese ? 'Nhân bản công việc' : 'Duplicate task'}</span>
+                        </button>
+                        <button type="button" onClick={() => { 
+                          setShowMoreMenu(false); 
+                          setSelectedMoveSpaceId(task.spaceId || (spaces[0]?.id ?? ''));
+                          setSelectedMoveListId(task.listId || '');
+                          setShowMoveModal(true); 
+                        }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-xl cursor-pointer transition-colors">
+                          <FolderInput className="w-3.5 h-3.5 text-indigo-500" />
+                          <span>{isVietnamese ? 'Di chuyển công việc...' : 'Move task...'}</span>
                         </button>
                         <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
                         <button
@@ -3279,6 +3380,117 @@ export default function TaskDetailsPanel({
             onAddSyncLog?.(`Updated sharing settings for task "${task.title}"`);
           }}
         />
+      )}
+
+      {/* Move Task Modal */}
+      {showMoveModal && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-5 max-w-md w-full space-y-4 text-left">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                  <FolderInput className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    {isVietnamese ? 'Di chuyển công việc' : 'Move Task'}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[260px]">
+                    {task.title}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMoveModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 flex items-center gap-2">
+              <span className="font-semibold text-slate-500">{isVietnamese ? 'Hiện tại:' : 'Current:'}</span>
+              <span className="font-bold text-slate-800 dark:text-slate-200 truncate">{spaceName}{listName ? ` / ${listName}` : ''}</span>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  {isVietnamese ? 'Chọn không gian làm việc đích' : 'Select target space'}
+                </label>
+                <select
+                  value={selectedMoveSpaceId}
+                  onChange={(e) => {
+                    const nextSpaceId = e.target.value;
+                    setSelectedMoveSpaceId(nextSpaceId);
+                    const targetSp = spaces.find(s => s.id === nextSpaceId);
+                    setSelectedMoveListId(targetSp?.lists?.[0]?.id || '');
+                  }}
+                  className="w-full text-xs font-medium px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 outline-hidden focus:ring-2 focus:ring-indigo-500"
+                >
+                  {spaces && spaces.length > 0 ? (
+                    spaces.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))
+                  ) : (
+                    <option value="">{isVietnamese ? 'Không có không gian' : 'No spaces'}</option>
+                  )}
+                </select>
+              </div>
+
+              {(() => {
+                const targetSp = spaces?.find(s => s.id === selectedMoveSpaceId);
+                if (!targetSp || !targetSp.lists || targetSp.lists.length === 0) return null;
+                return (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      {isVietnamese ? 'Chọn danh sách đích' : 'Select target list'}
+                    </label>
+                    <select
+                      value={selectedMoveListId}
+                      onChange={(e) => setSelectedMoveListId(e.target.value)}
+                      className="w-full text-xs font-medium px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 outline-hidden focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="">{isVietnamese ? '-- Không chọn danh sách (Toàn không gian) --' : '-- No list (Entire space) --'}</option>
+                      {targetSp.lists.map(l => (
+                        <option key={l.id} value={l.id}>{l.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowMoveModal(false)}
+                className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+              >
+                {isVietnamese ? 'Hủy' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const targetSp = spaces.find(s => s.id === selectedMoveSpaceId);
+                  onUpdateTask({
+                    ...task,
+                    spaceId: selectedMoveSpaceId,
+                    workspaceId: (targetSp as any)?.workspaceId || task.workspaceId,
+                    listId: selectedMoveListId || undefined,
+                  });
+                  onAddSyncLog(`Moved task "${task.title}" to ${targetSp?.name || 'new space'}`);
+                  if (triggerToast) triggerToast('success', isVietnamese ? 'Đã di chuyển công việc' : 'Task moved', `${task.title} → ${targetSp?.name || ''}`);
+                  setShowMoveModal(false);
+                }}
+                className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-xs cursor-pointer"
+              >
+                {isVietnamese ? 'Xác nhận di chuyển' : 'Confirm move'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </AnimatePresence>,
     document.body

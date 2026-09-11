@@ -355,6 +355,10 @@ export default function ChatRoom({
   const pendingMessagesRef = useRef<Map<string, PendingChatMessage>>(new Map());
   const flushingPendingRef = useRef(false);
   const typingRemovalTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const membersRef = useRef(members);
+  useEffect(() => { membersRef.current = members; }, [members]);
+  const spacesRef = useRef(spaces);
+  useEffect(() => { spacesRef.current = spaces; }, [spaces]);
 
   // Emoji Picker Popover state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -1415,7 +1419,7 @@ ${channelMessagesText}`;
         }
         if (isDm) {
           const memberId = activeChannelId.split('-').pop();
-          const member = members.find(m => m.id === memberId);
+          const member = (membersRef.current || []).find(m => m.id === memberId);
           setMessages([
             { id: 'm1', senderId: 'system', senderName: 'System', senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S', content: `Đây là bắt đầu cuộc trò chuyện trực tiếp của bạn với ${member ? member.name : 'thành viên này'}.`, timestamp: 'Vừa xong' }
           ]);
@@ -1534,7 +1538,30 @@ ${channelMessagesText}`;
             typingRemovalTimers.set(userId, timer);
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            // Re-sync latest messages to catch up on any messages missed during reconnect
+            supabase
+              .from('chat_messages')
+              .select('*')
+              .eq('channel_id', activeChannelId)
+              .order('created_at', { ascending: false })
+              .limit(30)
+              .then(({ data: recentRows, error: catchupErr }) => {
+                if (!catchupErr && recentRows && recentRows.length > 0) {
+                  const recentMsgs = recentRows.reverse().map(mapChatMessage);
+                  setMessages(prev => {
+                    const existingIds = new Set(prev.map(msg => msg.id));
+                    const missing = recentMsgs.filter(msg => !existingIds.has(msg.id));
+                    if (missing.length === 0) return prev;
+                    const merged = [...prev, ...missing].sort((a, b) => new Date(a.createdAt || a.timestamp).getTime() - new Date(b.createdAt || b.timestamp).getTime());
+                    messageCacheRef.current.set(activeChannelId, merged);
+                    return merged;
+                  });
+                }
+              });
+          }
+        });
       
       channelSubscriptionRef.current = subscription;
     }
@@ -1555,7 +1582,7 @@ ${channelMessagesText}`;
         channelSubscriptionRef.current = null;
       }
     };
-  }, [activeChannelId, isOffline, currentUser.id, currentUser.name, members, spaces, workspaceId]);
+  }, [activeChannelId, isOffline, currentUser.id, currentUser.name, workspaceId]);
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     isNearBottomRef.current = true;
@@ -1910,6 +1937,83 @@ ${channelMessagesText}`;
 
     return () => { supabase.removeChannel(inboxSubscription); };
   }, [channels, currentUser.id, currentUser.userId, isOffline, workspaceId]);
+
+  // Realtime subscription for workspace chat channels (add, rename, delete, new DM channels)
+  useEffect(() => {
+    if (isOffline || !workspaceId) return;
+    const channelsSub = getCleanChannel(`realtime-chat-channels-${workspaceId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_channels',
+          filter: `workspace_id=eq.${workspaceId}`
+        },
+        payload => {
+          const eventType = payload.eventType;
+          if (eventType === 'INSERT' || eventType === 'UPDATE') {
+            const c = payload.new as any;
+            if (!c || !c.id) return;
+            const mappedChan: ChatChannel = {
+              id: c.id,
+              name: c.name,
+              description: c.description || '',
+              type: (c.type || (c.is_private ? 'private' : 'public')) as 'public' | 'private' | 'dm' | 'group',
+              unreadCount: 0,
+              workspaceId: c.workspace_id || workspaceId,
+              dmKey: c.dm_key || undefined,
+            };
+            setChannels(prev => {
+              const exists = prev.some(ch => ch.id === mappedChan.id);
+              if (exists) {
+                return prev.map(ch => ch.id === mappedChan.id ? { ...ch, ...mappedChan, unreadCount: ch.unreadCount } : ch);
+              }
+              return [...prev, mappedChan];
+            });
+          } else if (eventType === 'DELETE') {
+            const oldId = payload.old?.id;
+            if (!oldId) return;
+            setChannels(prev => {
+              const next = prev.filter(ch => ch.id !== oldId);
+              if (activeChannelIdRef.current === oldId) {
+                const fallback = next[0]?.id || 'general';
+                setActiveChannelId(fallback);
+              }
+              return next;
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channelsSub); };
+  }, [isOffline, workspaceId]);
+
+  // Sync read states across tabs/devices in realtime
+  useEffect(() => {
+    const authId = currentUser?.userId || currentUser?.id;
+    if (isOffline || !authId) return;
+    const readStateSub = getCleanChannel(`realtime-chat-reads-${authId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_read_states',
+          filter: `user_id=eq.${authId}`
+        },
+        payload => {
+          const row = payload.new as any;
+          if (!row?.channel_id || !row?.last_read_at) return;
+          setUnreadCounts(prev => ({ ...prev, [row.channel_id]: 0 }));
+          setLastReadTimestamps(prev => ({ ...prev, [row.channel_id]: row.last_read_at }));
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(readStateSub); };
+  }, [currentUser?.id, currentUser?.userId, isOffline]);
 
   // Mark current channel as read when switching
   useEffect(() => {

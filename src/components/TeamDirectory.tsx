@@ -20,7 +20,7 @@ import {
   List, Copy, Crown, ShieldCheck, Building2, UserCircle2, ArrowRight,
   TrendingUp, Laptop, Palette, Filter, RefreshCw
 } from 'lucide-react';
-import { supabase } from '../supabaseClient';
+import { supabase, getCleanChannel } from '../supabaseClient';
 import SignedImage from './SignedImage';
 import InviteModal from './InviteModal';
 import { setUserPresenceStatus } from '../hooks/useUserPresence';
@@ -251,8 +251,7 @@ export default function TeamDirectory({
   }, [fetchHierarchy]);
 
   useEffect(() => {
-    const channel = supabase
-      .channel(`team-directory-${activeWorkspaceId}`)
+    const channel = getCleanChannel(`team-directory-${activeWorkspaceId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `workspace_id=eq.${activeWorkspaceId}` }, fetchHierarchy)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, fetchHierarchy)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'departments' }, fetchHierarchy)
@@ -287,8 +286,7 @@ export default function TeamDirectory({
     };
     loadContactsCount();
 
-    const channel = supabase
-      .channel(`contacts-count-${activeWorkspaceId}`)
+    const channel = getCleanChannel(`contacts-count-${activeWorkspaceId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'workspace_contacts', filter: `workspace_id=eq.${activeWorkspaceId}` }, () => {
         loadContactsCount();
       })
