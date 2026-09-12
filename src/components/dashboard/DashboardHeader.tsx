@@ -90,8 +90,8 @@ export default function DashboardHeader({
         <div className="space-y-2 min-w-0 flex-1">
           {/* Status pill row */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium text-neutral-600 dark:text-neutral-300 bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.06]">
-              <Layers className="h-3 w-3 text-[#0071e3] dark:text-[#0a84ff]" />
+            <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-[11px] font-semibold text-neutral-600 dark:text-zinc-200 bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.09] shadow-xs backdrop-blur-md">
+              <Layers className="h-3 w-3 text-[#0071e3] dark:text-sky-400" />
               <span className="truncate max-w-[200px]">{workspaceName || 'Apexa Workspace'}</span>
             </span>
 
@@ -104,15 +104,17 @@ export default function DashboardHeader({
           </div>
 
           {/* Heading */}
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-[-0.03em] text-neutral-900 dark:text-white leading-tight">
-            <span className="mr-2 inline-block opacity-90">{greetingInfo.icon}</span>
+          <h1 className="flex items-center flex-wrap gap-2 text-2xl sm:text-3xl font-bold tracking-[-0.03em] text-neutral-900 dark:text-white leading-tight">
+            <span className="inline-flex items-center justify-center w-8.5 h-8.5 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/20 dark:border-amber-400/20 text-base shadow-xs shrink-0">
+              {greetingInfo.icon}
+            </span>
             <span>{greetingInfo.greeting}, </span>
-            <span className="text-[#0071e3] dark:text-[#0a84ff]">
+            <span className="bg-gradient-to-r from-blue-600 via-sky-500 to-indigo-600 dark:from-sky-300 dark:via-blue-300 dark:to-indigo-300 bg-clip-text text-transparent font-extrabold">
               {userName}
             </span>
           </h1>
 
-          <p className="max-w-2xl text-[13px] font-normal leading-relaxed text-neutral-500 dark:text-neutral-400">
+          <p className="max-w-2xl text-[13px] font-normal leading-relaxed text-neutral-500 dark:text-zinc-400">
             {dashboardScope === 'mine'
               ? (locale === 'vi' 
                   ? `Nhiệm vụ cá nhân trong ${workspaceName || 'workspace'}. Tập trung vào các việc cần ưu tiên xử lý trước.`
@@ -134,7 +136,7 @@ export default function DashboardHeader({
               size="sm"
               fullWidth
               layoutIdPrefix="apexa-dashboard-scope"
-              className="bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.06] p-0.5 rounded-xl shadow-none"
+              className="bg-black/[0.04] dark:bg-black/40 border border-black/[0.04] dark:border-white/[0.08] p-0.5 rounded-xl shadow-none"
               options={[
                 {
                   id: 'mine',
@@ -157,7 +159,7 @@ export default function DashboardHeader({
             <button
               type="button"
               onClick={() => onNavigate('tasks')}
-              className="flex-1 sm:flex-initial inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-[#0071e3] hover:bg-[#0077ed] px-3.5 text-xs font-semibold text-white shadow-xs active:scale-[0.98] transition-all cursor-pointer group"
+              className="flex-1 sm:flex-initial inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 px-4 text-xs font-bold text-white shadow-md shadow-blue-500/25 active:scale-[0.98] transition-all cursor-pointer group"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
               <span>{locale === 'vi' ? 'Quản lý nhiệm vụ' : 'Manage Tasks'}</span>
@@ -168,7 +170,7 @@ export default function DashboardHeader({
               type="button"
               onClick={() => onNavigate('calendar')}
               title={locale === 'vi' ? 'Mở lịch trình' : 'Open Calendar'}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-white/[0.04] text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.07] transition-all shadow-none cursor-pointer"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-black/[0.06] dark:border-white/[0.09] bg-white dark:bg-white/[0.05] text-neutral-600 dark:text-zinc-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.09] hover:text-neutral-900 dark:hover:text-white transition-all shadow-xs backdrop-blur-md cursor-pointer"
             >
               <Calendar className="h-4 w-4" />
             </button>
@@ -178,7 +180,7 @@ export default function DashboardHeader({
                 type="button"
                 onClick={onOpenAiReport}
                 title={locale === 'vi' ? 'Báo cáo thông minh AI' : 'AI Smart Report'}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-indigo-200/60 dark:border-indigo-800/40 bg-indigo-50/60 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100/60 transition-colors shadow-none cursor-pointer"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-indigo-200/60 dark:border-indigo-500/30 bg-indigo-50/60 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100/60 dark:hover:bg-indigo-500/25 transition-all shadow-xs cursor-pointer"
               >
                 <Sparkles className="h-3.5 w-3.5" />
               </button>

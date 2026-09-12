@@ -56,7 +56,7 @@ export default function DashboardKpis({
       subtitle: locale === 'vi' ? `Đã hoàn thành ${completedTasks}/${totalTasks} việc` : `Done ${completedTasks}/${totalTasks} tasks`,
       icon: CheckCircle2,
       iconColor: 'text-emerald-600 dark:text-emerald-400',
-      iconBg: 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200/60 dark:border-emerald-800/60',
+      iconBg: 'bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 dark:border-emerald-400/25 shadow-xs shadow-emerald-500/10',
       glowColor: 'bg-emerald-500/10 dark:bg-emerald-500/15',
       barColor: 'from-emerald-500 to-teal-400',
       progress: completionPercentage,
@@ -69,7 +69,7 @@ export default function DashboardKpis({
       subtitle: locale === 'vi' ? `${inProgressTasks} đang làm · ${reviewTasks} chờ duyệt` : `${inProgressTasks} in progress · ${reviewTasks} in review`,
       icon: Activity,
       iconColor: 'text-amber-600 dark:text-amber-400',
-      iconBg: 'bg-amber-50 dark:bg-amber-950/50 border-amber-200/60 dark:border-amber-800/60',
+      iconBg: 'bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/20 dark:border-amber-400/25 shadow-xs shadow-amber-500/10',
       glowColor: 'bg-amber-500/10 dark:bg-amber-500/15',
       barColor: 'from-amber-400 to-orange-500',
       progress: activeTasksPercentage,
@@ -83,10 +83,10 @@ export default function DashboardKpis({
         ? `Ước tính: ${totalEstimatedHours.toLocaleString('vi-VN')}h`
         : `Estimate: ${totalEstimatedHours.toLocaleString('en-US')}h`,
       icon: Clock,
-      iconColor: 'text-indigo-600 dark:text-indigo-400',
-      iconBg: 'bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200/60 dark:border-indigo-800/60',
-      glowColor: 'bg-indigo-500/10 dark:bg-indigo-500/15',
-      barColor: 'from-indigo-500 to-blue-500',
+      iconColor: 'text-blue-600 dark:text-blue-400',
+      iconBg: 'bg-blue-500/10 dark:bg-blue-500/15 border border-blue-500/20 dark:border-blue-400/25 shadow-xs shadow-blue-500/10',
+      glowColor: 'bg-blue-500/10 dark:bg-blue-500/15',
+      barColor: 'from-blue-500 to-indigo-500',
       progress: loggedProgress,
       badge: totalEstimatedHours > 0 ? `${loggedProgress}% ${locale === 'vi' ? 'kế hoạch' : 'of plan'}` : '0h plan',
     },
@@ -97,7 +97,7 @@ export default function DashboardKpis({
       subtitle: locale === 'vi' ? `${membersCount} thành viên · ${onlineMembersCount} trực tuyến` : `${membersCount} members · ${onlineMembersCount} online`,
       icon: FileText,
       iconColor: 'text-cyan-600 dark:text-cyan-400',
-      iconBg: 'bg-cyan-50 dark:bg-cyan-950/50 border-cyan-200/60 dark:border-cyan-800/60',
+      iconBg: 'bg-cyan-500/10 dark:bg-cyan-500/15 border border-cyan-500/20 dark:border-cyan-400/25 shadow-xs shadow-cyan-500/10',
       glowColor: 'bg-cyan-500/10 dark:bg-cyan-500/15',
       barColor: 'from-cyan-400 to-sky-500',
       progress: membersCount > 0 ? Math.round((onlineMembersCount / membersCount) * 100) : 0,
@@ -106,7 +106,7 @@ export default function DashboardKpis({
   ];
 
   return (
-    <div className="apexa-telemetry-ribbon rounded-2xl bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.08] shadow-xs overflow-hidden text-left">
+    <div className="apexa-telemetry-ribbon rounded-2xl bg-white dark:bg-[#121318] border border-black/[0.06] dark:border-white/[0.08] shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] overflow-hidden text-left">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-black/[0.05] dark:divide-white/[0.06]">
         {cards.map((card, index) => (
           <motion.div
@@ -114,37 +114,37 @@ export default function DashboardKpis({
             initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.04, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="group relative flex flex-col justify-between p-4 sm:p-5 hover:bg-black/[0.015] dark:hover:bg-white/[0.02] transition-colors"
+            className="group relative flex flex-col justify-between p-4.5 sm:p-5 hover:bg-black/[0.015] dark:hover:bg-white/[0.025] transition-colors"
           >
             {/* Top Row: Title, Badge, and Minimalist Icon */}
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-medium tracking-wider uppercase text-neutral-400 dark:text-neutral-500">
+              <span className="text-[11px] font-bold tracking-wider uppercase text-neutral-400 dark:text-zinc-400">
                 {card.title}
               </span>
               
-              <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${card.iconBg} ${card.iconColor} transition-transform duration-200 group-hover:scale-105`}>
-                <card.icon className="h-3.5 w-3.5 stroke-[1.8]" />
+              <div className={`flex h-7.5 w-7.5 items-center justify-center rounded-xl ${card.iconBg} ${card.iconColor} transition-transform duration-200 group-hover:scale-105`}>
+                <card.icon className="h-4 w-4 stroke-[2]" />
               </div>
             </div>
 
             {/* Metric Value & Subtitle */}
             <div className="mt-2.5 space-y-1">
               <div className="flex items-baseline justify-between gap-2">
-                <span className="text-2xl sm:text-[26px] font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums">
+                <span className="text-2xl sm:text-[28px] font-extrabold tracking-tight text-neutral-900 dark:text-white tabular-nums">
                   {card.value}
                 </span>
-                <span className="rounded-full bg-black/[0.04] dark:bg-white/[0.06] px-2 py-0.5 text-[10px] font-medium text-neutral-600 dark:text-neutral-300">
+                <span className="rounded-full bg-black/[0.04] dark:bg-white/[0.08] border border-transparent dark:border-white/[0.06] px-2.5 py-0.5 text-[10px] font-bold text-neutral-600 dark:text-zinc-200">
                   {card.badge}
                 </span>
               </div>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate font-normal">
+              <p className="text-xs text-neutral-500 dark:text-zinc-400 truncate font-medium">
                 {card.subtitle}
               </p>
             </div>
 
             {/* Micro Progress Bar */}
             <div className="mt-3.5">
-              <div className="h-1 w-full overflow-hidden rounded-full bg-black/[0.04] dark:bg-white/[0.06]">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/[0.04] dark:bg-white/[0.07]">
                 <motion.div
                   initial={prefersReducedMotion ? false : { width: 0 }}
                   animate={{ width: `${Math.min(100, Math.max(0, card.progress))}%` }}

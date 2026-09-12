@@ -11,12 +11,14 @@ interface MiniAppLauncherButtonProps {
   onSelectApp: (appId: string) => void;
   onOpenHub: () => void;
   className?: string;
+  disabled?: boolean;
 }
 
 export default function MiniAppLauncherButton({
   onSelectApp,
   onOpenHub,
   className = '',
+  disabled = false,
 }: MiniAppLauncherButtonProps) {
   const { locale } = useTranslation();
   const isVi = locale === 'vi';
@@ -81,14 +83,23 @@ export default function MiniAppLauncherButton({
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (disabled) {
+            onOpenHub();
+            return;
+          }
+          setIsOpen(!isOpen);
+        }}
         className={`apexa-header-icon-button h-8.5 w-8.5 rounded-xl border flex items-center justify-center transition-all cursor-pointer shadow-3xs ${
-          isOpen
-            ? 'bg-blue-50 dark:bg-zinc-800 border-blue-500/50 dark:border-blue-400/50 text-blue-600 dark:text-sky-300 ring-2 ring-blue-500/15'
-            : 'bg-white/70 dark:bg-white/[0.03] border-slate-200/80 dark:border-white/[0.08] text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-100 hover:bg-white dark:hover:bg-white/[0.06] hover:border-slate-300 dark:hover:border-white/15'
+          disabled
+            ? 'opacity-60 bg-white/50 dark:bg-white/[0.02] border-slate-200/60 dark:border-white/[0.06] text-slate-400 dark:text-zinc-500'
+            : isOpen
+              ? 'bg-blue-50 dark:bg-zinc-800 border-blue-500/50 dark:border-blue-400/50 text-blue-600 dark:text-sky-300 ring-2 ring-blue-500/15'
+              : 'bg-white/70 dark:bg-white/[0.03] border-slate-200/80 dark:border-white/[0.08] text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-100 hover:bg-white dark:hover:bg-white/[0.06] hover:border-slate-300 dark:hover:border-white/15'
         }`}
-        title={isVi ? 'Trình khởi chạy Mini App (▦)' : 'Mini App Launcher (▦)'}
+        title={disabled ? (isVi ? 'Kho ứng dụng Mini Apps đang phát triển' : 'Mini Apps is under development') : (isVi ? 'Trình khởi chạy Mini App (▦)' : 'Mini App Launcher (▦)')}
         aria-label="Open mini apps launcher"
+        aria-disabled={disabled}
         aria-expanded={isOpen}
       >
         <LayoutGrid className="w-4 h-4" />

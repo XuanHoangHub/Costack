@@ -1,5 +1,8 @@
 "use client";
 
+import CustomFieldInput from "./CustomFieldInput";
+import { applyCustomFieldDefaults, validateTaskCustomFields } from "@/lib/customFields";
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -168,7 +171,7 @@ export default function TaskModal({
   allTasks = [],
   triggerToast,
 }: TaskModalProps) {
-  const { isVietnamese } = useTranslation();
+  const { isVietnamese, locale } = useTranslation();
   const isEditMode = Boolean(initialData?.id);
   const createDialogRef = useRef<HTMLDivElement>(null);
   const isMac = typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
@@ -313,10 +316,7 @@ export default function TaskModal({
   }, [spaces, spaceId]);
 
   const activeSpaceCustomFields = useMemo(() => {
-    if (selectedSpace?.customFields && selectedSpace.customFields.length > 0) {
-      return selectedSpace.customFields;
-    }
-    return customFields;
+    return selectedSpace ? selectedSpace.customFields || [] : customFields;
   }, [selectedSpace, customFields]);
 
   const availableBlockerTasks = useMemo(() => {
@@ -507,6 +507,13 @@ export default function TaskModal({
       return;
     }
 
+    const resolvedValues = applyCustomFieldDefaults(activeSpaceCustomFields, customFieldValues);
+    const fieldErrors = validateTaskCustomFields(activeSpaceCustomFields, resolvedValues, status === 'completed', isVietnamese ? 'vi' : 'en');
+    if (fieldErrors.length) {
+      setValidationError(fieldErrors.map(error => error.field + ': ' + error.message).join(' '));
+      setShowMoreDetails(true);
+      return;
+    }
     setValidationError('');
     const primaryAssigneeId = assigneeIds[0] || undefined;
 
@@ -527,7 +534,7 @@ export default function TaskModal({
       hoursEstimate: hoursEstimate === '' ? undefined : Math.max(0, Number(hoursEstimate) || 0),
       hoursLogged: hoursLogged === '' ? undefined : Math.max(0, Number(hoursLogged) || 0),
       custom_fields: {
-        ...customFieldValues,
+        ...resolvedValues,
         reminder: reminder !== 'none' ? reminder : undefined,
         isMilestone: isMilestone ? true : undefined,
       },
@@ -577,7 +584,7 @@ export default function TaskModal({
     title, description, status, priority, assigneeIds, spaceId, listId, startDate, dueDate,
     tags, progress, hoursEstimate, hoursLogged, customFieldValues, subtasks, createAnother,
     onSave, onClose, isVietnamese, isPinned, isMilestone, reminder, recurrence, attachments,
-    blockedByIds, initialData, activeWorkspaceId, isUploadingAttachment
+    blockedByIds, initialData, activeWorkspaceId, isUploadingAttachment, activeSpaceCustomFields
   ]);
 
   // Sync progress from subtasks
@@ -1683,98 +1690,14 @@ export default function TaskModal({
                           </p>
                           <div className="space-y-3">
                             {activeSpaceCustomFields.map(field => {
-                              const curVal = customFieldValues[field.name];
+                              const curVal = applyCustomFieldDefaults(activeSpaceCustomFields, customFieldValues)[field.name];
                               return (
                                 <div key={field.id || field.name} className="space-y-1">
                                   <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-300 block truncate">
-                                    {field.name}
+                                    {field.name}{field.isRequired && <span className="ml-1 text-rose-500">*</span>}
                                   </label>
-                                  {field.type === 'checkbox' ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setCustomFieldValues(prev => ({
-                                          ...prev,
-                                          [field.name]: curVal === 'true' || curVal === true ? 'false' : 'true'
-                                        }));
-                                      }}
-                                      className={`px-2.5 py-1.5 rounded-lg border flex items-center gap-2 transition-all text-xs font-medium cursor-pointer ${
-                                        curVal === 'true' || curVal === true
-                                          ? 'bg-indigo-600 border-indigo-600 text-white'
-                                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500'
-                                      }`}
-                                    >
-                                      <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${curVal === 'true' || curVal === true ? 'bg-white text-indigo-600 border-white' : 'border-slate-400'}`}>
-                                        {(curVal === 'true' || curVal === true) && <Check className="w-2.5 h-2.5 stroke-[3]" />}
-                                      </div>
-                                      <span>{field.checkboxLabel || (curVal === 'true' || curVal === true ? (isVietnamese ? 'Bật' : 'On') : (isVietnamese ? 'Tắt' : 'Off'))}</span>
-                                    </button>
-                                  ) : field.type === 'rating' ? (
-                                    <div className="flex items-center gap-0.5">
-                                      {Array.from({ length: field.ratingMax || 5 }).map((_, idx) => {
-                                        const starVal = idx + 1;
-                                        const isSelected = parseInt(String(curVal)) >= starVal;
-                                        return (
-                                          <button
-                                            key={starVal}
-                                            type="button"
-                                            onClick={() => setCustomFieldValues(prev => ({ ...prev, [field.name]: curVal === String(starVal) ? '' : String(starVal) }))}
-                                            className={`text-sm cursor-pointer hover:scale-110 transition-transform ${isSelected ? 'text-amber-400' : 'text-slate-300 dark:text-slate-700'}`}
-                                          >
-                                            ★
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  ) : field.type === 'dropdown' ? (
-                                    <DropdownFieldSelect
-                                      value={String(curVal || '')}
-                                      options={field.options || []}
-                                      fieldId={field.id}
-                                      onChange={newV => setCustomFieldValues(prev => ({ ...prev, [field.name]: newV }))}
-                                    />
-                                  ) : field.type === 'labels' ? (
-                                    <LabelsFieldSelect
-                                      value={String(curVal || '')}
-                                      options={field.options || []}
-                                      fieldId={field.id}
-                                      onChange={newV => setCustomFieldValues(prev => ({ ...prev, [field.name]: newV }))}
-                                    />
-                                  ) : field.type === 'money' ? (
-                                    <div className="relative">
-                                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">{field.currencySymbol || '\$'}</span>
-                                      <input
-                                        type="text"
-                                        placeholder={field.placeholder || "0.00"}
-                                        value={String(curVal || '')}
-                                        onChange={e => setCustomFieldValues(prev => ({ ...prev, [field.name]: e.target.value }))}
-                                        className="w-full pl-7 pr-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-100 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 font-medium transition-all"
-                                      />
-                                    </div>
-                                  ) : field.type === 'textarea' ? (
-                                    <textarea
-                                      rows={2}
-                                      placeholder={field.placeholder || '...'}
-                                      value={String(curVal || '')}
-                                      onChange={e => setCustomFieldValues(prev => ({ ...prev, [field.name]: e.target.value }))}
-                                      className="w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                                    />
-                                  ) : field.type === 'date' ? (
-                                    <input
-                                      type="date"
-                                      value={String(curVal || '')}
-                                      onChange={e => setCustomFieldValues(prev => ({ ...prev, [field.name]: e.target.value }))}
-                                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                                    />
-                                  ) : (
-                                    <input
-                                      type={field.type === 'number' ? 'number' : field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : 'text'}
-                                      placeholder={field.placeholder || '...'}
-                                      value={String(curVal || '')}
-                                      onChange={e => setCustomFieldValues(prev => ({ ...prev, [field.name]: e.target.value }))}
-                                      className="w-full px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-100 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 font-medium transition-all"
-                                    />
-                                  )}
+                                  {field.description && <p className="text-[10px] text-slate-400">{field.description}</p>}
+                                  <CustomFieldInput field={field} value={curVal} members={members} draft onChange={value => setCustomFieldValues(prev => ({ ...prev, [field.name]: value }))} />
                                 </div>
                               );
                             })}

@@ -145,7 +145,7 @@ export default function DashboardUpcomingAgenda({
       {/* Header */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-1">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-500/10 dark:bg-violet-500/15 border border-violet-500/20 text-violet-600 dark:text-violet-400 dark:shadow-[0_0_12px_rgba(139,92,246,0.2)]">
             <CalendarDays className="h-4 w-4" />
           </div>
           <div>
@@ -154,7 +154,7 @@ export default function DashboardUpcomingAgenda({
                 {locale === 'vi' ? 'Lịch trình & Hạn chót' : 'Upcoming Agenda & Deadlines'}
               </h3>
               {agendaGroups.overdue.length > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 text-[10px] font-medium text-rose-600 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/60">
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 dark:bg-rose-500/15 px-2 py-0.5 text-[10px] font-medium text-rose-600 dark:text-rose-300 border border-rose-200/60 dark:border-rose-500/25">
                   <AlertCircle className="h-2.5 w-2.5" />
                   {agendaGroups.overdue.length} {locale === 'vi' ? 'quá hạn' : 'overdue'}
                 </span>
@@ -179,7 +179,7 @@ export default function DashboardUpcomingAgenda({
       </div>
 
       {totalUpcomingCount === 0 ? (
-        <div className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.08] p-8 text-center shadow-xs">
+        <div className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121318] border border-black/[0.06] dark:border-white/[0.08] p-8 text-center shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
           <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mb-2">
             <CheckCircle2 className="h-5 w-5" />
           </div>
@@ -191,18 +191,18 @@ export default function DashboardUpcomingAgenda({
           </p>
         </div>
       ) : (
-        <div className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.08] shadow-xs overflow-hidden">
+        <div className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121318] border border-black/[0.06] dark:border-white/[0.08] shadow-xs dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-black/[0.05] dark:divide-white/[0.06]">
           
           {/* 1. Overdue Group (if any) */}
           {agendaGroups.overdue.length > 0 && (
-            <div className="p-3.5 flex flex-col gap-2.5 bg-rose-500/[0.02] dark:bg-rose-950/[0.1]">
+            <div className="p-3.5 flex flex-col gap-2.5 bg-rose-500/[0.02] dark:bg-rose-950/[0.15]">
               <div className="flex items-center justify-between pb-1.5 border-b border-black/[0.04] dark:border-white/[0.06]">
                 <span className="text-[11px] font-medium text-rose-600 dark:text-rose-400 flex items-center gap-1.5 uppercase tracking-wider">
                   <AlertCircle className="h-3 w-3" />
                   {locale === 'vi' ? 'Quá hạn' : 'Overdue'}
                 </span>
-                <span className="rounded-full bg-rose-100 dark:bg-rose-900/60 px-1.5 py-0.2 text-[10px] font-semibold text-rose-700 dark:text-rose-300">
+                <span className="rounded-full bg-rose-100 dark:bg-rose-500/20 px-1.5 py-0.2 text-[10px] font-semibold text-rose-700 dark:text-rose-300 border border-transparent dark:border-rose-500/30">
                   {agendaGroups.overdue.length}
                 </span>
               </div>
@@ -231,7 +231,7 @@ export default function DashboardUpcomingAgenda({
                 <Clock className="h-3 w-3" />
                 {locale === 'vi' ? 'Hôm nay' : 'Today'}
               </span>
-              <span className="rounded-full bg-amber-100 dark:bg-amber-900/60 px-1.5 py-0.2 text-[10px] font-semibold text-amber-800 dark:text-amber-300">
+              <span className="rounded-full bg-amber-100 dark:bg-amber-500/20 px-1.5 py-0.2 text-[10px] font-semibold text-amber-800 dark:text-amber-300 border border-transparent dark:border-amber-500/30">
                 {agendaGroups.today.length}
               </span>
             </div>
@@ -265,7 +265,7 @@ export default function DashboardUpcomingAgenda({
                 <Calendar className="h-3 w-3" />
                 {locale === 'vi' ? 'Ngày mai' : 'Tomorrow'}
               </span>
-              <span className="rounded-full bg-blue-100 dark:bg-blue-900/60 px-1.5 py-0.2 text-[10px] font-semibold text-blue-800 dark:text-blue-300">
+              <span className="rounded-full bg-blue-100 dark:bg-blue-500/20 px-1.5 py-0.2 text-[10px] font-semibold text-blue-800 dark:text-blue-300 border border-transparent dark:border-blue-500/30">
                 {agendaGroups.tomorrow.length}
               </span>
             </div>
@@ -422,7 +422,7 @@ function AgendaTaskItem({
           {isRescheduleOpen && (
             <div
               onClick={(e) => e.stopPropagation()}
-              className="absolute right-0 top-full mt-1 z-30 w-36 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-800 dark:bg-slate-900 text-left"
+              className="absolute right-0 top-full mt-1 z-30 w-36 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-white/[0.08] dark:bg-[#151824] dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] text-left"
             >
               <div className="px-2 py-1 text-[9.5px] font-black uppercase text-slate-400 tracking-wider">
                 {locale === 'vi' ? 'Dời hạn chót' : 'Reschedule'}
@@ -430,21 +430,21 @@ function AgendaTaskItem({
               <button
                 type="button"
                 onClick={(e) => onQuickPostpone(e, task, 1)}
-                className="w-full text-left px-2 py-1 text-xs font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
+                className="w-full text-left px-2 py-1 text-xs font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.06] text-slate-700 dark:text-slate-200 cursor-pointer"
               >
                 +1 {locale === 'vi' ? 'ngày' : 'day'}
               </button>
               <button
                 type="button"
                 onClick={(e) => onQuickPostpone(e, task, 3)}
-                className="w-full text-left px-2 py-1 text-xs font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
+                className="w-full text-left px-2 py-1 text-xs font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.06] text-slate-700 dark:text-slate-200 cursor-pointer"
               >
                 +3 {locale === 'vi' ? 'ngày' : 'days'}
               </button>
               <button
                 type="button"
                 onClick={(e) => onQuickPostpone(e, task, 7)}
-                className="w-full text-left px-2 py-1 text-xs font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
+                className="w-full text-left px-2 py-1 text-xs font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.06] text-slate-700 dark:text-slate-200 cursor-pointer"
               >
                 +1 {locale === 'vi' ? 'tuần' : 'week'}
               </button>

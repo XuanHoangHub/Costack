@@ -703,7 +703,7 @@ export default function SpaceViewTabBar({
                           if (e.key === 'Enter') handleSaveRename(tab.id);
                           if (e.key === 'Escape') setEditingTabId(null);
                         }}
-                        className="bg-white dark:bg-[#121214] border border-indigo-500 rounded px-1.5 py-0.5 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none w-24"
+                        className="bg-white dark:bg-[#161926] border border-indigo-500 rounded px-1.5 py-0.5 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none w-24"
                         onClick={e => e.stopPropagation()}
                       />
                     ) : (

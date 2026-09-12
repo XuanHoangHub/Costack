@@ -14,12 +14,14 @@ export interface SelectOption<T extends string | number = string> {
 }
 
 export type SelectSize = 'sm' | 'md';
+export type SelectVariant = 'default' | 'inline' | 'ghost';
 
 interface SelectProps<T extends string | number> {
   value: T | undefined | null;
   onChange: (value: T) => void;
   options: SelectOption<T>[];
   size?: SelectSize;
+  variant?: SelectVariant;
   /** Extra classes for the trigger — width/layout only (w-40, w-full…). Base styling is provided. */
   className?: string;
   placeholder?: string;
@@ -42,6 +44,7 @@ export function Select<T extends string | number = string>({
   onChange,
   options,
   size = 'md',
+  variant = 'default',
   className = '',
   placeholder,
   ariaLabel,
@@ -197,9 +200,17 @@ export function Select<T extends string | number = string>({
     }
   };
 
-  const sizeClasses = size === 'sm'
-    ? 'h-8 px-2.5 text-[11px] gap-1.5'
-    : 'h-10 px-3 text-sm gap-2';
+  const sizeClasses = variant === 'inline'
+    ? 'h-auto py-0.5 px-1 text-[11px] gap-1'
+    : size === 'sm'
+      ? 'h-8 px-2.5 text-[11px] gap-1.5'
+      : 'h-10 px-3 text-sm gap-2';
+
+  const triggerVariantClasses = variant === 'inline'
+    ? 'border-0 bg-transparent text-slate-800 dark:text-zinc-100 font-bold hover:bg-black/[0.04] dark:hover:bg-white/[0.06] rounded-md shadow-none focus-visible:ring-1 focus-visible:ring-indigo-500/30'
+    : variant === 'ghost'
+      ? 'border-0 bg-transparent text-slate-700 dark:text-zinc-200 font-semibold hover:bg-slate-100 dark:hover:bg-white/[0.06] rounded-xl shadow-none'
+      : 'rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[#121318] font-semibold text-slate-700 dark:text-zinc-200 hover:border-slate-300 dark:hover:border-white/20 focus-visible:border-indigo-500 focus-visible:ring-3 focus-visible:ring-indigo-500/10 shadow-2xs';
 
   const menuStyle: React.CSSProperties = {
     position: 'fixed',
@@ -226,7 +237,7 @@ export function Select<T extends string | number = string>({
       style={{ ...menuStyle, transformOrigin: openUpward ? 'bottom' : 'top' }}
       onKeyDown={onKeyDown}
       tabIndex={-1}
-      className="p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg"
+      className="p-1 bg-white dark:bg-[#121318] border border-slate-200/90 dark:border-white/[0.1] rounded-xl shadow-xl dark:shadow-[0_16px_48px_rgba(0,0,0,0.7)] backdrop-blur-xl"
     >
       {options.length === 0 && (
         <div className="px-3 py-2 text-xs text-slate-400 dark:text-slate-500 select-none">—</div>
@@ -246,14 +257,14 @@ export function Select<T extends string | number = string>({
               tabIndex={-1}
               onMouseEnter={() => !option.disabled && setActiveIndex(index)}
               onClick={() => commit(index)}
-              className={`w-full flex items-center gap-2 px-2.5 py-2 text-left text-xs rounded-lg cursor-pointer transition-colors ${
+              className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs rounded-lg cursor-pointer transition-colors ${
                 option.disabled
-                  ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                  ? 'text-slate-300 dark:text-zinc-600 cursor-not-allowed'
                   : isSelected
-                    ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold'
+                    ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400 font-semibold'
                     : isActive
-                      ? 'bg-slate-100 dark:bg-slate-800/70 text-slate-800 dark:text-slate-100'
-                      : 'text-slate-600 dark:text-slate-300'
+                      ? 'bg-slate-100 dark:bg-white/[0.06] text-slate-800 dark:text-zinc-100'
+                      : 'text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-white/[0.04]'
               }`}
             >
               <span className="flex-1 min-w-0 truncate">
@@ -262,7 +273,7 @@ export function Select<T extends string | number = string>({
                   <span className="block text-[10px] font-normal text-slate-400 dark:text-slate-500 truncate">{option.description}</span>
                 )}
               </span>
-              {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-indigo-500" />}
+              {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-blue-600 dark:text-blue-400" />}
             </button>
           );
         })}
@@ -284,12 +295,12 @@ export function Select<T extends string | number = string>({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={ariaLabel}
-        className={`group w-full inline-flex items-center justify-between ${sizeClasses} rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-950 font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none outline-none transition-colors hover:border-slate-300 dark:hover:border-slate-600 focus-visible:border-indigo-500 focus-visible:ring-3 focus-visible:ring-indigo-500/10 disabled:opacity-50 disabled:cursor-not-allowed ${disabled ? '' : 'active:scale-[0.99]'}`}
+        className={`group w-full inline-flex items-center justify-between ${sizeClasses} ${triggerVariantClasses} cursor-pointer select-none outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${disabled ? '' : 'active:scale-[0.99]'}`}
       >
-        <span className={`truncate ${selected ? '' : 'text-slate-400 dark:text-slate-500 font-medium'}`}>
+        <span className={`truncate ${selected ? '' : 'text-slate-400 dark:text-zinc-500 font-medium'}`}>
           {selected ? selected.label : (placeholder ?? '—')}
         </span>
-        <ChevronDown className={`w-3.5 h-3.5 shrink-0 text-slate-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-zinc-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
       {typeof document !== 'undefined' && coords && createPortal(
         <AnimatePresence>

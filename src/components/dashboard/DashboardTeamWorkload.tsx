@@ -83,7 +83,7 @@ export default function DashboardTeamWorkload({
       {/* Header */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-black/[0.05] dark:border-white/[0.06]">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-black/[0.04] text-slate-800 dark:bg-white/[0.06] dark:text-slate-200">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 dark:shadow-[0_0_12px_rgba(99,102,241,0.2)]">
             <Users className="h-4.5 w-4.5" />
           </div>
           <div>
@@ -158,7 +158,7 @@ export default function DashboardTeamWorkload({
                         alt={item.member.name}
                       />
                       <span
-                        className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-[#121214] ${
+                        className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-[#121318] ${
                           isOnline ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
                         }`}
                       />

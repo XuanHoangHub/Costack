@@ -165,7 +165,7 @@ export default function DashboardScratchpad({
       {/* Header */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-black/[0.05] dark:border-white/[0.06]">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/20 text-amber-600 dark:text-amber-400 dark:shadow-[0_0_12px_rgba(245,158,11,0.2)]">
             <StickyNote className="h-4.5 w-4.5" />
           </div>
           <div>

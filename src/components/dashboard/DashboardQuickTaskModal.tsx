@@ -86,11 +86,11 @@ export default function DashboardQuickTaskModal({
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md text-left animate-in fade-in duration-150">
       <div className="fixed inset-0" onClick={onClose} />
 
-      <div className="relative w-full max-w-lg rounded-2xl bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-2xl border border-black/[0.08] dark:border-white/[0.12] shadow-2xl p-5 sm:p-6 z-10 space-y-4">
+      <div className="relative w-full max-w-lg rounded-2xl bg-white/95 dark:bg-[#151824]/98 backdrop-blur-2xl border border-black/[0.08] dark:border-white/[0.1] shadow-2xl dark:shadow-[0_25px_60px_rgba(0,0,0,0.85),inset_0_1px_0_0_rgba(255,255,255,0.06)] p-5 sm:p-6 z-10 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-black/[0.05] dark:border-white/[0.06]">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#0071E3]/10 text-[#0071E3] dark:text-[#0A84FF]">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/10 dark:bg-blue-500/15 border border-blue-500/20 text-[#0071e3] dark:text-blue-400 dark:shadow-[0_0_12px_rgba(59,130,246,0.2)]">
               <Plus className="h-4 w-4" />
             </div>
             <div>

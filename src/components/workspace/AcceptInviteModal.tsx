@@ -4,10 +4,10 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   CheckCircle2, X, Building2, Shield, ShieldCheck,
-  User, ArrowRight, Loader2, AlertCircle, Sparkles, Clock
+  User, ArrowRight, Loader2, AlertCircle, Sparkles, Clock, Users
 } from "lucide-react";
 import { useTranslation } from "@/contexts/TranslationContext";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/supabaseClient";
 
 interface InvitationData {
   id: string;
@@ -53,18 +53,110 @@ export default function AcceptInviteModal({
     const fetchInvite = async () => {
       setLoading(true);
       setError(null);
-      try {
-        const { data, error: rpcError } = await supabase.rpc("get_invitation_by_token", {
-          p_token: token,
-        });
 
-        if (rpcError) throw rpcError;
-        if (!data) {
+      // 1. Direct workspace link support: e.g. ws_workspaceId_role
+      if (token.startsWith('ws_')) {
+        const parts = token.slice(3).split('_');
+        const wsId = parts[0];
+        const role = parts[1] || 'member';
+
+        try {
+          const { data: wsData, error: wsError } = await supabase
+            .from('workspaces')
+            .select('id, name, icon')
+            .eq('id', wsId)
+            .maybeSingle();
+
+          const { data: { session } } = await supabase.auth.getSession();
+          const userEmail = session?.user?.email || '';
+
+          if (wsData) {
+            setInvitation({
+              id: `direct_${wsId}`,
+              workspace_id: wsId,
+              workspace_name: wsData.name || (isVietnamese ? 'Không gian Apexa' : 'Apexa Workspace'),
+              workspace_logo: wsData.icon || undefined,
+              email: userEmail,
+              role: role,
+              invited_by_name: isVietnamese ? 'Quản trị viên' : 'Workspace Admin',
+              status: 'pending',
+            });
+            return;
+          }
+        } catch (err) {
+          console.warn('Error fetching workspace direct invite:', err);
+        }
+      }
+
+      // 2. Standard token-backed invitation
+      try {
+        let inviteRecord: any = null;
+
+        // Try RPC first
+        try {
+          const { data, error: rpcError } = await supabase.rpc("get_invitation_by_token", {
+            p_token: token,
+          });
+          if (!rpcError && data) {
+            inviteRecord = data;
+          }
+        } catch (_) {}
+
+        // Fallback: query workspace_invitations table directly
+        if (!inviteRecord) {
+          try {
+            const { data, error: queryError } = await supabase
+              .from('workspace_invitations')
+              .select('*')
+              .eq('token', token)
+              .maybeSingle();
+
+            if (!queryError && data) {
+              inviteRecord = {
+                id: data.id,
+                workspace_id: data.workspace_id,
+                workspace_name: data.workspace_name || 'Apexa Workspace',
+                email: data.email,
+                role: data.role,
+                invited_by_name: data.invited_by_name || 'Admin',
+                status: data.status,
+                expires_at: data.expires_at,
+                is_expired: data.expires_at ? new Date(data.expires_at).getTime() < Date.now() : false
+              };
+            }
+          } catch (_) {}
+        }
+
+        // Fallback: check local storage
+        if (!inviteRecord && typeof window !== 'undefined') {
+          try {
+            const raw = localStorage.getItem('apexa_workspace_invitations');
+            if (raw) {
+              const list = JSON.parse(raw);
+              const found = list.find((i: any) => i.token === token || i.id === token);
+              if (found) {
+                inviteRecord = {
+                  id: found.id,
+                  workspace_id: found.workspaceId,
+                  workspace_name: found.workspaceName || 'Apexa Workspace',
+                  email: found.email,
+                  role: found.role,
+                  invited_by_name: found.invitedByName || 'Admin',
+                  status: found.status,
+                  expires_at: found.expiresAt,
+                  is_expired: found.expiresAt ? new Date(found.expiresAt).getTime() < Date.now() : false
+                };
+              }
+            }
+          } catch (_) {}
+        }
+
+        if (!inviteRecord) {
           setError(isVietnamese ? "Lời mời không hợp lệ hoặc đã bị thu hồi." : "Invitation is invalid or has been revoked.");
           return;
         }
 
-        setInvitation(data as InvitationData);
+        setInvitation(inviteRecord as InvitationData);
       } catch (err) {
         console.error("Error fetching invite by token:", err);
         setError(err instanceof Error ? err.message : (isVietnamese ? "Không thể tải thông tin lời mời." : "Failed to load invitation."));
@@ -80,6 +172,9 @@ export default function AcceptInviteModal({
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       url.searchParams.delete("invite_token");
+      url.searchParams.delete("invite_ws");
+      url.searchParams.delete("role");
+      url.searchParams.delete("email");
       window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
     }
   };
@@ -132,7 +227,7 @@ export default function AcceptInviteModal({
             cleanUrlToken();
             onClose();
           }}
-          className="absolute inset-0 modal-backdrop-blur"
+          className="absolute inset-0 modal-backdrop-blur bg-slate-950/60 backdrop-blur-md cursor-pointer"
         />
 
         {/* Modal Container */}
@@ -141,7 +236,7 @@ export default function AcceptInviteModal({
           animate={{ scale: 1, y: 0, opacity: 1 }}
           exit={{ scale: 0.94, y: 15, opacity: 0 }}
           transition={{ type: "spring", stiffness: 360, damping: 28 }}
-          className="relative w-[min(95vw,460px)] modal-glass-card rounded-[32px] shadow-2xl border border-white/80 dark:border-slate-800/80 p-6 sm:p-7 z-10 select-none text-center"
+          className="relative w-[min(95vw,460px)] bg-white/95 dark:bg-slate-900/95 rounded-[32px] shadow-2xl border border-slate-200/90 dark:border-slate-800/90 p-6 sm:p-7 z-10 select-none text-center backdrop-blur-xl"
         >
           {/* Close button */}
           <button
@@ -164,11 +259,11 @@ export default function AcceptInviteModal({
             </div>
           ) : error ? (
             <div className="py-8 space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-500 flex items-center justify-center mx-auto">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-500 flex items-center justify-center mx-auto border border-rose-200/60 dark:border-rose-900/50">
                 <AlertCircle className="w-6 h-6" />
               </div>
               <div>
-                <h4 className="text-base font-black text-slate-850 dark:text-slate-100">
+                <h4 className="text-base font-black text-slate-900 dark:text-slate-100">
                   {isVietnamese ? "Liên kết không khả dụng" : "Invitation Unavailable"}
                 </h4>
                 <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-xs mx-auto">
@@ -181,7 +276,7 @@ export default function AcceptInviteModal({
                   cleanUrlToken();
                   onClose();
                 }}
-                className="px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-bold text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
               >
                 {isVietnamese ? "Đóng" : "Close"}
               </button>
@@ -189,7 +284,7 @@ export default function AcceptInviteModal({
           ) : invitation ? (
             <div className="space-y-6">
               {/* Workspace Logo Badge */}
-              <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white flex items-center justify-center font-black text-2xl shadow-lg shadow-indigo-500/25 uppercase overflow-hidden">
+              <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white flex items-center justify-center font-black text-2xl shadow-lg shadow-indigo-500/25 uppercase overflow-hidden border border-white/20">
                 {invitation.workspace_logo ? (
                   <img src={invitation.workspace_logo} alt={invitation.workspace_name} className="w-full h-full object-cover" />
                 ) : (
@@ -221,19 +316,21 @@ export default function AcceptInviteModal({
               </div>
 
               {/* Details card */}
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 text-left space-y-2 text-xs">
+              <div className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 text-left space-y-2 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-400 font-medium">{isVietnamese ? "Vai trò được cấp:" : "Role granted:"}</span>
                   <span className="font-bold text-indigo-600 dark:text-indigo-400">
                     {roleLabel(invitation.role)}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400 font-medium">{isVietnamese ? "Email nhận mời:" : "Target email:"}</span>
-                  <span className="font-mono text-[11px] text-slate-700 dark:text-slate-300 truncate max-w-[200px]">
-                    {invitation.email}
-                  </span>
-                </div>
+                {invitation.email && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400 font-medium">{isVietnamese ? "Email nhận mời:" : "Target email:"}</span>
+                    <span className="font-mono text-[11px] text-slate-700 dark:text-slate-300 truncate max-w-[200px]">
+                      {invitation.email}
+                    </span>
+                  </div>
+                )}
                 {invitation.expires_at && (
                   <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800 text-[10.5px]">
                     <span className="text-slate-400 flex items-center gap-1">

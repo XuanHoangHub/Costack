@@ -1274,6 +1274,7 @@ export const vi: Translations = {
   signUp: "Đăng ký",
   allTasks: "Tất cả công việc",
   allTasksCount: "{count} việc",
+  manualOrder: "Thứ tự thủ công",
   yourSpaces: "Không gian của bạn",
   spacesWithArchive: "Không gian có mục lưu trữ",
   createNewSpace: "Tạo không gian mới",

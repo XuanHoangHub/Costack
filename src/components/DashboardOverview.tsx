@@ -439,7 +439,10 @@ function DashboardOverview({
   }
 
   return (
-    <div className="apexa-dashboard mx-auto flex min-h-full w-full max-w-[1800px] select-none flex-col space-y-4 sm:space-y-6 lg:space-y-7 overflow-x-hidden bg-transparent px-3 py-4 sm:px-5 sm:py-6 lg:px-8 lg:py-8 text-slate-800 dark:text-slate-100">
+    <div className="apexa-dashboard relative mx-auto flex min-h-full w-full max-w-[1800px] select-none flex-col space-y-4 sm:space-y-6 lg:space-y-7 overflow-x-hidden bg-transparent px-3 py-4 sm:px-5 sm:py-6 lg:px-8 lg:py-8 text-slate-800 dark:text-slate-100">
+      
+      {/* Ambient Atmospheric Glow for Dark Mode */}
+      <div className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 w-[1100px] h-[360px] bg-gradient-to-b from-blue-600/15 via-indigo-600/8 to-transparent blur-3xl -z-10 rounded-full dark:opacity-100 opacity-0 transition-opacity" />
       
       {/* 1. Header & Hero */}
       <DashboardHeader

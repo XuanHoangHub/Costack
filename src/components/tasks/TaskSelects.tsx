@@ -692,7 +692,8 @@ export function PremiumDatePicker({
   }, []);
   
   const [activeTab, setActiveTab] = useState<'start' | 'due'>(() => {
-    if (label?.toLowerCase() === 'start') return 'start';
+    const l = label?.toLowerCase();
+    if (l === 'start' || l === 'bắt đầu') return 'start';
     return 'due';
   });
 
@@ -943,12 +944,14 @@ export function PremiumDatePicker({
     return `${Math.floor(diffDays / 30)}mo ${diffDays % 30}d`;
   };
 
-  const isStart = label?.toLowerCase() === 'start';
+  const l = label?.toLowerCase();
+  const isStart = l === 'start' || l === 'bắt đầu';
+  const isDue = l === 'due' || l === 'hạn chót' || l === 'hạn';
   const activeDateValue = isStart ? (startDateValue || dateValue) : dateValue;
   const displayText = displayLabel || (activeDateValue ? formatDateLabel(activeDateValue) : (label || 'Select Date'));
   const currentTimePart = activeTab === 'start' ? localStartDateTime : localDueDateTime;
 
-  const isOverdue = dateValue && dateValue.split('T')[0] < todayStr && label?.toLowerCase() === 'due';
+  const isOverdue = isDue && dateValue && dateValue.split('T')[0] < todayStr;
 
   const startOfWeek = useMemo(() => {
     const d = new Date();

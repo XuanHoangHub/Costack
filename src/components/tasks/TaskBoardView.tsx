@@ -6,6 +6,8 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import CustomFieldSummary from './CustomFieldSummary';
+import type { CustomFieldDefinition } from '@/types';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { 
@@ -101,7 +103,8 @@ function KanbanCard({
   setInlineEditTitle, 
   submitInlineEdit, 
   isDraggingRef,
-  onAddTask
+  onAddTask,
+  customFields = []
 }: any) {
   const { locale } = useTranslation();
   const isVietnamese = locale === 'vi';
@@ -154,7 +157,7 @@ function KanbanCard({
         onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
         {...attributes}
         {...listeners}
-        className={`group relative bg-white dark:bg-[#18181b] rounded-2xl border ${
+        className={`group relative bg-white dark:bg-[#181920] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] rounded-2xl border ${
           isCardDragging 
             ? 'border-2 border-dashed border-indigo-400/80 bg-indigo-50/20 dark:bg-indigo-950/20 shadow-none pointer-events-none' 
             : 'border-slate-200/80 dark:border-white/[0.08] hover:border-indigo-400/60 dark:hover:border-indigo-500/50 shadow-xs hover:shadow-md'
@@ -338,6 +341,7 @@ function KanbanCard({
               )}
 
               {/* Subtasks progress bar */}
+              <CustomFieldSummary fields={customFields} task={task} members={members} />
               {hasSubtasks && (
                 <div className="mt-3 select-none bg-slate-50/80 dark:bg-slate-900/40 rounded-xl p-2 border border-slate-100 dark:border-slate-800/60">
                   <div className="flex justify-between items-center text-[9.5px] text-slate-500 dark:text-slate-400 font-bold mb-1">
@@ -516,6 +520,7 @@ interface NormalizedState {
 }
 
 interface TaskBoardViewProps {
+  customFields?: CustomFieldDefinition[];
   filteredTasks: Task[];
   members: User[];
   workspaces?: Workspace[];
@@ -554,7 +559,7 @@ export default function TaskBoardView({
   boardSwimlaneBy, setBoardSwimlaneBy, filterTag, setFilterTag,
   isSmartSort, isUrgentNearDueTask, isMultiSelectMode, activeDragId, activeOverDropId,
   cardSize = 'medium', setCardSize, cardCover = true, setCardCover, onAddTask, onStartFocus,
-  activeTimerTaskId = null, onStartGlobalTimer, onStopGlobalTimer, hideHeaderControls = false
+  activeTimerTaskId = null, onStartGlobalTimer, onStopGlobalTimer, hideHeaderControls = false, customFields = []
 }: TaskBoardViewProps) {
 
   const { t, locale } = useTranslation();
@@ -1359,6 +1364,7 @@ export default function TaskBoardView({
   const renderCard = (task: Task, index: number) => {
     return (
       <MemoizedKanbanCard
+        customFields={customFields}
         key={task.id}
         task={task}
         index={index}
@@ -1546,8 +1552,8 @@ export default function TaskBoardView({
           <div className="apexa-board-controls flex flex-wrap items-center justify-between gap-2.5 px-0.5 py-1 mb-3 text-xs select-none">
             <div className="flex items-center gap-2 flex-wrap">
               {/* Group By Selector */}
-              <div className="flex items-center gap-1.5 bg-slate-50/90 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/[0.08] rounded-xl px-2.5 py-1 shadow-3xs">
-                <span className="text-[11px] text-slate-400 dark:text-slate-500 font-bold">
+              <div className="flex items-center gap-1 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 rounded-xl px-2.5 shadow-3xs h-8 transition-colors">
+                <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-semibold">
                   {locale === 'vi' ? 'Nhóm:' : 'Group:'}
                 </span>
                 <Select
@@ -1559,6 +1565,7 @@ export default function TaskBoardView({
                     }
                   }}
                   size="sm"
+                  variant="inline"
                   ariaLabel={locale === 'vi' ? 'Nhóm theo' : 'Group by'}
                   options={[
                     { value: 'status', label: locale === 'vi' ? 'Trạng thái' : 'Status' },
@@ -1569,14 +1576,15 @@ export default function TaskBoardView({
               </div>
 
               {/* Swimlane Selector */}
-              <div className="flex items-center gap-1.5 bg-slate-50/90 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/[0.08] rounded-xl px-2.5 py-1 shadow-3xs">
-                <span className="text-[11px] text-slate-400 dark:text-slate-500 font-bold">
+              <div className="flex items-center gap-1 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 rounded-xl px-2.5 shadow-3xs h-8 transition-colors">
+                <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-semibold">
                   {locale === 'vi' ? 'Làn bơi:' : 'Swimlane:'}
                 </span>
                 <Select
                   value={boardSwimlaneBy}
                   onChange={(v) => setBoardSwimlaneBy(v)}
                   size="sm"
+                  variant="inline"
                   ariaLabel={locale === 'vi' ? 'Làn công việc' : 'Swimlane'}
                   options={[
                     { value: 'none', label: locale === 'vi' ? 'Không' : 'None' },
@@ -1655,7 +1663,7 @@ export default function TaskBoardView({
                   role="group"
                   aria-label={`${colMeta.label}: ${colTasks.length} ${locale === 'vi' ? 'công việc' : 'tasks'}`}
                   style={{ '--column-accent': boardGroupBy === 'status' ? ({ todo: '#8190a8', inprogress: '#e9a23b', review: '#7c6ce7', completed: '#26a885' }[col] || '#8190a8') : boardGroupBy === 'priority' ? ({ urgent: '#dc668b', high: '#e9a23b', medium: '#5871e9', low: '#26a885' }[col] || '#8190a8') : '#5871e9' } as React.CSSProperties}
-                  className={`apexa-board-column min-w-[315px] sm:min-w-[335px] 2xl:min-w-[350px] w-[315px] sm:w-[335px] 2xl:w-[350px] flex-shrink-0 bg-slate-100/70 dark:bg-[#181818]/90 backdrop-blur-2xl p-4 rounded-[22px] flex flex-col gap-3 transition-colors duration-150 border border-slate-200/80 dark:border-white/[0.08] shadow-[0_4px_24px_-6px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] hover:border-slate-300 dark:hover:border-slate-700/90 hover:shadow-[0_12px_36px_-6px_rgba(0,0,0,0.08)] ${
+                  className={`apexa-board-column min-w-[315px] sm:min-w-[335px] 2xl:min-w-[350px] w-[315px] sm:w-[335px] 2xl:w-[350px] flex-shrink-0 bg-slate-100/70 dark:bg-[#121318]/90 backdrop-blur-2xl p-4 rounded-[22px] flex flex-col gap-3 transition-colors duration-150 border border-slate-200/80 dark:border-white/[0.08] shadow-[0_4px_24px_-6px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] hover:border-slate-300 dark:hover:border-white/15 hover:shadow-[0_12px_36px_-6px_rgba(0,0,0,0.08)] ${
                     isOverColumn ? 'ring-2 ring-indigo-500/40 bg-indigo-50/40 dark:bg-indigo-950/40 border-indigo-400/60' : ''
                   }`}
                 >

@@ -257,15 +257,18 @@ export default function AdminDashboard() {
   }, [auditCursor, auditFilter, authorizedFetch]);
 
   const activeTabRef = useRef(activeTab);
-  activeTabRef.current = activeTab;
   const loadOverviewRef = useRef(loadOverview);
-  loadOverviewRef.current = loadOverview;
   const loadAuditRef = useRef(loadAudit);
-  loadAuditRef.current = loadAudit;
   const loadVersionsRef = useRef(loadVersions);
-  loadVersionsRef.current = loadVersions;
   const loadSettingsRef = useRef(loadSettings);
-  loadSettingsRef.current = loadSettings;
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+    loadOverviewRef.current = loadOverview;
+    loadAuditRef.current = loadAudit;
+    loadVersionsRef.current = loadVersions;
+    loadSettingsRef.current = loadSettings;
+  }, [activeTab, loadOverview, loadAudit, loadVersions, loadSettings]);
 
   useEffect(() => { void loadOverview(); }, [loadOverview]);
 

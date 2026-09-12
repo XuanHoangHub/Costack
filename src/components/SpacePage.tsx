@@ -1,5 +1,8 @@
 "use client";
 
+import CustomFieldsManagerModal from "./tasks/CustomFieldsManagerModal";
+import { matchesCustomFieldFilter } from "@/lib/customFields";
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -575,27 +578,20 @@ export default function SpacePage({
     }
   };
 
-  // Synchronize custom fields config from activeSpace
+  const previousFieldScope = useRef<{ id: string; names: string[] }>({ id: '', names: [] });
   useEffect(() => {
-    if (activeSpace && activeSpace.customFields) {
-      setCustomFields(activeSpace.customFields);
-      
-      const customFieldNames = activeSpace.customFields.map((f: any) => f.name);
-      setVisibleFields(prev => {
-        const baseFields = prev.filter(f => ['title', 'status', 'priority', 'assignee', 'dueDate', 'progress', 'tags'].includes(f));
-        const nextFields = [...baseFields];
-        customFieldNames.forEach((name: string) => {
-          if (!nextFields.includes(name)) {
-            nextFields.push(name);
-          }
-        });
-        return nextFields;
-      });
-    } else {
-      setCustomFields([]);
-      setVisibleFields(['title', 'status', 'priority', 'assignee', 'dueDate', 'progress', 'tags']);
-    }
-  }, [activeSpace]);
+    const fields = activeSpace.customFields || [];
+    const names = fields.map(field => field.name);
+    const previous = previousFieldScope.current;
+    setCustomFields(fields);
+    setVisibleFields(visible => {
+      const standard = ['title', 'status', 'priority', 'assignee', 'dueDate', 'startDate', 'progress', 'tags'];
+      const retained = visible.filter(name => standard.includes(name) || names.includes(name));
+      const added = names.filter(name => previous.id !== activeSpace.id || !previous.names.includes(name));
+      return [...new Set([...retained, ...added])];
+    });
+    previousFieldScope.current = { id: activeSpace.id, names };
+  }, [activeSpace.id, activeSpace.customFields]);
   // Confirm Modal state and helper
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -932,17 +928,13 @@ export default function SpacePage({
     const fileName = `apexa-${(activeSpace.name || 'space').toLowerCase().replace(/\s+/g, '-')}-${activeView}-${timestamp}.${format}`;
     
     if (format === 'csv') {
-      const headers = ['ID', 'Title', 'Status', 'Priority', 'Assignee', 'DueDate', 'HoursEstimate', 'Tags'];
-      const rows = tasksToExport.map(t => [
-        `"${t.id}"`,
-        `"${(t.title || '').replace(/"/g, '""')}"`,
-        `"${t.status || 'todo'}"`,
-        `"${t.priority || 'medium'}"`,
-        `"${t.assigneeId || ''}"`,
-        `"${t.dueDate || ''}"`,
-        t.hoursEstimate || 0,
-        `"${(t.tags || []).join(';')}"`
-      ]);
+      const csvCell = (value: unknown) => {
+        let str = Array.isArray(value) ? value.join('; ') : String(value ?? '');
+        if (/^[=+@\-\t\r]/.test(str)) str = "'" + str;
+        return '"' + str.replace(/"/g, '""') + '"';
+      };
+      const headers = ['ID', 'Title', 'Status', 'Priority', 'Assignee', 'DueDate', 'HoursEstimate', 'Tags', ...customFields.map(field => field.name)].map(csvCell);
+      const rows = tasksToExport.map(t => [t.id, t.title, t.status, t.priority, t.assigneeIds || [t.assigneeId || ''], t.dueDate, t.hoursEstimate ?? 0, t.tags || [], ...customFields.map(field => t.custom_fields?.[field.name])].map(csvCell));
       const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -1310,8 +1302,8 @@ export default function SpacePage({
   const [filterConjunction, setFilterConjunction] = useState<'AND' | 'OR'>('AND');
   const [filterConditions, setFilterConditions] = useState<{
     id: string;
-    field: 'status' | 'priority' | 'assignee' | 'title';
-    operator: 'is' | 'isNot' | 'contains' | 'isEmpty';
+    field: string;
+    operator: 'is' | 'isNot' | 'contains' | 'isEmpty' | 'isNotEmpty' | 'gt' | 'lt';
     value: string;
   }[]>([]);
   const [filterPresets, setFilterPresets] = useState<{ name: string; conjunction: 'AND' | 'OR'; conditions: any[] }[]>([]);
@@ -1749,7 +1741,8 @@ export default function SpacePage({
       result = result.filter(t => 
         t.title.toLowerCase().includes(q) || 
         (t.description || '').toLowerCase().includes(q) ||
-        (t.tags && t.tags.some(tag => tag.toLowerCase().includes(q)))
+        (t.tags && t.tags.some(tag => tag.toLowerCase().includes(q))) ||
+        customFields.some(field => String(t.custom_fields?.[field.name] ?? '').toLowerCase().includes(q))
       );
     }
 
@@ -1772,6 +1765,7 @@ export default function SpacePage({
     if (filterConditions.length > 0) {
       result = result.filter(t => {
         const matches = filterConditions.map(cond => {
+          if (cond.field.startsWith('custom:')) return matchesCustomFieldFilter(t.custom_fields?.[cond.field.slice(7)], cond.operator, cond.value);
           let fieldVal = '';
           if (cond.field === 'status') fieldVal = t.status;
           else if (cond.field === 'priority') fieldVal = t.priority;
@@ -1839,7 +1833,7 @@ export default function SpacePage({
     }
 
     return result;
-  }, [scopedTasks, taskFocus, currentUser?.id, searchQuery, filterPriority, filterAssignee, filterTag, sortBy, sortDirection, taskOrder, filterConjunction, filterConditions]);
+  }, [scopedTasks, taskFocus, currentUser?.id, searchQuery, filterPriority, filterAssignee, filterTag, sortBy, sortDirection, taskOrder, filterConjunction, filterConditions, customFields]);
 
   useEffect(() => {
     const visible = new Set(filteredTasks.map(task => task.id));
@@ -2090,7 +2084,7 @@ export default function SpacePage({
   const isTaskWorkspaceView = TASK_WORKSPACE_VIEWS.has(activeView);
 
   return (
-    <div className="apexa-space-shell flex-grow flex h-full bg-white dark:bg-slate-950/20 font-sans overflow-hidden relative">
+    <div className="apexa-space-shell flex-grow flex h-full bg-white dark:bg-[#090a0f] font-sans overflow-hidden relative">
       
       {/* Backdrop overlay for mobile Spaces sidebar */}
       <AnimatePresence>
@@ -2173,7 +2167,7 @@ export default function SpacePage({
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 4, scale: 0.95 }}
                             transition={{ duration: 0.12 }}
-                            className="absolute right-0 mt-1.5 w-48 rounded-xl bg-white dark:bg-[#121214] border border-slate-200 dark:border-white/10 p-1.5 shadow-xl z-50 divide-y divide-slate-100 dark:divide-white/[0.06]"
+                            className="absolute right-0 mt-1.5 w-48 rounded-xl bg-white dark:bg-[#151824] border border-slate-200 dark:border-white/[0.08] p-1.5 shadow-xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-50 divide-y divide-slate-100 dark:divide-white/[0.06]"
                           >
                             <div className="space-y-0.5 pb-1">
                               <button
@@ -2289,7 +2283,7 @@ export default function SpacePage({
                     <button
                       type="button"
                       onClick={() => onAddSpace?.()}
-                      className="grid h-6 w-6 place-items-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 cursor-pointer"
+                      className="grid h-6 w-6 place-items-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/[0.08] dark:hover:text-white cursor-pointer"
                       title={locale === 'vi' ? 'Thêm không gian mới' : 'Add new space'}
                       aria-label={locale === 'vi' ? 'Thêm không gian mới' : 'Add new space'}
                     >
@@ -2301,7 +2295,7 @@ export default function SpacePage({
                         setIsSpacesExpanded(value => !value);
                         setExpandedSpaceIds({});
                       }}
-                      className="grid h-6 w-6 place-items-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30 dark:hover:bg-slate-800 dark:hover:text-slate-200 cursor-pointer"
+                      className="grid h-6 w-6 place-items-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30 dark:hover:bg-white/[0.08] dark:hover:text-white cursor-pointer"
                       title={isSpacesExpanded ? 'Thu gọn tất cả Space' : 'Mở rộng tất cả Space'}
                       aria-label={isSpacesExpanded ? 'Thu gọn tất cả Space' : 'Mở rộng tất cả Space'}
                       aria-expanded={isSpacesExpanded}
@@ -2333,12 +2327,12 @@ export default function SpacePage({
                     <div key={space.id} className="space-y-0.5">
                       <div
                         data-space-active={isSpaceActive || undefined}
-                        className={`group/space relative flex h-[34px] items-center justify-between rounded-lg px-1.5 text-xs transition-all duration-150 select-none ${
+                        className={`group/space relative flex h-[32px] items-center justify-between rounded-md px-1.5 text-xs transition-colors duration-150 select-none ${
                           isSpaceActive 
-                            ? 'bg-blue-50/80 text-blue-900 dark:bg-blue-500/15 dark:text-blue-200 font-bold shadow-2xs' 
+                            ? 'bg-blue-50/80 text-blue-900 dark:bg-blue-500/15 dark:text-blue-200 font-semibold shadow-2xs' 
                             : isAnyChildActive
-                              ? 'bg-slate-100/80 text-slate-900 dark:bg-white/[0.06] dark:text-white font-semibold'
-                              : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-100/60 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white font-medium'
+                              ? 'text-slate-900 dark:text-zinc-100 font-semibold hover:bg-slate-100/60 dark:hover:bg-white/[0.04]'
+                              : 'text-slate-700 dark:text-zinc-400 hover:bg-slate-100/60 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white font-medium'
                         }`}
                       >
                         {isSpaceActive && (
@@ -2450,7 +2444,7 @@ export default function SpacePage({
 
                       {/* Lists & items nested under Space */}
                       {isExpanded && (
-                        <div className="relative ml-3.5 mt-0.5 space-y-0.5 border-l border-slate-200/70 pl-2.5 dark:border-white/[0.06]">
+                        <div className="relative ml-3 mt-0.5 space-y-0.5 border-l border-slate-200/80 dark:border-white/[0.08] pl-2">
                           {/* Render Folders */}
                           {space.folders?.filter(folder => showArchivedToggle ? (folder.isArchived || (space.lists || []).some(l => l.folderId === folder.id && l.isArchived)) : !folder.isArchived).sort((a, b) => Number(!!b.isFavorite) - Number(!!a.isFavorite)).map(folder => {
                             const isFolderOpen = expandedFolders[folder.id] !== undefined ? expandedFolders[folder.id] : (showArchivedToggle || activeFolderId === folder.id);
@@ -2540,17 +2534,17 @@ export default function SpacePage({
                                 </div>
 
                                 {isFolderOpen && (
-                                  <div className="pl-3 space-y-0.5 ml-1 mt-0.5 border-l border-slate-200/50 dark:border-white/[0.04]">
+                                  <div className="pl-2 space-y-0.5 ml-1 mt-0.5 border-l border-slate-200/80 dark:border-white/[0.08]">
                                     {folderLists.map(list => {
                                       const isListActive = activeSpaceId === space.id && activeListId === list.id;
                                       const taskCount = tasks.filter(t => t.listId === list.id).length;
                                       return (
                                         <div
                                           key={list.id}
-                                          className={`group/list relative flex h-[32px] w-full items-center justify-between rounded-lg px-2 text-left text-xs transition-all duration-150 select-none ${
+                                          className={`group/list relative flex h-[30px] w-full items-center justify-between rounded-md px-2 text-left text-xs transition-colors duration-150 select-none ${
                                             isListActive
                                               ? 'bg-blue-50/80 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300 font-semibold shadow-2xs'
-                                              : 'text-slate-600 dark:text-zinc-300 hover:bg-slate-100/70 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white font-medium'
+                                              : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100/70 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-zinc-100 font-medium'
                                           }`}
                                         >
                                           {isListActive && (
@@ -2701,10 +2695,10 @@ export default function SpacePage({
                             return (
                               <div
                                 key={list.id}
-                                className={`group/list relative flex h-[32px] w-full items-center justify-between rounded-lg px-2 text-left text-xs transition-all duration-150 select-none ${
+                                className={`group/list relative flex h-[30px] w-full items-center justify-between rounded-md px-2 text-left text-xs transition-colors duration-150 select-none ${
                                   isListActive
                                     ? 'bg-blue-50/80 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300 font-semibold shadow-2xs'
-                                    : 'text-slate-600 dark:text-zinc-300 hover:bg-slate-100/70 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white font-medium'
+                                    : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100/70 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-zinc-100 font-medium'
                                 }`}
                               >
                                 {isListActive && (
@@ -3067,7 +3061,7 @@ export default function SpacePage({
                                     top: breadcrumbCoords.top,
                                     left: breadcrumbCoords.left,
                                   }}
-                                  className="w-[310px] bg-white dark:bg-[#121214] border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl p-3 z-[150] text-left font-sans select-none"
+                                  className="w-[310px] bg-white dark:bg-[#151824] border border-slate-200 dark:border-white/[0.08] rounded-2xl shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-3 z-[150] text-left font-sans select-none"
                                 >
                                   {/* Header Box: Rename list input & options */}
                                   <div className="flex items-center gap-2 p-1.5 border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/60 dark:bg-white/[0.04] rounded-xl mb-3 shadow-3xs">
@@ -3244,7 +3238,7 @@ export default function SpacePage({
                 {showQuickTools && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowQuickTools(false)} />
-                    <div className="absolute right-0 top-full mt-2 w-[285px] bg-white/98 dark:bg-slate-900/98 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl z-50 p-2.5 font-sans select-none animate-in fade-in zoom-in-95 duration-150">
+                    <div className="absolute right-0 top-full mt-2 w-[285px] bg-white/98 dark:bg-[#151824]/98 backdrop-blur-2xl border border-slate-200/80 dark:border-white/[0.08] rounded-2xl shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-50 p-2.5 font-sans select-none animate-in fade-in zoom-in-95 duration-150">
                       
                       {/* Section 1: AI & Automations */}
                       <div className="px-2 py-1 text-[9.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-1">
@@ -3272,7 +3266,7 @@ export default function SpacePage({
                       <button
                         type="button"
                         onClick={() => { setShowQuickTools(false); onOpenAutomations?.(); }}
-                        className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all text-left cursor-pointer group"
+                        className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-slate-100/80 dark:hover:bg-white/[0.06] transition-all text-left cursor-pointer group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
                           <Zap className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
@@ -3283,7 +3277,7 @@ export default function SpacePage({
                         </div>
                       </button>
 
-                      <div className="border-t border-slate-200/60 dark:border-slate-800/80 my-1.5" />
+                      <div className="border-t border-slate-200/60 dark:border-white/[0.06] my-1.5" />
                       
                       {/* Section 2: View Customization */}
                       <div className="px-2 py-1 text-[9.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-1">
@@ -3294,7 +3288,7 @@ export default function SpacePage({
                       <button
                         type="button"
                         onClick={() => { setShowQuickTools(false); setActiveView('table'); setShowFieldsPanel(true); }}
-                        className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all text-left cursor-pointer group"
+                        className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-slate-100/80 dark:hover:bg-white/[0.06] transition-all text-left cursor-pointer group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
                           <Table className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
@@ -3308,7 +3302,7 @@ export default function SpacePage({
                       <button
                         type="button"
                         onClick={() => { setShowQuickTools(false); setActiveTabId('tab-calendar'); setActiveView('calendar'); }}
-                        className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all text-left cursor-pointer group"
+                        className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-slate-100/80 dark:hover:bg-white/[0.06] transition-all text-left cursor-pointer group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
                           <Calendar className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
@@ -3408,8 +3402,8 @@ export default function SpacePage({
                 <div className="h-4 w-px bg-slate-200 dark:bg-white/10 hidden sm:block" />
 
                 {/* Group By Selector */}
-                <div className="flex items-center gap-1.5 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] rounded-xl px-2 py-0.5 shadow-3xs h-8">
-                  <span className="text-[11px] text-slate-400 dark:text-slate-500 font-bold hidden md:inline">
+                <div className="flex items-center gap-1 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 rounded-xl px-2.5 shadow-3xs h-8 transition-colors">
+                  <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-semibold hidden md:inline shrink-0">
                     {locale === 'vi' ? 'Nhóm:' : 'Group:'}
                   </span>
                   <Select
@@ -3421,6 +3415,7 @@ export default function SpacePage({
                       }
                     }}
                     size="sm"
+                    variant="inline"
                     ariaLabel={locale === 'vi' ? 'Nhóm theo' : 'Group by'}
                     options={[
                       { value: 'status', label: locale === 'vi' ? 'Trạng thái' : 'Status' },
@@ -3431,14 +3426,15 @@ export default function SpacePage({
                 </div>
 
                 {/* Swimlane Selector */}
-                <div className="flex items-center gap-1.5 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] rounded-xl px-2 py-0.5 shadow-3xs h-8">
-                  <span className="text-[11px] text-slate-400 dark:text-slate-500 font-bold hidden md:inline">
+                <div className="flex items-center gap-1 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 rounded-xl px-2.5 shadow-3xs h-8 transition-colors">
+                  <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-semibold hidden md:inline shrink-0">
                     {locale === 'vi' ? 'Làn bơi:' : 'Swimlane:'}
                   </span>
                   <Select
                     value={boardSwimlaneBy}
                     onChange={(v) => setBoardSwimlaneBy(v as any)}
                     size="sm"
+                    variant="inline"
                     ariaLabel={locale === 'vi' ? 'Làn công việc' : 'Swimlane'}
                     options={[
                       { value: 'none', label: locale === 'vi' ? 'Không' : 'None' },
@@ -3497,7 +3493,7 @@ export default function SpacePage({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 4, scale: 0.96 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute right-0 top-full mt-1.5 z-50 w-72 p-2 bg-white/98 dark:bg-[#121214]/98 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-2xl space-y-1 font-sans text-xs"
+                    className="absolute right-0 top-full mt-1.5 z-50 w-72 p-2 bg-white/98 dark:bg-[#151824]/98 backdrop-blur-xl border border-slate-200/90 dark:border-white/[0.08] rounded-2xl shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] space-y-1 font-sans text-xs"
                   >
                     <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-slate-100 dark:border-white/[0.08] mb-1">
                       <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
@@ -3619,7 +3615,7 @@ export default function SpacePage({
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 4, scale: 0.96 }}
                         transition={{ duration: 0.15, ease: 'easeOut' }}
-                        className="absolute right-0 top-full mt-1.5 z-50 w-60 p-3 bg-white/98 dark:bg-[#121214]/98 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-2xl space-y-3 font-sans text-xs"
+                        className="absolute right-0 top-full mt-1.5 z-50 w-60 p-3 bg-white/98 dark:bg-[#151824]/98 backdrop-blur-xl border border-slate-200/90 dark:border-white/[0.08] rounded-2xl shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] space-y-3 font-sans text-xs"
                       >
                         <div>
                           <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1.5">
@@ -3802,12 +3798,13 @@ export default function SpacePage({
                   {/* Attribute Field Selector */}
                   <Select
                     value={cond.field}
-                    onChange={v => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, field: v, value: '' } : c))}
+                    onChange={v => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, field: v, operator: 'is', value: '' } : c))}
                     options={[
                       { value: 'title', label: 'Tên công việc' },
                       { value: 'status', label: 'Trạng thái' },
                       { value: 'priority', label: 'Mức ưu tiên' },
-                      { value: 'assignee', label: 'Người phụ trách' }
+                      { value: 'assignee', label: 'Người phụ trách' },
+                      ...customFields.map(field => ({ value: 'custom:' + field.name, label: field.name }))
                     ]}
                     size="sm"
                     className="w-36"
@@ -3817,12 +3814,13 @@ export default function SpacePage({
                   {/* Operator Dropdown */}
                   <Select
                     value={cond.operator}
-                    onChange={v => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, operator: v } : c))}
+                    onChange={v => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, operator: v as any } : c))}
                     options={[
                       { value: 'is', label: 'là' },
                       { value: 'isNot', label: 'không phải' },
                       { value: 'contains', label: 'có chứa' },
-                      { value: 'isEmpty', label: 'đang trống' }
+                      { value: 'isEmpty', label: 'đang trống' },
+                      ...(cond.field.startsWith('custom:') ? [{ value: 'isNotEmpty', label: 'đã có giá trị' }, { value: 'gt', label: 'lớn hơn' }, { value: 'lt', label: 'nhỏ hơn' }] : [])
                     ]}
                     size="sm"
                     className="w-32"
@@ -4041,6 +4039,7 @@ export default function SpacePage({
         {/* Render Kanban Board View */}
         {activeView === 'board' && (
           <TaskBoardView 
+            customFields={customFields.filter(field => visibleFields.includes(field.name))}
             filteredTasks={filteredTasks}
             members={members}
             workspaces={allWorkspaces || []}
@@ -6710,59 +6709,15 @@ export default function SpacePage({
         );
       })()}
 
-      {/* ── Portal for Custom Fields Popover ── */}
-      {showFieldsPanel && (
-        <Portal>
-          {/* Transparent click-outside overlay — no blur */}
-          <div 
-            className="fixed inset-0 z-[140] bg-transparent cursor-default" 
-            onClick={() => { setShowFieldsPanel(false); setFieldsPanelAnchor(null); }} 
-          />
-          <div 
-            className="fixed z-[150] w-[340px] max-h-[520px] bg-white dark:bg-[#12141a] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl flex flex-col p-4 font-sans select-none animate-in fade-in slide-in-from-top-2 duration-150 overflow-hidden"
-            style={{
-              ...(fieldsPanelAnchor ? {
-                top: Math.min(fieldsPanelAnchor.y, typeof window !== 'undefined' ? window.innerHeight - 540 : 400),
-                left: Math.min(fieldsPanelAnchor.x - 340, typeof window !== 'undefined' ? window.innerWidth - 360 : 600),
-              } : {
-                top: '50%',
-                right: '24px',
-                transform: 'translateY(-50%)',
-              }),
-            }}
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center">
-                  <SlidersHorizontal className="w-3.5 h-3.5" />
-                </div>
-                <span className="font-bold text-[13px] text-slate-800 dark:text-slate-100 tracking-tight">Trường dữ liệu</span>
-              </div>
-              <button 
-                onClick={() => { setShowFieldsPanel(false); setFieldsPanelAnchor(null); }}
-                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <CustomFieldsTabs 
-              visibleFields={visibleFields}
-              setVisibleFields={setVisibleFields}
-              customFields={customFields}
-              setCustomFields={setCustomFields}
-              tasks={tasks}
-              onUpdateTask={guardedUpdateTask}
-              activeSpace={activeSpace}
-              spaces={spaces}
-              onSaveSpaces={onSaveSpaces}
-              openDialog={triggerConfirm}
-              openPromptModal={openPromptModal}
-              triggerToast={triggerToast}
-            />
-          </div>
-        </Portal>
-      )}
+      <CustomFieldsManagerModal
+        isOpen={showFieldsPanel}
+        onClose={() => { setShowFieldsPanel(false); setFieldsPanelAnchor(null); }}
+        visibleFields={visibleFields} setVisibleFields={setVisibleFields}
+        customFields={customFields} setCustomFields={setCustomFields}
+        tasks={tasks.filter(task => task.spaceId === activeSpace.id)} onUpdateTask={guardedUpdateTask}
+        activeSpace={activeSpace} spaces={spaces} onSaveSpaces={onSaveSpaces}
+        openDialog={triggerConfirm} triggerToast={triggerToast}
+      />
 
       <ConfirmModal 
         isOpen={confirmModal.isOpen}
@@ -6935,595 +6890,6 @@ export default function SpacePage({
       )}
 
       </div> {/* Closing tag for Main Page Workspace Content Container */}
-    </div>
-  );
-}
-
-function CustomFieldsTabs({ 
-  visibleFields, setVisibleFields, customFields, setCustomFields, tasks, onUpdateTask,
-  activeSpace, spaces, onSaveSpaces, openDialog, triggerToast
-}: { 
-  visibleFields: string[]; 
-  setVisibleFields: (f: string[]) => void; 
-  customFields: any[]; 
-  setCustomFields: (cf: any[]) => void; 
-  tasks: Task[]; 
-  onUpdateTask: (task: Task) => void;
-  activeSpace: any;
-  spaces: any[];
-  onSaveSpaces?: (newSpaces: any[]) => void;
-  openDialog?: (config: { title: string; description: string; onConfirm: () => void; isDestructive?: boolean; confirmText?: string; cancelText?: string }) => void;
-  openPromptModal?: (config: Omit<PromptModalConfig, 'isOpen'>) => void;
-  triggerToast?: (type: 'success' | 'error' | 'warning' | 'info' | 'comment', title: string, description: string) => void;
-}) {
-  const [tab, setTab] = useState<'create' | 'add'>('create');
-  const [search, setSearch] = useState('');
-  const [editingFieldConfig, setEditingFieldConfig] = useState<any>(null);
-
-  const POPULAR_FIELD_TYPES = ['text', 'number', 'date', 'textarea', 'dropdown', 'labels', 'checkbox'];
-
-  const filteredCatalog = ALL_FIELD_TYPES.filter(f => 
-    f.label.toLowerCase().includes(search.toLowerCase()) || 
-    f.labelEn.toLowerCase().includes(search.toLowerCase()) ||
-    f.desc.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const popularCatalog = filteredCatalog.filter(f => POPULAR_FIELD_TYPES.includes(f.id));
-
-  const standardProperties = [
-    { key: 'title', label: 'Task Name', type: 'text', icon: FileText, isStandard: true },
-    { key: 'status', label: 'Status', type: 'dropdown', icon: Tag, isStandard: true },
-    { key: 'priority', label: 'Priority', type: 'dropdown', icon: Flag, isStandard: true },
-    { key: 'assignee', label: 'Assignee', type: 'member', icon: UserIcon, isStandard: true },
-    { key: 'space', label: 'Space', type: 'text', icon: Folder, isStandard: true },
-    { key: 'dueDate', label: 'Due date', type: 'date', icon: Calendar, isStandard: true },
-    { key: 'progress', label: 'Progress', type: 'progress', icon: BarChart3, isStandard: true },
-    { key: 'tags', label: 'Tags', type: 'labels', icon: Bookmark, isStandard: true },
-  ];
-
-  const allPropertiesList = [
-    ...standardProperties,
-    ...customFields.map(cf => {
-      const typeMeta = ALL_FIELD_TYPES.find(t => t.id === cf.type) || ALL_FIELD_TYPES[0];
-      return {
-        key: cf.name,
-        label: cf.name,
-        type: cf.type || 'text',
-        icon: typeMeta.icon,
-        isStandard: false,
-        rawConfig: cf
-      };
-    })
-  ];
-
-  const filteredProperties = allPropertiesList.filter(p => 
-    p.label.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const handleOpenCreateModal = (fieldMeta: typeof ALL_FIELD_TYPES[0]) => {
-    setEditingFieldConfig({
-      id: `cf-${Date.now()}`,
-      name: fieldMeta.label.split('(')[0].trim(),
-      type: fieldMeta.id,
-      isNew: true,
-      isStandard: false,
-      options: (fieldMeta.id === 'dropdown' || fieldMeta.id === 'labels') ? [
-        { id: 'opt-1', label: 'Kế hoạch', color: 'blue' },
-        { id: 'opt-2', label: 'Đang làm', color: 'amber' },
-        { id: 'opt-3', label: 'Hoàn thành', color: 'emerald' }
-      ] : undefined
-    });
-  };
-
-  const handleOpenEditModal = (prop: any) => {
-    if (prop.isStandard) {
-      setEditingFieldConfig({
-        id: prop.key,
-        name: prop.label,
-        type: prop.type,
-        isStandard: true,
-        isNew: false
-      });
-    } else {
-      const cf = prop.rawConfig || customFields.find(f => f.name === prop.key);
-      if (cf) {
-        setEditingFieldConfig({
-          id: cf.id || `cf-${Date.now()}`,
-          name: cf.name,
-          type: cf.type || 'text',
-          isStandard: false,
-          isNew: false,
-          options: cf.options,
-          placeholder: cf.placeholder,
-          description: cf.description,
-          isRequired: cf.isRequired,
-          currencySymbol: cf.currencySymbol,
-          currencyPosition: cf.currencyPosition,
-          numberFormat: cf.numberFormat,
-          numberMin: cf.numberMin,
-          numberMax: cf.numberMax,
-          numberPrecision: cf.numberPrecision,
-          dateFormat: cf.dateFormat,
-          includeTime: cf.includeTime,
-          defaultToToday: cf.defaultToToday,
-          ratingMax: cf.ratingMax,
-          ratingIcon: cf.ratingIcon,
-          checkboxLabel: cf.checkboxLabel,
-          progressMax: cf.progressMax,
-          allowMultiple: cf.allowMultiple,
-          defaultValue: cf.defaultValue
-        });
-      }
-    }
-  };
-
-  const handleSaveFieldFromModal = (updated: any) => {
-    if (!editingFieldConfig) return;
-
-    if (editingFieldConfig.isNew) {
-      const cleanName = updated.name.trim();
-      if (customFields.some(f => f.name.toLowerCase() === cleanName.toLowerCase())) {
-        triggerToast?.('warning', 'Tên trường đã tồn tại', `Hãy chọn tên khác cho “${cleanName}”.`);
-        return;
-      }
-
-      const newField = {
-        id: editingFieldConfig.id || `cf-${Date.now()}`,
-        name: cleanName,
-        type: updated.type,
-        options: updated.options,
-        placeholder: updated.placeholder,
-        description: updated.description,
-        isRequired: updated.isRequired,
-        currencySymbol: updated.currencySymbol,
-        currencyPosition: updated.currencyPosition,
-        numberFormat: updated.numberFormat,
-        numberMin: updated.numberMin,
-        numberMax: updated.numberMax,
-        numberPrecision: updated.numberPrecision,
-        dateFormat: updated.dateFormat,
-        includeTime: updated.includeTime,
-        defaultToToday: updated.defaultToToday,
-        ratingMax: updated.ratingMax,
-        ratingIcon: updated.ratingIcon,
-        checkboxLabel: updated.checkboxLabel,
-        progressMax: updated.progressMax,
-        allowMultiple: updated.allowMultiple,
-        defaultValue: updated.defaultValue
-      };
-
-      const updatedCustomFields = [...customFields, newField];
-      setCustomFields(updatedCustomFields);
-      setVisibleFields([...visibleFields, cleanName]);
-
-      // Save to Supabase & localStorage
-      if (onSaveSpaces && spaces && activeSpace) {
-        const updatedSpace = {
-          ...activeSpace,
-          customFields: updatedCustomFields
-        };
-        onSaveSpaces(spaces.map(s => s.id === activeSpace.id ? updatedSpace : s));
-      }
-
-      // Add empty field to all tasks
-      tasks.forEach(t => {
-        onUpdateTask({
-          ...t,
-          custom_fields: {
-            ...(t.custom_fields || {}),
-            [cleanName]: updated.defaultValue !== undefined ? updated.defaultValue : ''
-          }
-        });
-      });
-    } else {
-      // Edit existing field
-      const oldName = editingFieldConfig.name;
-      const newName = updated.name.trim();
-
-      const updatedCustomFields = customFields.map(cf => {
-        if (cf.name === oldName || cf.id === editingFieldConfig.id) {
-          return {
-            ...cf,
-            name: newName,
-            type: updated.type,
-            options: updated.options,
-            placeholder: updated.placeholder,
-            description: updated.description,
-            isRequired: updated.isRequired,
-            currencySymbol: updated.currencySymbol,
-            currencyPosition: updated.currencyPosition,
-            numberFormat: updated.numberFormat,
-            numberMin: updated.numberMin,
-            numberMax: updated.numberMax,
-            numberPrecision: updated.numberPrecision,
-            dateFormat: updated.dateFormat,
-            includeTime: updated.includeTime,
-            defaultToToday: updated.defaultToToday,
-            ratingMax: updated.ratingMax,
-            ratingIcon: updated.ratingIcon,
-            checkboxLabel: updated.checkboxLabel,
-            progressMax: updated.progressMax,
-            allowMultiple: updated.allowMultiple,
-            defaultValue: updated.defaultValue
-          };
-        }
-        return cf;
-      });
-
-      setCustomFields(updatedCustomFields);
-
-      if (oldName !== newName) {
-        setVisibleFields(visibleFields.map(f => f === oldName ? newName : f));
-
-        // Update task custom_fields keys
-        tasks.forEach(t => {
-          if (t.custom_fields && oldName in t.custom_fields) {
-            const { [oldName]: oldVal, ...rest } = t.custom_fields;
-            onUpdateTask({
-              ...t,
-              custom_fields: {
-                ...rest,
-                [newName]: oldVal
-              }
-            });
-          }
-        });
-      }
-
-      // Save to Supabase & localStorage
-      if (onSaveSpaces && spaces && activeSpace) {
-        const updatedSpace = {
-          ...activeSpace,
-          customFields: updatedCustomFields
-        };
-        onSaveSpaces(spaces.map(s => s.id === activeSpace.id ? updatedSpace : s));
-      }
-    }
-
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('apexa-field-config-changed'));
-    }
-
-    setEditingFieldConfig(null);
-  };
-
-  const handleDeleteField = (fieldName: string) => {
-    const performDelete = () => {
-      const updatedCustomFields = customFields.filter(f => f.name !== fieldName);
-      setCustomFields(updatedCustomFields);
-
-      if (visibleFields.includes(fieldName)) {
-        setVisibleFields(visibleFields.filter(f => f !== fieldName));
-      }
-
-      if (onSaveSpaces && spaces && activeSpace) {
-        const updatedSpace = {
-          ...activeSpace,
-          customFields: updatedCustomFields
-        };
-        onSaveSpaces(spaces.map(s => s.id === activeSpace.id ? updatedSpace : s));
-      }
-
-      tasks.forEach(t => {
-        if (t.spaceId === activeSpace.id && t.custom_fields && fieldName in t.custom_fields) {
-          const nextCustomFields = { ...t.custom_fields };
-          delete nextCustomFields[fieldName];
-          onUpdateTask({
-            ...t,
-            custom_fields: nextCustomFields
-          });
-        }
-      });
-    };
-
-    if (openDialog) {
-      openDialog({
-        title: 'Xóa trường tùy chỉnh',
-        description: `Bạn có chắc chắn muốn xóa trường tùy chỉnh "${fieldName}"? Hành động này sẽ xóa trường này và toàn bộ dữ liệu của nó khỏi tất cả các công việc trong Space này vĩnh viễn.`,
-        onConfirm: performDelete,
-        isDestructive: true,
-        confirmText: 'Xóa trường'
-      });
-    } else if (confirm(`Bạn có chắc chắn muốn xóa trường "${fieldName}"?`)) {
-      performDelete();
-    }
-  };
-
-  const toggleFieldVisibility = (fieldKey: string) => {
-    if (visibleFields.includes(fieldKey)) {
-      if (fieldKey === 'title') return;
-      setVisibleFields(visibleFields.filter(f => f !== fieldKey));
-    } else {
-      setVisibleFields([...visibleFields, fieldKey]);
-    }
-  };
-
-  return (
-    <div className="flex-1 flex flex-col min-h-0 mt-3 font-sans select-none text-left">
-      {/* Search Field */}
-      <div className="relative mb-3 shrink-0">
-        <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-        <input 
-          type="text" 
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Tìm trường công việc..." 
-          className="w-full pl-8 pr-8 py-2 text-xs bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-slate-800 dark:text-slate-200 font-bold placeholder-slate-400" 
-        />
-        {search && (
-          <button 
-            onClick={() => setSearch('')}
-            className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-          >
-            ✕
-          </button>
-        )}
-      </div>
-
-      {/* Tabs Switcher */}
-      <div className="flex bg-slate-100 dark:bg-slate-800/70 p-1 rounded-xl shrink-0 text-xs font-black mb-3">
-        <button 
-          onClick={() => setTab('create')}
-          className={`flex-1 py-1.5 rounded-lg text-center cursor-pointer transition-all ${
-            tab === 'create' 
-              ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs' 
-              : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-          }`}
-        >
-          <Plus className="w-3 h-3 inline mr-1" /> Tạo mới
-        </button>
-        <button 
-          onClick={() => setTab('add')}
-          className={`flex-1 py-1.5 rounded-lg text-center cursor-pointer transition-all ${
-            tab === 'add' 
-              ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs' 
-              : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-          }`}
-        >
-          <Settings2 className="w-3 h-3 inline mr-1" /> Quản lý ({allPropertiesList.length})
-        </button>
-      </div>
-
-      {/* Content Area */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar pr-0.5 space-y-4">
-        
-        {/* TAB 1: CREATE NEW FIELD */}
-        {tab === 'create' && (
-          <div className="space-y-4">
-            
-            {/* POPULAR FIELDS */}
-            {!search && (
-              <div className="space-y-2">
-                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                  <Flame className="w-3 h-3" /><span>Phổ biến</span>
-                </div>
-                <div className="grid grid-cols-1 gap-1.5">
-                  {popularCatalog.map(fc => {
-                    const IconComp = fc.icon;
-                    return (
-                      <button
-                        key={fc.id}
-                        onClick={() => handleOpenCreateModal(fc)}
-                        className="w-full flex items-center justify-between p-2.5 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-850 hover:border-indigo-300 dark:hover:border-indigo-800/80 text-left transition-all cursor-pointer group shadow-3xs"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                            <IconComp className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-xs font-extrabold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
-                              {fc.label}
-                            </div>
-                            <div className="text-[10px] text-slate-400 truncate">
-                              {fc.desc}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="p-1 rounded-lg text-slate-300 group-hover:text-indigo-500 opacity-0 group-hover:opacity-100 transition-all shrink-0">
-                          <Plus className="w-4 h-4" />
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            
-            {/* ALL FIELDS */}
-            <div className="space-y-2">
-              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-between">
-                <span>{search ? `Kết quả tìm kiếm (${filteredCatalog.length})` : <><Layers className="w-3 h-3 inline mr-1" />Tất cả loại trường</>}</span>
-              </div>
-              <div className="grid grid-cols-1 gap-1.5">
-                {filteredCatalog.map(fc => {
-                  const IconComp = fc.icon;
-                  return (
-                    <button
-                      key={fc.id}
-                      onClick={() => handleOpenCreateModal(fc)}
-                      className="w-full flex items-center justify-between p-2.5 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-850 hover:border-indigo-300 dark:hover:border-indigo-800/80 text-left transition-all cursor-pointer group shadow-3xs"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                          <IconComp className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-extrabold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
-                            {fc.label}
-                          </div>
-                          <div className="text-[10px] text-slate-400 truncate">
-                            {fc.desc}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-1 rounded-lg text-slate-300 group-hover:text-indigo-500 opacity-0 group-hover:opacity-100 transition-all shrink-0">
-                        <Plus className="w-4 h-4" />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: ACTIVE & MANAGE PROPERTIES */}
-        {tab === 'add' && (
-          <div className="space-y-5">
-            {/* VISIBLE FIELDS */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-1.5">
-                <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
-                  <Eye className="w-3.5 h-3.5" /> Đang hiển thị trong bảng
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-bold">
-                  {visibleFields.length}
-                </span>
-              </div>
-
-              <div className="space-y-1.5">
-                {filteredProperties
-                  .filter(p => visibleFields.includes(p.key))
-                  .map(p => {
-                    const IconComponent = p.icon || Tag;
-                    return (
-                      <div 
-                        key={p.key} 
-                        className="flex items-center justify-between py-2 px-3 bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 rounded-xl hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-3xs group"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 shrink-0">
-                            <IconComponent className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="min-w-0">
-                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block truncate">{p.label}</span>
-                            <span className="text-[9px] font-semibold text-slate-400 capitalize">{p.type}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0">
-                          {/* Configure / Edit button */}
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditModal(p)}
-                            className="p-1 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg transition-colors cursor-pointer"
-                            title="Cài đặt cấu hình trường"
-                          >
-                            <Cog className="w-3.5 h-3.5" />
-                          </button>
-
-                          {/* Delete custom field button */}
-                          {!p.isStandard && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteField(p.key)}
-                              className="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
-                              title="Xóa trường"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-
-                          {/* Visibility Toggle Switch */}
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input 
-                              type="checkbox" 
-                              checked={true}
-                              disabled={p.key === 'title'}
-                              onChange={() => toggleFieldVisibility(p.key)}
-                              className="sr-only peer" 
-                            />
-                            <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600 disabled:opacity-50"></div>
-                          </label>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-
-            {/* HIDDEN PROPERTIES */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-1.5 pt-1">
-                <span className="flex items-center gap-1.5 text-slate-500">
-                  <EyeOff className="w-3.5 h-3.5" /> Chưa kích hoạt / Ẩn
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold">
-                  {filteredProperties.length - visibleFields.length}
-                </span>
-              </div>
-
-              <div className="space-y-1.5">
-                {filteredProperties
-                  .filter(p => !visibleFields.includes(p.key))
-                  .map(p => {
-                    const IconComponent = p.icon || Tag;
-                    return (
-                      <div 
-                        key={p.key} 
-                        className="flex items-center justify-between py-2 px-3 bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800/60 rounded-xl hover:border-slate-300 dark:hover:border-slate-700 transition-all opacity-80 hover:opacity-100 group"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="p-1.5 rounded-lg bg-slate-200/60 dark:bg-slate-800 text-slate-400 shrink-0">
-                            <IconComponent className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="min-w-0">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block truncate">{p.label}</span>
-                            <span className="text-[9px] font-semibold text-slate-400 capitalize">{p.type}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0">
-                          {/* Configure / Edit button */}
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditModal(p)}
-                            className="p-1 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg transition-colors cursor-pointer"
-                            title="Cài đặt cấu hình trường"
-                          >
-                            <Cog className="w-3.5 h-3.5" />
-                          </button>
-
-                          {/* Delete custom field button */}
-                          {!p.isStandard && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteField(p.key)}
-                              className="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
-                              title="Xóa trường"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-
-                          {/* Visibility Toggle Switch */}
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input 
-                              type="checkbox" 
-                              checked={false}
-                              onChange={() => toggleFieldVisibility(p.key)}
-                              className="sr-only peer" 
-                            />
-                            <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                          </label>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Field Configuration Studio Modal */}
-      {editingFieldConfig && (
-        <FieldSettingsModal
-          config={editingFieldConfig}
-          onClose={() => setEditingFieldConfig(null)}
-          onSave={handleSaveFieldFromModal}
-        />
-      )}
     </div>
   );
 }

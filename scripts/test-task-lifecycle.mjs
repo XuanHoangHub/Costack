@@ -9,6 +9,9 @@ const source = ts.transpileModule(readFileSync(new URL('../src/lib/taskLifecycle
 const exports = {};
 vm.runInNewContext(source, { exports, Date });
 const { resolveTaskLocation, normalizeTaskCompletion, restoreBulkTaskFields } = exports;
+const fieldExports = {};
+const fieldSource = ts.transpileModule(readFileSync(new URL('../src/lib/customFields.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+vm.runInNewContext(fieldSource, { exports: fieldExports, Date, URL });
 const spaces = [
   { id: 'a', workspaceId: 'w1', lists: [{ id: 'a1' }, { id: 'a2' }] },
   { id: 'b', workspaceId: 'w1', lists: [{ id: 'b1' }] },
@@ -59,17 +62,20 @@ test('bulk undo restores only changed fields and preserves concurrent edits', ()
 const appSource = readFileSync(new URL('../src/app/page.tsx', import.meta.url), 'utf8');
 const createSource = appSource.slice(appSource.indexOf('  const handleAddTask = useCallback'), appSource.indexOf('  const handleUpdateTask = useCallback'));
 const createJs = ts.transpileModule(`${createSource}\nexports.createTask = handleAddTask;`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
-function createHarness({ offline = false, fail = false } = {}) {
+function createHarness({ offline = false, fail = false, customFields = [] } = {}) {
   const state = { tasks: [], queue: {}, deleted: [], inserts: [], reminders: [] };
+  const harnessSpaces = spaces.map(space => ({ ...space, customFields }));
   const bindings = {
     exports: {}, crypto: webcrypto, console: { error() {} },
     useCallback: fn => fn, currentUser: { id: 'me' }, members: [], spaces,
     activeWorkspaceId: 'w1', activeSpaceId: 'a', activeListId: 'a2', isOffline: offline,
     triggerToast() {}, addSyncLog() {}, isUserAssignedToTask: () => false,
     resolveTaskLocation, normalizeTaskCompletion,
+    applyCustomFieldDefaults: fieldExports.applyCustomFieldDefaults,
+    validateTaskCustomFields: fieldExports.validateTaskCustomFields,
     buildTaskCustomFields: task => task.custom_fields || {},
     saveTaskReminder: (...args) => state.reminders.push(args),
-    useSpaceStore: { getState: () => ({ spaces }) },
+    useSpaceStore: { getState: () => ({ spaces: harnessSpaces }) },
     setTasks: update => { state.tasks = update(state.tasks); },
     setOfflineTasksQueue: update => { state.queue = update(state.queue); },
     setOfflineDeletedTasks: update => { state.deleted = update(state.deleted); },
@@ -81,6 +87,21 @@ function createHarness({ offline = false, fail = false } = {}) {
   vm.runInNewContext(createJs, bindings);
   return { state, create: bindings.exports.createTask };
 }
+
+test('all task creation entry points apply Space defaults before persistence', async () => {
+  const { state, create } = createHarness({ customFields: [{ id: 'budget', name: 'Budget', type: 'money', defaultValue: 0 }] });
+  await create({ ...task, custom_fields: { Approved: false } });
+  assert.equal(state.tasks[0].custom_fields.Budget, 0);
+  assert.equal(state.tasks[0].custom_fields.Approved, false);
+  assert.equal(state.inserts[0].custom_fields.Budget, 0);
+});
+
+test('completed tasks missing required Space fields never enter local state or the database', async () => {
+  const { state, create } = createHarness({ customFields: [{ id: 'budget', name: 'Budget', type: 'money', isRequired: true }] });
+  await assert.rejects(() => create({ ...task, status: 'completed' }), /Budget/);
+  assert.equal(state.tasks.length, 0);
+  assert.equal(state.inserts.length, 0);
+});
 test('rapid creation produces unique IDs, retains attachments and uses the destination workspace', async () => {
   const { state, create } = createHarness();
   const attachment = { id: 'file', name: 'brief.pdf', filePath: 'uploads/brief.pdf' };

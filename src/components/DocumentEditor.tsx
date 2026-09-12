@@ -370,7 +370,9 @@ export default function DocumentEditor({
   const autosave = useDocumentAutosave(documentId, authUserId, isOffline, onDocumentUpdated);
   const { saveStatus, lastSavedAt } = autosave;
   const saveDocumentRef = useRef(autosave.save);
-  saveDocumentRef.current = autosave.save;
+  useEffect(() => {
+    saveDocumentRef.current = autosave.save;
+  }, [autosave.save]);
   const [contentRevision, setContentRevision] = useState(0);
   
   const titleSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);

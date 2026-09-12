@@ -267,8 +267,56 @@ export default function TeamDirectory({
   const [showManualAddModal, setShowManualAddModal] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<User | null>(null);
   const [contactsCount, setContactsCount] = useState<number>(0);
+  const [pendingInvitesCount, setPendingInvitesCount] = useState<number>(0);
   const [showAddExistingDropdown, setShowAddExistingDropdown] = useState(false);
   const [scopeTab, setScopeTab] = useState<'workspace' | 'all'>('workspace');
+
+  // Load and listen for workspace pending invitations count
+  const loadPendingInvitesCount = useCallback(async () => {
+    try {
+      let countVal = 0;
+      try {
+        const { count, error } = await supabase
+          .from('workspace_invitations')
+          .select('id', { count: 'exact', head: true })
+          .eq('workspace_id', activeWorkspaceId)
+          .eq('status', 'pending');
+        if (!error && typeof count === 'number') {
+          countVal = count;
+        }
+      } catch (_) {}
+
+      if (typeof window !== 'undefined') {
+        try {
+          const raw = localStorage.getItem('apexa_workspace_invitations');
+          if (raw) {
+            const list = JSON.parse(raw);
+            const localPending = list.filter((i: any) => i.workspaceId === activeWorkspaceId && i.status === 'pending');
+            countVal = Math.max(countVal, localPending.length);
+          }
+        } catch (_) {}
+      }
+
+      setPendingInvitesCount(countVal);
+    } catch (_) {}
+  }, [activeWorkspaceId]);
+
+  useEffect(() => {
+    loadPendingInvitesCount();
+    const handleInvUpdated = () => loadPendingInvitesCount();
+    window.addEventListener('apexa-invitation-updated', handleInvUpdated);
+
+    const channel = getCleanChannel(`invites-count-${activeWorkspaceId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'workspace_invitations', filter: `workspace_id=eq.${activeWorkspaceId}` }, () => {
+        loadPendingInvitesCount();
+      })
+      .subscribe();
+
+    return () => {
+      window.removeEventListener('apexa-invitation-updated', handleInvUpdated);
+      void supabase.removeChannel(channel);
+    };
+  }, [activeWorkspaceId, loadPendingInvitesCount]);
 
   // Load and listen for workspace contacts count
   useEffect(() => {
@@ -553,10 +601,10 @@ export default function TeamDirectory({
     }
   };
 
-  const handleSendInvites = (emails: string[], role: string) => {
+  const handleSendInvites = async (emails: string[], role: string) => {
     if (onSendWorkspaceInvites) {
-      onSendWorkspaceInvites(emails, role);
-      setShowInviteModal(false);
+      await onSendWorkspaceInvites(emails, role);
+      loadPendingInvitesCount();
       return;
     }
 
@@ -745,6 +793,22 @@ export default function TeamDirectory({
               >
                 <Plus className="w-4 h-4 text-indigo-500" />
                 <span>{isVi ? 'Thêm thủ công' : 'Manual Add'}</span>
+              </button>
+            )}
+
+            {/* Pending Invites quick button */}
+            {pendingInvitesCount > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  (window as any).playSystemSound?.('click');
+                  setShowInviteModal(true);
+                }}
+                className="px-3.5 py-2.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/80 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-xs animate-in fade-in"
+                title={isVi ? "Xem và quản lý các lời mời đang chờ chấp nhận" : "View and manage pending invitations"}
+              >
+                <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span>{isVi ? `${pendingInvitesCount} lời mời đang chờ` : `${pendingInvitesCount} pending`}</span>
               </button>
             )}
 

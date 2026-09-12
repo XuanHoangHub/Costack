@@ -38,11 +38,11 @@
   -webkit-font-smoothing: antialiased;
 }
 .dark .apexa-app-shell.apexa-design-system {
-  --cu-bg: #0b0c12;
-  --cu-bg-subtle: #0f1118;
-  --cu-surface: #141622;
-  --cu-surface-2: #1b1e2e;
-  --cu-surface-3: #23273b;
+  --cu-bg: #09090b;
+  --cu-bg-subtle: #0d0e12;
+  --cu-surface: #121318;
+  --cu-surface-2: #181920;
+  --cu-surface-3: #22232c;
   --cu-border: rgba(255, 255, 255, 0.08);
   --cu-border-strong: rgba(255, 255, 255, 0.15);
   --cu-text-primary: #f8fafc;
@@ -52,9 +52,9 @@
   --cu-primary: #3b82f6;
   --cu-primary-hover: #60a5fa;
   --cu-primary-subtle: rgba(59, 130, 246, 0.12);
-  --sidebar-bg: #10121a;
-  --sidebar-surface: #141622;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-bg: #0c0d12;
+  --sidebar-surface: #121318;
+  --sidebar-border: rgba(255, 255, 255, 0.07);
   --sidebar-text: #f8fafc;
   --sidebar-muted: #94a3b8;
   --sidebar-signal: #3b82f6;
@@ -115,21 +115,33 @@
 }
 .apexa-app-shell.apexa-design-system .apexa-sidebar-navigation { padding-top: 6px; padding-inline: 6px; }
 .apexa-app-shell.apexa-design-system .apexa-nav-item {
-  border-radius: 8px !important;
-  min-height: 36px;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  border-radius: 9px !important;
+  min-height: 34px;
   font-size: 13px;
   font-weight: 500;
-  transition: background-color 0.12s ease, color 0.12s ease;
+  color: #475569 !important;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .apexa-app-shell.apexa-design-system .apexa-nav-item:hover {
   background: rgba(0, 0, 0, 0.04) !important;
+  border-color: transparent !important;
+  color: #0f172a !important;
+}
+.dark .apexa-app-shell.apexa-design-system .apexa-nav-item {
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: #94a3b8 !important;
 }
 .dark .apexa-app-shell.apexa-design-system .apexa-nav-item:hover {
-  background: rgba(255, 255, 255, 0.05) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.04) !important;
+  color: #ffffff !important;
 }
 .apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] {
-  background: rgba(0, 113, 227, 0.1) !important;
-  border-color: transparent !important;
+  background: rgba(0, 113, 227, 0.08) !important;
+  border-color: rgba(0, 113, 227, 0.2) !important;
   color: #0071E3 !important;
 }
 .apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] .apexa-nav-item-icon {
@@ -141,23 +153,25 @@
   font-weight: 600 !important;
 }
 .dark .apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] {
-  background: rgba(10, 132, 255, 0.15) !important;
-  border-color: transparent !important;
-  color: #0A84FF !important;
+  background: rgba(59, 130, 246, 0.14) !important;
+  border-color: rgba(56, 189, 248, 0.24) !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06) !important;
 }
 .dark .apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] .apexa-nav-item-icon {
   background: transparent !important;
-  color: #0A84FF !important;
+  color: #38bdf8 !important;
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.45));
 }
 .dark .apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] > span:not([class*="absolute"]) {
-  color: #0A84FF !important;
+  color: #ffffff !important;
   font-weight: 600 !important;
 }
 .apexa-app-shell.apexa-design-system .apexa-nav-item > span:first-of-type { font-weight: 500; letter-spacing: -0.01em; }
 .apexa-app-shell.apexa-design-system .apexa-nav-active-marker { width: 3px; border-radius: 9999px; background: #0071E3 !important; box-shadow: none; }
-.dark .apexa-app-shell.apexa-design-system .apexa-nav-active-marker { background: #0A84FF !important; }
+.dark .apexa-app-shell.apexa-design-system .apexa-nav-active-marker { background: #38bdf8 !important; box-shadow: 0 0 10px rgba(56, 189, 248, 0.8) !important; }
 .apexa-app-shell.apexa-design-system .apexa-nav-feature-badge { background: rgba(0, 0, 0, 0.04) !important; border: 1px solid rgba(0, 0, 0, 0.06) !important; color: #86868b !important; font-size: 9px; font-weight: 600; border-radius: 9999px; }
-.dark .apexa-app-shell.apexa-design-system .apexa-nav-feature-badge { background: rgba(255, 255, 255, 0.06) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; color: #86868b !important; border-radius: 9999px; }
+.dark .apexa-app-shell.apexa-design-system .apexa-nav-feature-badge { background: rgba(255, 255, 255, 0.06) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; color: #94a3b8 !important; border-radius: 9999px; }
 .apexa-app-shell.apexa-design-system .apexa-sidebar-section-label { margin-top: 14px; color: var(--sidebar-muted); font-size: 10px; font-weight: 600; letter-spacing: .08em; padding: 8px 12px 5px; }
 .apexa-app-shell.apexa-design-system .apexa-app-header { min-height: 52px; background: var(--cu-surface); border-bottom: 1px solid var(--apple-hairline) !important; box-shadow: none; }
 .apexa-app-shell.apexa-design-system .apexa-header-sidebar { border-bottom: none !important; }
@@ -222,7 +236,7 @@
 .dark .apexa-inset-group {
   background: var(--cu-surface);
   border-color: var(--cu-border);
-  box-shadow: none;
+  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.45), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
 }
 
 /* Hairline Rows inside Inset Groups */
@@ -250,7 +264,7 @@
 .dark .apexa-telemetry-ribbon {
   background: var(--cu-surface);
   border-color: var(--cu-border);
-  box-shadow: none;
+  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.45), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
 }
 
 /* Apple Capsule Segmented Control */
@@ -263,8 +277,8 @@
   border: 1px solid rgba(0, 0, 0, 0.04);
 }
 .dark .apexa-segmented-capsule {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 .apexa-segmented-pill {
   padding: 4px 12px;
@@ -275,6 +289,12 @@
   transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
 }
+.dark .apexa-segmented-pill {
+  color: #94a3b8;
+}
+.dark .apexa-segmented-pill:hover {
+  color: #f1f5f9;
+}
 .apexa-segmented-pill[data-active="true"] {
   background: #ffffff;
   color: #1d1d1f;
@@ -282,9 +302,9 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 1px rgba(0, 0, 0, 0.04);
 }
 .dark .apexa-segmented-pill[data-active="true"] {
-  background: #2c2c2e;
+  background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
 }
 
 /* Inbox, documents, chat and team share the same surface rhythm. */

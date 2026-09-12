@@ -13,7 +13,11 @@ export function useDocumentAutosave(documentId: string, userId: string, isOfflin
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const mounted = useRef(true);
   const callback = useRef(onUpdate);
-  callback.current = onUpdate;
+
+  useEffect(() => {
+    callback.current = onUpdate;
+  }, [onUpdate]);
+
   const queue = useMemo(() => createDocumentSaveQueue({
     save: async patch => {
       if (isOffline) throw new Error('offline');
@@ -22,10 +26,9 @@ export function useDocumentAutosave(documentId: string, userId: string, isOfflin
     },
     persist: patch => {
       try { if (patch) localStorage.setItem(key, JSON.stringify(patch)); else localStorage.removeItem(key); }
-      catch { if (mounted.current) setSaveStatus('error'); }
+      catch { setSaveStatus('error'); }
     },
     onState: state => {
-      if (!mounted.current) return;
       setSaveStatus(isOffline && state !== 'idle' ? 'saved' : state);
       if (state === 'saved') setLastSavedAt(new Date());
     },

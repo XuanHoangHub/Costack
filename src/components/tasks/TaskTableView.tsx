@@ -1,5 +1,8 @@
 "use client";
 
+import CustomFieldInput from "./CustomFieldInput";
+import { compareCustomFieldValues, applyCustomFieldDefaults, validateTaskCustomFields } from "@/lib/customFields";
+
 import React, { useState } from 'react';
 import { ArrowUpDown, Pin, MessageSquare, Paperclip, Plus, Check, X, Circle, CheckCircle2, Trophy, Flag, Timer, Pencil, ShieldAlert, ArrowLeft, ArrowRight, Zap, EyeOff, Copy, Trash2, Bot, Sparkles, SlidersHorizontal, Play, Clock, ChevronDown, AlertTriangle, Hourglass, Tag, Mail, Phone, ExternalLink } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -56,7 +59,7 @@ const CustomizableHeader = ({
 }) => (
   <th 
     onClick={() => isSortable && onToggleSort(col)}
-    className={`h-10 px-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 cursor-pointer hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border-b border-slate-200/70 dark:border-white/[0.06] bg-white/95 dark:bg-[#07080c]/95 backdrop-blur-md group/h select-none sticky top-0 z-10 transition-colors ${className}`}
+    className={`h-10 px-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 cursor-pointer hover:bg-slate-100/70 dark:hover:bg-white/[0.04] border-b border-slate-200/70 dark:border-white/[0.06] bg-white/95 dark:bg-[#090a0f]/95 backdrop-blur-md group/h select-none sticky top-0 z-10 transition-colors ${className}`}
   >
     <div className="flex items-center justify-between gap-1 w-full">
       <div className="flex items-center gap-1.5">
@@ -85,242 +88,6 @@ const CustomizableHeader = ({
 );
 
 
-function CustomFieldCellEditor({ 
-  field, 
-  value, 
-  onChange 
-}: { 
-  field: any; 
-  value: any; 
-  onChange: (val: string) => void;
-}) {
-  const val = value || '';
-
-  switch (field.type) {
-    case 'checkbox':
-      const isChecked = val === 'true' || val === true;
-      return (
-        <button
-          type="button"
-          onClick={() => onChange(isChecked ? 'false' : 'true')}
-          className={`px-2 py-1 rounded-lg border flex items-center gap-1.5 transition-all text-xs font-bold cursor-pointer ${
-            isChecked
-              ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
-              : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-400'
-          }`}
-        >
-          <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${isChecked ? 'bg-white text-indigo-600 border-white' : 'border-slate-400'}`}>
-            {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
-          </div>
-          {field.checkboxLabel && <span className="truncate max-w-[90px]">{field.checkboxLabel}</span>}
-        </button>
-      );
-
-    case 'rating':
-      const ratingVal = parseInt(String(val)) || 0;
-      const maxStars = field.ratingMax || 5;
-      const ratingIcon = field.ratingIcon || 'star';
-      return (
-        <div className="flex items-center gap-0.5 select-none">
-          {Array.from({ length: maxStars }).map((_, idx) => {
-            const star = idx + 1;
-            return (
-              <button
-                key={star}
-                type="button"
-                onClick={() => onChange(ratingVal === star ? '' : String(star))}
-                className={`text-sm transition-transform hover:scale-125 cursor-pointer leading-none ${
-                  star <= ratingVal ? 'text-amber-400' : 'text-slate-200 dark:text-slate-800'
-                }`}
-                title={`${star}/${maxStars}`}
-              >
-                {ratingIcon === 'heart' ? '❤️' : ratingIcon === 'flame' ? '🔥' : ratingIcon === 'thumb' ? '👍' : '★'}
-              </button>
-            );
-          })}
-        </div>
-      );
-
-    case 'date':
-      return (
-        <PremiumDatePicker
-          dateValue={String(val)}
-          onChange={newD => onChange(newD || '')}
-          label="Ngày"
-          align="left"
-          className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 cursor-pointer text-slate-700 dark:text-slate-300"
-        />
-      );
-
-    case 'dropdown':
-      return (
-        <DropdownFieldSelect
-          value={String(val)}
-          options={field.options || []}
-          fieldId={field.id}
-          onChange={onChange}
-        />
-      );
-
-    case 'labels':
-      return (
-        <LabelsFieldSelect
-          value={String(val)}
-          options={field.options || []}
-          fieldId={field.id}
-          onChange={onChange}
-        />
-      );
-
-    case 'progress':
-      const maxScale = field.progressMax || 100;
-      const percent = Math.min(maxScale, Math.max(0, parseInt(String(val)) || 0));
-      return (
-        <div className="flex items-center gap-2 min-w-[110px] select-none">
-          <input
-            type="range"
-            min="0"
-            max={maxScale}
-            value={percent}
-            onChange={e => onChange(e.target.value)}
-            className="w-16 h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-          />
-          <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 w-8 shrink-0">{percent}%</span>
-        </div>
-      );
-
-    case 'number':
-      return (
-        <div className="relative flex items-center max-w-[100px]">
-          <input
-            type="number"
-            value={String(val)}
-            min={field.numberMin}
-            max={field.numberMax}
-            placeholder={field.placeholder || "0"}
-            onChange={e => onChange(e.target.value)}
-            className={`px-2 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none w-full focus:border-indigo-500 transition-colors font-bold ${field.numberUnit ? 'pr-7' : ''}`}
-          />
-          {field.numberUnit && (
-            <span className="absolute right-1.5 text-[10px] font-semibold text-slate-400 dark:text-slate-500 pointer-events-none select-none">
-              {field.numberUnit}
-            </span>
-          )}
-        </div>
-      );
-
-    case 'money':
-      const sym = field.currencySymbol || '$';
-      const isSuffix = field.currencyPosition === 'suffix';
-      return (
-        <div className="relative flex items-center max-w-[120px]">
-          {!isSuffix && <span className="absolute left-2 text-xs font-bold text-slate-400">{sym}</span>}
-          <input
-            type="text"
-            value={String(val)}
-            placeholder={field.placeholder || "0.00"}
-            onChange={e => onChange(e.target.value)}
-            className={`${!isSuffix ? 'pl-5' : 'pl-2'} ${isSuffix ? 'pr-5' : 'pr-2'} py-1 text-xs border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none w-full focus:border-indigo-500 transition-colors font-bold`}
-          />
-          {isSuffix && <span className="absolute right-2 text-xs font-bold text-slate-400">{sym}</span>}
-        </div>
-      );
-
-    case 'email':
-      return (
-        <div className="flex items-center gap-1 max-w-[150px]">
-          <input
-            type="email"
-            value={String(val)}
-            placeholder={field.placeholder || "name@email.com"}
-            onChange={e => onChange(e.target.value)}
-            className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none flex-1 min-w-0 focus:border-indigo-500 font-medium"
-          />
-          {val && (
-            <a
-              href={`mailto:${val}`}
-              target="_blank"
-              rel="noreferrer"
-              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400 hover:text-indigo-600 transition-colors"
-              title="Gửi email"
-            >
-              <Mail className="w-3.5 h-3.5" />
-            </a>
-          )}
-        </div>
-      );
-
-    case 'phone':
-      return (
-        <div className="flex items-center gap-1 max-w-[140px]">
-          <input
-            type="tel"
-            value={String(val)}
-            placeholder={field.placeholder || "09..."}
-            onChange={e => onChange(e.target.value)}
-            className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none flex-1 min-w-0 focus:border-indigo-500 font-medium"
-          />
-          {val && (
-            <a
-              href={`tel:${val}`}
-              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400 hover:text-emerald-600 transition-colors"
-              title="Gọi điện"
-            >
-              <Phone className="w-3.5 h-3.5" />
-            </a>
-          )}
-        </div>
-      );
-
-    case 'url':
-      return (
-        <div className="flex items-center gap-1 max-w-[160px]">
-          <input
-            type="url"
-            value={String(val)}
-            placeholder={field.placeholder || "https://..."}
-            onChange={e => onChange(e.target.value)}
-            className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none flex-1 min-w-0 focus:border-indigo-500 font-medium"
-          />
-          {val && (
-            <a
-              href={String(val).startsWith('http') ? String(val) : `https://${val}`}
-              target="_blank"
-              rel="noreferrer"
-              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400 hover:text-sky-600 transition-colors"
-              title="Mở liên kết"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          )}
-        </div>
-      );
-
-    case 'textarea':
-      return (
-        <input
-          type="text"
-          value={String(val)}
-          placeholder={field.placeholder || "Ghi chú..."}
-          onChange={e => onChange(e.target.value)}
-          className="px-2.5 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none max-w-[160px] focus:border-indigo-500 transition-colors font-medium truncate"
-          title={String(val)}
-        />
-      );
-
-    default:
-      return (
-        <input
-          type="text"
-          value={String(val)}
-          placeholder={field.placeholder || "..."}
-          onChange={e => onChange(e.target.value)}
-          className="px-2.5 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none max-w-[130px] focus:border-indigo-500 transition-colors font-semibold"
-        />
-      );
-  }
-}
-
 interface TaskTableViewProps {
   filteredTasks: Task[];
   members: User[];
@@ -331,7 +98,7 @@ interface TaskTableViewProps {
   onUpdateTask: (task: Task) => void;
   onAddTask?: (task: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress'> & { workspaceId?: string; spaceId?: string; listId?: string }) => void;
   onAddSyncLog?: (log: string) => void;
-  triggerToast?: (type: 'success' | 'info' | 'comment', title: string, desc: string) => void;
+  triggerToast?: (type: 'success' | 'info' | 'comment' | 'warning' | 'error', title: string, desc: string) => void;
   visibleFields: string[];
   customFields: any[];
   onOpenFieldsPanel?: (anchor?: { x: number; y: number; rect?: DOMRect } | React.MouseEvent) => void;
@@ -457,7 +224,7 @@ export default function TaskTableView({
   const [draftStartDate, setDraftStartDate] = useState<string>('');
   const [draftDueDate, setDraftDueDate] = useState<string>('');
   const [draftTags, setDraftTags] = useState<string[]>([]);
-  const [draftCustomFields, setDraftCustomFields] = useState<Record<string, string>>({});
+  const [draftCustomFields, setDraftCustomFields] = useState<Record<string, unknown>>({});
 
   const resetDrafts = () => {
     setDraftTitle('');
@@ -490,12 +257,8 @@ export default function TaskTableView({
       if (sortCol === 'startDate') return (a.startDate || '').localeCompare(b.startDate || '') * dir;
       if (sortCol === 'dueDate') return (a.dueDate || '').localeCompare(b.dueDate || '') * dir;
       if (sortCol === 'progress') return (a.progress - b.progress) * dir;
-      const isCustomField = customFields?.some(cf => cf.name === sortCol);
-      if (isCustomField) {
-        const valA = String(a.custom_fields?.[sortCol] || '');
-        const valB = String(b.custom_fields?.[sortCol] || '');
-        return valA.localeCompare(valB) * dir;
-      }
+      const field = customFields.find(cf => cf.name === sortCol);
+      if (field) return compareCustomFieldValues(field, a.custom_fields?.[sortCol], b.custom_fields?.[sortCol]) * dir;
       return 0;
     });
     return sorted;
@@ -570,30 +333,40 @@ export default function TaskTableView({
     + visibleCustomFields.length
     + 1;
 
-  const handleInlineCreate = () => {
+  const inlineCreatePending = React.useRef(false);
+  const handleInlineCreate = async () => {
     const title = draftTitle.trim();
-    if (!title || !onAddTask) return;
+    if (!title || !onAddTask || inlineCreatePending.current) return;
 
-    onAddTask?.({
-      title,
-      description: '',
-      priority: draftPriority,
-      status: draftStatus,
-      assigneeIds: draftAssigneeIds,
-      assigneeId: draftAssigneeIds[0] || undefined,
-      startDate: draftStartDate || undefined,
-      dueDate: draftDueDate || undefined,
-      tags: draftTags,
-      custom_fields: {
-        ...(draftCustomFields || {}),
-        assigneeIds: draftAssigneeIds
-      },
-      subtasks: [],
-      isPinned: false
-    });
-
-    resetDrafts();
-    setIsCreatingInline(false);
+    const values = applyCustomFieldDefaults(customFields, draftCustomFields);
+    const errors = validateTaskCustomFields(customFields, values, draftStatus === 'completed');
+    if (errors.length) {
+      triggerToast?.('info', 'Kiểm tra trường tùy chỉnh', errors.map(error => error.field + ': ' + error.message).join(' '));
+      return;
+    }
+    inlineCreatePending.current = true;
+    try {
+      await onAddTask({
+        title,
+        description: '',
+        priority: draftPriority,
+        status: draftStatus,
+        assigneeIds: draftAssigneeIds,
+        assigneeId: draftAssigneeIds[0] || undefined,
+        startDate: draftStartDate || undefined,
+        dueDate: draftDueDate || undefined,
+        tags: draftTags,
+        custom_fields: { ...values, assigneeIds: draftAssigneeIds },
+        subtasks: [],
+        isPinned: false
+      });
+      resetDrafts();
+      setIsCreatingInline(false);
+    } catch (error) {
+      triggerToast?.('warning', 'Không thể tạo Task', error instanceof Error ? error.message : 'Vui lòng thử lại.');
+    } finally {
+      inlineCreatePending.current = false;
+    }
   };
 
   const getDaysText = (dueDate?: string) => {
@@ -653,7 +426,7 @@ export default function TaskTableView({
           const { [oldName]: oldVal, ...rest } = t.custom_fields || {};
           onUpdateTask({
             ...t,
-            custom_fields: { ...rest, [newName]: oldVal || '' }
+            custom_fields: { ...rest, [newName]: oldVal ?? '' }
           });
         });
       }
@@ -1041,10 +814,10 @@ export default function TaskTableView({
                         onUpdateTask({ ...task, startDate: newD || '' });
                         onAddSyncLog?.(`Start Date "${task.title}" → ${newD || 'Cleared'}`);
                       }}
-                      dateValue={task.dueDate || ''}
+                      dateValue={task.startDate || ''}
                       onChange={newD => {
-                        onUpdateTask({ ...task, dueDate: newD || '' });
-                        onAddSyncLog?.(`Due Date "${task.title}" → ${newD || 'Cleared'}`);
+                        onUpdateTask({ ...task, startDate: newD || '' });
+                        onAddSyncLog?.(`Start Date "${task.title}" → ${newD || 'Cleared'}`);
                       }}
                       label="Bắt đầu"
                       align="left"
@@ -1105,10 +878,10 @@ export default function TaskTableView({
 
                 {/* Custom fields data cells */}
                 {visibleCustomFields.map(cf => {
-                  const val = task.custom_fields?.[cf.name] || '';
+                  const val = task.custom_fields?.[cf.name] ?? '';
                   return (
                     <td key={cf.id} className="h-11 px-3.5 text-left border-b border-slate-200/50 dark:border-white/[0.04]" onClick={e => e.stopPropagation()}>
-                      <CustomFieldCellEditor
+                      <CustomFieldInput members={members}
                         field={cf}
                         value={val}
                         onChange={newVal => {
@@ -1226,9 +999,10 @@ export default function TaskTableView({
 
               {visibleCustomFields.map(cf => (
                 <td key={cf.id} className="px-3.5 py-2 border-b border-indigo-200/60 dark:border-indigo-900/40">
-                  <CustomFieldCellEditor
+                  <CustomFieldInput members={members}
                     field={cf}
-                    value={draftCustomFields[cf.name] || ''}
+                    draft
+                    value={applyCustomFieldDefaults(customFields, draftCustomFields)[cf.name]}
                     onChange={newVal => setDraftCustomFields(prev => ({ ...prev, [cf.name]: newVal }))}
                   />
                 </td>
@@ -1467,206 +1241,18 @@ export default function TaskTableView({
                 </button>
               </>
             ) : (
-              // Custom Fields Menu
+              // Field changes are managed against the whole Space, independent of table filters.
               <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const cf = customFields.find(c => c.id === activeMenu.fieldId);
-                    if (cf) {
-                      const existing = customConfigs[cf.id] || [];
-                      const options = (cf.options || []).map((optLabel: string) => {
-                        const match = existing.find((ec: any) => ec.label === optLabel);
-                        return match ? { ...match } : { id: `opt-${Math.random()}`, label: optLabel, color: 'indigo' };
-                      });
-                      setEditingFieldConfig({
-                        id: cf.id,
-                        name: cf.name,
-                        type: cf.type,
-                        isStandard: false,
-                        options
-                      });
-                      setShowSettingsModal(true);
-                    }
-                    setActiveMenu(null);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
-                >
-                  <Pencil className="w-3.5 h-3.5 text-slate-400 dark:text-slate-300 shrink-0" />
-                  <span>Cài đặt trường</span>
+                <button type="button" onClick={() => { setActiveMenu(null); onOpenFieldsPanel?.(); }} className="w-full rounded-xl px-3 py-2 text-left text-xs hover:bg-slate-100 dark:hover:bg-slate-800">
+                  {locale === 'vi' ? 'Quản lý trường trong Space' : 'Manage Space fields'}
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (setCustomFields && customFields) {
-                      const target = customFields.find(cf => cf.id === activeMenu.fieldId);
-                      if (target) {
-                        const nextPrivate = !target.isPrivate;
-                        setCustomFields(prev => prev.map(cf => cf.id === activeMenu.fieldId
-                          ? { ...cf, isPrivate: nextPrivate }
-                          : cf));
-                        triggerToast?.(
-                          'info',
-                          nextPrivate ? 'Đã đặt trường riêng tư' : 'Đã bỏ riêng tư',
-                          nextPrivate
-                            ? 'Trường này chỉ hiển thị trong Space hiện tại.'
-                            : 'Trường này có thể hiển thị cho thành viên có quyền truy cập Space.'
-                        );
-                      }
-                    }
-                    setActiveMenu(null);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
-                >
-                  <ShieldAlert className="w-3.5 h-3.5 text-slate-400 dark:text-slate-300 shrink-0" />
-                  <span>{customFields.find(cf => cf.id === activeMenu.fieldId)?.isPrivate ? 'Bỏ riêng tư' : 'Đặt trường riêng tư'}</span>
-                </button>
-
-                <div className="border-t border-slate-100 dark:border-white/10 my-1" />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (setCustomFields && customFields) {
-                      const targetCF = customFields.find(cf => cf.id === activeMenu.fieldId);
-                      if (targetCF) {
-                        setCustomFields?.(prev => [targetCF, ...prev.filter(cf => cf.id !== activeMenu.fieldId)]);
-                      }
-                    }
-                    setActiveMenu(null);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5 text-slate-400 dark:text-slate-300 shrink-0" />
-                  <span>Chuyển lên đầu</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (setCustomFields && customFields) {
-                      const targetCF = customFields.find(cf => cf.id === activeMenu.fieldId);
-                      if (targetCF) {
-                        setCustomFields?.(prev => [...prev.filter(cf => cf.id !== activeMenu.fieldId), targetCF]);
-                      }
-                    }
-                    setActiveMenu(null);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
-                >
-                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-300 shrink-0" />
-                  <span>Chuyển xuống cuối</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (triggerToast) triggerToast?.('success', 'Automation Created', `Created smart auto-calculations for "${activeMenu.fieldName}".`);
-                    setActiveMenu(null);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
-                >
-                  <Zap className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                  <span>Tự động hóa (Automate)</span>
-                </button>
-
-                <div className="border-t border-slate-100 dark:border-white/10 my-1" />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (setVisibleFields) {
-                      setVisibleFields?.(prev => prev.filter(f => f !== activeMenu.fieldName));
-                      if (onAddSyncLog) onAddSyncLog?.(`Hid custom field column "${activeMenu.fieldName}"`);
-                    }
-                    setActiveMenu(null);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
-                >
-                  <EyeOff className="w-3.5 h-3.5 text-slate-400 dark:text-slate-300 shrink-0" />
-                  <span>Ẩn cột</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (setCustomFields && customFields && setVisibleFields) {
-                      const dupName = `${activeMenu.fieldName} Copy`;
-                      const dupField = {
-                        id: `cf-${Date.now()}`,
-                        name: dupName,
-                        type: activeMenu.fieldType
-                      };
-                      setCustomFields?.(prev => [...prev, dupField]);
-                      setVisibleFields?.(prev => [...prev, dupName]);
-                      
-                      filteredTasks.forEach(t => {
-                        onUpdateTask({
-                          ...t,
-                          custom_fields: {
-                            ...(t.custom_fields || {}),
-                            [dupName]: t.custom_fields?.[activeMenu.fieldName] || ''
-                          }
-                        });
-                      });
-                      if (onAddSyncLog) onAddSyncLog?.(`Duplicated custom field "${activeMenu.fieldName}" → "${dupName}"`);
-                    }
-                    setActiveMenu(null);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
-                >
-                  <Copy className="w-3.5 h-3.5 text-slate-400 dark:text-slate-300 shrink-0" />
-                  <span>Tạo bản sao</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    const oldName = activeMenu.fieldName;
-                    if (openDialog && setCustomFields && setVisibleFields) {
-                      openDialog?.({
-                        title: `Xóa trường tùy chỉnh "${oldName}"`,
-                        description: 'Bạn có chắc chắn muốn xóa trường này? Thao tác này sẽ xóa dữ liệu trường của tất cả công việc.',
-                        type: 'confirm',
-                        isDestructive: true,
-                        confirmText: 'Xóa trường',
-                        onConfirm: () => {
-                          setCustomFields?.(prev => prev.filter(cf => cf.id !== activeMenu.fieldId));
-                          setVisibleFields?.(prev => prev.filter(f => f !== oldName));
-                          filteredTasks.forEach(t => {
-                            const { [oldName]: _, ...rest } = t.custom_fields || {};
-                            onUpdateTask({
-                              ...t,
-                              custom_fields: rest
-                            });
-                          });
-                          if (onAddSyncLog) onAddSyncLog?.(`Deleted custom field "${oldName}"`);
-                        }
-                      });
-                    } else if (confirm(`Bạn có chắc muốn xóa trường "${oldName}"?`)) {
-                      setCustomFields?.(prev => prev.filter(cf => cf.id !== activeMenu.fieldId));
-                      setVisibleFields?.(prev => prev.filter(f => f !== oldName));
-                      filteredTasks.forEach(t => {
-                        const { [oldName]: _, ...rest } = t.custom_fields || {};
-                        onUpdateTask({
-                          ...t,
-                          custom_fields: rest
-                        });
-                      });
-                      if (onAddSyncLog) onAddSyncLog?.(`Deleted custom field "${oldName}"`);
-                    }
-                    setActiveMenu(null);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition-colors cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                  <span>Xóa trường</span>
+                <button type="button" onClick={() => { setVisibleFields?.(prev => prev.filter(name => name !== activeMenu.fieldName)); setActiveMenu(null); }} className="w-full rounded-xl px-3 py-2 text-left text-xs hover:bg-slate-100 dark:hover:bg-slate-800">
+                  {locale === 'vi' ? 'Ẩn cột trong chế độ xem này' : 'Hide column in this view'}
                 </button>
               </>
             )}
 
-            {activeMenu.fieldType === 'date' && (
+            {activeMenu.isStandard && activeMenu.fieldType === 'date' && (
               <>
                 <div className="border-t border-slate-100 dark:border-white/10 my-1" />
                 <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">

@@ -148,7 +148,7 @@ export default function DashboardFocusQueue({
         
         {/* Title */}
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0071e3]/10 text-[#0071e3] dark:text-[#0a84ff]">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 dark:bg-blue-500/15 border border-blue-500/20 text-[#0071e3] dark:text-blue-400 dark:shadow-[0_0_12px_rgba(59,130,246,0.2)]">
             <Zap className="h-4 w-4" />
           </div>
           <div>
@@ -174,7 +174,7 @@ export default function DashboardFocusQueue({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={locale === 'vi' ? 'Tìm nhanh...' : 'Quick search...'}
-              className="w-full rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.05] pl-8 pr-7 py-1.5 text-xs text-neutral-800 placeholder-neutral-400 focus:border-[#0071e3] focus:bg-white dark:focus:bg-[#121214] focus:outline-none dark:text-neutral-200 dark:placeholder-neutral-500 transition-colors"
+              className="w-full rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.04] pl-8 pr-7 py-1.5 text-xs text-neutral-800 placeholder-neutral-400 focus:border-[#0071e3] focus:bg-white dark:focus:bg-[#161926] dark:focus:border-blue-500/50 focus:outline-none dark:text-neutral-200 dark:placeholder-neutral-500 transition-colors"
             />
             {searchQuery && (
               <button
@@ -223,9 +223,9 @@ export default function DashboardFocusQueue({
 
       {/* Active Health Filter banner if present */}
       {activeHealthFilter !== 'none' && (
-        <div className="flex items-center justify-between gap-2 rounded-xl bg-[#0071e3]/[0.06] border border-[#0071e3]/20 px-3.5 py-1.5 text-xs text-neutral-800 dark:text-neutral-200">
+        <div className="flex items-center justify-between gap-2 rounded-xl bg-[#0071e3]/[0.06] border border-[#0071e3]/20 px-3.5 py-1.5 text-xs text-neutral-800 dark:text-neutral-200 dark:bg-blue-500/10 dark:border-blue-500/25">
           <span className="flex items-center gap-2">
-            <Sparkles className="h-3.5 w-3.5 text-[#0071e3]" />
+            <Sparkles className="h-3.5 w-3.5 text-[#0071e3] dark:text-blue-400" />
             <span className="font-medium">
               {locale === 'vi' ? 'Đang lọc theo chỉ số sức khỏe công việc' : 'Filtered by task health metric'}
             </span>
@@ -243,7 +243,7 @@ export default function DashboardFocusQueue({
 
       {/* Apple Inset Grouped List */}
       {filteredTasks.length > 0 ? (
-        <div className="apexa-inset-group divide-y divide-black/[0.05] dark:divide-white/[0.06] rounded-2xl bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.08] shadow-xs">
+        <div className="apexa-inset-group divide-y divide-black/[0.05] dark:divide-white/[0.05] rounded-2xl bg-white dark:bg-[#121318] border border-black/[0.06] dark:border-white/[0.08] shadow-xs dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] overflow-hidden">
           {filteredTasks.slice(0, 10).map((task, index) => {
             const dueDate = parseDateOnly(task.dueDate);
             const isOverdue = dueDate && dueDate.getTime() < now.getTime();
@@ -265,12 +265,12 @@ export default function DashboardFocusQueue({
             }
 
             const priorityBadge = task.priority === 'urgent'
-              ? { text: locale === 'vi' ? 'Khẩn cấp' : 'Urgent', bg: 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400' }
+              ? { text: locale === 'vi' ? 'Khẩn cấp' : 'Urgent', bg: 'bg-rose-50 text-rose-600 border border-rose-200/80 dark:bg-rose-500/15 dark:text-rose-300 dark:border-rose-500/25' }
               : task.priority === 'high'
-              ? { text: locale === 'vi' ? 'Cao' : 'High', bg: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400' }
+              ? { text: locale === 'vi' ? 'Cao' : 'High', bg: 'bg-amber-50 text-amber-600 border border-amber-200/80 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/25' }
               : task.priority === 'medium'
-              ? { text: locale === 'vi' ? 'Trung bình' : 'Medium', bg: 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400' }
-              : { text: locale === 'vi' ? 'Thấp' : 'Low', bg: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400' };
+              ? { text: locale === 'vi' ? 'Trung bình' : 'Medium', bg: 'bg-blue-50 text-blue-600 border border-blue-200/80 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/25' }
+              : { text: locale === 'vi' ? 'Thấp' : 'Low', bg: 'bg-neutral-100 text-neutral-600 border border-neutral-200/80 dark:bg-white/[0.05] dark:text-neutral-400 dark:border-white/[0.08]' };
 
             const assignee = task.assigneeId ? memberMap.get(task.assigneeId) : null;
 
@@ -278,15 +278,15 @@ export default function DashboardFocusQueue({
               <div
                 key={task.id}
                 onClick={() => (onOpenTask ? onOpenTask(task.id) : onNavigate('calendar'))}
-                className="group flex items-center justify-between gap-3 px-4 py-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors cursor-pointer"
+                className="group flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50/80 dark:hover:bg-white/[0.035] transition-colors cursor-pointer"
               >
                 {/* Left: Rank, Status Dot, Title */}
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <span className="text-[11px] font-medium text-neutral-400 dark:text-neutral-500 tabular-nums w-4 shrink-0 text-center">
+                  <span className="text-[11px] font-mono font-medium text-neutral-400 dark:text-neutral-500 tabular-nums w-4 shrink-0 text-center">
                     {index + 1}
                   </span>
 
-                  <div className="h-3 w-3 rounded-full border-2 border-neutral-300 dark:border-neutral-600 group-hover:border-[#0071e3] transition-colors shrink-0" />
+                  <div className="h-3.5 w-3.5 rounded-full border-2 border-neutral-300 dark:border-white/20 group-hover:border-[#0071e3] dark:group-hover:border-[#0a84ff] transition-colors shrink-0" />
 
                   <span className="truncate text-[13.5px] font-medium text-neutral-900 dark:text-neutral-100 group-hover:text-[#0071e3] dark:group-hover:text-[#0a84ff] transition-colors">
                     {task.title}
@@ -340,7 +340,7 @@ export default function DashboardFocusQueue({
         </div>
       ) : (
         /* Empty State */
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#121214] p-8 text-center">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#121318] p-8 text-center dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
           <div className="grid h-10 w-10 place-items-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
             <CheckCircle2 className="h-5 w-5" />
           </div>

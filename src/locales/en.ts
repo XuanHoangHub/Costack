@@ -1274,6 +1274,7 @@ export const en = {
   signUp: 'Sign Up',
   allTasks: 'All Tasks',
   allTasksCount: '{count} tasks',
+  manualOrder: 'Manual order',
   yourSpaces: 'Your Spaces',
   spacesWithArchive: 'Spaces with archived items',
   createNewSpace: 'Create new space',

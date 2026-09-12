@@ -1,5 +1,8 @@
 "use client";
 
+import CustomFieldInput from "./CustomFieldInput";
+import { RESERVED_FIELD_NAMES, isEmptyFieldValue } from "@/lib/customFields";
+
 import React, { useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -837,7 +840,7 @@ export default function TaskDetailsPanel({
   const dynamicCustomFieldNames = Array.from(new Set([
     ...activeSpaceFieldDefinitions.map(field => field.name),
     ...Object.keys(task.custom_fields || {})
-  ])).filter(key => !['Objective', 'Owner', 'Cost'].includes(key));
+  ])).filter(key => !RESERVED_FIELD_NAMES.has(key) && (!['Objective', 'Owner', 'Cost'].includes(key) || activeSpaceFieldDefinitions.some(field => field.name === key)));
 
   const getFileIcon = (name: string) => {
     const ext = name.split('.').pop()?.toLowerCase();
@@ -1345,7 +1348,7 @@ export default function TaskDetailsPanel({
             {/* Single column layout to avoid cramped rows in sidebar */}
             <div className="flex flex-col space-y-3">
               {/* Objective */}
-              {isShown('Objective') && (
+              {isShown('Objective') && !activeSpaceFieldDefinitions.some(field => field.name === 'Objective') && (
                 <div className="space-y-1 relative group/field">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
@@ -1373,7 +1376,7 @@ export default function TaskDetailsPanel({
               )}
 
               {/* Owner */}
-              {isShown('Owner') && (
+              {isShown('Owner') && !activeSpaceFieldDefinitions.some(field => field.name === 'Owner') && (
                 <div className="space-y-1 relative group/field">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
@@ -1401,7 +1404,7 @@ export default function TaskDetailsPanel({
               )}
 
               {/* Cost */}
-              {isShown('Cost') && (
+              {isShown('Cost') && !activeSpaceFieldDefinitions.some(field => field.name === 'Cost') && (
                 <div className="space-y-1 relative group/field">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
@@ -1448,7 +1451,7 @@ export default function TaskDetailsPanel({
                       return (
                       <div key={key} className="space-y-1 relative group/field">
                         <div className="flex items-center justify-between">
-                          <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 capitalize">{key}</label>
+                          <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">{key}{fieldConfig?.isRequired && <span className="ml-1 text-rose-500">*</span>}</label>
                           <div className="flex items-center gap-1.5 opacity-0 group-hover/field:opacity-100 transition-opacity">
                             {onToggleFieldVisibility && (
                               <button 
@@ -1466,45 +1469,9 @@ export default function TaskDetailsPanel({
                             </button>
                           </div>
                         </div>
-                        {fieldConfig?.type === 'dropdown' ? (
-                          <DropdownFieldSelect value={String(val)} options={fieldConfig.options || []} fieldId={fieldConfig.id} onChange={updateValue} />
-                        ) : fieldConfig?.type === 'labels' ? (
-                          <LabelsFieldSelect value={String(val)} options={fieldConfig.options || []} fieldId={fieldConfig.id} onChange={updateValue} />
-                        ) : fieldConfig?.type === 'checkbox' ? (
-                          <button type="button" onClick={() => updateValue(!(val === true || val === 'true'))}
-                            className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${val === true || val === 'true' ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300' : 'border-slate-200/90 bg-white text-slate-500 dark:border-white/10 dark:bg-[#1e1e1e] dark:text-slate-400'}`}>
-                            <CheckSquare className="h-3.5 w-3.5" /> {fieldConfig.checkboxLabel || (isVietnamese ? 'Đánh dấu' : 'Check')}
-                          </button>
-                        ) : fieldConfig?.type === 'textarea' ? (
-                          <textarea rows={3} value={String(val)} placeholder={fieldConfig.placeholder}
-                            onChange={event => updateValue(event.target.value)}
-                            className="w-full resize-y rounded-xl border border-slate-200/90 bg-slate-50/50 px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:ring-2 focus:ring-indigo-500/15 transition-all dark:border-white/10 dark:bg-[#151515] dark:text-slate-100 shadow-3xs" />
-                        ) : fieldConfig?.type === 'number' ? (
-                          <div className="relative flex items-center">
-                            <input
-                              type="number"
-                              min={fieldConfig?.numberMin}
-                              max={fieldConfig?.numberMax}
-                              value={String(val)} 
-                              placeholder={fieldConfig?.placeholder || "0"}
-                              onChange={event => updateValue(event.target.value)}
-                              className={`w-full px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200/90 dark:border-white/10 bg-slate-50/50 dark:bg-[#151515] text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:ring-2 focus:ring-indigo-500/15 transition-all shadow-3xs ${fieldConfig?.numberUnit ? 'pr-12' : ''}`} 
-                            />
-                            {fieldConfig?.numberUnit && (
-                              <span className="absolute right-3 text-[11px] font-semibold text-slate-400 dark:text-slate-500 pointer-events-none select-none">
-                                {fieldConfig.numberUnit}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <input
-                            type={fieldConfig?.type === 'date' ? 'date' : fieldConfig?.type === 'money' || fieldConfig?.type === 'progress' || fieldConfig?.type === 'rating' ? 'number' : fieldConfig?.type === 'email' ? 'email' : fieldConfig?.type === 'phone' ? 'tel' : fieldConfig?.type === 'url' ? 'url' : 'text'}
-                            min={fieldConfig?.type === 'progress' || fieldConfig?.type === 'rating' ? 0 : undefined}
-                            max={fieldConfig?.type === 'progress' ? fieldConfig.progressMax || 100 : fieldConfig?.type === 'rating' ? fieldConfig.ratingMax || 5 : undefined}
-                            value={String(val)} placeholder={fieldConfig?.placeholder}
-                            onChange={event => updateValue(event.target.value)}
-                            className="w-full px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200/90 dark:border-white/10 bg-slate-50/50 dark:bg-[#151515] text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:ring-2 focus:ring-indigo-500/15 transition-all shadow-3xs" />
-                        )}
+                        <CustomFieldInput field={fieldConfig || { id: key, name: key, type: 'text' }} value={val} members={members} onChange={updateValue} />
+                        {fieldConfig?.description && <p className="mt-1 text-[10px] text-slate-400">{fieldConfig.description}</p>}
+                        {fieldConfig?.isRequired && isEmptyFieldValue(val) && <p className="mt-1 text-[10px] text-amber-600">{isVietnamese ? 'Cần điền trước khi hoàn thành' : 'Required before completion'}</p>}
                       </div>
                     );})}
                 </div>
@@ -1549,6 +1516,10 @@ export default function TaskDetailsPanel({
                     type="button" 
                     onClick={() => {
                       if (!newFieldName.trim()) return;
+                      if (RESERVED_FIELD_NAMES.has(newFieldName.trim()) || Object.keys(task.custom_fields || {}).some(key => key.toLowerCase() === newFieldName.trim().toLowerCase()) || activeSpaceFieldDefinitions.some(field => field.name.toLowerCase() === newFieldName.trim().toLowerCase())) {
+                        triggerToast?.('info', isVietnamese ? 'Tên trường đã được sử dụng' : 'Field name is already in use', newFieldName.trim());
+                        return;
+                      }
                       const updated = { ...(task.custom_fields || {}), [newFieldName.trim()]: newFieldValue.trim() };
                       onUpdateTask({ ...task, custom_fields: updated });
                       if (triggerToast) triggerToast('success', 'Field Added', `Added custom field "${newFieldName.trim()}"`);

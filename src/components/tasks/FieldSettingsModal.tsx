@@ -1,5 +1,9 @@
 "use client";
 
+import CustomFieldInput from "./CustomFieldInput";
+import { validateFieldDefinition } from "@/lib/customFields";
+import type { CustomFieldDefinition } from "@/types";
+
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
@@ -71,6 +75,7 @@ export const ALL_FIELD_TYPES = [
 ];
 
 export interface FieldSettingsModalProps {
+  existingFields?: CustomFieldDefinition[];
   config: { 
     id: string; 
     name: string; 
@@ -122,13 +127,14 @@ export interface FieldSettingsModalProps {
     progressMax?: number;
     allowMultiple?: boolean;
     defaultValue?: any;
-  }) => void;
+  }) => void | boolean;
 }
 
 export default function FieldSettingsModal({
   config,
   onClose,
-  onSave
+  onSave,
+  existingFields = []
 }: FieldSettingsModalProps) {
   const { locale } = useTranslation();
   const isVietnamese = locale === 'vi';
@@ -153,6 +159,7 @@ export default function FieldSettingsModal({
   const [ratingIcon, setRatingIcon] = useState<'star' | 'heart' | 'flame' | 'thumb'>('star');
   const [checkboxLabel, setCheckboxLabel] = useState('');
   const [checkboxDefault, setCheckboxDefault] = useState(false);
+  const [defaultValue, setDefaultValue] = useState<unknown>('');
   const [progressMax, setProgressMax] = useState<number>(100);
   const [allowMultiple, setAllowMultiple] = useState(false);
   const [previewValue, setPreviewValue] = useState<any>('');
@@ -180,12 +187,13 @@ export default function FieldSettingsModal({
       setRatingMax(config.ratingMax || 5);
       setRatingIcon(config.ratingIcon || 'star');
       setCheckboxLabel(config.checkboxLabel || '');
-      setCheckboxDefault(!!config.defaultValue);
+      setCheckboxDefault(config.defaultValue === true || config.defaultValue === 'true');
+      setDefaultValue(config.defaultValue ?? '');
       setProgressMax(config.progressMax || 100);
       setAllowMultiple(!!config.allowMultiple);
 
       if (config.options && config.options.length > 0) {
-        setOptions(config.options);
+        setOptions(config.options.map((option, index) => typeof option === 'string' ? { id: `option-${index}`, label: option, color: 'indigo' } : option));
       } else if (config.id === 'status') {
         setOptions(DEFAULT_STATUSES);
       } else if (config.id === 'priority') {
@@ -267,14 +275,14 @@ export default function FieldSettingsModal({
     e.preventDefault();
     if (!name.trim()) return;
 
-    if (isDateField) {
+    if (isDateField && config.isStandard) {
       saveDateFormat(selectedDateFormat as any);
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('apexa-field-config-changed'));
       }
     }
 
-    onSave({
+    const updated = {
       name: name.trim(),
       type,
       options: isOptionField ? options : undefined,
@@ -296,9 +304,13 @@ export default function FieldSettingsModal({
       checkboxLabel: checkboxLabel.trim(),
       progressMax,
       allowMultiple,
-      defaultValue: type === 'checkbox' ? checkboxDefault : undefined
-    });
-    onClose();
+      defaultValue: type === 'checkbox' ? checkboxDefault : defaultValue
+    };
+    if (!config.isStandard) {
+      const message = validateFieldDefinition({ ...updated, id: config.id } as CustomFieldDefinition, existingFields, locale);
+      if (message) { setValidationMessage(message); return; }
+    }
+    if (onSave(updated) !== false) onClose();
   };
 
   const currentTypeMeta = ALL_FIELD_TYPES.find(f => f.id === type) || ALL_FIELD_TYPES[0];
@@ -313,6 +325,9 @@ export default function FieldSettingsModal({
         />
         
         <form 
+          role="dialog"
+          aria-modal="true"
+          aria-label={isVietnamese ? 'Cài đặt trường dữ liệu' : 'Field settings'}
           onSubmit={handleSave} 
           className="relative w-full max-w-[620px] max-h-[92vh] bg-white dark:bg-[#181818] border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-2xl flex flex-col z-10 text-xs overflow-hidden animate-in fade-in zoom-in-95 duration-150"
         >
@@ -360,9 +375,12 @@ export default function FieldSettingsModal({
                     return (
                       <button
                         key={ft.id}
+                        disabled={!config.isNew && !isSelected}
+                        title={!config.isNew ? (isVietnamese ? "Tạo trường mới để sử dụng loại dữ liệu khác" : "Create a new field to use a different type") : undefined}
                         type="button"
                         onClick={() => {
                           setType(ft.id);
+                          setDefaultValue('');
                           if ((ft.id === 'dropdown' || ft.id === 'labels') && options.length === 0) {
                             setOptions([
                               { id: `opt-1`, label: isVietnamese ? 'Lựa chọn 1' : 'Option 1', color: 'blue' },
@@ -419,6 +437,10 @@ export default function FieldSettingsModal({
               </div>
             </div>
 
+            <label className="block space-y-1.5 text-xs font-semibold">
+              <span>{isVietnamese ? 'Mô tả và hướng dẫn nhập' : 'Description and instructions'}</span>
+              <textarea value={description} onChange={event => setDescription(event.target.value)} rows={2} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-900" />
+            </label>
             <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 space-y-4">
               <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60 dark:border-slate-800">
                 <Sliders className="w-4 h-4 text-indigo-500" />
@@ -582,7 +604,7 @@ export default function FieldSettingsModal({
                 </div>
               )}
 
-              {type === 'number' && (
+              {(type === 'number' || type === 'money') && (
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="space-y-1">
@@ -852,6 +874,12 @@ export default function FieldSettingsModal({
               )}
             </div>
 
+            {!config.isStandard && !['checkbox', 'member'].includes(type) && !(type === 'date' && defaultToToday) && (
+              <div className="space-y-2">
+                <label className="text-xs font-bold">{isVietnamese ? 'Giá trị mặc định cho Task mới' : 'Default value for new tasks'}</label>
+                <CustomFieldInput draft field={{ id: config.id, name: name || 'Default', type, options, numberMin, numberMax, numberPrecision, numberUnit, currencySymbol, currencyPosition, ratingMax, ratingIcon, progressMax, includeTime } as CustomFieldDefinition} value={defaultValue} onChange={setDefaultValue} />
+              </div>
+            )}
             <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/50 via-purple-50/30 to-blue-50/50 dark:from-indigo-950/20 dark:via-purple-950/10 dark:to-slate-900/40 border border-indigo-200/60 dark:border-indigo-900/40 space-y-2">
               <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-sky-400">
                 <span className="flex items-center gap-1.5">

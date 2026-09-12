@@ -71,7 +71,7 @@ function CustomChartTooltip({ active, payload, label }: any) {
   if (!active || !payload || !payload.length) return null;
 
   return (
-    <div className="rounded-xl border border-slate-200/90 bg-white/95 p-3 text-left shadow-xl backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/95">
+    <div className="rounded-xl border border-black/[0.08] bg-white/95 p-3 text-left shadow-xl backdrop-blur-xl dark:border-white/[0.1] dark:bg-[#151824]/95 dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
       <p className="mb-2 text-[11px] font-black text-slate-900 dark:text-white">
         {payload[0]?.payload?.fullDate || label}
       </p>
@@ -129,13 +129,13 @@ export default function DashboardCharts({
           initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          className="apexa-inset-group flex flex-col justify-between rounded-2xl bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.08] p-4 sm:p-5 shadow-xs lg:col-span-8 text-left"
+          className="apexa-inset-group flex flex-col justify-between rounded-2xl bg-white dark:bg-[#121318] border border-black/[0.06] dark:border-white/[0.08] p-4 sm:p-5 shadow-xs dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] lg:col-span-8 text-left"
         >
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-black/[0.05] dark:border-white/[0.06] pb-3.5">
             <div>
               <h3 className="text-base font-semibold tracking-tight text-neutral-900 dark:text-white flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0071e3]/10 text-[#0071e3] dark:text-[#0a84ff]">
+                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-blue-500/10 dark:bg-blue-500/15 border border-blue-500/20 text-[#0071e3] dark:text-blue-400 dark:shadow-[0_0_12px_rgba(59,130,246,0.2)]">
                   <TrendingUp className="h-4 w-4" />
                 </div>
                 <span>
@@ -307,11 +307,11 @@ export default function DashboardCharts({
           initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          className="apexa-inset-group flex flex-col justify-between rounded-2xl bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.08] p-4 sm:p-5 shadow-xs lg:col-span-4 text-left"
+          className="apexa-inset-group flex flex-col justify-between rounded-2xl bg-white dark:bg-[#121318] border border-black/[0.06] dark:border-white/[0.08] p-4 sm:p-5 shadow-xs dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] lg:col-span-4 text-left"
         >
           <div className="flex items-center justify-between border-b border-black/[0.05] dark:border-white/[0.06] pb-3.5">
             <h3 className="text-base font-semibold tracking-tight text-neutral-900 dark:text-white flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
+              <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-purple-500/10 dark:bg-purple-500/15 border border-purple-500/20 text-purple-600 dark:text-purple-400 dark:shadow-[0_0_12px_rgba(168,85,247,0.2)]">
                 <PieIcon className="h-4 w-4" />
               </div>
               <span>{locale === 'vi' ? 'Phân bổ trạng thái' : 'Status Distribution'}</span>
@@ -356,11 +356,11 @@ export default function DashboardCharts({
           </div>
 
           {/* Detailed Progress List */}
-          <div className="space-y-2 border-t border-slate-100 dark:border-slate-800/80 pt-3">
+          <div className="space-y-2 border-t border-black/[0.05] dark:border-white/[0.06] pt-3">
             {statusData.map((item, idx) => {
               const pct = totalTasks > 0 ? Math.round((item.value / totalTasks) * 100) : 0;
               return (
-                <div key={idx} className="space-y-1 rounded-xl p-1 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                <div key={idx} className="space-y-1 rounded-xl p-1 hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors">
                   <div className="flex items-center justify-between text-xs font-bold">
                     <span className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
                       <span className="h-2.5 w-2.5 rounded-full shrink-0 shadow-2xs" style={{ backgroundColor: item.color }} />
@@ -370,7 +370,7 @@ export default function DashboardCharts({
                       {item.value} <span className="text-[10px] font-normal text-slate-400">({pct}%)</span>
                     </span>
                   </div>
-                  <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                  <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-white/[0.07] overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-500"
                       style={{ backgroundColor: item.color, width: `${pct}%` }}
@@ -390,12 +390,12 @@ export default function DashboardCharts({
           initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.08] p-4 sm:p-5 shadow-xs text-left"
+          className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121318] border border-black/[0.06] dark:border-white/[0.08] p-4 sm:p-5 shadow-xs dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] text-left"
         >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-black/[0.05] dark:border-white/[0.06] pb-3.5">
             <div>
               <h3 className="text-base font-semibold tracking-tight text-neutral-900 dark:text-white flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 dark:shadow-[0_0_12px_rgba(16,185,129,0.2)]">
                   <TrendingUp className="h-4 w-4" />
                 </div>
                 <span>

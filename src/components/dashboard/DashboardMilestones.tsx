@@ -83,7 +83,7 @@ export default function DashboardMilestones({
       {/* Header */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-1">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-500/10 dark:bg-violet-500/15 border border-violet-500/20 text-violet-600 dark:text-violet-400 dark:shadow-[0_0_12px_rgba(139,92,246,0.2)]">
             <Target className="h-4 w-4" />
           </div>
           <div>
@@ -114,7 +114,7 @@ export default function DashboardMilestones({
       </div>
 
       {/* Projects Inset Group Grid */}
-      <div className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.08] p-3.5 sm:p-4 shadow-xs">
+      <div className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121318] border border-black/[0.06] dark:border-white/[0.08] p-3.5 sm:p-4 shadow-xs dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)]">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {projectStats.map((item) => {
           return (
@@ -127,13 +127,13 @@ export default function DashboardMilestones({
                   onNavigate('tasks');
                 }
               }}
-              className="group relative flex flex-col justify-between rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-white/[0.03] p-3.5 transition-all hover:bg-[#fafafa] dark:hover:bg-white/[0.05] cursor-pointer"
+              className="group relative flex flex-col justify-between rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-white/[0.03] p-3.5 transition-all hover:bg-slate-50/80 dark:hover:bg-white/[0.06] cursor-pointer"
             >
               <div>
                 {/* Top Row */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400 font-semibold text-xs shadow-none">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 dark:bg-violet-500/15 dark:border dark:border-violet-500/20 dark:text-violet-400 font-semibold text-xs shadow-none">
                       {item.space.emoji || <Folder className="h-4 w-4" />}
                     </div>
                     <div className="min-w-0">
@@ -148,19 +148,19 @@ export default function DashboardMilestones({
 
                   {/* Status Pill */}
                   {item.status === 'on_track' && (
-                    <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-0.5 text-[9.5px] font-bold text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 shrink-0">
+                    <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-0.5 text-[9.5px] font-bold text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-500/25 shrink-0">
                       <CheckCircle2 className="h-2.5 w-2.5" />
                       {locale === 'vi' ? 'Đúng hạn' : 'On Track'}
                     </span>
                   )}
                   {item.status === 'at_risk' && (
-                    <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-0.5 text-[9.5px] font-bold text-amber-600 dark:bg-amber-950/50 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/60 shrink-0">
+                    <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-0.5 text-[9.5px] font-bold text-amber-600 dark:bg-amber-500/15 dark:text-amber-300 border border-amber-200/60 dark:border-amber-500/25 shrink-0">
                       <Clock className="h-2.5 w-2.5" />
                       {locale === 'vi' ? 'Cần chú ý' : 'At Risk'}
                     </span>
                   )}
                   {item.status === 'delayed' && (
-                    <span className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-0.5 text-[9.5px] font-bold text-rose-600 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/60 shrink-0">
+                    <span className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-0.5 text-[9.5px] font-bold text-rose-600 dark:bg-rose-500/15 dark:text-rose-300 border border-rose-200/60 dark:border-rose-500/25 shrink-0">
                       <AlertCircle className="h-2.5 w-2.5" />
                       {locale === 'vi' ? 'Chậm tiến độ' : 'Behind'}
                     </span>

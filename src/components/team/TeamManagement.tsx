@@ -11,6 +11,7 @@ import { supabase } from '@/supabaseClient';
 import SignedImage from '../SignedImage';
 import EmojiIconPicker, { renderSpaceIcon } from '../EmojiIconPicker';
 import { useTranslation } from '@/contexts/TranslationContext';
+import ConfirmModal from '../ConfirmModal';
 
 export interface TeamRow {
   id: string;
@@ -68,6 +69,7 @@ export default function TeamManagement({
   const [query, setQuery] = useState('');
   const [showEditor, setShowEditor] = useState(false);
   const [editingTeam, setEditingTeam] = useState<TeamRow | null>(null);
+  const [teamToDelete, setTeamToDelete] = useState<TeamRow | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [showMembers, setShowMembers] = useState(false);
   const [memberQuery, setMemberQuery] = useState('');
@@ -248,11 +250,10 @@ export default function TeamManagement({
     }
   };
 
-  const deleteTeam = async (team: TeamRow) => {
-    const confirmPrompt = isVietnamese 
-      ? `Xóa Team “${team.name}”? Thành viên sẽ không bị xóa khỏi workspace.` 
-      : `Delete team "${team.name}"? Members will not be removed from workspace.`;
-    if (!canManage || !window.confirm(confirmPrompt)) return;
+  const confirmDeleteTeam = async () => {
+    if (!teamToDelete || !canManage) return;
+    const team = teamToDelete;
+    setTeamToDelete(null);
     setError('');
 
     // Update local cache
@@ -274,6 +275,7 @@ export default function TeamManagement({
 
     await onRefresh();
     if (selectedTeamId === team.id) setSelectedTeamId(null);
+    (window as any).playSystemSound?.('delete');
     onAddSyncLog(isVietnamese ? `Đã xóa Team “${team.name}”` : `Deleted team "${team.name}"`);
   };
 
@@ -453,7 +455,7 @@ export default function TeamManagement({
                         <button type="button" onClick={() => openEdit(team)} className="rounded-xl p-1.5 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer" title={isVietnamese ? 'Chỉnh sửa' : 'Edit'}>
                           <Edit3 className="h-4 w-4" />
                         </button>
-                        <button type="button" onClick={() => deleteTeam(team)} className="rounded-xl p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/30 transition-colors cursor-pointer" title={isVietnamese ? 'Xóa' : 'Delete'}>
+                        <button type="button" onClick={() => setTeamToDelete(team)} className="rounded-xl p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/30 transition-colors cursor-pointer" title={isVietnamese ? 'Xóa' : 'Delete'}>
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -907,6 +909,22 @@ export default function TeamManagement({
           </div>
         </div>
       )}
+      {/* Confirm Delete Team Modal */}
+      <ConfirmModal
+        isOpen={!!teamToDelete}
+        title={isVietnamese ? 'Xóa Nhóm' : 'Delete Team'}
+        description={isVietnamese
+          ? `Bạn có chắc chắn muốn xóa nhóm "${teamToDelete?.name}"? Các thành viên vẫn sẽ thuộc workspace và các nhiệm vụ công việc không bị ảnh hưởng.`
+          : `Are you sure you want to delete the team "${teamToDelete?.name}"? Members will remain in the workspace and their tasks will not be deleted.`
+        }
+        itemName={teamToDelete?.name}
+        confirmText={isVietnamese ? 'Xóa Nhóm' : 'Delete Team'}
+        cancelText={isVietnamese ? 'Hủy' : 'Cancel'}
+        isDestructive={true}
+        type="danger"
+        onConfirm={confirmDeleteTeam}
+        onCancel={() => setTeamToDelete(null)}
+      />
     </div>
   );
 }

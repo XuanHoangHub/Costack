@@ -828,12 +828,29 @@ export function useAppActions() {
     let targetWS = workspaces.find(w => w.id === workspaceId);
 
     if (!isOffline) {
-      const { data: joinedWorkspaceId, error } = await supabase.rpc('accept_workspace_invitation', { invitation_id: inviteId });
-      if (error) {
-        triggerToast({ id: generateId(), type: 'info', title: 'Could not join workspace', message: error.message, duration: 4000 });
-        return;
+      if (inviteId.startsWith('direct_')) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            await supabase.from('workspace_memberships').upsert({
+              workspace_id: workspaceId,
+              user_id: session.user.id,
+              role: (role as any) || 'member',
+              status: 'active',
+              joined_at: new Date().toISOString()
+            }, { onConflict: 'workspace_id,user_id' });
+          }
+        } catch (e) {
+          console.warn('Direct workspace membership insert exception:', e);
+        }
+      } else {
+        const { data: joinedWorkspaceId, error } = await supabase.rpc('accept_workspace_invitation', { invitation_id: inviteId });
+        if (error) {
+          triggerToast({ id: generateId(), type: 'info', title: 'Could not join workspace', message: error.message, duration: 4000 });
+          return;
+        }
+        workspaceId = (joinedWorkspaceId as string) || workspaceId;
       }
-      workspaceId = (joinedWorkspaceId as string) || workspaceId;
     }
 
     if (typeof window !== 'undefined') {

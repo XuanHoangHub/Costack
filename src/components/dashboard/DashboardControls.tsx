@@ -77,7 +77,7 @@ export default function DashboardControls({
   ];
 
   return (
-    <div className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.08] p-2.5 shadow-xs flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 text-left">
+    <div className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121318] border border-black/[0.06] dark:border-white/[0.08] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] p-2.5 shadow-xs flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 text-left">
       
       {/* Left controls: Range & Trend comparison */}
       <div className="flex min-w-0 flex-wrap items-center gap-2.5">
@@ -106,8 +106,8 @@ export default function DashboardControls({
         <span
           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
             periodInsights.completionDelta >= 0
-              ? 'bg-emerald-500/[0.08] text-emerald-600 dark:text-emerald-400'
-              : 'bg-rose-500/[0.08] text-rose-600 dark:text-rose-400'
+              ? 'bg-emerald-500/[0.1] text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+              : 'bg-rose-500/[0.1] text-rose-600 dark:text-rose-400 border border-rose-500/20'
           }`}
         >
           <TrendingUp className={`h-3 w-3 ${periodInsights.completionDelta < 0 ? 'rotate-180 text-rose-500' : 'text-emerald-500'}`} />
@@ -149,9 +149,9 @@ export default function DashboardControls({
         <button
           type="button"
           onClick={onExportCsv}
-          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-700 transition-colors cursor-pointer"
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-3 text-xs font-semibold text-slate-700 shadow-2xs hover:border-slate-300 dark:border-white/[0.08] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] dark:text-zinc-200 transition-colors cursor-pointer"
         >
-          <Download className="h-3.5 w-3.5 text-slate-500" />
+          <Download className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-400" />
           <span>{locale === 'vi' ? 'Xuất CSV' : 'Export CSV'}</span>
         </button>
 
@@ -160,7 +160,7 @@ export default function DashboardControls({
           <button
             type="button"
             onClick={onUpgradePremium}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 px-3 text-xs font-black text-white shadow-md shadow-orange-500/20 hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 px-3 text-xs font-bold text-white shadow-md shadow-orange-500/20 hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer"
           >
             <Crown className="h-3.5 w-3.5" />
             <span>{locale === 'vi' ? 'Nâng cấp Pro' : 'Upgrade Pro'}</span>
@@ -172,7 +172,7 @@ export default function DashboardControls({
           <button
             type="button"
             onClick={onOpenQuickTask}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 text-xs font-black text-white shadow-xs hover:bg-indigo-700 active:scale-[0.98] transition-all cursor-pointer"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 px-3.5 text-xs font-bold text-white shadow-md shadow-blue-500/25 active:scale-[0.98] transition-all cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5" />
             <span>{locale === 'vi' ? 'Tạo việc nhanh' : 'Quick Task'}</span>
@@ -185,10 +185,10 @@ export default function DashboardControls({
             type="button"
             onClick={() => setShowSettings((prev) => !prev)}
             aria-expanded={showSettings}
-            className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold shadow-2xs transition-colors cursor-pointer ${
+            className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold shadow-2xs transition-colors cursor-pointer ${
               showSettings
-                ? 'border-indigo-300 bg-indigo-50/70 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300'
-                : 'border-slate-200/80 bg-white text-slate-700 hover:border-indigo-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'
+                ? 'border-blue-400/60 bg-blue-50/70 text-blue-600 dark:border-sky-500/40 dark:bg-sky-500/15 dark:text-sky-300'
+                : 'border-slate-200/80 bg-white text-slate-700 hover:border-slate-300 dark:border-white/[0.08] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] dark:text-zinc-200'
             }`}
           >
             <Settings2 className="h-3.5 w-3.5" />
@@ -196,7 +196,7 @@ export default function DashboardControls({
           </button>
 
           {showSettings && (
-            <div className="absolute right-0 top-11 z-50 w-[300px] rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xl backdrop-blur-xl dark:border-slate-800 dark:bg-[#151722]">
+            <div className="absolute right-0 top-11 z-50 w-[300px] rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xl backdrop-blur-xl dark:border-white/[0.12] dark:bg-[#151824] dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
               <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2.5 dark:border-slate-800">
                 <div>
                   <h4 className="text-xs font-black text-slate-900 dark:text-white">

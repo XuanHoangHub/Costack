@@ -315,6 +315,8 @@ export function SidebarZoneGroup({
                   isActive={isActive}
                   count={meta.count}
                   badge={meta.badge}
+                  disabled={(meta as any).disabled}
+                  disabledTooltip={(meta as any).disabledTooltip}
                   collapsed={true}
                   isDragging={draggedItemId === itemId}
                   onDragStart={(e) => onDragStart(e, itemId)}
@@ -342,10 +344,10 @@ export function SidebarZoneGroup({
         onDragOver={handleZoneHeaderDragOver}
         onDragLeave={handleZoneHeaderDragLeave}
         onDrop={handleZoneHeaderDrop}
-        className={`group relative flex items-center justify-between rounded-xl px-2 py-1.5 transition-all duration-150 border ${
+        className={`group relative flex items-center justify-between rounded-xl px-2 py-1.5 transition-all duration-150 border border-transparent ${
           isDragOverZoneHeader
             ? 'border-sky-400 bg-sky-500/20 ring-2 ring-sky-400 shadow-[0_0_16px_rgba(56,189,248,0.35)] scale-[1.01]'
-            : 'border-transparent hover:border-slate-200/80 hover:bg-slate-100/60 dark:hover:border-white/[0.08] dark:hover:bg-white/[0.04]'
+            : 'hover:border-slate-200/80 hover:bg-slate-100/60 dark:hover:border-white/[0.06] dark:hover:bg-white/[0.04]'
         }`}
       >
         {/* Clickable Area to Toggle Collapse */}
@@ -376,18 +378,18 @@ export function SidebarZoneGroup({
           </div>
 
           {/* Zone Title */}
-          <span className="truncate text-xs font-bold uppercase tracking-wider text-slate-700 group-hover:text-slate-950 dark:text-zinc-300 dark:group-hover:text-white transition-colors">
+          <span className="truncate text-[10.5px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-slate-800 dark:text-zinc-400 dark:group-hover:text-zinc-200 transition-colors">
             {zone.name}
           </span>
 
           {/* Total items badge */}
-          <span className={`shrink-0 text-[9px] font-black uppercase px-1.5 py-0.2 rounded border ${zoneColor.badge}`}>
+          <span className={`shrink-0 text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded border ${zoneColor.badge}`}>
             {zone.itemIds.length}
           </span>
 
           {/* Total Unread Notification Badge */}
           {totalUnreadCount > 0 && (
-            <span className="ml-auto min-w-[16px] h-[16px] px-1 rounded-full bg-rose-500 text-white font-black text-[9px] flex items-center justify-center shadow-sm">
+            <span className="ml-auto min-w-[16px] h-[16px] px-1 rounded-full bg-rose-500 text-white font-bold text-[8.5px] flex items-center justify-center shadow-xs tabular-nums">
               {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
             </span>
           )}
@@ -401,7 +403,7 @@ export function SidebarZoneGroup({
               e.stopPropagation();
               setShowMenu((v) => !v);
             }}
-            className="flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:text-slate-800 hover:bg-slate-100 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-white/[0.08] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+            className="flex h-5.5 w-5.5 items-center justify-center rounded-md text-slate-400 hover:text-slate-800 hover:bg-slate-200/60 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-white/[0.08] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
             aria-label="Tùy chọn vùng"
             title={isVi ? 'Tùy chọn Vùng' : 'Zone Options'}
           >
@@ -416,8 +418,11 @@ export function SidebarZoneGroup({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: -4 }}
                 transition={{ duration: 0.12 }}
-                className="absolute right-0 top-full mt-1 z-50 w-44 rounded-xl border border-slate-200 dark:border-white/12 bg-white/98 dark:bg-[#0d0e14] p-1.5 shadow-[0_12px_30px_rgba(15,23,42,0.12)] dark:shadow-[0_12px_30px_rgba(0,0,0,0.8)] backdrop-blur-xl"
+                className="absolute right-0 top-full mt-1 z-50 w-44 rounded-xl border border-slate-200/90 dark:border-white/12 bg-white dark:bg-[#121318] p-1.5 shadow-[0_12px_30px_rgba(15,23,42,0.12)] dark:shadow-[0_12px_30px_rgba(0,0,0,0.8)] backdrop-blur-xl"
               >
+                <div className="px-2 py-1 text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                  {zone.name}
+                </div>
                 <button
                   type="button"
                   onClick={(e) => {
@@ -427,8 +432,8 @@ export function SidebarZoneGroup({
                   }}
                   className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 hover:text-slate-950 hover:bg-slate-100 dark:text-zinc-300 dark:hover:text-white dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
                 >
-                  <Edit3 className="h-3.5 w-3.5 text-blue-600 dark:text-sky-400" />
-                  <span>{isVi ? 'Chỉnh sửa Vùng' : 'Edit Zone'}</span>
+                  <Edit3 className="h-3.5 w-3.5 text-slate-500 dark:text-zinc-400" />
+                  <span>{isVi ? 'Sửa vùng & màu' : 'Edit Zone'}</span>
                 </button>
 
                 {onMoveZone && (
@@ -495,24 +500,24 @@ export function SidebarZoneGroup({
             transition={{ duration: 0.16, ease: 'easeOut' }}
             className="overflow-hidden"
           >
-            <div className="relative ml-3 pl-2.5 border-l-2 border-white/[0.08] space-y-0.5 pt-0.5 pb-1">
+            <div className="relative ml-2.5 pl-2 border-l border-slate-200/80 dark:border-white/[0.08] space-y-0.5 pt-0.5 pb-1">
               {zone.itemIds.length === 0 ? (
                 // Empty state placeholder - also acts as droppable target!
                 <div
                   onDragOver={handleZoneHeaderDragOver}
                   onDragLeave={handleZoneHeaderDragLeave}
                   onDrop={handleZoneHeaderDrop}
-                  className={`flex flex-col items-center justify-center p-3 rounded-xl border border-dashed text-center transition-all ${
+                  className={`flex flex-col items-center justify-center p-2.5 rounded-xl border border-dashed text-center transition-all ${
                     isDragOverZoneHeader
-                      ? 'border-sky-400 bg-sky-500/20 text-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.3)]'
-                      : 'border-white/10 bg-white/[0.02] text-zinc-500 hover:border-white/20'
+                      ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-sky-300 shadow-xs'
+                      : 'border-slate-200/80 bg-slate-50/50 text-slate-500 dark:border-white/10 dark:bg-white/[0.02] dark:text-zinc-500 hover:border-slate-300 dark:hover:border-white/20'
                   }`}
                 >
-                  <Layers className="h-4 w-4 mb-1 text-zinc-500 opacity-60" />
+                  <Layers className="h-3.5 w-3.5 mb-1 text-slate-400 dark:text-zinc-500 opacity-60" />
                   <p className="text-[11px] font-medium">
                     {isVi ? 'Kéo thả module vào đây' : 'Drop modules here'}
                   </p>
-                  <p className="text-[9px] text-zinc-500 mt-0.5">
+                  <p className="text-[9px] text-slate-400 dark:text-zinc-500 mt-0.5">
                     {isVi ? 'Hoặc chọn trong phần sửa vùng' : 'Or select in edit zone'}
                   </p>
                 </div>
@@ -535,6 +540,8 @@ export function SidebarZoneGroup({
                       isActive={isActive}
                       count={meta.count}
                       badge={meta.badge}
+                      disabled={(meta as any).disabled}
+                      disabledTooltip={(meta as any).disabledTooltip}
                       collapsed={false}
                       isDragging={draggedItemId === itemId}
                       onDragStart={(e) => onDragStart(e, itemId)}

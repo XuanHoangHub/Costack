@@ -7,7 +7,7 @@ import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, D
 import { 
   ChevronDown, Plus, Paperclip, X, MessageSquare, Check, Pin, Edit2, Tag, 
   MoreHorizontal, Play, Clock, AlertTriangle, Hourglass, Trash2, 
-  CheckCircle2, ListChecks, Copy, ChevronsUpDown, Sparkles, Layers, Users, Calendar, Flag, Repeat, GripVertical, FolderInput
+  CheckCircle2, ListChecks, Copy, ChevronsUpDown, Sparkles, Layers, Users, Calendar, Flag, Repeat, GripVertical, FolderInput, CircleDot
 } from 'lucide-react';
 import { Task, TaskStatus, Priority, User, Workspace, Space } from '../../types';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker } from './TaskSelects';
@@ -148,8 +148,6 @@ const TaskListView = React.memo(function TaskListView({
   const [inlineEditTitle, setInlineEditTitle] = useState('');
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [expandedSubtaskTaskIds, setExpandedSubtaskTaskIds] = useState<string[]>([]);
-  const [bulkStatusValue, setBulkStatusValue] = useState<TaskStatus | undefined>(undefined);
-  const [bulkPriorityValue, setBulkPriorityValue] = useState<Priority | undefined>(undefined);
   
   const toggleSubtaskExpand = (taskId: string) => {
     setExpandedSubtaskTaskIds(prev => 
@@ -225,19 +223,25 @@ const TaskListView = React.memo(function TaskListView({
     setExpandedGroups(newObj);
   };
 
-  const handleInlineAdd = (statusId: string) => {
-    if (!inlineAddingTitle.trim()) return;
+  const handleInlineAdd = (statusId: string, keepOpen = false) => {
+    const trimmed = inlineAddingTitle.trim();
+    if (!trimmed) {
+      setInlineAddingStatus(null);
+      return;
+    }
     onAddTask({
-      title: inlineAddingTitle.trim(), description: '', priority: 'medium' as Priority, status: statusId as TaskStatus,
+      title: trimmed, description: '', priority: 'medium' as Priority, status: statusId as TaskStatus,
       startDate: '', dueDate: '', tags: [], isPinned: false, subtasks: []
     });
     
     const standardLabel = dynamicStatusMeta[statusId]?.label;
     const label = standardLabel || statusId.toUpperCase();
-    onAddSyncLog(`Quick added: "${inlineAddingTitle.trim()}" to ${label}`);
-    if (triggerToast) triggerToast('success', 'Tạo nhanh công việc', `Đã thêm "${inlineAddingTitle.trim()}"`);
+    onAddSyncLog(`Quick added: "${trimmed}" to ${label}`);
+    if (triggerToast) triggerToast('success', isVietnamese ? 'Tạo nhanh công việc' : 'Quick task added', `"${trimmed}"`);
     setInlineAddingTitle('');
-    setInlineAddingStatus(null);
+    if (!keepOpen) {
+      setInlineAddingStatus(null);
+    }
   };
 
   const submitInlineEdit = (task: Task) => {
@@ -248,15 +252,30 @@ const TaskListView = React.memo(function TaskListView({
     setInlineEditTaskId(null);
   };
 
+  const formatCompactDate = (dateStr?: string) => {
+    if (!dateStr) return '';
+    const [dPart, tPart] = dateStr.split('T');
+    const parts = dPart.split('-');
+    if (parts.length !== 3) return dateStr;
+    const [y, m, d] = parts;
+    const currentYear = new Date().getFullYear().toString();
+    const dateFormatted = y === currentYear ? `${d}/${m}` : `${d}/${m}/${y.slice(2)}`;
+    if (tPart) {
+      const timeShort = tPart.slice(0, 5);
+      return `${dateFormatted} ${timeShort}`;
+    }
+    return dateFormatted;
+  };
+
   const getDaysText = (dueDate?: string) => {
     if (!dueDate) return null;
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const due = new Date(dueDate.split('T')[0]); due.setHours(0, 0, 0, 0);
     const diff = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    if (diff < 0) return { text: `Quá hạn ${Math.abs(diff)} ngày`, cls: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/30 shadow-[0_0_12px_rgba(244,63,94,0.15)] font-bold' };
-    if (diff === 0) return { text: 'Hôm nay', cls: 'text-amber-600 dark:text-amber-400 bg-amber-500/15 border border-amber-500/30 font-black shadow-3xs' };
-    if (diff === 1) return { text: 'Ngày mai', cls: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 font-bold' };
-    return { text: `${diff} ngày`, cls: 'text-slate-500 dark:text-slate-400 bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/50 font-medium' };
+    if (diff < 0) return { text: `Quá hạn ${Math.abs(diff)} ngày`, diff, cls: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 border border-rose-200/90 dark:border-rose-800/60 font-bold' };
+    if (diff === 0) return { text: 'Hôm nay', diff, cls: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border border-amber-200/90 dark:border-amber-800/60 font-black' };
+    if (diff === 1) return { text: 'Ngày mai', diff, cls: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/40 font-bold' };
+    return { text: `${diff} ngày`, diff, cls: 'text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium' };
   };
 
   const currentStatuses = statuses || [
@@ -339,54 +358,6 @@ const TaskListView = React.memo(function TaskListView({
     }
   };
 
-  const handleBulkComplete = () => {
-    selectedTaskIds.forEach(id => {
-      const t = tasks.find(item => item.id === id);
-      if (t) onUpdateTask({ ...t, status: 'completed' });
-    });
-    if (triggerToast) triggerToast('success', 'Thao tác hàng loạt', `Đã hoàn thành ${selectedTaskIds.length} công việc`);
-    setSelectedTaskIds([]);
-  };
-
-  const handleBulkSetStatus = (st: TaskStatus) => {
-    selectedTaskIds.forEach(id => {
-      const t = tasks.find(item => item.id === id);
-      if (t) onUpdateTask({ ...t, status: st });
-    });
-    if (triggerToast) triggerToast('success', 'Thao tác hàng loạt', `Đã cập nhật trạng thái cho ${selectedTaskIds.length} công việc`);
-    setSelectedTaskIds([]);
-  };
-
-  const handleBulkSetPriority = (p: Priority) => {
-    selectedTaskIds.forEach(id => {
-      const t = tasks.find(item => item.id === id);
-      if (t) onUpdateTask({ ...t, priority: p });
-    });
-    if (triggerToast) triggerToast('success', 'Thao tác hàng loạt', `Đã cập nhật độ ưu tiên cho ${selectedTaskIds.length} công việc`);
-    setSelectedTaskIds([]);
-  };
-
-  const handleBulkDelete = () => {
-    if (!onDeleteTask || selectedTaskIds.length === 0) return;
-    if (openDialog) {
-      openDialog({
-        title: 'Xóa công việc hàng loạt',
-        description: `Bạn có chắc chắn muốn xóa ${selectedTaskIds.length} công việc đã chọn? Tất cả các công việc này sẽ bị xóa vĩnh viễn khỏi hệ thống.`,
-        itemType: 'task',
-        confirmText: `Xóa ${selectedTaskIds.length} việc`,
-        onConfirm: () => {
-          selectedTaskIds.forEach(id => onDeleteTask(id));
-          if (triggerToast) triggerToast('info', 'Xóa hàng loạt', `Đã xóa ${selectedTaskIds.length} công việc`);
-          setSelectedTaskIds([]);
-        }
-      });
-    } else if (confirm(`Bạn có chắc muốn xóa ${selectedTaskIds.length} công việc đã chọn?`)) {
-      selectedTaskIds.forEach(id => onDeleteTask(id));
-      if (triggerToast) triggerToast('info', 'Xóa hàng loạt', `Đã xóa ${selectedTaskIds.length} công việc`);
-      setSelectedTaskIds([]);
-    }
-  };
-
   const isCompact = density === 'compact';
   const totalCompleted = useMemo(() => filteredTasks.filter(t => t.status === 'completed').length, [filteredTasks]);
   const overallPercent = filteredTasks.length > 0 ? Math.round((totalCompleted / filteredTasks.length) * 100) : 0;
@@ -395,97 +366,159 @@ const TaskListView = React.memo(function TaskListView({
     <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="apexa-space-list relative pb-20 space-y-3 font-sans">
         
-        {/* ── Sticky Column Header Bar ── */}
-        <div className="apexa-list-columns sticky top-0 z-20 bg-white/95 dark:bg-[#07080c]/95 backdrop-blur-md border-b border-slate-200/70 dark:border-white/[0.06] px-4 sm:px-6 py-2 flex items-center gap-2 sm:gap-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none transition-all">
-          
-          {/* Select all checkbox */}
-          <div className="flex items-center gap-2 shrink-0">
-            <input 
-              type="checkbox" 
-              ref={el => { if (el) el.indeterminate = selectedTaskIds.length > 0 && !isAllSelected; }}
-              checked={isAllSelected}
-              onChange={handleToggleSelectAll}
-              className="w-4 h-4 rounded-md cursor-pointer accent-indigo-600 transition-all"
-              title={isAllSelected ? "Bỏ chọn tất cả" : "Chọn tất cả công việc"}
-            />
-          </div>
+        {/* ── Top Utility Toolbar ── */}
+        <div className="apexa-list-utility-bar px-3.5 sm:px-6 flex items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleAllGroups}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white bg-slate-100/80 dark:bg-white/[0.05] hover:bg-slate-200/80 dark:hover:bg-white/[0.08] border border-slate-200/60 dark:border-white/[0.08] transition-all cursor-pointer select-none"
+              title={isVietnamese ? "Đóng / Mở tất cả các nhóm trạng thái" : "Toggle all groups"}
+            >
+              <ChevronsUpDown className="w-3.5 h-3.5 text-slate-500" />
+              <span>{isVietnamese ? 'Thu gọn / Mở rộng nhóm' : 'Toggle groups'}</span>
+            </button>
 
-          {/* Toggle All Groups Button */}
-          <button
-            type="button"
-            onClick={toggleAllGroups}
-            className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
-            title="Đóng / Mở tất cả các nhóm"
-          >
-            <ChevronsUpDown className="w-3.5 h-3.5" />
-          </button>
-
-          {/* Column Titles */}
-          <div className="flex-1 flex items-center gap-2 min-w-0 font-extrabold text-slate-700 dark:text-slate-200">
-            <ListChecks className="w-3.5 h-3.5 text-indigo-500" />
-            <span>Công việc</span>
-            <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[9px] font-bold">
-              {filteredTasks.length}
-            </span>
-
-            {/* Overall Progress pill */}
-            {filteredTasks.length > 0 && (
-              <div className="hidden md:flex items-center gap-2 ml-3 px-2.5 py-0.5 rounded-full bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[9px] font-bold lowercase">
-                <span className="font-bold">{totalCompleted}/{filteredTasks.length} xong</span>
-                <div className="w-12 h-1 bg-indigo-200 dark:bg-indigo-900 rounded-full overflow-hidden">
-                  <div className="h-full bg-indigo-600 dark:bg-indigo-400 rounded-full transition-all duration-500" style={{ width: `${overallPercent}%` }} />
-                </div>
-                <span>{overallPercent}%</span>
+            {filterTag && filterTag !== 'all' && (
+              <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/40 text-blue-700 dark:text-blue-300 font-bold text-xs">
+                <span>#{filterTag}</span>
+                <button 
+                  type="button" 
+                  onClick={() => setFilterTag('all')} 
+                  className="p-0.5 hover:bg-blue-200/50 dark:hover:bg-blue-800 rounded text-blue-500 hover:text-blue-700 cursor-pointer"
+                  title={isVietnamese ? "Bỏ lọc thẻ" : "Clear filter"}
+                >
+                  <X className="w-3 h-3" />
+                </button>
               </div>
             )}
           </div>
 
-          <div className="hidden xl:flex items-center gap-1 w-20 shrink-0 text-slate-400">
-            <Layers className="w-3 h-3" />
-            <span>Không gian</span>
-          </div>
+          <div className="flex items-center gap-2.5">
+            {/* Density Switcher */}
+            <div className="flex items-center bg-slate-100 dark:bg-white/[0.04] p-0.5 rounded-lg border border-slate-200/80 dark:border-white/[0.08] select-none">
+              <button
+                type="button"
+                onClick={() => setDensity('comfortable')}
+                className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                  !isCompact 
+                    ? 'bg-white dark:bg-white/[0.1] text-blue-600 dark:text-sky-300 shadow-xs border border-transparent dark:border-white/10' 
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+                title={isVietnamese ? "Chế độ vừa phải" : "Comfortable density"}
+              >
+                {isVietnamese ? 'Thoải mái' : 'Comfortable'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDensity('compact')}
+                className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                  isCompact 
+                    ? 'bg-white dark:bg-white/[0.1] text-blue-600 dark:text-sky-300 shadow-xs border border-transparent dark:border-white/10' 
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+                title={isVietnamese ? "Chế độ thu gọn mật độ cao" : "Compact density"}
+              >
+                {isVietnamese ? 'Thu gọn' : 'Compact'}
+              </button>
+            </div>
 
-          <div className="hidden lg:flex items-center gap-1 w-24 shrink-0 text-slate-400">
-            <Tag className="w-3 h-3" />
-            <span>Thẻ Tag</span>
-          </div>
-
-          <div className="hidden md:flex items-center justify-center gap-1 w-24 shrink-0 text-center text-slate-400">
-            <Users className="w-3 h-3" />
-            <span>Thực hiện</span>
-          </div>
-
-          <div className="hidden lg:flex items-center justify-end gap-1 w-20 shrink-0 text-right text-slate-400">
-            <Calendar className="w-3 h-3" />
-            <span>Bắt đầu</span>
-          </div>
-
-          <div className="hidden sm:flex items-center justify-end gap-1 w-20 shrink-0 text-right text-slate-400">
-            <Clock className="w-3 h-3" />
-            <span>Hạn chót</span>
-          </div>
-
-          <div className="hidden md:flex items-center justify-center gap-1 w-24 shrink-0 text-center text-slate-400">
-            <Flag className="w-3 h-3" />
-            <span>Ưu tiên</span>
-          </div>
-
-          {/* Density switcher */}
-          <div className="hidden sm:flex shrink-0 items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200/80 dark:border-slate-700/80">
+            {/* Quick Add Task Button */}
             <button
-              onClick={() => setDensity('comfortable')}
-              className={`px-2 py-0.5 rounded text-[9px] font-bold transition-all cursor-pointer ${!isCompact ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
-              title="Chế độ vừa phải"
+              type="button"
+              onClick={() => {
+                const firstStatus = currentStatuses[0]?.id || 'todo';
+                setInlineAddingStatus(firstStatus);
+                setExpandedGroups(prev => ({ ...prev, [firstStatus]: true }));
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold shadow-xs hover:shadow transition-all cursor-pointer active:scale-95 select-none"
             >
-              Thoải mái
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>{isVietnamese ? 'Thêm công việc' : 'Add task'}</span>
             </button>
-            <button
-              onClick={() => setDensity('compact')}
-              className={`px-2 py-0.5 rounded text-[9px] font-bold transition-all cursor-pointer ${isCompact ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
-              title="Chế độ thu gọn mật độ cao"
-            >
-              Thu gọn
-            </button>
+          </div>
+        </div>
+
+        {/* ── Sticky Column Header Bar ── */}
+        <div className="apexa-list-columns sticky top-0 z-20 bg-white/95 dark:bg-[#090a0f]/95 backdrop-blur-md border-b border-slate-200/80 dark:border-white/[0.08] px-3.5 sm:px-6 py-2 select-none transition-all">
+          <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            
+            {/* Select all checkbox & indentation spacer: w-14 shrink-0 */}
+            <div className="w-14 shrink-0 flex items-center justify-start pl-1">
+              <input 
+                type="checkbox" 
+                ref={el => { if (el) el.indeterminate = selectedTaskIds.length > 0 && !isAllSelected; }}
+                checked={isAllSelected}
+                onChange={handleToggleSelectAll}
+                className="w-4 h-4 rounded cursor-pointer accent-blue-600 transition-all"
+                title={isAllSelected ? (isVietnamese ? "Bỏ chọn tất cả" : "Deselect all") : (isVietnamese ? "Chọn tất cả công việc" : "Select all tasks")}
+              />
+            </div>
+
+            {/* Column Title: Công việc */}
+            <div className="flex-1 flex items-center gap-2 min-w-[200px] font-extrabold text-slate-700 dark:text-slate-200">
+              <ListChecks className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400" />
+              <span>{isVietnamese ? 'Công việc' : 'Task'}</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold tabular-nums">
+                {filteredTasks.length}
+              </span>
+
+              {/* Overall Progress pill */}
+              {filteredTasks.length > 0 && (
+                <div className="hidden md:flex items-center gap-2 ml-2 px-2.5 py-0.5 rounded-full bg-blue-50/90 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/40 text-blue-700 dark:text-blue-300 text-[9.5px] font-bold">
+                  <span>{totalCompleted}/{filteredTasks.length} {isVietnamese ? 'xong' : 'done'}</span>
+                  <div className="w-12 h-1 bg-blue-200 dark:bg-blue-900 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-600 dark:bg-sky-400 rounded-full transition-all duration-500" style={{ width: `${overallPercent}%` }} />
+                  </div>
+                  <span className="tabular-nums">{overallPercent}%</span>
+                </div>
+              )}
+            </div>
+
+            {/* Column: Trạng thái (Status) */}
+            <div className="hidden sm:flex items-center justify-center gap-1 w-28 shrink-0 text-slate-400">
+              <CircleDot className="w-3 h-3" />
+              <span>{isVietnamese ? 'Trạng thái' : 'Status'}</span>
+            </div>
+
+            {/* Column: Không gian (Space) */}
+            <div className="hidden xl:flex items-center gap-1 w-24 shrink-0 text-slate-400">
+              <Layers className="w-3 h-3" />
+              <span>{isVietnamese ? 'Không gian' : 'Space'}</span>
+            </div>
+
+            {/* Column: Thẻ Tag */}
+            <div className="hidden lg:flex items-center gap-1 w-24 shrink-0 text-slate-400">
+              <Tag className="w-3 h-3" />
+              <span>{isVietnamese ? 'Thẻ Tag' : 'Tags'}</span>
+            </div>
+
+            {/* Column: Thực hiện (Assignee) */}
+            <div className="hidden md:flex items-center justify-center gap-1 w-32 shrink-0 text-center text-slate-400">
+              <Users className="w-3 h-3" />
+              <span>{isVietnamese ? 'Thực hiện' : 'Assignee'}</span>
+            </div>
+
+            {/* Column: Bắt đầu (Start Date) */}
+            <div className="hidden lg:flex items-center justify-center gap-1 w-24 shrink-0 text-center text-slate-400">
+              <Calendar className="w-3 h-3" />
+              <span>{isVietnamese ? 'Bắt đầu' : 'Start'}</span>
+            </div>
+
+            {/* Column: Hạn chót (Due Date) */}
+            <div className="hidden sm:flex items-center justify-center gap-1 w-28 shrink-0 text-center text-slate-400">
+              <Clock className="w-3 h-3" />
+              <span>{isVietnamese ? 'Hạn chót' : 'Due'}</span>
+            </div>
+
+            {/* Column: Ưu tiên (Priority) */}
+            <div className="hidden md:flex items-center justify-center gap-1 w-24 shrink-0 text-center text-slate-400">
+              <Flag className="w-3 h-3" />
+              <span>{isVietnamese ? 'Ưu tiên' : 'Priority'}</span>
+            </div>
+
+            {/* Row Actions spacer: exactly matches w-8 */}
+            <div className="w-8 shrink-0" />
           </div>
         </div>
 
@@ -554,15 +587,16 @@ const TaskListView = React.memo(function TaskListView({
                   {/* Header right controls */}
                   <div className="flex items-center gap-2 shrink-0">
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setInlineAddingStatus(statusItem.id);
                         if (!isExpanded) toggleGroup(statusItem.id);
                       }}
-                      className="flex items-center gap-1 text-[10px] font-bold text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] px-2 py-1 rounded-md transition-all cursor-pointer"
+                      className="flex items-center gap-1 text-[10.5px] font-bold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] px-2 py-1 rounded-md transition-all cursor-pointer"
                     >
-                      <Plus className="w-3 h-3" />
-                      <span>Thêm việc</span>
+                      <Plus className="w-3 h-3 stroke-[2.5]" />
+                      <span>{isVietnamese ? 'Thêm việc' : 'Add task'}</span>
                     </button>
                   </div>
                 </div>
@@ -573,488 +607,548 @@ const TaskListView = React.memo(function TaskListView({
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}>
                       <StrictModeDroppable droppableId={statusItem.id} type="task">
                         {(provided: DroppableProvided) => (
-                          <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-[4px] space-y-1">
-                            {buildGroupTree(groupTasks).map(({ task, depth }, index) => {
-                              const daysInfo = getDaysText(task.dueDate);
-                              const isSelected = selectedTaskIds.includes(task.id);
-                              const subtasksInfo = getSubtasksCount(task);
+                          <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-[36px] space-y-1">
+                            {groupTasks.length === 0 ? (
+                              <div 
+                                onClick={() => {
+                                  setInlineAddingStatus(statusItem.id);
+                                  if (!isExpanded) toggleGroup(statusItem.id);
+                                }}
+                                className="flex items-center justify-center gap-2 py-3 px-4 my-1 border border-dashed border-slate-200/80 dark:border-white/[0.08] rounded-xl text-xs font-semibold text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-sky-400 hover:border-blue-400/50 dark:hover:border-sky-500/40 hover:bg-blue-50/30 dark:hover:bg-blue-500/5 transition-all cursor-pointer select-none group/empty"
+                              >
+                                <Plus className="w-3.5 h-3.5 text-slate-400 group-hover/empty:text-blue-600 dark:group-hover/empty:text-sky-400 transition-colors" />
+                                <span>{isVietnamese ? `Chưa có việc trong "${meta.label}". Kéo thả vào đây hoặc bấm để thêm mới` : `No tasks in "${meta.label}". Drop here or click to add`}</span>
+                              </div>
+                            ) : (
+                              buildGroupTree(groupTasks).map(({ task, depth }, index) => {
+                                const daysInfo = getDaysText(task.dueDate);
+                                const isSelected = selectedTaskIds.includes(task.id);
+                                const subtasksInfo = getSubtasksCount(task);
 
-                              return (
-                                <DraggableCast key={task.id} draggableId={`task_list_item_${task.id}`} index={index}>
-                                  {(dragProvided: DraggableProvided, dragSnapshot: DraggableStateSnapshot) => (
-                                    <div 
-                                      ref={dragProvided.innerRef} 
-                                      {...dragProvided.draggableProps}
-                                      style={{ 
-                                        ...dragProvided.draggableProps?.style, 
-                                        transition: dragSnapshot.isDragging ? 'none' : dragProvided.draggableProps?.style?.transition 
-                                      }}
-                                    >
-                                      <motion.div
-                                        data-task-row
-                                        onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
-                                        whileHover={{ y: -1, boxShadow: '0 4px 20px rgba(0,0,0,0.04)' }}
-                                        className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-3.5 ${isCompact ? 'py-1.5' : 'py-2'} border-l-[3px] border border-slate-200/50 dark:border-white/[0.04] rounded-lg ${dynamicStatusBorders[task.status] || STATUS_LEFT_BORDER[task.status]} cursor-pointer transition-all group/row hover:bg-slate-50/80 dark:hover:bg-slate-850/50 ${isSelected ? 'bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-800' : 'bg-white/80 dark:bg-white/[0.02]'} ${dragSnapshot.isDragging ? 'shadow-2xl bg-white dark:bg-slate-900 z-50 opacity-95 ring-2 ring-indigo-500/40' : ''}`}
+                                return (
+                                  <DraggableCast key={task.id} draggableId={`task_list_item_${task.id}`} index={index}>
+                                    {(dragProvided: DraggableProvided, dragSnapshot: DraggableStateSnapshot) => (
+                                      <div 
+                                        ref={dragProvided.innerRef} 
+                                        {...dragProvided.draggableProps}
+                                        style={{ 
+                                          ...dragProvided.draggableProps?.style, 
+                                          transition: dragSnapshot.isDragging ? 'none' : dragProvided.draggableProps?.style?.transition 
+                                        }}
                                       >
-
-                                        {/* Drag Handle */}
-                                        <div
-                                          {...(dragProvided.dragHandleProps as any)}
-                                          onClick={e => e.stopPropagation()}
-                                          className="opacity-0 group-hover/row:opacity-100 transition-opacity -ml-1 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-grab active:cursor-grabbing shrink-0"
-                                          title={locale === 'vi' ? 'Kéo để đổi vị trí' : 'Drag to reorder'}
+                                        <motion.div
+                                          data-task-row
+                                          onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
+                                          whileHover={{ y: -0.5 }}
+                                          className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 ${isCompact ? 'min-h-[34px] py-1' : 'min-h-[42px] py-1.5'} border-l-[3px] border-b border-b-slate-100/80 dark:border-b-white/[0.04] border-t-transparent border-r-transparent rounded-lg ${dynamicStatusBorders[task.status] || STATUS_LEFT_BORDER[task.status]} cursor-pointer transition-all group/row hover:bg-slate-50/90 dark:hover:bg-white/[0.03] ${isSelected ? 'bg-blue-50/60 dark:bg-blue-950/25 border-l-blue-600 dark:border-l-sky-400' : 'bg-white/80 dark:bg-white/[0.02]'} ${dragSnapshot.isDragging ? 'shadow-2xl bg-white dark:bg-slate-900 z-50 opacity-95 ring-2 ring-blue-500/40' : ''}`}
                                         >
-                                          <GripVertical className="w-3.5 h-3.5" />
-                                        </div>
 
-                                        {/* Subtask Tree indentation */}
-                                        {depth > 0 && (
-                                          <div className="flex items-center shrink-0" style={{ paddingLeft: `${(depth - 1) * 18}px` }}>
-                                            <div className="relative h-6 w-4 flex items-center justify-center shrink-0">
-                                              <div className="absolute top-[11px] left-[2px] w-3 h-[1.5px] bg-slate-300 dark:bg-slate-700 rounded-full" />
-                                              <div className="absolute top-0 bottom-0 left-[2px] w-[1.5px] bg-slate-300 dark:bg-slate-700" />
+                                          {/* Left Controls: w-14 shrink-0 */}
+                                          <div className="w-14 shrink-0 flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                            {/* Drag Handle */}
+                                            <div
+                                              {...(dragProvided.dragHandleProps as any)}
+                                              className="opacity-0 group-hover/row:opacity-100 transition-opacity -ml-1 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-grab active:cursor-grabbing shrink-0"
+                                              title={isVietnamese ? 'Kéo để đổi vị trí' : 'Drag to reorder'}
+                                            >
+                                              <GripVertical className="w-3.5 h-3.5" />
                                             </div>
-                                          </div>
-                                        )}
 
-                                        {/* Subtask Dropdown expand arrow */}
-                                        {filteredTasks.some(c => c.parentId === task.id) ? (
-                                          <button 
-                                            type="button"
-                                            onClick={e => { e.stopPropagation(); toggleSubtaskExpand(task.id); }}
-                                            className={`p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all shrink-0 ${
-                                              expandedSubtaskTaskIds.includes(task.id) ? 'opacity-100' : 'opacity-60 group-hover/row:opacity-100'
-                                            }`}
-                                          >
-                                            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedSubtaskTaskIds.includes(task.id) ? '' : '-rotate-90'}`} />
-                                          </button>
-                                        ) : depth > 0 ? (
-                                          <div className="w-4 h-4 shrink-0" />
-                                        ) : null}
-
-                                        {/* Checkbox */}
-                                        <input 
-                                          type="checkbox" 
-                                          checked={isSelected}
-                                          onChange={e => { e.stopPropagation(); setSelectedTaskIds(prev => e.target.checked ? [...prev, task.id] : prev.filter(id => id !== task.id)); }}
-                                          onClick={e => e.stopPropagation()}
-                                          className={`w-4 h-4 rounded-md cursor-pointer shrink-0 transition-opacity ${
-                                            isSelected ? 'opacity-100' : 'opacity-40 group-hover/row:opacity-100'
-                                          }`} 
-                                        />
-
-                                        {/* Complete toggle circle button */}
-                                        <motion.button
-                                          type="button"
-                                          whileHover={{ scale: 1.15 }}
-                                          whileTap={{ scale: 0.9 }}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            const newStatus = task.status === 'completed' ? 'todo' : 'completed';
-                                            onUpdateTask({ ...task, status: newStatus as TaskStatus });
-                                            onAddSyncLog(`Toggled completion of task "${task.title}" to: ${newStatus}`);
-                                            if (typeof window !== 'undefined') {
-                                              (window as any).playSystemSound?.('toggle');
-                                            }
-                                          }}
-                                          className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all ${
-                                            task.status === 'completed'
-                                              ? 'border-emerald-500 bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.35)]'
-                                              : 'border-slate-300 dark:border-slate-600 bg-transparent hover:border-emerald-500 hover:bg-emerald-50/20'
-                                          }`}
-                                          title={task.status === 'completed' ? 'Đánh dấu chưa hoàn thành' : 'Đánh dấu hoàn thành'}
-                                        >
-                                          <Check className={`w-2.5 h-2.5 text-white transition-transform duration-200 ${task.status === 'completed' ? 'scale-100' : 'scale-0'}`} strokeWidth={3} />
-                                        </motion.button>
-
-                                        {/* Status select dropdown */}
-                                        <div className="task-list-status shrink-0" onClick={e => e.stopPropagation()}>
-                                          <StatusPillSelect value={task.status} onChange={newS => {
-                                            onUpdateTask({ ...task, status: newS });
-                                            onAddSyncLog(`Status "${task.title}" → ${newS}`);
-                                          }} />
-                                        </div>
-
-                                        {/* Title & Metadata badges */}
-                                        <div className="task-list-title flex-1 min-w-[240px]" onClick={e => e.stopPropagation()}>
-                                          {inlineEditTaskId === task.id ? (
-                                            <input 
-                                              autoFocus 
-                                              value={inlineEditTitle}
-                                              onChange={e => setInlineEditTitle(e.target.value)}
-                                              onKeyDown={e => { if (e.key === 'Enter') submitInlineEdit(task); if (e.key === 'Escape') setInlineEditTaskId(null); }}
-                                              onBlur={() => submitInlineEdit(task)}
-                                              className="w-full text-[13px] font-bold text-slate-800 dark:text-slate-100 bg-transparent border-b-2 border-indigo-500 outline-none py-0.5" 
-                                            />
-                                          ) : (
-                                            <div className="flex items-center justify-between min-w-0 gap-2" onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}>
-                                              <div className="flex flex-1 items-center gap-2 min-w-0 flex-wrap">
-                                                <span 
-                                                  onClick={() => {
-                                                    setInlineEditTaskId(task.id);
-                                                    setInlineEditTitle(task.title);
-                                                  }}
-                                                  className={`text-[13px] font-semibold truncate cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors ${
-                                                    task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500 font-normal' : 'text-slate-800 dark:text-slate-100'
-                                                  }`}
-                                                  title="Nhấp để đổi tên nhanh"
-                                                >
-                                                  {task.title}
-                                                </span>
-
-                                                {task.isPinned && (
-                                                  <span title={isVietnamese ? 'Đã ghim' : 'Pinned'} className="inline-flex items-center text-amber-500 shrink-0">
-                                                    <Pin className="w-3 h-3 text-amber-500 fill-amber-400" />
-                                                  </span>
-                                                )}
-                                                {task.isMilestone && (
-                                                  <span title={isVietnamese ? 'Cột mốc quan trọng' : 'Project Milestone'} className="inline-flex items-center text-purple-500 shrink-0">
-                                                    <Flag className="w-3 h-3 fill-purple-400 text-purple-500" />
-                                                  </span>
-                                                )}
-                                                {task.recurrence && task.recurrence.frequency !== 'none' && (
-                                                  <span title={isVietnamese ? 'Lặp lại định kỳ' : 'Recurring'} className="inline-flex items-center text-indigo-500 shrink-0">
-                                                    <Repeat className="w-3 h-3 text-indigo-500" />
-                                                  </span>
-                                                )}
-                                                 
-                                                {/* Dependency Badges */}
-                                                {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
-                                                  <span className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/40 text-amber-700 dark:text-amber-400 font-extrabold text-[9px] rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0">
-                                                    <Hourglass className="w-2.5 h-2.5 animate-pulse" />
-                                                    <span>Đang chờ</span>
-                                                  </span>
-                                                )}
-                                                {task.relationships?.blocks && task.relationships.blocks.length > 0 && (
-                                                  <span className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-400 font-extrabold text-[9px] rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0">
-                                                    <AlertTriangle className="w-2.5 h-2.5" />
-                                                    <span>Đang chặn</span>
-                                                  </span>
-                                                )}
-
-
+                                            {/* Subtask Tree indentation */}
+                                            {depth > 0 && (
+                                              <div className="flex items-center shrink-0" style={{ paddingLeft: `${(depth - 1) * 16}px` }}>
+                                                <div className="relative h-6 w-3 flex items-center justify-center shrink-0">
+                                                  <div className="absolute top-[11px] left-[2px] w-2.5 h-[1.5px] bg-slate-300 dark:bg-slate-700 rounded-full" />
+                                                  <div className="absolute top-0 bottom-0 left-[2px] w-[1.5px] bg-slate-300 dark:bg-slate-700" />
+                                                </div>
                                               </div>
+                                            )}
 
-                                              {/* Hover Action Shortcuts Toolbar */}
-                                              <div className="hidden lg:flex opacity-0 group-hover/row:opacity-100 items-center gap-1 transition-all ml-2 shrink-0 bg-white/90 dark:bg-slate-800/90 p-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60 shadow-3xs backdrop-blur-md">
+                                            {/* Subtask Dropdown expand arrow */}
+                                            {filteredTasks.some(c => c.parentId === task.id) ? (
+                                              <button 
+                                                type="button"
+                                                onClick={e => { e.stopPropagation(); toggleSubtaskExpand(task.id); }}
+                                                className={`p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all shrink-0 ${
+                                                  expandedSubtaskTaskIds.includes(task.id) ? 'opacity-100' : 'opacity-60 group-hover/row:opacity-100'
+                                                }`}
+                                              >
+                                                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedSubtaskTaskIds.includes(task.id) ? '' : '-rotate-90'}`} />
+                                              </button>
+                                            ) : depth > 0 ? (
+                                              <div className="w-3.5 h-3.5 shrink-0" />
+                                            ) : null}
 
-                                                {/* Quick Subtask */}
-                                                <button 
-                                                  onClick={e => {
-                                                    e.stopPropagation();
-                                                    if (openPromptModal) {
-                                                      openPromptModal({
-                                                        type: 'subtask',
-                                                        title: 'Thêm việc phụ (Subtask)',
-                                                        subtitle: `Công việc: ${task.title}`,
-                                                        placeholder: 'Nhập tên việc phụ...',
-                                                        confirmText: 'Thêm việc phụ',
-                                                        onConfirm: (subTitle: string) => {
-                                                          if (subTitle?.trim()) {
-                                                            const newSub = { id: `sub-${Date.now()}`, title: subTitle.trim(), completed: false };
-                                                            onUpdateTask({ ...task, subtasks: [...(task.subtasks || []), newSub] });
-                                                            if (triggerToast) triggerToast('success', 'Việc phụ', `Đã thêm subtask vào "${task.title}"`);
-                                                          }
-                                                        }
-                                                      });
-                                                    } else {
-                                                      const subTitle = prompt("Nhập tên việc phụ:");
-                                                      if (subTitle?.trim()) {
-                                                        const newSub = { id: `sub-${Date.now()}`, title: subTitle.trim(), completed: false };
-                                                        onUpdateTask({ ...task, subtasks: [...(task.subtasks || []), newSub] });
-                                                        if (triggerToast) triggerToast('success', 'Việc phụ', `Đã thêm subtask vào "${task.title}"`);
-                                                      }
-                                                    }
-                                                  }}
-                                                  className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-all cursor-pointer"
-                                                  title="Thêm subtask"
-                                                >
-                                                  <Plus className="w-3.5 h-3.5" />
-                                                </button>
+                                            {/* Checkbox */}
+                                            <input 
+                                              type="checkbox" 
+                                              checked={isSelected}
+                                              onChange={e => { e.stopPropagation(); setSelectedTaskIds(prev => e.target.checked ? [...prev, task.id] : prev.filter(id => id !== task.id)); }}
+                                              className={`w-4 h-4 rounded cursor-pointer shrink-0 accent-blue-600 transition-opacity ${
+                                                isSelected ? 'opacity-100' : 'opacity-30 group-hover/row:opacity-100'
+                                              }`} 
+                                            />
 
-                                                {/* Quick Tag */}
-                                                <button 
-                                                  onClick={e => {
-                                                    e.stopPropagation();
-                                                    if (openPromptModal) {
-                                                      openPromptModal({
-                                                        type: 'tag',
-                                                        title: 'Thêm thẻ tag',
-                                                        subtitle: `Gắn nhãn cho: ${task.title}`,
-                                                        placeholder: 'Nhập tên thẻ tag...',
-                                                        confirmText: 'Thêm thẻ',
-                                                        onConfirm: (newTag: string) => {
-                                                          if (newTag?.trim()) {
-                                                            const currentTags = task.tags || [];
-                                                            if (!currentTags.includes(newTag.trim())) {
-                                                              onUpdateTask({ ...task, tags: [...currentTags, newTag.trim()] });
-                                                            }
-                                                          }
-                                                        }
-                                                      });
-                                                    } else {
-                                                      const newTag = prompt("Nhập tên thẻ tag:");
-                                                      if (newTag?.trim()) {
-                                                        const currentTags = task.tags || [];
-                                                        if (!currentTags.includes(newTag.trim())) {
-                                                          onUpdateTask({ ...task, tags: [...currentTags, newTag.trim()] });
-                                                        }
-                                                      }
-                                                    }
-                                                  }}
-                                                  className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-all cursor-pointer"
-                                                  title="Thêm Tag"
-                                                >
-                                                  <Tag className="w-3.5 h-3.5" />
-                                                </button>
+                                            {/* Complete toggle circle button */}
+                                            <motion.button
+                                              type="button"
+                                              whileHover={{ scale: 1.15 }}
+                                              whileTap={{ scale: 0.9 }}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                const newStatus = task.status === 'completed' ? 'todo' : 'completed';
+                                                onUpdateTask({ ...task, status: newStatus as TaskStatus });
+                                                onAddSyncLog(`Toggled completion of task "${task.title}" to: ${newStatus}`);
+                                                if (typeof window !== 'undefined') {
+                                                  (window as any).playSystemSound?.('toggle');
+                                                }
+                                              }}
+                                              className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all ${
+                                                task.status === 'completed'
+                                                  ? 'border-emerald-500 bg-emerald-500 text-white shadow-xs'
+                                                  : 'border-slate-300 dark:border-slate-600 bg-transparent hover:border-emerald-500 hover:bg-emerald-50/20'
+                                              }`}
+                                              title={task.status === 'completed' ? (isVietnamese ? 'Đánh dấu chưa hoàn thành' : 'Mark incomplete') : (isVietnamese ? 'Đánh dấu hoàn thành' : 'Mark complete')}
+                                            >
+                                              <Check className={`w-2.5 h-2.5 text-white transition-transform duration-200 ${task.status === 'completed' ? 'scale-100' : 'scale-0'}`} strokeWidth={3} />
+                                            </motion.button>
+                                          </div>
 
-                                                {/* Rename */}
-                                                <button 
-                                                  onClick={e => {
-                                                    e.stopPropagation();
-                                                    setInlineEditTaskId(task.id);
-                                                    setInlineEditTitle(task.title);
-                                                  }}
-                                                  className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-all cursor-pointer"
-                                                  title="Đổi tên"
-                                                >
-                                                  <Edit2 className="w-3.5 h-3.5" />
-                                                </button>
+                                          {/* Title & Metadata badges */}
+                                          <div className="task-list-title flex-1 min-w-[200px]" onClick={e => e.stopPropagation()}>
+                                            {inlineEditTaskId === task.id ? (
+                                              <input 
+                                                autoFocus 
+                                                value={inlineEditTitle}
+                                                onChange={e => setInlineEditTitle(e.target.value)}
+                                                onKeyDown={e => { if (e.key === 'Enter') submitInlineEdit(task); if (e.key === 'Escape') setInlineEditTaskId(null); }}
+                                                onBlur={() => submitInlineEdit(task)}
+                                                className="w-full text-xs font-bold text-slate-800 dark:text-slate-100 bg-transparent border-b-2 border-blue-500 outline-none py-0.5" 
+                                              />
+                                            ) : (
+                                              <div className="flex items-center justify-between min-w-0 gap-2" onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}>
+                                                <div className="flex flex-1 items-center gap-2 min-w-0 flex-wrap">
+                                                  <span 
+                                                    onClick={() => {
+                                                      setInlineEditTaskId(task.id);
+                                                      setInlineEditTitle(task.title);
+                                                    }}
+                                                    className={`text-xs font-semibold truncate cursor-pointer hover:text-blue-600 dark:hover:text-sky-400 transition-colors ${
+                                                      task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500 font-normal' : 'text-slate-800 dark:text-slate-100'
+                                                    }`}
+                                                    title={isVietnamese ? "Nhấp để đổi tên nhanh" : "Click to rename"}
+                                                  >
+                                                    {task.title}
+                                                  </span>
 
-                                                {/* Duplicate */}
-                                                <button 
-                                                  onClick={e => {
-                                                    e.stopPropagation();
-                                                    onAddTask({
-                                                      ...task,
-                                                      title: `${task.title} (Bản sao)`,
-                                                      subtasks: (task.subtasks || []).map(st => ({ ...st, id: `sub-${crypto.randomUUID()}` })),
-                                                      tags: task.tags ? [...task.tags] : []
-                                                    });
-                                                    if (triggerToast) triggerToast('success', 'Đã nhân bản', `Đã nhân bản công việc "${task.title}"`);
-                                                    if (onAddSyncLog) onAddSyncLog(`Duplicated task "${task.title}"`);
-                                                  }}
-                                                  className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40 transition-all cursor-pointer"
-                                                  title="Nhân bản công việc"
-                                                >
-                                                  <Copy className="w-3.5 h-3.5" />
-                                                </button>
+                                                  {task.isPinned && (
+                                                    <span title={isVietnamese ? 'Đã ghim' : 'Pinned'} className="inline-flex items-center text-amber-500 shrink-0">
+                                                      <Pin className="w-3 h-3 text-amber-500 fill-amber-400" />
+                                                    </span>
+                                                  )}
+                                                  {task.isMilestone && (
+                                                    <span title={isVietnamese ? 'Cột mốc quan trọng' : 'Project Milestone'} className="inline-flex items-center text-purple-500 shrink-0">
+                                                      <Flag className="w-3 h-3 fill-purple-400 text-purple-500" />
+                                                    </span>
+                                                  )}
+                                                  {task.recurrence && task.recurrence.frequency !== 'none' && (
+                                                    <span title={isVietnamese ? 'Lặp lại định kỳ' : 'Recurring'} className="inline-flex items-center text-blue-500 shrink-0">
+                                                      <Repeat className="w-3 h-3 text-blue-500" />
+                                                    </span>
+                                                  )}
+                                                  
+                                                  {/* Dependency Badges */}
+                                                  {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
+                                                    <span className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/40 text-amber-700 dark:text-amber-400 font-extrabold text-[9px] rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0">
+                                                      <Hourglass className="w-2.5 h-2.5 animate-pulse" />
+                                                      <span>{isVietnamese ? 'Đang chờ' : 'Waiting'}</span>
+                                                    </span>
+                                                  )}
+                                                  {task.relationships?.blocks && task.relationships.blocks.length > 0 && (
+                                                    <span className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-400 font-extrabold text-[9px] rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0">
+                                                      <AlertTriangle className="w-2.5 h-2.5" />
+                                                      <span>{isVietnamese ? 'Đang chặn' : 'Blocking'}</span>
+                                                    </span>
+                                                  )}
 
-                                                {/* Move Task */}
-                                                <button 
-                                                  onClick={e => {
-                                                    e.stopPropagation();
-                                                    handleOpenMoveTask(task);
-                                                  }}
-                                                  className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-all cursor-pointer"
-                                                  title={isVietnamese ? "Di chuyển công việc" : "Move task"}
-                                                >
-                                                  <FolderInput className="w-3.5 h-3.5" />
-                                                </button>
+                                                  {/* Subtasks inline badge */}
+                                                  {subtasksInfo && (
+                                                    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md shrink-0" title={`Hoàn thành ${subtasksInfo.done}/${subtasksInfo.total} subtasks (${subtasksInfo.percent}%)`}>
+                                                      <ListChecks className="w-3 h-3 text-blue-500" />
+                                                      <span>{subtasksInfo.done}/{subtasksInfo.total}</span>
+                                                    </span>
+                                                  )}
+                                                </div>
 
-                                                {/* Delete */}
-                                                {onDeleteTask && (
-                                                  <button
+                                                {/* Hover Action Shortcuts Toolbar */}
+                                                <div className="hidden lg:flex opacity-0 group-hover/row:opacity-100 items-center gap-0.5 transition-all ml-2 shrink-0 bg-white/95 dark:bg-slate-800/95 p-0.5 rounded-lg border border-slate-200/80 dark:border-white/[0.08] shadow-xs backdrop-blur-md">
+                                                  {/* Quick Subtask */}
+                                                  <button 
+                                                    type="button"
                                                     onClick={e => {
                                                       e.stopPropagation();
-                                                      if (openDialog) {
-                                                        openDialog({
-                                                          title: 'Xóa công việc',
-                                                          description: `Bạn có chắc chắn muốn xóa công việc "${task.title}"?`,
-                                                          itemName: task.title,
-                                                          itemType: 'task',
-                                                          confirmText: 'Xóa công việc',
-                                                          onConfirm: () => {
-                                                            onDeleteTask(task.id);
-                                                            if (triggerToast) triggerToast('info', 'Đã xóa', `Đã xóa công việc "${task.title}"`);
+                                                      if (openPromptModal) {
+                                                        openPromptModal({
+                                                          type: 'subtask',
+                                                          title: isVietnamese ? 'Thêm việc phụ (Subtask)' : 'Add subtask',
+                                                          subtitle: `${task.title}`,
+                                                          placeholder: isVietnamese ? 'Nhập tên việc phụ...' : 'Enter subtask name...',
+                                                          confirmText: isVietnamese ? 'Thêm việc phụ' : 'Add subtask',
+                                                          onConfirm: (subTitle: string) => {
+                                                            if (subTitle?.trim()) {
+                                                              const newSub = { id: `sub-${Date.now()}`, title: subTitle.trim(), completed: false };
+                                                              onUpdateTask({ ...task, subtasks: [...(task.subtasks || []), newSub] });
+                                                              if (triggerToast) triggerToast('success', isVietnamese ? 'Việc phụ' : 'Subtask', `"${subTitle.trim()}"`);
+                                                            }
                                                           }
                                                         });
-                                                      } else if (confirm(`Xóa công việc "${task.title}"?`)) {
-                                                        onDeleteTask(task.id);
                                                       }
                                                     }}
-                                                    className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all cursor-pointer"
-                                                    title="Xóa công việc"
+                                                    className="p-1 rounded-md text-slate-400 hover:text-blue-600 dark:hover:text-sky-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all cursor-pointer"
+                                                    title={isVietnamese ? "Thêm subtask" : "Add subtask"}
                                                   >
-                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                    <Plus className="w-3.5 h-3.5" />
                                                   </button>
-                                                )}
-                                              </div>
-                                            </div>
-                                          )}
-                                        </div>
 
-                                        {/* Space label */}
-                                        {(() => {
-                                          const ws = workspaces.find(w => w.id === (task.workspaceId || 'w2'));
-                                          return (
-                                            <div className="hidden xl:block w-20 shrink-0">
-                                              {ws ? (
-                                                <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg select-none bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/40 dark:border-indigo-900/40">
+                                                  {/* Quick Tag */}
+                                                  <button 
+                                                    type="button"
+                                                    onClick={e => {
+                                                      e.stopPropagation();
+                                                      if (openPromptModal) {
+                                                        openPromptModal({
+                                                          type: 'tag',
+                                                          title: isVietnamese ? 'Thêm thẻ tag' : 'Add tag',
+                                                          subtitle: `${task.title}`,
+                                                          placeholder: isVietnamese ? 'Nhập tên thẻ tag...' : 'Enter tag...',
+                                                          confirmText: isVietnamese ? 'Thêm thẻ' : 'Add tag',
+                                                          onConfirm: (newTag: string) => {
+                                                            if (newTag?.trim()) {
+                                                              const currentTags = task.tags || [];
+                                                              if (!currentTags.includes(newTag.trim())) {
+                                                                onUpdateTask({ ...task, tags: [...currentTags, newTag.trim()] });
+                                                              }
+                                                            }
+                                                          }
+                                                        });
+                                                      }
+                                                    }}
+                                                    className="p-1 rounded-md text-slate-400 hover:text-blue-600 dark:hover:text-sky-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all cursor-pointer"
+                                                    title={isVietnamese ? "Thêm Tag" : "Add Tag"}
+                                                  >
+                                                    <Tag className="w-3.5 h-3.5" />
+                                                  </button>
+
+                                                  {/* Rename */}
+                                                  <button 
+                                                    type="button"
+                                                    onClick={e => {
+                                                      e.stopPropagation();
+                                                      setInlineEditTaskId(task.id);
+                                                      setInlineEditTitle(task.title);
+                                                    }}
+                                                    className="p-1 rounded-md text-slate-400 hover:text-blue-600 dark:hover:text-sky-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all cursor-pointer"
+                                                    title={isVietnamese ? "Đổi tên" : "Rename"}
+                                                  >
+                                                    <Edit2 className="w-3.5 h-3.5" />
+                                                  </button>
+
+                                                  {/* Duplicate */}
+                                                  <button 
+                                                    type="button"
+                                                    onClick={e => {
+                                                      e.stopPropagation();
+                                                      onAddTask({
+                                                        ...task,
+                                                        title: `${task.title} (Bản sao)`,
+                                                        subtasks: (task.subtasks || []).map(st => ({ ...st, id: `sub-${crypto.randomUUID()}` })),
+                                                        tags: task.tags ? [...task.tags] : []
+                                                      });
+                                                      if (triggerToast) triggerToast('success', isVietnamese ? 'Đã nhân bản' : 'Duplicated', `"${task.title}"`);
+                                                      if (onAddSyncLog) onAddSyncLog(`Duplicated task "${task.title}"`);
+                                                    }}
+                                                    className="p-1 rounded-md text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40 transition-all cursor-pointer"
+                                                    title={isVietnamese ? "Nhân bản công việc" : "Duplicate task"}
+                                                  >
+                                                    <Copy className="w-3.5 h-3.5" />
+                                                  </button>
+
+                                                  {/* Move Task */}
+                                                  <button 
+                                                    type="button"
+                                                    onClick={e => {
+                                                      e.stopPropagation();
+                                                      handleOpenMoveTask(task);
+                                                    }}
+                                                    className="p-1 rounded-md text-slate-400 hover:text-blue-600 dark:hover:text-sky-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all cursor-pointer"
+                                                    title={isVietnamese ? "Di chuyển công việc" : "Move task"}
+                                                  >
+                                                    <FolderInput className="w-3.5 h-3.5" />
+                                                  </button>
+
+                                                  {/* Delete */}
+                                                  {onDeleteTask && (
+                                                    <button
+                                                      type="button"
+                                                      onClick={e => {
+                                                        e.stopPropagation();
+                                                        if (openDialog) {
+                                                          openDialog({
+                                                            title: isVietnamese ? 'Xóa công việc' : 'Delete task',
+                                                            description: isVietnamese ? `Bạn có chắc chắn muốn xóa công việc "${task.title}"?` : `Delete task "${task.title}"?`,
+                                                            itemName: task.title,
+                                                            itemType: 'task',
+                                                            confirmText: isVietnamese ? 'Xóa công việc' : 'Delete',
+                                                            onConfirm: () => {
+                                                              onDeleteTask(task.id);
+                                                              if (triggerToast) triggerToast('info', isVietnamese ? 'Đã xóa' : 'Deleted', `"${task.title}"`);
+                                                            }
+                                                          });
+                                                        } else if (confirm(`Xóa công việc "${task.title}"?`)) {
+                                                          onDeleteTask(task.id);
+                                                        }
+                                                      }}
+                                                      className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all cursor-pointer"
+                                                      title={isVietnamese ? "Xóa công việc" : "Delete task"}
+                                                    >
+                                                      <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          {/* Status Column */}
+                                          <div className="hidden sm:flex w-28 shrink-0 justify-center" onClick={e => e.stopPropagation()}>
+                                            <StatusPillSelect value={task.status} onChange={newS => {
+                                              onUpdateTask({ ...task, status: newS });
+                                              onAddSyncLog(`Status "${task.title}" → ${newS}`);
+                                            }} />
+                                          </div>
+
+                                           {/* Space Column */}
+                                          <div className="hidden xl:flex w-24 shrink-0 items-center">
+                                            {(() => {
+                                              const ws = workspaces.find(w => w.id === (task.workspaceId || 'w2'));
+                                              return ws ? (
+                                                <span className="text-[9.5px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md select-none bg-blue-50/80 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/50 dark:border-blue-900/40 truncate max-w-full">
                                                   {ws.name}
                                                 </span>
-                                              ) : null}
-                                            </div>
-                                          );
-                                        })()}
-
-                                        {/* Tags */}
-                                        <div className="hidden lg:flex items-center gap-1 w-24 shrink-0 overflow-hidden">
-                                          {task.tags?.slice(0, 2).map(tag => (
-                                            <span 
-                                              key={tag} 
-                                              onClick={e => { e.stopPropagation(); setFilterTag(filterTag === tag ? 'all' : tag); }}
-                                              className={`text-[9px] font-black px-1.5 py-0.5 rounded-md cursor-pointer transition-colors ${
-                                                filterTag === tag ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40'
-                                              }`}
-                                            >
-                                              #{tag}
-                                            </span>
-                                          ))}
-                                        </div>
-
-                                        {/* Assignees */}
-                                        <div className="hidden md:flex w-24 shrink-0 justify-center" onClick={e => e.stopPropagation()}>
-                                          <AssigneePillSelect 
-                                            value={task.assigneeIds && task.assigneeIds.length > 0 ? task.assigneeIds : (task.assigneeId ? [task.assigneeId] : [])} 
-                                            members={members} 
-                                            onChange={newIds => {
-                                              const nextIds = newIds || [];
-                                              onUpdateTask({ 
-                                                ...task, 
-                                                assigneeIds: nextIds, 
-                                                assigneeId: nextIds[0] || undefined,
-                                                custom_fields: {
-                                                  ...(task.custom_fields || {}),
-                                                  assigneeIds: nextIds
-                                                }
-                                              });
-                                              const label = nextIds.length > 0
-                                                ? nextIds.map(id => members.find(m => m.id === id)?.name || id).join(', ')
-                                                : 'Unassigned';
-                                              onAddSyncLog(`Assignees "${task.title}" → ${label}`);
-                                            }} 
-                                            compact={true} 
-                                          />
-                                        </div>
-
-                                        {/* Start Date */}
-                                        <div className="hidden lg:block w-20 shrink-0 text-right" onClick={e => e.stopPropagation()}>
-                                          <PremiumDatePicker 
-                                            startDateValue={task.startDate || ''} 
-                                            onStartDateChange={newD => {
-                                              onUpdateTask({ ...task, startDate: newD || '' });
-                                              onAddSyncLog(`Start Date "${task.title}" → ${newD || 'Cleared'}`);
-                                            }} 
-                                            dateValue={task.dueDate || ''}
-                                            onChange={newD => {
-                                              onUpdateTask({ ...task, dueDate: newD || '' });
-                                              onAddSyncLog(`Due Date "${task.title}" → ${newD || 'Cleared'}`);
-                                            }} 
-                                            label="Bắt đầu" 
-                                            align="right" 
-                                            className="text-[10px] text-slate-400 dark:text-slate-500 cursor-pointer border-0 bg-transparent hover:text-slate-700 dark:hover:text-slate-200"
-                                          />
-                                        </div>
-
-                                        {/* Due Date */}
-                                        <div className="hidden sm:block w-20 shrink-0 text-right" onClick={e => e.stopPropagation()}>
-                                          <PremiumDatePicker 
-                                            startDateValue={task.startDate || ''} 
-                                            onStartDateChange={newD => {
-                                              onUpdateTask({ ...task, startDate: newD || '' });
-                                              onAddSyncLog(`Start Date "${task.title}" → ${newD || 'Cleared'}`);
-                                            }} 
-                                            dateValue={task.dueDate || ''}
-                                            onChange={newD => {
-                                              onUpdateTask({ ...task, dueDate: newD || '' });
-                                              onAddSyncLog(`Due Date "${task.title}" → ${newD || 'Cleared'}`);
-                                            }} 
-                                            label="Hạn chót" 
-                                            align="right" 
-                                            className={daysInfo ? `text-[10px] px-1.5 py-0.5 rounded-lg cursor-pointer select-none transition-all ${daysInfo.cls}` : "text-[10px] text-slate-400 dark:text-slate-500 cursor-pointer border-0 bg-transparent hover:text-slate-700 dark:hover:text-slate-200"} 
-                                          />
-                                        </div>
-
-                                        {/* Subtasks / Comments count metadata */}
-                                        {subtasksInfo && (
-                                          <div className="hidden md:flex items-center gap-1 shrink-0 text-[9px] font-black text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md" title={`Hoàn thành ${subtasksInfo.done}/${subtasksInfo.total} subtasks (${subtasksInfo.percent}%)`}>
-                                            <ListChecks className="w-3 h-3 text-indigo-500" />
-                                            <span>{subtasksInfo.done}/{subtasksInfo.total}</span>
+                                              ) : (
+                                                <span className="text-[10px] text-slate-300 dark:text-slate-600">—</span>
+                                              );
+                                            })()}
                                           </div>
-                                        )}
 
-                                        {/* Priority */}
-                                        <div className="hidden md:flex w-24 shrink-0 justify-center" onClick={e => e.stopPropagation()}>
-                                          <PriorityPillSelect value={task.priority} onChange={newP => {
-                                            onUpdateTask({ ...task, priority: newP || 'medium' });
-                                            onAddSyncLog(`Priority "${task.title}" → ${newP || 'medium'}`);
-                                          }} />
-                                        </div>
+                                          {/* Tags Column */}
+                                          <div className="hidden lg:flex items-center gap-1 w-24 shrink-0 overflow-hidden" onClick={e => e.stopPropagation()}>
+                                            {task.tags && task.tags.length > 0 ? (
+                                              task.tags.slice(0, 2).map(tag => (
+                                                <span 
+                                                  key={tag} 
+                                                  onClick={e => { e.stopPropagation(); setFilterTag(filterTag === tag ? 'all' : tag); }}
+                                                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md cursor-pointer transition-colors truncate max-w-[48px] ${
+                                                    filterTag === tag ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-950/40'
+                                                  }`}
+                                                  title={`#${tag}`}
+                                                >
+                                                  #{tag}
+                                                </span>
+                                              ))
+                                            ) : (
+                                              <button
+                                                type="button"
+                                                onClick={e => {
+                                                  e.stopPropagation();
+                                                  if (openPromptModal) {
+                                                    openPromptModal({
+                                                      type: 'tag',
+                                                      title: isVietnamese ? 'Thêm thẻ tag' : 'Add tag',
+                                                      subtitle: `${task.title}`,
+                                                      placeholder: isVietnamese ? 'Nhập tên thẻ tag...' : 'Enter tag...',
+                                                      confirmText: isVietnamese ? 'Thêm thẻ' : 'Add tag',
+                                                      onConfirm: (newTag: string) => {
+                                                        if (newTag?.trim()) {
+                                                          const currentTags = task.tags || [];
+                                                          if (!currentTags.includes(newTag.trim())) {
+                                                            onUpdateTask({ ...task, tags: [...currentTags, newTag.trim()] });
+                                                          }
+                                                        }
+                                                      }
+                                                    });
+                                                  }
+                                                }}
+                                                className="opacity-0 group-hover/row:opacity-100 text-[10px] text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-sky-400 flex items-center gap-0.5 transition-opacity cursor-pointer"
+                                                title={isVietnamese ? 'Thêm thẻ tag' : 'Add tag'}
+                                              >
+                                                <Tag className="w-2.5 h-2.5" />
+                                                <span>+Tag</span>
+                                              </button>
+                                            )}
+                                          </div>
 
-                                        {/* Far Right Settings */}
-                                        <div className="shrink-0 relative w-6 flex items-center justify-center" onClick={e => e.stopPropagation()}>
-                                          <button 
-                                            onClick={() => setSelectedTask(task)}
-                                            className="opacity-100 sm:opacity-0 sm:group-hover/row:opacity-100 p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all cursor-pointer"
-                                            title="Tùy chọn công việc"
-                                          >
-                                            <MoreHorizontal className="w-3.5 h-3.5" />
-                                          </button>
-                                        </div>
-                                      </motion.div>
-                                    </div>
-                                  )}
-                                </DraggableCast>
-                              );
-                            })}
+                                          {/* Assignees Column */}
+                                          <div className="hidden md:flex w-32 shrink-0 justify-center" onClick={e => e.stopPropagation()}>
+                                            <AssigneePillSelect 
+                                              value={task.assigneeIds && task.assigneeIds.length > 0 ? task.assigneeIds : (task.assigneeId ? [task.assigneeId] : [])} 
+                                              members={members} 
+                                              onChange={newIds => {
+                                                const nextIds = newIds || [];
+                                                onUpdateTask({ 
+                                                  ...task, 
+                                                  assigneeIds: nextIds, 
+                                                  assigneeId: nextIds[0] || undefined,
+                                                  custom_fields: {
+                                                    ...(task.custom_fields || {}),
+                                                    assigneeIds: nextIds
+                                                  }
+                                                });
+                                                const label = nextIds.length > 0
+                                                  ? nextIds.map(id => members.find(m => m.id === id)?.name || id).join(', ')
+                                                  : 'Unassigned';
+                                                onAddSyncLog(`Assignees "${task.title}" → ${label}`);
+                                              }} 
+                                              compact={true} 
+                                            />
+                                          </div>
+
+                                          {/* Start Date Column */}
+                                          <div className="hidden lg:flex w-24 shrink-0 justify-center" onClick={e => e.stopPropagation()}>
+                                            <PremiumDatePicker 
+                                              startDateValue={task.startDate || ''} 
+                                              onStartDateChange={newD => {
+                                                onUpdateTask({ ...task, startDate: newD || '' });
+                                                onAddSyncLog(`Start Date "${task.title}" → ${newD || 'Cleared'}`);
+                                              }} 
+                                              dateValue={task.startDate || ''}
+                                              onChange={newD => {
+                                                onUpdateTask({ ...task, startDate: newD || '' });
+                                                onAddSyncLog(`Start Date "${task.title}" → ${newD || 'Cleared'}`);
+                                              }} 
+                                              displayLabel={task.startDate ? formatCompactDate(task.startDate) : undefined}
+                                              label={isVietnamese ? "Bắt đầu" : "Start"} 
+                                              align="center" 
+                                              className={
+                                                task.startDate
+                                                  ? "text-[10px] font-semibold px-2 py-0.5 rounded-md text-slate-700 dark:text-slate-300 bg-slate-100/80 dark:bg-slate-800/80 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 cursor-pointer transition-colors border border-slate-200/60 dark:border-slate-700/60 truncate max-w-full"
+                                                  : "text-[10px] text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer border-0 bg-transparent"
+                                              }
+                                            />
+                                          </div>
+
+                                          {/* Due Date Column */}
+                                          <div className="hidden sm:flex w-28 shrink-0 justify-center" onClick={e => e.stopPropagation()}>
+                                            <PremiumDatePicker 
+                                              startDateValue={task.startDate || ''} 
+                                              onStartDateChange={newD => {
+                                                onUpdateTask({ ...task, startDate: newD || '' });
+                                              }} 
+                                              dateValue={task.dueDate || ''}
+                                              onChange={newD => {
+                                                onUpdateTask({ ...task, dueDate: newD || '' });
+                                                onAddSyncLog(`Due Date "${task.title}" → ${newD || 'Cleared'}`);
+                                              }} 
+                                              displayLabel={task.dueDate ? formatCompactDate(task.dueDate) : undefined}
+                                              label={isVietnamese ? "Hạn chót" : "Due"} 
+                                              align="center" 
+                                              className={
+                                                task.dueDate
+                                                  ? (daysInfo
+                                                      ? `text-[10px] font-bold px-2 py-0.5 rounded-md cursor-pointer select-none transition-all truncate max-w-full ${daysInfo.cls}`
+                                                      : 'text-[10px] font-semibold px-2 py-0.5 rounded-md text-slate-700 dark:text-slate-300 bg-slate-100/80 dark:bg-slate-800/80 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 border border-slate-200/60 dark:border-slate-700/60 cursor-pointer transition-colors truncate max-w-full')
+                                                  : 'text-[10px] text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer border-0 bg-transparent'
+                                              } 
+                                            />
+                                          </div>
+
+                                          {/* Priority Column */}
+                                          <div className="hidden md:flex w-24 shrink-0 justify-center" onClick={e => e.stopPropagation()}>
+                                            <PriorityPillSelect value={task.priority} onChange={newP => {
+                                              onUpdateTask({ ...task, priority: newP || 'medium' });
+                                              onAddSyncLog(`Priority "${task.title}" → ${newP || 'medium'}`);
+                                            }} />
+                                          </div>
+
+                                          {/* Far Right Settings */}
+                                          <div className="w-8 shrink-0 flex items-center justify-center" onClick={e => e.stopPropagation()}>
+                                            <button 
+                                              type="button" 
+                                              onClick={() => setSelectedTask(task)}
+                                              className="opacity-100 sm:opacity-0 sm:group-hover/row:opacity-100 p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all cursor-pointer"
+                                              title={isVietnamese ? "Tùy chọn công việc" : "Task options"}
+                                            >
+                                              <MoreHorizontal className="w-3.5 h-3.5" />
+                                            </button>
+                                          </div>
+                                        </motion.div>
+                                      </div>
+                                    )}
+                                  </DraggableCast>
+                                );
+                              })
+                            )}
                             {provided.placeholder}
                           </div>
                         )}
                       </StrictModeDroppable>
 
                       {/* Inline Add Task Form */}
-                      <div className="px-2 py-2">
+                      <div className="px-2 py-1.5">
                         {inlineAddingStatus === statusItem.id ? (
-                          <div className="flex items-center gap-2.5 p-2 bg-gradient-to-r from-blue-500/10 via-sky-500/5 to-blue-500/10 dark:from-blue-950/40 dark:via-sky-950/20 dark:to-blue-950/40 border border-blue-500/30 dark:border-sky-500/30 rounded-2xl shadow-md transition-all">
-                            <div className="w-6 h-6 rounded-lg bg-blue-600 dark:bg-sky-500 text-white dark:text-zinc-950 flex items-center justify-center font-bold shrink-0 shadow-xs">
-                              <Plus className="w-4 h-4" />
+                          <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-400/40 dark:border-blue-500/30 rounded-xl shadow-xs transition-all animate-in fade-in duration-150">
+                            <div className="w-5 h-5 rounded-md bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                             </div>
                             <input 
                               autoFocus 
                               value={inlineAddingTitle}
                               onChange={e => setInlineAddingTitle(e.target.value)}
                               onKeyDown={e => { 
-                                if (e.key === 'Enter') handleInlineAdd(statusItem.id); 
-                                if (e.key === 'Escape') { setInlineAddingStatus(null); setInlineAddingTitle(''); } 
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleInlineAdd(statusItem.id, true);
+                                }
+                                if (e.key === 'Escape') { 
+                                  setInlineAddingStatus(null); 
+                                  setInlineAddingTitle(''); 
+                                } 
                               }}
-                              placeholder={t('inlineAddTitlePlaceholder') || 'Tên công việc mới... (Nhấn Enter ↵ để tạo, Esc để hủy)'}
-                              className="flex-1 text-[13px] font-bold text-slate-800 dark:text-slate-100 bg-transparent outline-none py-1 placeholder:text-slate-400 dark:placeholder:text-slate-500" 
+                              placeholder={t('inlineAddTitlePlaceholder') || (isVietnamese ? 'Tên công việc mới... (Nhấn ↵ Enter để tạo liên tục, Esc để đóng)' : 'New task name... (Press ↵ Enter to add rapidly, Esc to close)')}
+                              className="flex-1 text-xs font-semibold text-slate-800 dark:text-slate-100 bg-transparent outline-none py-1 placeholder:text-slate-400 dark:placeholder:text-slate-500" 
                             />
                             <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="hidden sm:inline text-[10px] text-slate-400 dark:text-slate-500 font-medium">↵ Enter</span>
                               <button 
-                                onClick={() => handleInlineAdd(statusItem.id)} 
-                                className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 dark:bg-sky-500 dark:hover:bg-sky-400 text-white dark:text-zinc-950 text-[11px] font-black cursor-pointer shadow-xs active:scale-95 transition-all"
+                                type="button"
+                                onClick={() => handleInlineAdd(statusItem.id, false)} 
+                                className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold cursor-pointer shadow-xs active:scale-95 transition-all"
                               >
-                                {t('inlineAdd') || 'Tạo mới'}
+                                {t('inlineAdd') || (isVietnamese ? 'Tạo mới' : 'Add')}
                               </button>
                               <button 
+                                type="button"
                                 onClick={() => { setInlineAddingStatus(null); setInlineAddingTitle(''); }} 
-                                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                                title={isVietnamese ? "Hủy (Esc)" : "Cancel (Esc)"}
                               >
-                                <X className="w-4 h-4" />
+                                <X className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </div>
                         ) : (
                           <button 
-                            onClick={() => setInlineAddingStatus(statusItem.id)}
-                            className="flex items-center gap-2 text-[11.5px] font-bold text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-sky-400 cursor-pointer transition-all py-2 px-3.5 rounded-xl border border-dashed border-slate-200/80 dark:border-white/[0.08] hover:border-blue-400/50 dark:hover:border-sky-500/40 hover:bg-blue-50/30 dark:hover:bg-sky-500/5 group w-full"
+                            type="button"
+                            onClick={() => {
+                              setInlineAddingStatus(statusItem.id);
+                              if (!isExpanded) toggleGroup(statusItem.id);
+                            }}
+                            className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-sky-400 cursor-pointer transition-all py-1.5 px-3 rounded-xl border border-dashed border-slate-200/80 dark:border-white/[0.08] hover:border-blue-400/50 dark:hover:border-sky-500/40 hover:bg-blue-50/40 dark:hover:bg-blue-500/5 group w-full select-none"
                           >
-                            <div className="w-5 h-5 rounded-lg bg-slate-100 dark:bg-zinc-800 group-hover:bg-blue-600 dark:group-hover:bg-sky-500 text-slate-500 group-hover:text-white dark:group-hover:text-zinc-950 flex items-center justify-center transition-all duration-200 shadow-3xs">
-                              <Plus className="w-3.5 h-3.5" />
+                            <div className="w-4.5 h-4.5 rounded-md bg-slate-100 dark:bg-slate-800 group-hover:bg-blue-600 text-slate-400 group-hover:text-white flex items-center justify-center transition-all duration-150">
+                              <Plus className="w-3 h-3 stroke-[2.5]" />
                             </div>
-                            <span>{t('addNewTaskInline') || 'Thêm công việc mới vào ' + meta.label}</span>
+                            <span>{isVietnamese ? `+ Thêm công việc vào ${meta.label}` : `+ Add task to ${meta.label}`}</span>
                           </button>
                         )}
                       </div>
@@ -1068,10 +1162,10 @@ const TaskListView = React.memo(function TaskListView({
         {/* Quick Move Task Modal */}
         {movingTask && (
           <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-5 max-w-md w-full space-y-4 text-left">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xl p-5 max-w-md w-full space-y-4 text-left">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-sky-400 flex items-center justify-center shrink-0">
                     <FolderInput className="w-5 h-5" />
                   </div>
                   <div>
@@ -1105,7 +1199,7 @@ const TaskListView = React.memo(function TaskListView({
                       const targetSp = spaces.find(s => s.id === nextSpaceId);
                       setMoveTargetListId(targetSp?.lists?.[0]?.id || '');
                     }}
-                    className="w-full text-xs font-medium px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 outline-hidden focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-xs font-medium px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 outline-hidden focus:ring-2 focus:ring-blue-500"
                   >
                     {spaces && spaces.length > 0 ? (
                       spaces.map(s => (
@@ -1128,7 +1222,7 @@ const TaskListView = React.memo(function TaskListView({
                       <select
                         value={moveTargetListId}
                         onChange={(e) => setMoveTargetListId(e.target.value)}
-                        className="w-full text-xs font-medium px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 outline-hidden focus:ring-2 focus:ring-indigo-500"
+                        className="w-full text-xs font-medium px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 outline-hidden focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="">{isVietnamese ? '-- Không chọn danh sách (Toàn không gian) --' : '-- No list (Entire space) --'}</option>
                         {targetSp.lists.map(l => (
@@ -1162,7 +1256,7 @@ const TaskListView = React.memo(function TaskListView({
                     if (triggerToast) triggerToast('success', isVietnamese ? 'Đã di chuyển công việc' : 'Task moved', `${movingTask.title} → ${targetSp?.name || ''}`);
                     setMovingTask(null);
                   }}
-                  className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-xs cursor-pointer"
+                  className="px-4 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-colors shadow-xs cursor-pointer"
                 >
                   {isVietnamese ? 'Xác nhận di chuyển' : 'Confirm move'}
                 </button>

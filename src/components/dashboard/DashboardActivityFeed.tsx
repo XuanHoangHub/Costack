@@ -35,7 +35,7 @@ export default function DashboardActivityFeed({
       {/* Header */}
       <div className="flex items-center justify-between border-b border-black/[0.05] dark:border-white/[0.06] pb-4">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-black/[0.04] text-slate-800 dark:bg-white/[0.06] dark:text-slate-200">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/10 dark:bg-blue-500/15 border border-blue-500/20 text-[#0071e3] dark:text-blue-400 dark:shadow-[0_0_12px_rgba(59,130,246,0.2)]">
             <Activity className="h-4 w-4" />
           </div>
           <div>

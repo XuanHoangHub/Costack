@@ -393,7 +393,6 @@ export default function WorkspaceSettingsModal({
   const handleSendInvites = async (emails: string[], role: string) => {
     if (onSendWorkspaceInvites) {
       await onSendWorkspaceInvites(emails, role);
-      setShowInviteModal(false);
       setTimeout(() => fetchInvitations(), 500);
       return;
     }

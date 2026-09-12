@@ -1,5 +1,7 @@
 "use client";
 
+import { applyCustomFieldDefaults, validateTaskCustomFields } from "@/lib/customFields";
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Task, User, Document, SyncLog, Space, TaskStatus, NotificationSettings, BaseApp, Workspace } from '../types';
@@ -149,7 +151,7 @@ import {
   ListPlus, ListTodo, CheckSquare, Folder, WifiOff,
   ChevronsLeft, ChevronsRight,
   CalendarClock, CalendarDays, Languages, UnfoldVertical, FoldVertical,
-  ShieldCheck, SlidersHorizontal, Monitor, Palette, Power
+  ShieldCheck, SlidersHorizontal, Monitor, Palette, Power, FolderPlus
 } from 'lucide-react';
 
 import {
@@ -568,6 +570,7 @@ export default function App() {
   const setActiveListId = useSpaceStore((s) => s.setActiveListId);
   const [isSpacesExpanded, setIsSpacesExpanded] = useState<boolean>(true);
   const [showTopBreadcrumbListMenu, setShowTopBreadcrumbListMenu] = useState<boolean>(false);
+  const [showTopBreadcrumbSpaceMenu, setShowTopBreadcrumbSpaceMenu] = useState<boolean>(false);
   const [isChannelsExpanded, setIsChannelsExpanded] = useState<boolean>(true);
   const [isDmsExpanded, setIsDmsExpanded] = useState<boolean>(true);
   const [isOtherAppsExpanded, setIsOtherAppsExpanded] = useState<boolean>(true);
@@ -811,6 +814,7 @@ export default function App() {
     setNewSpaceDescription('');
     setNewSpaceIsPrivate(false);
     setNewSpacePermission('Full edit');
+    setShowSpacePermissionMenu(false);
     setShowAddSpaceModal(false);
     triggerToast('success', 'Space Created! 🎉', `Đã tạo space "${newSpace.name}" thành công.`);
     addSyncLog(`Created new Space: "${newSpace.name}"`);
@@ -1368,6 +1372,10 @@ export default function App() {
   const showNotificationsMenu = useUiStore((s) => s.showNotificationsMenu);
   const setShowNotificationsMenu = useUiStore((s) => s.setShowNotificationsMenu);
 
+  const [showQuickCreateMenu, setShowQuickCreateMenu] = useState(false);
+  const quickCreateMenuRef = useRef<HTMLDivElement>(null);
+  const quickCreateButtonRef = useRef<HTMLButtonElement>(null);
+
   const notificationsMenuRef = useRef<HTMLDivElement>(null);
   const notificationsButtonRef = useRef<HTMLButtonElement>(null);
   const statusMenuRef = useRef<HTMLDivElement>(null);
@@ -1377,6 +1385,13 @@ export default function App() {
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
+      if (showQuickCreateMenu) {
+        const isInsideMenu = quickCreateMenuRef.current?.contains(target);
+        const isInsideButton = quickCreateButtonRef.current?.contains(target);
+        if (!isInsideMenu && !isInsideButton) {
+          setShowQuickCreateMenu(false);
+        }
+      }
       if (showNotificationsMenu) {
         const isInsideMenu = notificationsMenuRef.current?.contains(target);
         const isInsideButton = notificationsButtonRef.current?.contains(target);
@@ -1395,13 +1410,14 @@ export default function App() {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (showQuickCreateMenu) setShowQuickCreateMenu(false);
         if (showNotificationsMenu) setShowNotificationsMenu(false);
         if (showStatusMenu) setShowStatusMenu(false);
         if (isMobileSidebarOpen) setIsMobileSidebarOpen(false);
       }
     };
 
-    if (showNotificationsMenu || showStatusMenu || isMobileSidebarOpen) {
+    if (showQuickCreateMenu || showNotificationsMenu || showStatusMenu || isMobileSidebarOpen) {
       document.addEventListener('mousedown', handleClickOutside, true);
       document.addEventListener('keydown', handleKeyDown, true);
     }
@@ -1409,7 +1425,7 @@ export default function App() {
       document.removeEventListener('mousedown', handleClickOutside, true);
       document.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [showNotificationsMenu, setShowNotificationsMenu, showStatusMenu, setShowStatusMenu, isMobileSidebarOpen, setIsMobileSidebarOpen]);
+  }, [showQuickCreateMenu, showNotificationsMenu, setShowNotificationsMenu, showStatusMenu, setShowStatusMenu, isMobileSidebarOpen, setIsMobileSidebarOpen]);
 
   const rawSidebarOrder = useUiStore((s) => s.sidebarOrder);
   const sidebarOrder = useMemo(() => rawSidebarOrder || DEFAULT_SIDEBAR_ORDER, [rawSidebarOrder]);
@@ -1482,8 +1498,8 @@ export default function App() {
     return unreadNotifs + unreadInvites;
   }, [notificationsList, workspaceInvitations, activeWorkspaceId]);
 
-  const sidebarItemsMeta = useMemo<Record<string, { label: string; icon: React.ComponentType<any>; count?: number; badge?: string; shortcut?: string; description?: string }>>(() => {
-    const meta: Record<string, { label: string; icon: React.ComponentType<any>; count?: number; badge?: string; shortcut?: string; description?: string }> = {
+  const sidebarItemsMeta = useMemo<Record<string, { label: string; icon: React.ComponentType<any>; count?: number; badge?: string; shortcut?: string; description?: string; disabled?: boolean; disabledTooltip?: string }>>(() => {
+    const meta: Record<string, { label: string; icon: React.ComponentType<any>; count?: number; badge?: string; shortcut?: string; description?: string; disabled?: boolean; disabledTooltip?: string }> = {
       dashboard: { 
         label: t('homeOverview') || 'Home Overview', 
         icon: PhHouse,
@@ -1535,7 +1551,9 @@ export default function App() {
         label: t('miniApps') || (locale === 'vi' ? 'Kho ứng dụng' : 'Mini Apps'),
         icon: Boxes,
         badge: 'Apps',
-        description: locale === 'vi' ? 'Khám phá & mở rộng tiện ích làm việc' : 'Workspace apps directory & tools',
+        description: locale === 'vi' ? 'Tính năng đang được phát triển' : 'Feature currently under development',
+        disabled: true,
+        disabledTooltip: locale === 'vi' ? 'Tính năng đang phát triển - Tạm thời chưa khả dụng' : 'Feature under development - Currently unavailable',
       },
     };
 
@@ -1573,7 +1591,7 @@ export default function App() {
     return currentOrder
       .filter((id) => id in sidebarItemsMeta)
       .map((id) => {
-        const meta = sidebarItemsMeta[id as keyof typeof sidebarItemsMeta];
+        const meta = sidebarItemsMeta[id as keyof typeof sidebarItemsMeta] as any;
         return {
           id,
           label: meta.label,
@@ -1582,6 +1600,8 @@ export default function App() {
           badge: meta.badge,
           shortcut: meta.shortcut,
           description: meta.description,
+          disabled: Boolean(meta?.disabled),
+          disabledTooltip: meta?.disabledTooltip as string | undefined,
         };
       });
   }, [sidebarOrder, sidebarItemsMeta, pinnedMiniAppIds, disabledMiniAppIds]);
@@ -1823,10 +1843,17 @@ export default function App() {
       hasHandledParamsRef.current = true;
       const params = new URLSearchParams(window.location.search);
       const inviteToken = params.get('invite_token');
+      const inviteWs = params.get('invite_ws');
+      const inviteRole = params.get('role') || 'member';
+
       if (inviteToken) {
         setInviteTokenParam(inviteToken);
         setActiveTab('inbox');
         triggerToast('info', 'Workspace Invitation', 'You have a pending workspace invitation ready to review!');
+      } else if (inviteWs) {
+        setInviteTokenParam(`ws_${inviteWs}_${inviteRole}`);
+        setActiveTab('inbox');
+        triggerToast('info', 'Workspace Invitation', 'You have a workspace invitation ready to review!');
       }
 
       const taskParam = params.get('task');
@@ -1951,6 +1978,13 @@ export default function App() {
   // This runs independently of ChatRoom mount state so notifications work across all tabs
   const activeTabRef = useRef(activeTab);
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
+
+  // Safety guard: prevent remaining on disabled Mini Apps tab
+  useEffect(() => {
+    if (activeTab === 'miniapps') {
+      setActiveTab('tasks');
+    }
+  }, [activeTab, setActiveTab]);
 
   useEffect(() => {
     if (!currentUser || isOffline) return;
@@ -2149,7 +2183,20 @@ export default function App() {
     useGlobalTimerStore.getState().setIsTimerPaused(prev => !prev);
   }, []);
 
-  const handleNavItemClick = useCallback((itemId: string, label: string) => {
+  const handleNavItemClick = useCallback((itemId: string, label: string, isDisabled?: boolean) => {
+    if (itemId === 'miniapps' || isDisabled) {
+      if (typeof window !== 'undefined') {
+        (window as any).playSystemSound?.('error');
+      }
+      triggerToast(
+        'info',
+        locale === 'vi' ? 'Tính năng đang phát triển' : 'Feature Under Development',
+        locale === 'vi'
+          ? 'Kho ứng dụng (Mini Apps) hiện đang được phát triển và tạm thời bị vô hiệu hoá.'
+          : 'Mini Apps is currently under development and temporarily unavailable.'
+      );
+      return;
+    }
     if (itemId === 'tasks') {
       setActiveTab('tasks');
       setActiveSpaceId(null);
@@ -2161,7 +2208,7 @@ export default function App() {
     }
     setIsMobileSidebarOpen(false);
     addSyncLog(`Switched to: ${label}`);
-  }, [setActiveTab, setActiveSpaceId, setActiveListId, setIsMobileSidebarOpen, addSyncLog]);
+  }, [setActiveTab, setActiveSpaceId, setActiveListId, setIsMobileSidebarOpen, addSyncLog, triggerToast, locale]);
 
   const handleMoveZone = useCallback((zoneId: string, direction: 'up' | 'down') => {
     const index = sidebarZones.findIndex(z => z.id === zoneId);
@@ -3935,9 +3982,18 @@ export default function App() {
     const location = resolveTaskLocation(t, useSpaceStore.getState().spaces, {
       workspaceId: activeWorkspaceId, spaceId: activeSpaceId || undefined, listId: activeListId || undefined,
     });
+    const fieldDefinitions = useSpaceStore.getState().spaces.find(space => space.id === location.spaceId)?.customFields || [];
+    const fieldValues = applyCustomFieldDefaults(fieldDefinitions, t.custom_fields);
+    const fieldErrors = validateTaskCustomFields(fieldDefinitions, fieldValues, t.status === 'completed');
+    if (fieldErrors.length) {
+      const message = fieldErrors.map(error => error.field + ': ' + error.message).join(' ');
+      triggerToast('info', 'Kiểm tra trường tùy chỉnh', message);
+      throw new Error(message);
+    }
     const taskId = `task-${crypto.randomUUID()}`;
     const newTask = normalizeTaskCompletion({
       ...t,
+      custom_fields: fieldValues,
       id: taskId,
       createdAt: new Date().toISOString(),
       commentsCount: 0,
@@ -4010,6 +4066,14 @@ export default function App() {
     const currentTasks = useTaskStore.getState().tasks;
     const oldTask = currentTasks.find(t => t.id === updated.id);
     const isNewCompletion = oldTask?.status !== 'completed' && updated.status === 'completed';
+    if (isNewCompletion) {
+      const fields = useSpaceStore.getState().spaces.find(space => space.id === updated.spaceId)?.customFields || [];
+      const errors = validateTaskCustomFields(fields, updated.custom_fields, true);
+      if (errors.length) {
+        triggerToast('info', 'Chưa thể hoàn thành Task', errors.map(error => error.field + ': ' + error.message).join(' '));
+        return;
+      }
+    }
 
     if (isNewCompletion) {
       const incompleteBlockers = getIncompleteBlockers(updated, currentTasks);
@@ -4834,7 +4898,7 @@ export default function App() {
       {/* Modern Unified Desktop Sidebar Navigation */}
       <aside 
         data-collapsed={isMainSidebarCollapsed}
-        className={`apexa-desktop-sidebar cu-sidebar relative z-30 hidden shrink-0 cursor-default flex-col transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:flex h-full border-r border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[var(--sidebar-bg)] ${
+        className={`apexa-desktop-sidebar cu-sidebar relative z-30 hidden shrink-0 cursor-default flex-col transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:flex h-full border-r border-slate-200/90 dark:border-white/[0.08] bg-slate-50/60 dark:bg-[var(--sidebar-bg)] ${
           isMainSidebarCollapsed 
             ? 'w-[68px]' 
             : 'w-[var(--cu-sidebar-width)]'
@@ -4851,7 +4915,7 @@ export default function App() {
               aria-expanded={showWorkspaceMenu}
               aria-label={currentWorkspace?.name || 'Apexa'}
               title={`${currentWorkspace?.name || 'Apexa'} — ${locale === 'vi' ? 'Nhấp để đổi không gian làm việc' : 'Click to switch workspace'}`}
-              className="group relative flex h-10 w-10 items-center justify-center rounded-[14px] border border-slate-200/90 dark:border-white/15 bg-white dark:bg-white/[0.06] text-white font-black text-xs shadow-xs hover:scale-105 hover:border-blue-400 dark:hover:border-sky-400 active:scale-95 transition-all cursor-pointer overflow-hidden select-none"
+              className="group relative flex h-10 w-10 items-center justify-center rounded-[14px] border border-slate-200/90 dark:border-white/[0.08] bg-white dark:bg-white/[0.04] text-white font-black text-xs shadow-xs hover:scale-105 hover:border-blue-400 dark:hover:border-sky-400 active:scale-95 transition-all cursor-pointer overflow-hidden select-none"
             >
               <div 
                 className="w-full h-full flex items-center justify-center rounded-[13px] overflow-hidden"
@@ -4874,7 +4938,7 @@ export default function App() {
               {/* Compact Switcher Pill Button */}
               <button
                 type="button" 
-                className="apexa-workspace-trigger group flex min-w-0 flex-1 cursor-pointer select-none items-center justify-between rounded-xl border border-slate-200/80 bg-slate-50/80 hover:bg-slate-100/80 hover:border-slate-300 dark:border-white/[0.08] dark:bg-white/[0.04] dark:hover:border-white/[0.16] dark:hover:bg-white/[0.08] px-2.5 py-1.5 text-left shadow-2xs transition-all duration-200 active:scale-[0.99]"
+                className="apexa-workspace-trigger group flex min-w-0 flex-1 cursor-pointer select-none items-center justify-between rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50 dark:border-white/[0.08] dark:bg-white/[0.03] dark:hover:border-white/[0.16] dark:hover:bg-white/[0.07] px-2.5 py-1.5 text-left shadow-2xs transition-all duration-200 active:scale-[0.99]"
                 onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
                 aria-expanded={showWorkspaceMenu}
               >
@@ -4908,8 +4972,8 @@ export default function App() {
                   setIsMainSidebarCollapsed(true);
                   (window as any).playSystemSound?.('click');
                 }} 
-                className="group relative flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-slate-50/80 text-slate-500 hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-slate-400 dark:hover:border-white/20 dark:hover:bg-white/[0.08] dark:hover:text-white active:scale-90 transition-all duration-200 cursor-pointer shadow-xs"
-                title={locale === 'vi' ? 'Thu gọn thanh bên (Ctrl+\)' : 'Collapse sidebar (Ctrl+\)'}
+                className="group relative flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-xl border border-slate-200/90 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-slate-400 dark:hover:border-white/20 dark:hover:bg-white/[0.08] dark:hover:text-white active:scale-90 transition-all duration-200 cursor-pointer shadow-xs"
+                title={locale === 'vi' ? 'Thu gọn thanh bên (Ctrl+\\)' : 'Collapse sidebar (Ctrl+\\)'}
                 aria-label={locale === 'vi' ? 'Thu gọn thanh bên' : 'Collapse sidebar'}
               >
                 <ChevronsLeft className="w-4 h-4 transition-transform duration-200 ease-out group-hover:-translate-x-0.5 text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white" />
@@ -4925,23 +4989,23 @@ export default function App() {
               href="/admin"
               className={`group flex items-center rounded-xl border transition-all ${
                 isMainSidebarCollapsed 
-                  ? 'h-10 w-10 mx-auto justify-center p-0 rounded-[14px] border-sky-300/80 dark:border-sky-500/30 bg-sky-50/90 dark:bg-sky-500/20 text-sky-600 dark:text-sky-300 hover:scale-105 hover:bg-sky-100 dark:hover:bg-sky-500/30 shadow-xs' 
-                  : 'h-[38px] w-full gap-2.5 px-2.5 py-1.5 border-sky-500/25 bg-sky-500/10 text-sky-700 dark:text-sky-200 hover:border-sky-400/50 hover:bg-sky-500/20 hover:text-sky-900 dark:hover:text-white'
+                  ? 'h-10 w-10 mx-auto justify-center p-0 rounded-[14px] border-sky-300/80 dark:border-sky-500/25 bg-sky-50/90 dark:bg-sky-500/10 text-sky-600 dark:text-sky-300 hover:scale-105 hover:bg-sky-100 dark:hover:bg-sky-500/20 shadow-xs' 
+                  : 'h-[34px] w-full gap-2 px-2.5 py-1 border-sky-500/20 bg-sky-500/[0.05] text-sky-700 dark:text-sky-300 hover:border-sky-500/35 hover:bg-sky-500/[0.10] hover:text-sky-900 dark:hover:text-white shadow-2xs'
               }`}
               title="Apexa Control Center (Admin)"
             >
               <div className={`relative flex shrink-0 items-center justify-center rounded-lg transition-all ${
-                isMainSidebarCollapsed ? '' : 'h-6.5 w-6.5 bg-sky-500/20 text-sky-600 dark:text-sky-300'
+                isMainSidebarCollapsed ? '' : 'h-5 w-5 text-sky-600 dark:text-sky-400'
               }`}>
-                <ShieldCheck className={isMainSidebarCollapsed ? "h-5 w-5" : "h-4 w-4"} />
-                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-[#0c0d12] animate-pulse shadow-sm" />
+                <ShieldCheck className={isMainSidebarCollapsed ? "h-5 w-5" : "h-3.5 w-3.5"} />
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-[#0c0d12] animate-pulse shadow-sm" />
               </div>
               {!isMainSidebarCollapsed && (
                 <div className="flex min-w-0 flex-1 items-center justify-between">
-                  <span className="truncate text-[13px] font-semibold text-slate-800 dark:text-white">
+                  <span className="truncate text-xs font-semibold text-slate-800 dark:text-zinc-200 group-hover:text-slate-950 dark:group-hover:text-white">
                     {locale === 'vi' ? 'Trung tâm điều khiển' : 'Control Center'}
                   </span>
-                  <span className="shrink-0 rounded-md px-1.5 py-0.5 text-[8px] font-black uppercase text-sky-700 bg-sky-50 dark:text-sky-300 dark:bg-sky-500/20 border border-sky-200 dark:border-sky-400/30">Admin</span>
+                  <span className="shrink-0 rounded px-1.5 py-0.2 text-[8px] font-extrabold uppercase text-sky-700 bg-sky-50 dark:text-sky-300 dark:bg-sky-500/20 border border-sky-200 dark:border-sky-500/30">Admin</span>
                 </div>
               )}
             </a>
@@ -4970,6 +5034,8 @@ export default function App() {
                 isActive={isActive}
                 count={item.count}
                 badge={item.badge}
+                disabled={item.disabled}
+                disabledTooltip={item.disabledTooltip}
                 collapsed={isMainSidebarCollapsed}
                 isDragging={draggedItemId === item.id}
                 onDragStart={(e) => handleDragStart(e, item.id)}
@@ -4977,7 +5043,7 @@ export default function App() {
                 onDragLeave={handleDragLeave}
                 onDragEnd={handleDragEnd}
                 onDrop={(e) => handleDrop(e, item.id)}
-                onClick={() => handleNavItemClick(item.id, item.label)}
+                onClick={() => handleNavItemClick(item.id, item.label, item.disabled)}
                 dragIndicator={dragOverItemId === item.id && dragOverSide ? (
                   <div
                     className={`absolute left-1 right-1 h-1 z-30 pointer-events-none rounded-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 shadow-[0_0_12px_rgba(56,189,248,0.9)] transition-all ${
@@ -5038,7 +5104,7 @@ export default function App() {
                   setShowZoneModal(true);
                 }}
                 title={locale === 'vi' ? 'Tạo Vùng mới (+ Zone)' : 'Create New Zone'}
-                className="flex h-10 w-10 mx-auto items-center justify-center rounded-[14px] border border-dashed border-slate-300/90 dark:border-white/20 bg-slate-50/70 dark:bg-white/[0.02] text-slate-500 dark:text-zinc-400 hover:border-blue-400/80 hover:bg-blue-50/60 hover:text-blue-600 dark:hover:border-sky-400/50 dark:hover:bg-sky-500/15 dark:hover:text-sky-300 active:scale-92 transition-all cursor-pointer group shadow-3xs"
+                className="flex h-10 w-10 mx-auto items-center justify-center rounded-[14px] border border-dashed border-slate-300/90 dark:border-white/15 bg-slate-50/70 dark:bg-white/[0.02] text-slate-500 dark:text-zinc-400 hover:border-blue-400/80 hover:bg-blue-50/60 hover:text-blue-600 dark:hover:border-sky-400/50 dark:hover:bg-sky-500/15 dark:hover:text-sky-300 active:scale-92 transition-all cursor-pointer group shadow-3xs"
               >
                 <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />
               </button>
@@ -5049,7 +5115,7 @@ export default function App() {
                   setEditingZone(null);
                   setShowZoneModal(true);
                 }}
-                className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-xl border border-dashed border-slate-200/80 bg-slate-50/60 text-slate-600 hover:border-blue-400/60 hover:bg-blue-50/50 hover:text-blue-600 dark:border-white/12 dark:bg-white/[0.02] dark:text-zinc-400 dark:hover:border-sky-500/40 dark:hover:bg-sky-500/10 dark:hover:text-sky-300 transition-all cursor-pointer group text-left"
+                className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-xl border border-dashed border-slate-200/80 bg-slate-50/60 text-slate-600 hover:border-blue-400/60 hover:bg-blue-50/50 hover:text-blue-600 dark:border-white/[0.08] dark:bg-white/[0.02] dark:text-zinc-400 dark:hover:border-sky-500/40 dark:hover:bg-sky-500/10 dark:hover:text-sky-300 transition-all cursor-pointer group text-left"
               >
                 <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-slate-200/60 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 dark:bg-white/[0.06] dark:text-zinc-400 dark:group-hover:bg-sky-500/20 dark:group-hover:text-sky-300 transition-colors">
                   <Plus className="h-3 w-3" />
@@ -5063,23 +5129,204 @@ export default function App() {
               </button>
             )}
           </div>
+
+          {/* Spaces & Project Lists Section - Eliminates the empty void */}
+          {isMainSidebarCollapsed ? (
+            spaces.length > 0 && (
+              <div className="pt-2 pb-1 border-t border-slate-200/80 dark:border-white/[0.06] mt-2 flex flex-col items-center space-y-1">
+                {spaces.map((sp) => {
+                  const isSpaceActive = activeTab === 'tasks' && activeSpaceId === sp.id;
+                  return (
+                    <button
+                      key={sp.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('tasks');
+                        setActiveSpaceId(sp.id);
+                        setActiveListId(sp.lists?.[0]?.id || null);
+                      }}
+                      title={`${sp.name}${sp.lists?.length ? ` (${sp.lists.length} lists)` : ''}`}
+                      className={`relative flex h-9 w-9 select-none items-center justify-center rounded-xl transition-all duration-150 active:scale-95 cursor-pointer ${
+                        isSpaceActive
+                          ? 'border border-blue-200 bg-blue-50/90 text-blue-600 shadow-xs dark:border-sky-500/30 dark:bg-blue-500/15 dark:text-sky-300 ring-1 ring-blue-500/20'
+                          : 'border border-transparent text-slate-500 hover:bg-slate-100/80 hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white'
+                      }`}
+                    >
+                      <span className="text-sm select-none">{sp.emoji || '📁'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )
+          ) : (
+            <div className="pt-2.5 pb-1 border-t border-slate-200/80 dark:border-white/[0.06] mt-2">
+              <div className="flex items-center justify-between px-2.5 py-1 text-[11px] font-bold tracking-wider text-slate-400 dark:text-zinc-500 uppercase">
+                <button
+                  type="button"
+                  onClick={() => setIsSpacesExpanded((prev) => !prev)}
+                  className="flex items-center gap-1.5 hover:text-slate-700 dark:hover:text-zinc-300 transition-colors cursor-pointer group"
+                >
+                  <ChevronDown className={`w-3 h-3 text-slate-400 dark:text-zinc-500 transition-transform duration-150 ${isSpacesExpanded ? '' : '-rotate-90'}`} />
+                  <span>{locale === 'vi' ? 'Không gian' : 'Spaces'}</span>
+                  {spaces.length > 0 && (
+                    <span className="text-[9px] font-mono font-semibold px-1 py-0.2 rounded bg-slate-100 dark:bg-white/[0.06] text-slate-400 dark:text-zinc-400">
+                      {spaces.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAddSpaceModal(true)}
+                  title={locale === 'vi' ? 'Tạo Không gian mới (+ Space)' : 'Create New Space'}
+                  className="p-1 rounded-md text-slate-400 hover:text-slate-800 hover:bg-slate-100 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-white/[0.08] transition-all cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {isSpacesExpanded && (
+                <div className="space-y-0.5 mt-0.5">
+                  {spaces.length === 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowAddSpaceModal(true)}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300 hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors group cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 group-hover:scale-110 transition-transform" />
+                      <span>{locale === 'vi' ? 'Thêm Không gian đầu tiên...' : 'Add your first Space...'}</span>
+                    </button>
+                  ) : (
+                    spaces.map((sp) => {
+                      const isSpaceActive = activeTab === 'tasks' && activeSpaceId === sp.id;
+                      return (
+                        <button
+                          key={sp.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveTab('tasks');
+                            setActiveSpaceId(sp.id);
+                            setActiveListId(sp.lists?.[0]?.id || null);
+                          }}
+                          className={`group relative flex h-8 min-h-[32px] w-full select-none items-center gap-2 rounded-lg px-2 text-left transition-colors duration-150 cursor-pointer ${
+                            isSpaceActive
+                              ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300 font-semibold shadow-2xs'
+                              : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100/70 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-zinc-100 font-medium'
+                          }`}
+                        >
+                          {isSpaceActive && (
+                            <div className="absolute left-0 top-1.5 bottom-1.5 w-0.75 rounded-r-full bg-blue-600 dark:bg-blue-400 shadow-xs" />
+                          )}
+                          {sp.emoji && sp.emoji !== '📦' ? (
+                            <span className="text-sm shrink-0 select-none">{sp.emoji}</span>
+                          ) : (
+                            <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded text-[9.5px] font-bold text-white bg-blue-600 dark:bg-blue-500 shadow-2xs">
+                              {sp.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <span className="truncate text-[12px] flex-1">
+                            {sp.name}
+                          </span>
+                          {sp.lists && sp.lists.length > 0 && (
+                            <span className="text-[10px] font-mono text-slate-400 dark:text-zinc-500 shrink-0 ml-auto tabular-nums">
+                              {sp.lists.length}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Row 5: Collapsed Bottom Expand Button */}
-        {isMainSidebarCollapsed && (
-          <div className="shrink-0 py-2.5 flex flex-col items-center gap-1.5 w-full border-t border-slate-200/70 dark:border-white/[0.08]">
+        {/* Row 5: Sidebar Bottom Status & Integrated User Profile Dock */}
+        {isMainSidebarCollapsed ? (
+          <div className="shrink-0 py-2.5 flex flex-col items-center gap-2 w-full border-t border-slate-200/80 dark:border-white/[0.08]">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('settings');
+                setActiveSettingsTab('profile');
+              }}
+              className="relative group cursor-pointer"
+              title={currentUser?.name || currentUser?.email || 'User Profile'}
+            >
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-sky-400 text-white font-bold text-xs flex items-center justify-center shadow-xs overflow-hidden">
+                {currentUser?.avatar ? (
+                  <img src={currentUser.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  (currentUser?.name?.[0] || currentUser?.email?.[0] || 'U').toUpperCase()
+                )}
+              </div>
+              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-[#0c0d12]" />
+            </button>
+
             <button
               type="button"
               onClick={() => {
                 setIsMainSidebarCollapsed(false);
                 (window as any).playSystemSound?.('click');
               }}
-              title={locale === 'vi' ? 'Mở rộng thanh bên (Ctrl+\)' : 'Expand sidebar (Ctrl+\)'}
-              className="group relative flex h-10 w-10 items-center justify-center rounded-[14px] border border-slate-200/90 dark:border-white/12 bg-slate-50/80 dark:bg-white/[0.04] text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-sky-300 hover:border-blue-300 dark:hover:border-sky-400/40 hover:bg-blue-50/60 dark:hover:bg-sky-500/10 active:scale-92 transition-all cursor-pointer shadow-3xs"
+              title={locale === 'vi' ? 'Mở rộng thanh bên (Ctrl+\\)' : 'Expand sidebar (Ctrl+\\)'}
+              className="group relative flex h-8 w-8 items-center justify-center rounded-xl border border-transparent text-slate-400 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-sky-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] active:scale-92 transition-all cursor-pointer"
               aria-label={locale === 'vi' ? 'Mở rộng thanh bên' : 'Expand sidebar'}
             >
-              <ChevronsRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 text-slate-500 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-sky-300" />
+              <ChevronsRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
             </button>
+          </div>
+        ) : (
+          <div className="shrink-0 p-2 border-t border-slate-200/80 dark:border-white/[0.08] bg-slate-50/40 dark:bg-white/[0.02]">
+            <div className="flex items-center justify-between gap-2 p-1.5 rounded-xl hover:bg-slate-100/80 dark:hover:bg-white/[0.05] transition-all group">
+              {/* User Identity Pill */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('settings');
+                  setActiveSettingsTab('profile');
+                }}
+                className="flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer"
+              >
+                <div className="relative shrink-0">
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-sky-400 text-white font-bold text-[11px] flex items-center justify-center shadow-xs overflow-hidden">
+                    {currentUser?.avatar ? (
+                      <img src={currentUser.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      (currentUser?.name?.[0] || currentUser?.email?.[0] || 'U').toUpperCase()
+                    )}
+                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-[#0c0d12]" />
+                </div>
+                <div className="min-w-0 flex-1 leading-tight">
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate text-xs font-semibold text-slate-800 dark:text-zinc-200 group-hover:text-slate-950 dark:group-hover:text-white">
+                      {currentUser?.name || currentUser?.email?.split('@')[0] || 'User'}
+                    </span>
+                    <span className={`shrink-0 text-[8.5px] font-black uppercase px-1.5 py-0.2 rounded border ${
+                      currentUser?.isPremium 
+                        ? 'bg-amber-500/15 text-amber-500 border-amber-500/30 dark:bg-amber-400/20 dark:text-amber-300 dark:border-amber-400/30' 
+                        : 'bg-slate-100 text-slate-500 border-slate-200/60 dark:bg-white/[0.06] dark:text-zinc-400 dark:border-white/10'
+                    }`}>
+                      {currentUser?.isPremium ? 'PRO' : 'FREE'}
+                    </span>
+                  </div>
+                  <span className="truncate text-[10px] text-slate-400 dark:text-zinc-500 block">
+                    {currentUser?.email || 'workspace member'}
+                  </span>
+                </div>
+              </button>
+
+              {/* Quick Shortcuts Trigger */}
+              <button
+                type="button"
+                onClick={() => setShowKeyboardShortcuts(true)}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 dark:text-zinc-500 dark:hover:text-zinc-200 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
+                title={locale === 'vi' ? 'Xem bảng phím tắt (?)' : 'Keyboard shortcuts (?)'}
+              >
+                <Keyboard className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         )}
 
@@ -5478,31 +5725,81 @@ export default function App() {
                   ) : (activeTab === 'tasks' || activeTab === 'my-tasks') ? (
                     selectedSpace ? (
                       <>
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors group">
-                          {/* Emoji / Icon Selector */}
-                          <EmojiIconPicker
-                            size="inline"
-                            value={selectedSpace.emoji || 'Folder'}
-                            onChange={(newIcon) => {
-                              const updatedSpace = { ...selectedSpace, emoji: newIcon };
-                              useSpaceStore.getState().updateSpace(updatedSpace);
-                              if (currentUser && !(currentUser as any).isGuest) {
-                                supabase
-                                  .from('spaces')
-                                  .update({ emoji: newIcon })
-                                  .eq('id', selectedSpace.id)
-                                  .then(() => {});
-                              }
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => { setActiveSpaceId(selectedSpace.id); setActiveListId(null); }}
-                            className="px-1 py-0.5 text-slate-700 dark:text-zinc-300 hover:text-slate-950 dark:hover:text-white font-medium text-[13px] transition-colors max-w-36 truncate cursor-pointer"
-                            title={`${locale === 'vi' ? 'Không gian' : 'Space'}: ${selectedSpace.name}`}
-                          >
-                            <span className="truncate">{selectedSpace.name}</span>
-                          </button>
+                        <div className="relative">
+                          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors group">
+                            {/* Emoji / Icon Selector */}
+                            <EmojiIconPicker
+                              size="inline"
+                              value={selectedSpace.emoji || 'Folder'}
+                              onChange={(newIcon) => {
+                                const updatedSpace = { ...selectedSpace, emoji: newIcon };
+                                useSpaceStore.getState().updateSpace(updatedSpace);
+                                if (currentUser && !(currentUser as any).isGuest) {
+                                  supabase
+                                    .from('spaces')
+                                    .update({ emoji: newIcon })
+                                    .eq('id', selectedSpace.id)
+                                    .then(() => {});
+                                }
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowTopBreadcrumbSpaceMenu(prev => !prev)}
+                              className="flex items-center gap-1 px-1 py-0.5 text-slate-700 dark:text-zinc-300 hover:text-slate-950 dark:hover:text-white font-medium text-[13px] transition-colors max-w-36 truncate cursor-pointer"
+                              title={`${locale === 'vi' ? 'Không gian' : 'Space'}: ${selectedSpace.name} — ${locale === 'vi' ? 'Nhấn để đổi không gian' : 'Click to switch space'}`}
+                            >
+                              <span className="truncate">{selectedSpace.name}</span>
+                              {spaces.length > 1 && (
+                                <ChevronDown className="w-3 h-3 text-slate-400 dark:text-zinc-400 transition-transform shrink-0" />
+                              )}
+                            </button>
+                          </div>
+
+                          {/* Quick Space Switcher Dropdown */}
+                          <AnimatePresence>
+                            {showTopBreadcrumbSpaceMenu && spaces.length > 0 && (
+                              <>
+                                <div className="fixed inset-0 z-30" onClick={() => setShowTopBreadcrumbSpaceMenu(false)} />
+                                <motion.div
+                                  initial={{ opacity: 0, y: 4, scale: 0.96 }}
+                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  exit={{ opacity: 0, y: 4, scale: 0.96 }}
+                                  transition={{ duration: 0.15 }}
+                                  className="absolute left-0 top-full mt-1.5 w-60 p-1.5 bg-white dark:bg-[#121318] border border-slate-200/90 dark:border-white/[0.12] rounded-xl shadow-xl z-40 space-y-0.5 text-left"
+                                >
+                                  <div className="px-2 py-1 text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider flex items-center justify-between">
+                                    <span>{locale === 'vi' ? 'Không gian làm việc' : 'Spaces'}</span>
+                                    <span className="text-[9px] font-mono">{spaces.length}</span>
+                                  </div>
+                                  <div className="max-h-52 overflow-y-auto custom-scrollbar space-y-0.5">
+                                    {spaces.map(sp => (
+                                      <button
+                                        key={sp.id}
+                                        type="button"
+                                        onClick={() => {
+                                          setActiveSpaceId(sp.id);
+                                          setActiveListId(sp.lists?.[0]?.id || null);
+                                          setShowTopBreadcrumbSpaceMenu(false);
+                                        }}
+                                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors cursor-pointer ${
+                                          sp.id === activeSpaceId 
+                                            ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-sky-300 font-semibold' 
+                                            : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2 truncate">
+                                          <span className="text-sm shrink-0">{sp.emoji || '📁'}</span>
+                                          <span className="truncate">{sp.name}</span>
+                                        </div>
+                                        {sp.id === activeSpaceId && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-sky-300 shrink-0" />}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </motion.div>
+                              </>
+                            )}
+                          </AnimatePresence>
                         </div>
 
                         {selectedFolder && (
@@ -5638,9 +5935,17 @@ export default function App() {
                       <>
                         <button
                           type="button"
-                          onClick={() => setActiveTab('miniapps')}
-                          className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium text-[13px] transition-colors cursor-pointer"
-                          title={locale === 'vi' ? 'Mở Kho ứng dụng' : 'Open Mini Apps'}
+                          onClick={() => {
+                            triggerToast(
+                              'info',
+                              locale === 'vi' ? 'Tính năng đang phát triển' : 'In Development',
+                              locale === 'vi'
+                                ? 'Kho ứng dụng (Mini Apps) hiện đang được phát triển và tạm thời bị vô hiệu hoá.'
+                                : 'Mini Apps is currently under development and temporarily unavailable.'
+                            );
+                          }}
+                          className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-slate-400 dark:text-zinc-500 font-medium text-[13px] transition-colors cursor-not-allowed"
+                          title={locale === 'vi' ? 'Kho ứng dụng đang phát triển' : 'Mini Apps under development'}
                         >
                           <Boxes className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           <span>{locale === 'vi' ? 'Ứng dụng' : 'Apps'}</span>
@@ -5676,7 +5981,7 @@ export default function App() {
             </button>
           </div>
 
-          {/* Centered Global Search Bar trigger button for desk screens - beautified Pill */}
+          {/* Centered Global Search Bar trigger button with keyboard shortcut badge */}
           <div className="apexa-search-slot relative mx-3 hidden w-60 max-w-md lg:block lg:w-72 2xl:w-80">
             <button
               type="button"
@@ -5684,17 +5989,134 @@ export default function App() {
                 setIsSearchOpen(true);
                 setTimeout(() => searchInputRef.current?.focus(), 80);
               }}
-              className="group flex h-8.5 w-full cursor-pointer select-none items-center justify-between rounded-xl border border-slate-200/80 bg-white px-3 py-1.5 text-xs text-slate-500 shadow-3xs transition-all duration-150 hover:border-slate-300 hover:bg-slate-50/80 hover:text-slate-700 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-zinc-400 dark:hover:border-white/20 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
-              aria-label={locale === 'vi' ? 'Tìm kiếm công việc, tài liệu hoặc không gian' : 'Search tasks, docs, or spaces'}
+              className="group flex h-8.5 w-full cursor-pointer select-none items-center justify-between rounded-xl border border-slate-200/90 bg-slate-50/80 px-3 py-1.5 text-xs text-slate-500 shadow-3xs transition-all duration-150 hover:border-blue-400/60 hover:bg-white hover:text-slate-800 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-zinc-400 dark:hover:border-white/20 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
+              aria-label={locale === 'vi' ? 'Tìm kiếm công việc, tài liệu hoặc không gian (Ctrl+K)' : 'Search tasks, docs, or spaces (Ctrl+K)'}
             >
               <span className="flex min-w-0 items-center gap-2 truncate">
-                <Search className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-zinc-500 group-hover:text-slate-600 dark:group-hover:text-zinc-300 transition-colors" />
+                <Search className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-zinc-500 group-hover:text-blue-600 dark:group-hover:text-sky-300 transition-colors" />
                 <span className="truncate font-medium">{locale === 'vi' ? 'Tìm công việc, tài liệu...' : 'Search tasks, docs, spaces...'}</span>
               </span>
+              <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold text-slate-400 dark:text-zinc-500 bg-white dark:bg-white/[0.06] border border-slate-200/80 dark:border-white/10 shrink-0">
+                <span>⌘</span>K
+              </kbd>
             </button>
           </div>
 
           <div className="apexa-header-actions flex shrink-0 items-center gap-1.5 sm:gap-2 pr-1 sm:pr-2">
+            {/* Quick "+ Tạo mới" Create Action Button */}
+            <div className="relative">
+              <button
+                ref={quickCreateButtonRef}
+                type="button"
+                onClick={() => setShowQuickCreateMenu(prev => !prev)}
+                aria-expanded={showQuickCreateMenu}
+                aria-label={locale === 'vi' ? 'Tạo mới nhanh' : 'Quick Create'}
+                className="flex h-8.5 items-center gap-1.5 px-2.5 sm:px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span className="hidden sm:inline tracking-tight">{locale === 'vi' ? 'Tạo mới' : 'New'}</span>
+                <ChevronDown className="w-3 h-3 opacity-70" />
+              </button>
+
+              <AnimatePresence>
+                {showQuickCreateMenu && (
+                  <motion.div
+                    ref={quickCreateMenuRef}
+                    initial={{ opacity: 0, y: 6, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                    transition={{ duration: 0.12 }}
+                    className="absolute left-0 sm:right-0 sm:left-auto top-full mt-1.5 w-52 p-1.5 bg-white dark:bg-[#121318] border border-slate-200/90 dark:border-white/[0.12] rounded-xl shadow-[0_16px_36px_rgba(15,23,42,0.14)] dark:shadow-[0_16px_36px_rgba(0,0,0,0.8)] z-[100] text-left divide-y divide-slate-100 dark:divide-white/[0.06]"
+                  >
+                    <div className="p-1 space-y-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowQuickCreateMenu(false);
+                          setActiveTab('tasks');
+                          setPromptModalConfig({
+                            isOpen: true,
+                            type: 'status',
+                            title: locale === 'vi' ? 'Tạo công việc mới' : 'Create New Task',
+                            placeholder: locale === 'vi' ? 'Ví dụ: Thiết kế giao diện báo cáo tuần...' : 'e.g. Design weekly report UI...',
+                            confirmText: locale === 'vi' ? 'Tạo việc' : 'Create Task',
+                            onConfirm: (val: string) => {
+                              setPromptModalConfig(null);
+                              if (val && val.trim()) {
+                                handleAddTask({
+                                  title: val.trim(),
+                                  description: '',
+                                  status: 'todo',
+                                  priority: 'medium',
+                                  subtasks: [],
+                                  spaceId: activeSpaceId || spaces[0]?.id,
+                                  listId: activeListId || spaces[0]?.lists?.[0]?.id,
+                                });
+                                triggerToast('success', locale === 'vi' ? 'Đã tạo việc' : 'Task Created', val.trim());
+                              }
+                            },
+                            onCancel: () => setPromptModalConfig(null),
+                          });
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:text-blue-600 hover:bg-blue-50/80 dark:text-zinc-300 dark:hover:text-sky-300 dark:hover:bg-blue-500/15 transition-colors cursor-pointer text-left"
+                      >
+                        <div className="w-5 h-5 rounded flex items-center justify-center bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-sky-300 shrink-0">
+                          <CheckSquare className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="flex-1">{locale === 'vi' ? 'Công việc mới' : 'New Task'}</span>
+                        <kbd className="text-[9px] font-mono text-slate-400 dark:text-zinc-500">T</kbd>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowQuickCreateMenu(false);
+                          setActiveTab('docs');
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:text-amber-600 hover:bg-amber-50/80 dark:text-zinc-300 dark:hover:text-amber-300 dark:hover:bg-amber-500/15 transition-colors cursor-pointer text-left"
+                      >
+                        <div className="w-5 h-5 rounded flex items-center justify-center bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-300 shrink-0">
+                          <PhFileText className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="flex-1">{locale === 'vi' ? 'Tài liệu mới' : 'New Document'}</span>
+                        <kbd className="text-[9px] font-mono text-slate-400 dark:text-zinc-500">D</kbd>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowQuickCreateMenu(false);
+                          handleOpenAddSpaceModal();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:text-indigo-600 hover:bg-indigo-50/80 dark:text-zinc-300 dark:hover:text-indigo-300 dark:hover:bg-indigo-500/15 transition-colors cursor-pointer text-left"
+                      >
+                        <div className="w-5 h-5 rounded flex items-center justify-center bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 shrink-0">
+                          <PhSquaresFour className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="flex-1">{locale === 'vi' ? 'Không gian mới' : 'New Space'}</span>
+                        <kbd className="text-[9px] font-mono text-slate-400 dark:text-zinc-500">S</kbd>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowQuickCreateMenu(false);
+                          setActiveTab('calendar');
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:text-emerald-600 hover:bg-emerald-50/80 dark:text-zinc-300 dark:hover:text-emerald-300 dark:hover:bg-emerald-500/15 transition-colors cursor-pointer text-left"
+                      >
+                        <div className="w-5 h-5 rounded flex items-center justify-center bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 shrink-0">
+                          <PhCalendar className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="flex-1">{locale === 'vi' ? 'Sự kiện lịch' : 'Calendar Event'}</span>
+                        <kbd className="text-[9px] font-mono text-slate-400 dark:text-zinc-500">C</kbd>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             <button
               type="button"
               onClick={() => setShowKeyboardShortcuts(true)}
@@ -5706,8 +6128,25 @@ export default function App() {
             </button>
             {/* Quick Mini App Launcher Popover */}
             <MiniAppLauncherButton
-              onSelectApp={(appId) => setActiveTab(appId)}
-              onOpenHub={() => setActiveTab('miniapps')}
+              disabled={true}
+              onSelectApp={() => {
+                triggerToast(
+                  'info',
+                  locale === 'vi' ? 'Tính năng đang phát triển' : 'In Development',
+                  locale === 'vi'
+                    ? 'Mini Apps đang được phát triển và tạm thời bị vô hiệu hoá.'
+                    : 'Mini Apps is currently under development and temporarily unavailable.'
+                );
+              }}
+              onOpenHub={() => {
+                triggerToast(
+                  'info',
+                  locale === 'vi' ? 'Tính năng đang phát triển' : 'In Development',
+                  locale === 'vi'
+                    ? 'Kho ứng dụng (Mini Apps) đang được phát triển và tạm thời bị vô hiệu hoá.'
+                    : 'Mini Apps Hub is currently under development and temporarily unavailable.'
+                );
+              }}
             />
 
             {/* Interactive Date & Display Options Pill Widget (Memoized & Isolated) */}
@@ -6259,7 +6698,9 @@ export default function App() {
                       isActive={isActive}
                       count={item.count}
                       badge={item.badge}
-                      onClick={() => handleNavItemClick(item.id, item.label)}
+                      disabled={item.disabled}
+                      disabledTooltip={item.disabledTooltip}
+                      onClick={() => handleNavItemClick(item.id, item.label, item.disabled)}
                     />
                   );
                 })}
@@ -6693,10 +7134,31 @@ export default function App() {
                   )}
 
                   {activeTab === 'miniapps' && (
-                    <MiniAppHub
-                      onLaunchApp={(appId) => setActiveTab(appId)}
-                      triggerToast={triggerToast}
-                    />
+                    <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-slate-50/50 dark:bg-zinc-950/50">
+                      <div className="max-w-md p-8 rounded-3xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-zinc-900 shadow-xl flex flex-col items-center">
+                        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4 shadow-xs">
+                          <Boxes className="w-8 h-8" />
+                        </div>
+                        <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-300 dark:border-amber-800/50 mb-3">
+                          {locale === 'vi' ? 'Tính năng đang phát triển' : 'In Development'}
+                        </span>
+                        <h2 className="text-xl font-black text-slate-900 dark:text-white">
+                          {locale === 'vi' ? 'Kho ứng dụng Mini Apps' : 'Mini Apps Hub'}
+                        </h2>
+                        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2 leading-relaxed">
+                          {locale === 'vi'
+                            ? 'Kho ứng dụng Mini Apps hiện đang trong quá trình nâng cấp và tạm thời bị vô hiệu hoá để phát triển. Vui lòng quay lại sau!'
+                            : 'The Mini Apps feature is currently under active development and temporarily disabled. Please check back later!'}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('tasks')}
+                          className="mt-6 py-2.5 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          <span>{locale === 'vi' ? 'Quay lại Bảng công việc' : 'Back to Tasks'}</span>
+                        </button>
+                      </div>
+                    </div>
                   )}
 
                   {/* Fallback if active mini app is disabled */}
@@ -6923,20 +7385,31 @@ export default function App() {
       {/* ── ADD SPACE MODAL ── */}
       <AnimatePresence>
         {showAddSpaceModal && (
-          <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+          <div 
+            className="fixed inset-0 z-[999] flex items-center justify-center p-4"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setShowSpacePermissionMenu(false);
+                setShowAddSpaceModal(false);
+              }
+            }}
+          >
             <motion.div
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 
               exit={{ opacity: 0 }} 
-              onClick={() => setShowAddSpaceModal(false)} 
+              onClick={() => {
+                setShowSpacePermissionMenu(false);
+                setShowAddSpaceModal(false);
+              }} 
               className="absolute inset-0 bg-slate-950/50 backdrop-blur-md" 
             />
             <motion.div 
-              initial={{ scale: 0.95, y: 14, opacity: 0 }} 
+              initial={{ scale: 0.95, y: 12, opacity: 0 }} 
               animate={{ scale: 1, y: 0, opacity: 1 }} 
-              exit={{ scale: 0.95, y: 14, opacity: 0 }}
+              exit={{ scale: 0.95, y: 12, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 420, damping: 30 }}
-              className="relative w-full max-w-[480px] rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 overflow-hidden z-10 text-left font-sans select-none shadow-2xl max-h-[90vh] flex flex-col"
+              className="relative w-full max-w-[450px] rounded-2xl bg-white dark:bg-[#111216] border border-slate-200/90 dark:border-white/[0.08] overflow-hidden z-10 text-left font-sans select-none shadow-2xl flex flex-col"
             >
               {/* Top Accent Light Line */}
               <div 
@@ -6944,116 +7417,85 @@ export default function App() {
                 style={{
                   background: {
                     indigo: 'linear-gradient(90deg, #38bdf8, #2563eb, #6366f1)',
+                    purple: 'linear-gradient(90deg, #c084fc, #8b5cf6, #6d28d9)',
                     rose: 'linear-gradient(90deg, #fb7185, #e11d48, #be123c)',
                     sky: 'linear-gradient(90deg, #38bdf8, #0284c7, #0369a1)',
                     emerald: 'linear-gradient(90deg, #34d399, #059669, #047857)',
                     amber: 'linear-gradient(90deg, #fbbf24, #d97706, #b45309)',
                     sunset: 'linear-gradient(90deg, #fb923c, #ea580c, #c2410c)',
-                  }[newSpaceColor as 'indigo' | 'rose' | 'sky' | 'emerald' | 'amber' | 'sunset'] || 'linear-gradient(90deg, #38bdf8, #2563eb)'
+                  }[newSpaceColor as string] || 'linear-gradient(90deg, #38bdf8, #2563eb)'
                 }}
               />
 
-              {/* Modal Body with Custom Scrollbar */}
-              <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar flex-1 relative z-10">
-                {/* ── Close Button ── */}
-                <button 
-                  type="button"
-                  onClick={() => setShowAddSpaceModal(false)} 
-                  className="absolute top-4 sm:top-5 right-4 sm:right-5 w-7 h-7 rounded-xl bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 dark:bg-white/[0.05] dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/[0.1] flex items-center justify-center transition-all cursor-pointer z-20"
-                  aria-label="Đóng cửa sổ"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-
+              {/* Modal Body */}
+              <div className="p-5 sm:p-6 flex-1 relative z-10">
                 <form onSubmit={handleAddSpace} className="space-y-4 relative z-10">
                   {/* ── Header ── */}
-                  <div className="flex items-center gap-3 pr-8">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-sky-400 text-white flex items-center justify-center shadow-xs shadow-sky-500/20 shrink-0">
-                      <Sparkles className="w-4 h-4" />
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div 
+                        className="w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-xs shrink-0 transition-all duration-300"
+                        style={{
+                          background: {
+                            indigo: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                            purple: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+                            sky: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
+                            emerald: 'linear-gradient(135deg, #10b981, #059669)',
+                            amber: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                            sunset: 'linear-gradient(135deg, #f97316, #ea580c)',
+                            rose: 'linear-gradient(135deg, #f43f5e, #e11d48)',
+                          }[newSpaceColor as string] || 'linear-gradient(135deg, #3b82f6, #1d4ed8)'
+                        }}
+                      >
+                        <FolderPlus className="w-4.5 h-4.5" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight truncate">
+                          {t('createSpace') || (locale === 'vi' ? 'Tạo Không gian mới' : 'Create Space')}
+                        </h3>
+                        <p className="text-[11px] font-medium text-slate-500 dark:text-zinc-400 mt-0.5 truncate">
+                          {locale === 'vi' ? 'Không gian làm việc cho dự án và đội nhóm' : 'Workspaces & team project hubs'}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
-                        {t('createSpace') || (locale === 'vi' ? 'Tạo Không gian mới' : 'Create Space')}
-                      </h3>
-                      <p className="text-[11px] font-medium text-slate-500 dark:text-zinc-400 mt-0.5">
-                        {locale === 'vi' ? 'Không gian làm việc & quản lý dự án' : 'Workspaces & team project hubs'}
-                      </p>
-                    </div>
-                  </div>
 
-                  {/* ── Template Presets (Compact Chips) ── */}
-                  <div className="space-y-1.5">
-                    <span className="text-[9.5px] font-black uppercase text-slate-400 dark:text-zinc-400 tracking-wider block">
-                      {t('spaceTemplateTitle') || (locale === 'vi' ? 'Mẫu gợi ý' : 'Quick Templates')}
-                    </span>
-                    <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
-                      {[
-                        { name: locale === 'vi' ? 'Phát triển phần mềm' : 'Software Development', icon: 'Laptop', color: 'indigo', desc: 'Sprint & Code', iconBg: 'bg-blue-500/15 text-blue-600 dark:text-sky-400' },
-                        { name: locale === 'vi' ? 'Marketing & Chiến dịch' : 'Marketing & Campaign', icon: 'Rocket', color: 'rose', desc: 'Content & Ads', iconBg: 'bg-rose-500/15 text-rose-600 dark:text-rose-400' },
-                        { name: locale === 'vi' ? 'Thiết kế UX/UI' : 'UX/UI Design', icon: 'Palette', color: 'sky', desc: 'Design System', iconBg: 'bg-sky-500/15 text-sky-600 dark:text-sky-300' },
-                        { name: locale === 'vi' ? 'Vận hành & HR' : 'Operations & HR', icon: 'Zap', color: 'emerald', desc: 'Tuyển dụng & Ops', iconBg: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' }
-                      ].map((tpl) => {
-                        const isActive = newSpaceName === tpl.name;
-                        return (
-                          <button
-                            key={tpl.name}
-                            type="button"
-                            onClick={() => {
-                              setNewSpaceName(tpl.name);
-                              setNewSpaceEmoji(tpl.icon);
-                              setNewSpaceColor(tpl.color);
-                              setNewSpaceDescription(tpl.desc);
-                            }}
-                            className={`group p-2 sm:p-2.5 rounded-xl border text-left transition-all duration-150 cursor-pointer flex items-center gap-2.5 ${
-                              isActive
-                                ? 'border-blue-500/60 bg-blue-50/80 text-blue-950 ring-1 ring-blue-500/25 dark:border-sky-500/50 dark:bg-sky-500/10 dark:text-white dark:ring-sky-500/20'
-                                : 'border-slate-200/80 bg-slate-50/70 hover:border-slate-300 hover:bg-slate-100/70 text-slate-700 dark:border-white/[0.08] dark:bg-white/[0.03] dark:hover:border-white/20 dark:hover:bg-white/[0.06] dark:text-zinc-300'
-                            }`}
-                          >
-                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${tpl.iconBg}`}>
-                              {(() => {
-                                const iconMap: Record<string, React.ReactNode> = {
-                                  'Laptop': <Database className="w-3.5 h-3.5" />,
-                                  'Rocket': <Zap className="w-3.5 h-3.5" />,
-                                  'Palette': <Sliders className="w-3.5 h-3.5" />,
-                                  'Zap': <Users className="w-3.5 h-3.5" />,
-                                };
-                                return iconMap[tpl.icon] || <Sparkles className="w-3.5 h-3.5" />;
-                              })()}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <span className="block text-[11px] font-bold text-slate-900 dark:text-white truncate leading-tight">{tpl.name}</span>
-                              <span className="block text-[9px] font-medium text-slate-500 dark:text-zinc-400 truncate mt-0.5">{tpl.desc}</span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setShowSpacePermissionMenu(false);
+                        setShowAddSpaceModal(false);
+                      }} 
+                      className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/[0.08] flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                      aria-label="Đóng cửa sổ"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
 
                   {/* ── Space Name & Identity Card ── */}
-                  <div className="p-3 rounded-2xl bg-slate-50/70 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08] space-y-3">
-                    <div className="flex items-center gap-3">
-                      {/* Icon Picker Trigger */}
-                      <div className="shrink-0">
-                        <EmojiIconPicker
-                          value={newSpaceEmoji || 'Package'}
-                          onChange={setNewSpaceEmoji}
-                        />
-                      </div>
+                  <div className="p-3.5 rounded-xl bg-slate-50/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08] space-y-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 dark:text-zinc-300 block mb-1.5">
+                        {t('spaceName') || (locale === 'vi' ? 'Tên Không gian' : 'Space Name')} <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="flex items-center gap-2">
+                        {/* Icon Picker Trigger */}
+                        <div className="shrink-0">
+                          <EmojiIconPicker
+                            value={newSpaceEmoji || 'Package'}
+                            onChange={setNewSpaceEmoji}
+                          />
+                        </div>
 
-                      {/* Space Name Input */}
-                      <div className="flex-1 min-w-0">
-                        <label className="text-[9.5px] font-black uppercase text-slate-500 dark:text-zinc-400 tracking-wider block mb-1">
-                          {t('spaceName') || (locale === 'vi' ? 'Tên Space' : 'Space Name')} *
-                        </label>
+                        {/* Space Name Input */}
                         <input 
                           type="text" 
                           required 
+                          autoFocus
                           value={newSpaceName} 
                           onChange={e => setNewSpaceName(e.target.value)} 
-                          placeholder={locale === 'vi' ? 'Ví dụ: Kỹ thuật, Marketing, HR...' : 'e.g. Engineering, Marketing, HR'} 
-                          className="w-full px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.04] focus:bg-white dark:focus:bg-black/50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-white outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
+                          placeholder={locale === 'vi' ? 'Ví dụ: Kỹ thuật, Marketing, HR, Vận hành...' : 'e.g. Engineering, Marketing, HR...'} 
+                          className="flex-1 min-w-0 h-10 px-3 text-xs font-bold rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.04] focus:bg-white dark:focus:bg-black/50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-white outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
                         />
                       </div>
                     </div>
@@ -7065,23 +7507,24 @@ export default function App() {
                         value={newSpaceDescription} 
                         onChange={e => setNewSpaceDescription(e.target.value)} 
                         placeholder={locale === 'vi' ? 'Mô tả ngắn về mục đích không gian này (không bắt buộc)...' : 'Brief description of this space (optional)...'} 
-                        className="w-full px-3 py-1.5 text-[11px] font-medium rounded-xl border border-slate-200/80 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] focus:bg-white dark:focus:bg-black/50 focus:border-blue-500 text-slate-800 dark:text-zinc-200 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-600"
+                        className="w-full h-8.5 px-3 text-[11px] font-medium rounded-xl border border-slate-200/80 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] focus:bg-white dark:focus:bg-black/50 focus:border-blue-500 text-slate-800 dark:text-zinc-200 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-600"
                       />
                     </div>
 
                     {/* Color Swatches */}
-                    <div className="flex items-center justify-between pt-1 border-t border-slate-200/70 dark:border-white/[0.06]">
-                      <span className="text-[9.5px] font-bold text-slate-500 dark:text-zinc-400">
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/70 dark:border-white/[0.06]">
+                      <span className="text-[11px] font-semibold text-slate-600 dark:text-zinc-400">
                         {locale === 'vi' ? 'Màu chủ đề' : 'Color theme'}
                       </span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         {[
-                          { key: 'indigo', hex: '#38bdf8', label: 'Sky Blue' },
-                          { key: 'rose', hex: '#f43f5e', label: 'Rose' },
+                          { key: 'indigo', hex: '#2563eb', label: 'Blue' },
+                          { key: 'purple', hex: '#8b5cf6', label: 'Purple' },
                           { key: 'sky', hex: '#0284c7', label: 'Ocean' },
                           { key: 'emerald', hex: '#10b981', label: 'Emerald' },
                           { key: 'amber', hex: '#f59e0b', label: 'Amber' },
-                          { key: 'sunset', hex: '#f97316', label: 'Orange' },
+                          { key: 'sunset', hex: '#ea580c', label: 'Orange' },
+                          { key: 'rose', hex: '#e11d48', label: 'Rose' },
                         ].map(col => (
                           <button
                             key={col.key}
@@ -7089,34 +7532,34 @@ export default function App() {
                             onClick={() => setNewSpaceColor(col.key)}
                             className={`w-5 h-5 rounded-full transition-all flex items-center justify-center cursor-pointer ${
                               newSpaceColor === col.key 
-                                ? 'ring-2 ring-blue-500 dark:ring-white ring-offset-2 ring-offset-white dark:ring-offset-[var(--sidebar-bg)] scale-110' 
-                                : 'opacity-60 hover:opacity-100 hover:scale-105'
+                                ? 'ring-2 ring-blue-500 dark:ring-white ring-offset-2 ring-offset-white dark:ring-offset-[#111216] scale-110' 
+                                : 'opacity-65 hover:opacity-100 hover:scale-105'
                             }`}
                             style={{ backgroundColor: col.hex }}
                             title={col.label}
                             aria-label={col.label}
                           >
-                            {newSpaceColor === col.key && <Check className="w-3 h-3 text-white stroke-[3px]" />}
+                            {newSpaceColor === col.key && <Check className="w-2.5 h-2.5 text-white stroke-[3.5]" />}
                           </button>
                         ))}
                       </div>
                     </div>
                   </div>
 
-                  {/* ── Settings: Permissions & Privacy ── */}
-                  <div className="space-y-1.5">
+                  {/* ── Settings: Permissions & Privacy (Unified Card) ── */}
+                  <div className="rounded-xl bg-slate-50/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08] divide-y divide-slate-200/70 dark:divide-white/[0.06]">
                     {/* Permission Row */}
-                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/70 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08]">
+                    <div className="relative z-20 flex items-center justify-between p-2.5 px-3 rounded-t-xl">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-7 h-7 rounded-lg bg-sky-500/15 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
                           <Users className="w-3.5 h-3.5" />
                         </div>
                         <div className="text-left min-w-0">
                           <span className="block text-[11.5px] font-bold text-slate-900 dark:text-zinc-100 leading-tight truncate">
-                            {t('defaultPermission') || (locale === 'vi' ? 'Quyền thành viên' : 'Default Permission')}
+                            {t('defaultPermission') || (locale === 'vi' ? 'Quyền thành viên mặc định' : 'Default Permission')}
                           </span>
                           <span className="block text-[9.5px] font-medium text-slate-500 dark:text-zinc-400 mt-0.5 truncate">
-                            {locale === 'vi' ? 'Quyền ban đầu cho thành viên' : 'Initial role for members'}
+                            {locale === 'vi' ? 'Quyền hạn khi thêm thành viên mới' : 'Initial role for members'}
                           </span>
                         </div>
                       </div>
@@ -7141,17 +7584,17 @@ export default function App() {
                             <>
                               <div className="fixed inset-0 z-40" onClick={() => setShowSpacePermissionMenu(false)} />
                               <motion.div
-                                initial={{ opacity: 0, y: -4, scale: 0.96 }}
+                                initial={{ opacity: 0, y: 4, scale: 0.96 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -4, scale: 0.96 }}
+                                exit={{ opacity: 0, y: 4, scale: 0.96 }}
                                 transition={{ duration: 0.12 }}
-                                className="absolute right-0 top-full mt-1.5 w-48 p-1 bg-white dark:bg-[#121217] border border-slate-200 dark:border-white/15 rounded-xl shadow-xl backdrop-blur-xl z-50 space-y-0.5 text-left"
+                                className="absolute right-0 bottom-full mb-1.5 w-52 p-1.5 bg-white dark:bg-[#16171d] border border-slate-200 dark:border-white/15 rounded-xl shadow-2xl backdrop-blur-xl z-50 space-y-0.5 text-left origin-bottom-right"
                               >
                                 {[
-                                  { value: 'Full edit', labelEn: 'Full edit', labelVi: 'Toàn quyền sửa', descEn: 'Full access', descVi: 'Toàn quyền quản lý' },
-                                  { value: 'Edit only', labelEn: 'Edit only', labelVi: 'Chỉ chỉnh sửa', descEn: 'Can edit content', descVi: 'Chỉnh sửa nội dung' },
-                                  { value: 'Read only', labelEn: 'Read only', labelVi: 'Chỉ xem', descEn: 'View-only', descVi: 'Chỉ xem' },
-                                  { value: 'Comment only', labelEn: 'Comment only', labelVi: 'Chỉ bình luận', descEn: 'Can comment', descVi: 'Bình luận' },
+                                  { value: 'Full edit', labelEn: 'Full edit', labelVi: 'Toàn quyền sửa', descEn: 'Full access to edit & manage', descVi: 'Toàn quyền chỉnh sửa & quản lý' },
+                                  { value: 'Edit only', labelEn: 'Edit only', labelVi: 'Chỉ chỉnh sửa', descEn: 'Can edit tasks & content', descVi: 'Chỉnh sửa task & nội dung' },
+                                  { value: 'Comment only', labelEn: 'Comment only', labelVi: 'Chỉ bình luận', descEn: 'Can comment & review', descVi: 'Bình luận & góp ý' },
+                                  { value: 'Read only', labelEn: 'Read only', labelVi: 'Chỉ xem', descEn: 'View-only access', descVi: 'Chỉ xem, không chỉnh sửa' },
                                 ].map((opt) => {
                                   const isSelected = newSpacePermission === opt.value;
                                   return (
@@ -7162,21 +7605,21 @@ export default function App() {
                                         setNewSpacePermission(opt.value);
                                         setShowSpacePermissionMenu(false);
                                       }}
-                                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-all cursor-pointer ${
+                                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-all cursor-pointer ${
                                         isSelected 
                                           ? 'bg-blue-50 text-blue-600 font-bold dark:bg-blue-600/20 dark:text-sky-400' 
                                           : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] text-slate-700 dark:text-zinc-300 font-medium'
                                       }`}
                                     >
                                       <div>
-                                        <div className="text-[11px] leading-tight">
+                                        <div className="text-[11.5px] leading-tight font-semibold">
                                           {locale === 'vi' ? opt.labelVi : opt.labelEn}
                                         </div>
-                                        <div className="text-[8.5px] text-slate-400 dark:text-zinc-400 mt-0.5">
+                                        <div className="text-[9px] text-slate-400 dark:text-zinc-400 mt-0.5">
                                           {locale === 'vi' ? opt.descVi : opt.descEn}
                                         </div>
                                       </div>
-                                      {isSelected && <Check className="w-3 h-3 text-blue-600 dark:text-sky-400 shrink-0 ml-2 stroke-[3]" />}
+                                      {isSelected && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 shrink-0 ml-2 stroke-[3]" />}
                                     </button>
                                   );
                                 })}
@@ -7188,7 +7631,7 @@ export default function App() {
                     </div>
 
                     {/* Private Toggle */}
-                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/70 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08]">
+                    <div className="relative z-10 flex items-center justify-between p-2.5 px-3 rounded-b-xl">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${newSpaceIsPrivate ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-slate-200/70 dark:bg-white/[0.06] text-slate-500 dark:text-zinc-400'}`}>
                           <Lock className="w-3.5 h-3.5" />
@@ -7222,22 +7665,35 @@ export default function App() {
                   </div>
 
                   {/* ── Footer Actions ── */}
-                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200/80 dark:border-white/10">
-                    <button 
-                      type="button" 
-                      onClick={() => setShowAddSpaceModal(false)}
-                      className="h-8.5 px-4 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/[0.06] transition-all cursor-pointer"
-                    >
-                      {t('cancel') || (locale === 'vi' ? 'Hủy' : 'Cancel')}
-                    </button>
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-200/80 dark:border-white/10">
+                    <div className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-zinc-500 font-medium select-none">
+                      <kbd className="inline-flex items-center justify-center h-4.5 px-1.5 text-[9.5px] font-mono font-semibold rounded bg-slate-100 dark:bg-white/[0.08] text-slate-500 dark:text-zinc-400 border border-slate-200/80 dark:border-white/10 shadow-xs">
+                        ↵
+                      </kbd>
+                      <span>{locale === 'vi' ? 'để tạo' : 'to create'}</span>
+                    </div>
                     
-                    <button 
-                      type="submit" 
-                      className="h-8.5 px-5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 shadow-md shadow-blue-500/25 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
-                    >
-                      <span>{t('createSpace') || (locale === 'vi' ? 'Tạo Space' : 'Create Space')}</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0 ml-auto">
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          setShowAddSpaceModal(false);
+                          setShowSpacePermissionMenu(false);
+                        }}
+                        className="h-8.5 px-3.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/[0.06] transition-all cursor-pointer"
+                      >
+                        {t('cancel') || (locale === 'vi' ? 'Hủy' : 'Cancel')}
+                      </button>
+                      
+                      <button 
+                        type="submit" 
+                        disabled={!newSpaceName.trim()}
+                        className="h-8.5 px-4 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-blue-500/25 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                      >
+                        <span>{t('createSpace') || (locale === 'vi' ? 'Tạo Không gian' : 'Create Space')}</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </form>
               </div>
@@ -7486,6 +7942,16 @@ export default function App() {
           setViewingMemberProfileId(memberId);
         }}
         onNavigateTab={(tab) => {
+          if (tab === 'miniapps') {
+            triggerToast(
+              'info',
+              locale === 'vi' ? 'Tính năng đang phát triển' : 'Feature Under Development',
+              locale === 'vi'
+                ? 'Kho ứng dụng (Mini Apps) hiện đang được phát triển và tạm thời bị vô hiệu hoá.'
+                : 'Mini Apps is currently under development and temporarily unavailable.'
+            );
+            return;
+          }
           setActiveTab(tab);
           if (tab === 'tasks') {
             setActiveSpaceId(null);

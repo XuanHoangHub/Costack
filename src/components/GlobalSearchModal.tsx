@@ -283,12 +283,12 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       name: '/apps',
       label: isVietnamese ? 'Kho ứng dụng Mini Apps' : 'Open Mini Apps Hub',
       shortLabel: isVietnamese ? 'Kho ứng dụng' : 'Mini Apps',
-      description: isVietnamese ? 'Duyệt và khởi chạy các ứng dụng tiện ích trong workspace' : 'Browse and launch workspace mini apps',
+      description: isVietnamese ? 'Tính năng đang được phát triển và tạm thời bị vô hiệu hoá' : 'Feature under development and temporarily unavailable',
       icon: Boxes,
-      badge: isVietnamese ? 'Ứng dụng' : 'Apps',
+      badge: isVietnamese ? 'Đang phát triển' : 'In Dev',
       action: () => {
         onNavigateTab('miniapps');
-        addSyncLog(isVietnamese ? 'Lệnh: Mở Kho ứng dụng' : 'Command: Opened Mini Apps');
+        addSyncLog(isVietnamese ? 'Lệnh: Mở Kho ứng dụng (Đang phát triển)' : 'Command: Opened Mini Apps (In Dev)');
       },
     },
     {
@@ -667,7 +667,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       <>
         {parts.map((part, i) =>
           part.toLowerCase() === cleanQ.toLowerCase() ? (
-            <mark key={i} className="bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-black rounded-xs px-0.5">
+            <mark key={i} className="bg-blue-500/15 text-blue-700 dark:text-sky-300 font-bold rounded-xs px-0.5">
               {part}
             </mark>
           ) : (
@@ -694,32 +694,32 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               onClose();
               setSearchQuery('');
             }}
-            className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs cursor-pointer"
+            className="absolute inset-0 modal-backdrop bg-black/30 dark:bg-black/70 backdrop-blur-xs cursor-pointer"
           />
 
-        {/* Modal Body (Raycast/Spotlight Island) */}
+        {/* Modal Body (Raycast / Linear Command Bar) */}
         <motion.div
           role="dialog"
           aria-modal="true"
           aria-labelledby="global-search-title"
-          initial={{ scale: 0.95, opacity: 0, y: -16 }}
+          initial={{ scale: 0.96, opacity: 0, y: -12 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.95, opacity: 0, y: -16 }}
-          transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-          className="relative bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl w-[min(95vw,672px)] max-sm:w-full max-sm:mx-2 overflow-hidden shadow-2xl flex flex-col max-h-[90dvh] z-10"
+          exit={{ scale: 0.96, opacity: 0, y: -12 }}
+          transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+          className="relative bg-white dark:bg-[#10121a] border border-slate-200/90 dark:border-white/[0.12] rounded-2xl w-[min(95vw,680px)] max-sm:w-full max-sm:mx-2 overflow-hidden shadow-[0_24px_64px_rgba(15,23,42,0.18)] dark:shadow-[0_28px_72px_rgba(0,0,0,0.85)] flex flex-col max-h-[88dvh] z-10"
         >
           <h2 id="global-search-title" className="sr-only">
             {isVietnamese ? 'Tìm kiếm toàn cục Apexa' : 'Apexa Global Search'}
           </h2>
 
           {/* Search Input Bar */}
-          <div className="px-5 py-4 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-3 bg-slate-50/50 dark:bg-zinc-900 focus-within:border-indigo-500/60 transition-colors">
+          <div className="px-4 py-3 border-b border-slate-200/80 dark:border-white/[0.08] flex items-center justify-between gap-3 bg-white dark:bg-[#10121a] focus-within:border-blue-500/60 transition-colors">
             {isCommandMode ? (
-              <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-200/60 dark:border-purple-800/40">
                 <Terminal className="w-4 h-4 animate-pulse" />
               </div>
             ) : (
-              <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-sky-400 flex items-center justify-center shrink-0 border border-blue-200/60 dark:border-blue-800/40">
                 <Search className="w-4 h-4" />
               </div>
             )}
@@ -746,14 +746,14 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                   setSearchCategory('all');
                 }
               }}
-              className="w-full bg-transparent text-slate-800 dark:text-slate-100 placeholder-slate-400 font-sans text-[13.5px] font-semibold focus:outline-none"
+              className="w-full bg-transparent text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-zinc-500 font-sans text-[13.5px] font-semibold focus:outline-none"
             />
 
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-3 min-h-[44px] rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-2.5 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/[0.06] cursor-pointer transition-colors"
               >
                 {isVietnamese ? 'Xóa' : 'Clear'}
               </button>
@@ -766,22 +766,22 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 onClose();
                 setSearchQuery('');
               }}
-              className="p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              className="h-7 w-7 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-white/[0.06] hover:bg-slate-200 dark:hover:bg-white/[0.1] text-slate-400 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer border border-slate-200/60 dark:border-white/10"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
 
           {/* Category Filter Pills (When search query exists or in command mode) */}
           {(searchQuery.trim() !== '' || isCommandMode) && (
-            <div className="px-5 py-2 bg-slate-50/70 dark:bg-slate-950/40 border-b border-slate-200/50 dark:border-slate-800/50 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0 min-h-[52px]">
+            <div className="px-4 py-2 bg-slate-50/70 dark:bg-white/[0.02] border-b border-slate-200/60 dark:border-white/[0.06] flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0 min-h-[44px]">
               <button
                 onClick={() => setSearchCategory('all')}
                 type="button"
-                className={`px-3 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer text-nowrap select-none flex items-center gap-1 ${
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1 ${
                   searchCategory === 'all'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/50 dark:border-slate-700/50'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'bg-white dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
                 }`}
               >
                 {isVietnamese ? 'Tất cả' : 'All'} ({totalResultsCount})
@@ -789,10 +789,10 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               <button
                 onClick={() => setSearchCategory('tasks')}
                 type="button"
-                className={`px-3 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
                   searchCategory === 'tasks'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/50 dark:border-slate-700/50'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'bg-white dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
                 }`}
               >
                 <Briefcase className="w-3 h-3 shrink-0" />
@@ -801,10 +801,10 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               <button
                 onClick={() => setSearchCategory('docs')}
                 type="button"
-                className={`px-3 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
                   searchCategory === 'docs'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/50 dark:border-slate-700/50'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'bg-white dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
                 }`}
               >
                 <FileText className="w-3 h-3 shrink-0" />
@@ -813,10 +813,10 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               <button
                 onClick={() => setSearchCategory('spaces')}
                 type="button"
-                className={`px-3 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
                   searchCategory === 'spaces'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/50 dark:border-slate-700/50'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'bg-white dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
                 }`}
               >
                 <Layers3 className="w-3 h-3 shrink-0" />
@@ -825,10 +825,10 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               <button
                 onClick={() => setSearchCategory('channels')}
                 type="button"
-                className={`px-3 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
                   searchCategory === 'channels'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/50 dark:border-slate-700/50'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'bg-white dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
                 }`}
               >
                 <Hash className="w-3 h-3 shrink-0" />
@@ -837,10 +837,10 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               <button
                 onClick={() => setSearchCategory('members')}
                 type="button"
-                className={`px-3 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
                   searchCategory === 'members'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/50 dark:border-slate-700/50'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'bg-white dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
                 }`}
               >
                 <UserIcon className="w-3 h-3 shrink-0" />
@@ -849,10 +849,10 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               <button
                 onClick={() => setSearchCategory('commands')}
                 type="button"
-                className={`px-3 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
                   searchCategory === 'commands'
-                    ? 'bg-purple-600 text-white shadow-xs'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/50 dark:border-slate-700/50'
+                    ? 'bg-purple-600 text-white shadow-2xs'
+                    : 'bg-white dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
                 }`}
               >
                 <Terminal className="w-3 h-3 shrink-0" />
@@ -1371,33 +1371,33 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           </div>
 
           {/* Footer Guide */}
-          <div className="px-5 py-3 border-t border-slate-200/60 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/50 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 dark:text-slate-500 shrink-0 select-none">
+          <div className="px-4 py-2.5 border-t border-slate-200/80 dark:border-white/[0.08] bg-slate-50/80 dark:bg-[#0c0d12]/90 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-zinc-400 shrink-0 select-none">
             <div className="flex items-center gap-2.5 text-[11px]">
               <span className="flex items-center gap-1.5">
-                <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 font-mono text-[10px] text-slate-600 dark:text-slate-300 font-bold shadow-2xs">↑↓</kbd>
+                <kbd className="px-1.5 py-0.5 rounded-md bg-white dark:bg-white/[0.08] border border-slate-200/90 dark:border-white/10 font-mono text-[9.5px] text-slate-700 dark:text-zinc-200 font-bold shadow-2xs">↑↓</kbd>
                 <span>{isVietnamese ? 'Điều hướng' : 'Navigate'}</span>
               </span>
-              <span className="text-slate-300 dark:text-slate-700">•</span>
+              <span className="text-slate-300 dark:text-zinc-700">•</span>
               <span className="flex items-center gap-1.5">
-                <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 font-mono text-[10px] text-slate-600 dark:text-slate-300 font-bold shadow-2xs">↵</kbd>
-                <span>{isVietnamese ? 'Mở chọn' : 'Open'}</span>
+                <kbd className="px-1.5 py-0.5 rounded-md bg-white dark:bg-white/[0.08] border border-slate-200/90 dark:border-white/10 font-mono text-[9.5px] text-slate-700 dark:text-zinc-200 font-bold shadow-2xs">↵</kbd>
+                <span>{isVietnamese ? 'Chọn' : 'Open'}</span>
               </span>
-              <span className="text-slate-300 dark:text-slate-700">•</span>
+              <span className="text-slate-300 dark:text-zinc-700">•</span>
               <span className="flex items-center gap-1.5">
-                <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 font-mono text-[10px] text-slate-600 dark:text-slate-300 font-bold shadow-2xs">Tab</kbd>
+                <kbd className="px-1.5 py-0.5 rounded-md bg-white dark:bg-white/[0.08] border border-slate-200/90 dark:border-white/10 font-mono text-[9.5px] text-slate-700 dark:text-zinc-200 font-bold shadow-2xs">Tab</kbd>
                 <span>{isVietnamese ? 'Danh mục' : 'Category'}</span>
               </span>
-              <span className="text-slate-300 dark:text-slate-700">•</span>
+              <span className="text-slate-300 dark:text-zinc-700">•</span>
               <span className="flex items-center gap-1.5">
-                <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 font-mono text-[10px] text-slate-600 dark:text-slate-300 font-bold shadow-2xs">Esc</kbd>
-                <span>{isVietnamese ? 'Thoát' : 'Exit'}</span>
+                <kbd className="px-1.5 py-0.5 rounded-md bg-white dark:bg-white/[0.08] border border-slate-200/90 dark:border-white/10 font-mono text-[9.5px] text-slate-700 dark:text-zinc-200 font-bold shadow-2xs">Esc</kbd>
+                <span>{isVietnamese ? 'Đóng' : 'Exit'}</span>
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-zinc-400">
               <span>{isVietnamese ? 'Gõ' : 'Type'}</span>
-              <kbd className="px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-950/80 border border-purple-200 dark:border-purple-850 font-mono text-[10px] text-purple-600 dark:text-purple-400 font-bold shadow-2xs">/</kbd>
-              <span>{isVietnamese ? 'để dùng lệnh hệ thống' : 'for system commands'}</span>
+              <kbd className="px-1.5 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/60 border border-purple-200/80 dark:border-purple-800/60 font-mono text-[9.5px] text-purple-600 dark:text-purple-400 font-bold shadow-2xs">/</kbd>
+              <span>{isVietnamese ? 'lệnh hệ thống' : 'for commands'}</span>
             </div>
           </div>
         </motion.div>

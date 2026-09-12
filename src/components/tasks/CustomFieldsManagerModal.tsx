@@ -1,5 +1,8 @@
 "use client";
 
+import { validateFieldDefinition, migrateTaskCustomField, isEmptyFieldValue } from "@/lib/customFields";
+import { getStoredColumnNames, saveColumnNames, saveStatuses, savePriorities, getStoredStatuses, getStoredPriorities } from "@/utils/fieldConfig";
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { 
@@ -227,6 +230,7 @@ export default function CustomFieldsManagerModal({
         name: prop.label,
         type: prop.type,
         isStandard: true,
+        options: prop.key === 'status' ? getStoredStatuses() : prop.key === 'priority' ? getStoredPriorities() : undefined,
         isNew: false
       });
     } else {
@@ -248,6 +252,7 @@ export default function CustomFieldsManagerModal({
           numberMin: cf.numberMin,
           numberMax: cf.numberMax,
           numberPrecision: cf.numberPrecision,
+          numberUnit: cf.numberUnit,
           dateFormat: cf.dateFormat,
           includeTime: cf.includeTime,
           defaultToToday: cf.defaultToToday,
@@ -264,135 +269,37 @@ export default function CustomFieldsManagerModal({
 
   // Save changes from FieldSettingsModal
   const handleSaveFieldFromModal = (updated: any) => {
-    if (!editingFieldConfig) return;
-
-    if (editingFieldConfig.isNew) {
-      const cleanName = updated.name.trim();
-      if (customFields.some(f => f.name.toLowerCase() === cleanName.toLowerCase())) {
-        triggerToast?.('warning', isVi ? 'Tên trường đã tồn tại' : 'Field name exists', isVi ? `Hãy chọn tên khác cho “${cleanName}”.` : `Please pick another name for "${cleanName}".`);
-        return;
-      }
-
-      const newField = {
-        id: editingFieldConfig.id || `cf-${Date.now()}`,
-        name: cleanName,
-        type: updated.type,
-        options: updated.options,
-        placeholder: updated.placeholder,
-        description: updated.description,
-        isRequired: updated.isRequired,
-        currencySymbol: updated.currencySymbol,
-        currencyPosition: updated.currencyPosition,
-        numberFormat: updated.numberFormat,
-        numberMin: updated.numberMin,
-        numberMax: updated.numberMax,
-        numberPrecision: updated.numberPrecision,
-        numberUnit: updated.numberUnit,
-        dateFormat: updated.dateFormat,
-        includeTime: updated.includeTime,
-        defaultToToday: updated.defaultToToday,
-        ratingMax: updated.ratingMax,
-        ratingIcon: updated.ratingIcon,
-        checkboxLabel: updated.checkboxLabel,
-        progressMax: updated.progressMax,
-        allowMultiple: updated.allowMultiple,
-        defaultValue: updated.defaultValue
-      };
-
-      const updatedCustomFields = [...customFields, newField];
-      setCustomFields(updatedCustomFields);
-      setVisibleFields([...visibleFields, cleanName]);
-
-      if (onSaveSpaces && spaces && activeSpace) {
-        const updatedSpace = {
-          ...activeSpace,
-          customFields: updatedCustomFields
-        };
-        onSaveSpaces(spaces.map(s => s.id === activeSpace.id ? updatedSpace : s));
-      }
-
-      tasks.forEach(t => {
-        onUpdateTask({
-          ...t,
-          custom_fields: {
-            ...(t.custom_fields || {}),
-            [cleanName]: updated.defaultValue !== undefined ? updated.defaultValue : ''
-          }
-        });
-      });
-
-      triggerToast?.('success', isVi ? 'Tạo trường thành công' : 'Field Created', isVi ? `Trường “${cleanName}” đã được thêm vào Không gian.` : `Field "${cleanName}" has been added.`);
-      setActiveTab('manage');
+    if (!editingFieldConfig) return false;
+    if (editingFieldConfig.isStandard) {
+      saveColumnNames({ ...getStoredColumnNames(), [editingFieldConfig.id]: updated.name });
+      if (editingFieldConfig.id === 'status' && updated.options) saveStatuses(updated.options);
+      if (editingFieldConfig.id === 'priority' && updated.options) savePriorities(updated.options);
     } else {
-      const oldName = editingFieldConfig.name;
-      const newName = updated.name.trim();
-
-      const updatedCustomFields = customFields.map(cf => {
-        if (cf.name === oldName || cf.id === editingFieldConfig.id) {
-          return {
-            ...cf,
-            name: newName,
-            type: updated.type,
-            options: updated.options,
-            placeholder: updated.placeholder,
-            description: updated.description,
-            isRequired: updated.isRequired,
-            currencySymbol: updated.currencySymbol,
-            currencyPosition: updated.currencyPosition,
-            numberFormat: updated.numberFormat,
-            numberMin: updated.numberMin,
-            numberMax: updated.numberMax,
-            numberPrecision: updated.numberPrecision,
-            numberUnit: updated.numberUnit,
-            dateFormat: updated.dateFormat,
-            includeTime: updated.includeTime,
-            defaultToToday: updated.defaultToToday,
-            ratingMax: updated.ratingMax,
-            ratingIcon: updated.ratingIcon,
-            checkboxLabel: updated.checkboxLabel,
-            progressMax: updated.progressMax,
-            allowMultiple: updated.allowMultiple,
-            defaultValue: updated.defaultValue
-          };
-        }
-        return cf;
-      });
-
-      setCustomFields(updatedCustomFields);
-
-      if (oldName !== newName) {
-        setVisibleFields(visibleFields.map(f => f === oldName ? newName : f));
-
-        tasks.forEach(t => {
-          if (t.custom_fields && oldName in t.custom_fields) {
-            const { [oldName]: oldVal, ...rest } = t.custom_fields;
-            onUpdateTask({
-              ...t,
-              custom_fields: {
-                ...rest,
-                [newName]: oldVal
-              }
-            });
-          }
+      const previous = customFields.find(field => field.id === editingFieldConfig.id);
+      const field = { ...previous, ...updated, id: editingFieldConfig.id, name: updated.name.trim() };
+      const message = validateFieldDefinition(field, customFields, locale);
+      if (message) {
+        triggerToast?.('warning', isVi ? 'Không thể lưu trường' : 'Cannot save field', message);
+        return false;
+      }
+      const next = editingFieldConfig.isNew ? [...customFields, field] : customFields.map(item => item.id === field.id ? field : item);
+      setCustomFields(next);
+      if (onSaveSpaces && activeSpace) onSaveSpaces(spaces.map(space => space.id === activeSpace.id ? { ...space, customFields: next } : space));
+      if (editingFieldConfig.isNew) {
+        setVisibleFields([...new Set([...visibleFields, field.name])]);
+      } else if (previous) {
+        setVisibleFields(visibleFields.map(name => name === previous.name ? field.name : name));
+        tasks.forEach(task => {
+          const nextTask = migrateTaskCustomField(task, activeSpace.id, previous, field);
+          if (nextTask !== task) onUpdateTask(nextTask);
         });
       }
-
-      if (onSaveSpaces && spaces && activeSpace) {
-        const updatedSpace = {
-          ...activeSpace,
-          customFields: updatedCustomFields
-        };
-        onSaveSpaces(spaces.map(s => s.id === activeSpace.id ? updatedSpace : s));
-      }
-
-      triggerToast?.('success', isVi ? 'Cập nhật thành công' : 'Updated Field', isVi ? `Cấu hình trường “${newName}” đã được lưu.` : `Configuration for "${newName}" saved.`);
     }
-
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('apexa-field-config-changed'));
-    }
-
+    window.dispatchEvent(new Event('apexa-field-config-changed'));
+    triggerToast?.('success', isVi ? 'Đã lưu trường dữ liệu' : 'Field saved', updated.name);
+    setActiveTab('manage');
     setEditingFieldConfig(null);
+    return true;
   };
 
   // Reorder custom fields
@@ -499,6 +406,9 @@ export default function CustomFieldsManagerModal({
 
         {/* Centered Modal Window */}
         <div 
+          role="dialog"
+          aria-modal="true"
+          aria-label={isVi ? 'Quản lý trường dữ liệu' : 'Manage custom fields'}
           className="relative w-full max-w-4xl max-h-[88vh] bg-white dark:bg-[#13151b] border border-slate-200/90 dark:border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-200"
           style={{
             boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05)'
@@ -647,6 +557,10 @@ export default function CustomFieldsManagerModal({
                       return (
                         <div
                           key={fc.id}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`${isVi ? 'Tạo trường' : 'Create field'} ${isVi ? fc.label : fc.labelEn}`}
+                          onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); handleOpenCreateStudio(fc); } }}
                           onClick={() => handleOpenCreateStudio(fc)}
                           className="p-4 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[#181b24] hover:border-indigo-400 dark:hover:border-blue-500/60 hover:shadow-lg hover:shadow-indigo-500/5 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group flex flex-col justify-between"
                         >
@@ -665,15 +579,15 @@ export default function CustomFieldsManagerModal({
 
                             {/* Title & Desc */}
                             <h3 className="text-xs font-black text-slate-850 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-blue-400 transition-colors">
-                              {fc.label}
+                              {isVi ? fc.label : fc.labelEn}
                             </h3>
                             <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed line-clamp-2">
-                              {fc.desc}
+                              {isVi ? fc.desc : fc.labelEn}
                             </p>
                           </div>
 
                           {/* Feature tags */}
-                          {meta?.tags && (
+                          {isVi && meta?.tags && (
                             <div className="flex flex-wrap gap-1 mt-3 pt-2.5 border-t border-slate-100 dark:border-white/[0.04]">
                               {meta.tags.slice(0, 3).map((tag, idx) => (
                                 <span 
@@ -775,7 +689,10 @@ export default function CustomFieldsManagerModal({
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {customPropertiesOnly.map((prop, index) => {
+                      {customPropertiesOnly.map((prop) => {
+                        const index = customFields.findIndex(field => field.id === prop.rawConfig?.id);
+                        const scoped = tasks.filter(task => task.spaceId === activeSpace?.id && !task.deletedAt);
+                        const filled = scoped.filter(task => !isEmptyFieldValue(task.custom_fields?.[prop.key])).length;
                         const IconComponent = prop.icon || Tag;
                         const isVisible = visibleFields.includes(prop.key);
                         return (
@@ -802,7 +719,7 @@ export default function CustomFieldsManagerModal({
                                 <button
                                   type="button"
                                   onClick={() => handleMoveField(index, 'down')}
-                                  disabled={index === customPropertiesOnly.length - 1}
+                                  disabled={index === customFields.length - 1}
                                   className="p-0.5 text-slate-400 hover:text-slate-800 dark:hover:text-white disabled:opacity-20 cursor-pointer"
                                   title={isVi ? 'Chuyển xuống' : 'Move down'}
                                 >
@@ -828,6 +745,9 @@ export default function CustomFieldsManagerModal({
                                     </span>
                                   )}
                                 </div>
+                                <p className="mt-0.5 text-[10px] text-slate-400">
+                                  {filled}/{scoped.length} {isVi ? 'Task đã điền' : 'tasks filled'}{prop.rawConfig?.isRequired ? (isVi ? ' · Bắt buộc khi hoàn thành' : ' · Required to complete') : ''}
+                                </p>
                                 {prop.rawConfig?.description && (
                                   <p className="text-[10px] text-slate-400 truncate mt-0.5">
                                     {prop.rawConfig.description}
@@ -863,6 +783,7 @@ export default function CustomFieldsManagerModal({
                               <label className="relative inline-flex items-center cursor-pointer">
                                 <input 
                                   type="checkbox" 
+                                  aria-label={`${isVi ? 'Hiển thị trường' : 'Show field'} ${prop.label}`}
                                   checked={isVisible}
                                   onChange={() => toggleFieldVisibility(prop.key)}
                                   className="sr-only peer" 
@@ -984,6 +905,7 @@ export default function CustomFieldsManagerModal({
         {/* Field Settings Studio Sub-modal */}
         {editingFieldConfig && (
           <FieldSettingsModal
+            existingFields={customFields}
             config={editingFieldConfig}
             onClose={() => setEditingFieldConfig(null)}
             onSave={handleSaveFieldFromModal}
