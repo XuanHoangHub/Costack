@@ -5222,28 +5222,9 @@ export default function App() {
           )}
         </div>
 
-        {/* Row 5: Sidebar Bottom Status & Integrated User Profile Dock */}
-        {isMainSidebarCollapsed ? (
-          <div className="shrink-0 py-2.5 flex flex-col items-center gap-2 w-full border-t border-slate-200/80 dark:border-white/[0.08]">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('settings');
-                setActiveSettingsTab('profile');
-              }}
-              className="relative group cursor-pointer"
-              title={currentUser?.name || currentUser?.email || 'User Profile'}
-            >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-sky-400 text-white font-bold text-xs flex items-center justify-center shadow-xs overflow-hidden">
-                {currentUser?.avatar ? (
-                  <img src={currentUser.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                ) : (
-                  (currentUser?.name?.[0] || currentUser?.email?.[0] || 'U').toUpperCase()
-                )}
-              </div>
-              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-[#0c0d12]" />
-            </button>
-
+        {/* Row 5: Sidebar Bottom Collapse/Expand Controls */}
+        {isMainSidebarCollapsed && (
+          <div className="shrink-0 py-2.5 flex items-center justify-center w-full border-t border-slate-200/80 dark:border-white/[0.08]">
             <button
               type="button"
               onClick={() => {
@@ -5256,58 +5237,6 @@ export default function App() {
             >
               <ChevronsRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
             </button>
-          </div>
-        ) : (
-          <div className="shrink-0 p-2 border-t border-slate-200/80 dark:border-white/[0.08] bg-slate-50/40 dark:bg-white/[0.02]">
-            <div className="flex items-center justify-between gap-2 p-1.5 rounded-xl hover:bg-slate-100/80 dark:hover:bg-white/[0.05] transition-all group">
-              {/* User Identity Pill */}
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('settings');
-                  setActiveSettingsTab('profile');
-                }}
-                className="flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer"
-              >
-                <div className="relative shrink-0">
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-sky-400 text-white font-bold text-[11px] flex items-center justify-center shadow-xs overflow-hidden">
-                    {currentUser?.avatar ? (
-                      <img src={currentUser.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                    ) : (
-                      (currentUser?.name?.[0] || currentUser?.email?.[0] || 'U').toUpperCase()
-                    )}
-                  </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-[#0c0d12]" />
-                </div>
-                <div className="min-w-0 flex-1 leading-tight">
-                  <div className="flex items-center gap-1.5">
-                    <span className="truncate text-xs font-semibold text-slate-800 dark:text-zinc-200 group-hover:text-slate-950 dark:group-hover:text-white">
-                      {currentUser?.name || currentUser?.email?.split('@')[0] || 'User'}
-                    </span>
-                    <span className={`shrink-0 text-[8.5px] font-black uppercase px-1.5 py-0.2 rounded border ${
-                      currentUser?.isPremium 
-                        ? 'bg-amber-500/15 text-amber-500 border-amber-500/30 dark:bg-amber-400/20 dark:text-amber-300 dark:border-amber-400/30' 
-                        : 'bg-slate-100 text-slate-500 border-slate-200/60 dark:bg-white/[0.06] dark:text-zinc-400 dark:border-white/10'
-                    }`}>
-                      {currentUser?.isPremium ? 'PRO' : 'FREE'}
-                    </span>
-                  </div>
-                  <span className="truncate text-[10px] text-slate-400 dark:text-zinc-500 block">
-                    {currentUser?.email || 'workspace member'}
-                  </span>
-                </div>
-              </button>
-
-              {/* Quick Shortcuts Trigger */}
-              <button
-                type="button"
-                onClick={() => setShowKeyboardShortcuts(true)}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 dark:text-zinc-500 dark:hover:text-zinc-200 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
-                title={locale === 'vi' ? 'Xem bảng phím tắt (?)' : 'Keyboard shortcuts (?)'}
-              >
-                <Keyboard className="w-3.5 h-3.5" />
-              </button>
-            </div>
           </div>
         )}
 
