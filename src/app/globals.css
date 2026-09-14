@@ -238,7 +238,7 @@
 }
 
 .dark {
-  /* ── Apexa Atmospheric Dark System (Apple macOS / Linear / Raycast Standard) ── */
+  /* ── Apexa Atmospheric Deep Dark System (Linear / Raycast / Apple Obsidian Standard) ── */
   --cu-primary: #3B82F6;
   --cu-primary-hover: #60A5FA;
   --cu-primary-light: rgba(59, 130, 246, 0.15);
@@ -247,28 +247,28 @@
   --cu-accent-subtle: rgba(56, 189, 248, 0.12);
 
   /* Atmospheric Obsidian & Ergonomic Layer Surfaces */
-  --cu-bg: #09090b;
-  --cu-bg-subtle: #0d0e12;
-  --cu-surface: #121318;
-  --cu-surface-2: #181920;
-  --cu-surface-3: #22232c;
-  --cu-border: rgba(255, 255, 255, 0.08);
-  --cu-border-strong: rgba(255, 255, 255, 0.14);
+  --cu-bg: #08090c;
+  --cu-bg-subtle: #0c0d12;
+  --cu-surface: #111218;
+  --cu-surface-2: #161822;
+  --cu-surface-3: #1c1e2a;
+  --cu-border: rgba(255, 255, 255, 0.07);
+  --cu-border-strong: rgba(255, 255, 255, 0.13);
 
   /* Unified Sidebar & Navigation System */
-  --sidebar-bg: #0c0d12;
-  --sidebar-surface: #121318;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-text: #f4f4f5;
+  --sidebar-bg: #0b0c10;
+  --sidebar-surface: #111218;
+  --sidebar-border: rgba(255, 255, 255, 0.07);
+  --sidebar-text: #f4f4f6;
   --sidebar-muted: #71717a;
   --sidebar-signal: #3B82F6;
 
   /* High Legibility WCAG AA+ Typography (No harsh glare, high contrast) */
-  --cu-text-primary: #f4f4f5;
+  --cu-text-primary: #f4f4f6;
   --cu-text-secondary: #a1a1aa;
   --cu-text-muted: #71717a;
   --cu-text-tertiary: #52525b;
-  --cu-text-inverse: #09090b;
+  --cu-text-inverse: #08090c;
 
   --cu-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
   --cu-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.55);
@@ -278,20 +278,21 @@
 
   /* Harmonious Slate Palette for Tailwind classes in Dark Mode (Modern Deep Dark) */
   --slate-50: #fafafa;
-  --slate-100: #f4f4f5;
+  --slate-100: #f4f4f6;
   --slate-200: #e4e4e7;
   --slate-300: #d4d4d8;
   --slate-400: #a1a1aa;
   --slate-500: #71717a;
   --slate-600: #52525b;
   --slate-700: #3f3f46;
-  --slate-800: #181920;
-  --slate-900: #121318;
-  --slate-950: #09090b;
+  --slate-800: #161822;
+  --slate-850: #111218;
+  --slate-900: #111218;
+  --slate-950: #08090c;
 
   --slate-55: #fafafa;
-  --slate-101: #f4f4f5;
-  --slate-105: #f4f4f5;
+  --slate-101: #f4f4f6;
+  --slate-105: #f4f4f6;
   --slate-150: #e4e4e7;
   --slate-202: #e4e4e7;
   --slate-205: #e4e4e7;
@@ -311,14 +312,14 @@
   --slate-650: #3f3f46;
   --slate-655: #3f3f46;
   --slate-705: #27272a;
-  --slate-750: #181920;
-  --slate-755: #181920;
-  --slate-805: #15161c;
-  --slate-808: #15161c;
-  --slate-850: #121318;
-  --slate-855: #121318;
-  --slate-905: #0e0f14;
-  --slate-955: #09090b;
+  --slate-750: #161822;
+  --slate-755: #161822;
+  --slate-805: #14151d;
+  --slate-808: #14151d;
+  --slate-850: #111218;
+  --slate-855: #111218;
+  --slate-905: #0b0c10;
+  --slate-955: #08090c;
 
   /* Apexa Core Theme Color Gradients */
   --apexa-primary: #3B82F6;
@@ -2536,7 +2537,7 @@ input[type="checkbox"]:not(.sr-only):disabled {
 
 .apexa-space-view-tab {
   min-height: 38px;
-  border-radius: 9px;
+  border-radius: 8px;
   color: var(--space-muted) !important;
 }
 
@@ -2550,25 +2551,18 @@ input[type="checkbox"]:not(.sr-only):disabled {
 }
 
 .apexa-space-tab-active {
-  border-radius: 9px;
+  border-radius: 8px;
   background: var(--space-accent-soft);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--space-accent) 16%, transparent);
 }
 
 .apexa-space-tab-active::after {
-  content: "";
-  position: absolute;
-  left: 24%;
-  right: 24%;
-  bottom: -1px;
-  height: 2px;
-  border-radius: 999px 999px 0 0;
-  background: var(--space-accent);
+  display: none;
 }
 
 .apexa-space-add-view {
   min-height: 34px;
-  border-radius: 9px;
+  border-radius: 8px;
 }
 
 .apexa-space-filterbar {
@@ -2803,7 +2797,7 @@ input[type="checkbox"]:not(.sr-only):disabled {
   min-height: 38px;
   padding: 3px !important;
   border: 1px solid var(--space-border) !important;
-  border-radius: 12px !important;
+  border-radius: 10px !important;
   background: color-mix(in srgb, var(--space-canvas) 82%, var(--space-surface)) !important;
   box-shadow: inset 0 1px rgba(255,255,255,.62) !important;
 }
@@ -2814,7 +2808,7 @@ input[type="checkbox"]:not(.sr-only):disabled {
 
 .apexa-space-view-tab {
   min-height: 30px;
-  border-radius: 9px;
+  border-radius: 7px;
 }
 
 .apexa-space-view-tab:has(.apexa-space-tab-active) {
@@ -2824,7 +2818,8 @@ input[type="checkbox"]:not(.sr-only):disabled {
 .apexa-space-tab-active {
   background: var(--space-surface) !important;
   border-color: var(--space-border-strong) !important;
-  box-shadow: 0 5px 16px -12px rgba(23,24,43,.7), inset 0 -2px var(--space-blue) !important;
+  border-radius: 7px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04) !important;
 }
 
 .apexa-space-tab-active::after {

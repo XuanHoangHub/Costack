@@ -320,7 +320,7 @@ export default function FieldSettingsModal({
     <Portal>
       <div className="fixed inset-0 z-[400] flex items-center justify-center p-3 sm:p-4 font-sans select-none">
         <div 
-          className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs transition-opacity cursor-pointer" 
+          className="absolute inset-0 bg-black/40 dark:bg-black/65 transition-opacity cursor-pointer" 
           onClick={onClose} 
         />
         
@@ -329,11 +329,11 @@ export default function FieldSettingsModal({
           aria-modal="true"
           aria-label={isVietnamese ? 'Cài đặt trường dữ liệu' : 'Field settings'}
           onSubmit={handleSave} 
-          className="relative w-full max-w-[620px] max-h-[92vh] bg-white dark:bg-[#181818] border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-2xl flex flex-col z-10 text-xs overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+          className="relative w-full max-w-[620px] max-h-[92vh] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl flex flex-col z-10 text-xs overflow-hidden animate-in fade-in zoom-in-95 duration-150"
         >
-          <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 shrink-0">
+          <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-850 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-slate-300 flex items-center justify-center">
                 <CurrentTypeIcon className="w-4 h-4" />
               </div>
               <div>

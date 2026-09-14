@@ -17,7 +17,8 @@ import {
   Sparkles, Pin, Hash, MoreHorizontal, ChevronRight, ChevronLeft,
   FileText, GanttChart, Cog, Users, Brain, Map as MapIcon,
   Pencil, Link as LinkIcon, Lock, Shield, Star, Copy, Trash2,
-  Download, ArrowLeft, ArrowRight, Search, Check, Layers, SlidersHorizontal, Activity, User as UserIcon
+  Download, ArrowLeft, ArrowRight, Search, Check, Layers, SlidersHorizontal, Activity, User as UserIcon,
+  LayoutDashboard, Palette, BarChart3, ListTodo, Table2
 } from 'lucide-react';
 import { User, Space } from '../types';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -86,15 +87,15 @@ export const DEFAULT_VIEW_SETTINGS: ViewTabSettings = {
 
 export const VIEW_ICON_MAP: Record<string, React.ElementType> = {
   channel: Hash,
-  overview: FileText,
-  list: List,
+  overview: LayoutDashboard,
+  list: ListTodo,
   board: Kanban,
   doc: FileText,
   calendar: Calendar,
-  table: Table,
+  table: Table2,
   gantt: GanttChart,
-  whiteboard: Sparkles,
-  dashboard: SlidersHorizontal,
+  whiteboard: Palette,
+  dashboard: BarChart3,
   timeline: Clock,
   activity: Activity,
   workload: Users,
@@ -110,9 +111,9 @@ export const ALL_AVAILABLE_VIEWS = [
     id: 'overview',
     label: 'Tổng quan',
     desc: 'Tổng hợp tiến độ, thống kê và tóm tắt AI',
-    icon: FileText,
-    color: '#4f46e5',
-    bg: 'rgba(79, 70, 229, 0.1)',
+    icon: LayoutDashboard,
+    color: '#6366f1',
+    bg: 'rgba(99, 102, 241, 0.1)',
     category: 'core',
     isPro: false,
   },
@@ -120,7 +121,7 @@ export const ALL_AVAILABLE_VIEWS = [
     id: 'list',
     label: 'Danh sách',
     desc: 'Theo dõi công việc theo hàng & nhóm trạng thái',
-    icon: List,
+    icon: ListTodo,
     color: '#64748b',
     bg: 'rgba(100, 116, 139, 0.1)',
     category: 'core',
@@ -140,7 +141,7 @@ export const ALL_AVAILABLE_VIEWS = [
     id: 'table',
     label: 'Bảng dữ liệu',
     desc: 'Quản lý bảng tính và chỉnh sửa hàng loạt',
-    icon: Table,
+    icon: Table2,
     color: '#10b981',
     bg: 'rgba(16, 185, 129, 0.1)',
     category: 'core',
@@ -190,7 +191,7 @@ export const ALL_AVAILABLE_VIEWS = [
     id: 'dashboard',
     label: 'Bảng điều khiển',
     desc: 'Báo cáo chỉ số, biểu đồ KPI và năng suất',
-    icon: SlidersHorizontal,
+    icon: BarChart3,
     color: '#ec4899',
     bg: 'rgba(236, 72, 153, 0.1)',
     category: 'planning',
@@ -210,7 +211,7 @@ export const ALL_AVAILABLE_VIEWS = [
     id: 'whiteboard',
     label: 'Bảng trắng',
     desc: 'Phác thảo ý tưởng, vẽ sơ đồ và gắn sticky notes',
-    icon: Sparkles,
+    icon: Palette,
     color: '#d97706',
     bg: 'rgba(217, 119, 6, 0.1)',
     category: 'creative',
@@ -335,6 +336,11 @@ export default function SpaceViewTabBar({
   const [editingLabel, setEditingLabel] = useState('');
   const renameInputRef = useRef<HTMLInputElement>(null);
 
+  // Drag and drop reordering state
+  const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
+  const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
+  const [dropPosition, setDropPosition] = useState<'before' | 'after' | null>(null);
+
   // Check scroll capability
   const checkScroll = useCallback(() => {
     const el = scrollContainerRef.current;
@@ -446,6 +452,69 @@ export default function SpaceViewTabBar({
       triggerToast?.('success', 'Đổi tên', `Đã đổi tên thành "${trimmed}".`);
     }
     setEditingTabId(null);
+  };
+
+  // Drag and drop reordering handlers
+  const handleTabDragStart = (e: React.DragEvent, tabId: string) => {
+    e.dataTransfer.setData('text/plain', tabId);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedTabId(tabId);
+  };
+
+  const handleTabDragOver = (e: React.DragEvent, tabId: string) => {
+    if (!draggedTabId || draggedTabId === tabId) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midX = rect.left + rect.width / 2;
+    const pos = e.clientX < midX ? 'before' : 'after';
+    if (dragOverTabId !== tabId || dropPosition !== pos) {
+      setDragOverTabId(tabId);
+      setDropPosition(pos);
+    }
+  };
+
+  const handleTabDragLeave = (e: React.DragEvent, tabId: string) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      if (dragOverTabId === tabId) {
+        setDragOverTabId(null);
+        setDropPosition(null);
+      }
+    }
+  };
+
+  const handleTabDrop = (e: React.DragEvent, targetTabId: string) => {
+    e.preventDefault();
+    if (!draggedTabId || draggedTabId === targetTabId) {
+      setDraggedTabId(null);
+      setDragOverTabId(null);
+      setDropPosition(null);
+      return;
+    }
+    const fromIdx = tabs.findIndex(t => t.id === draggedTabId);
+    if (fromIdx === -1) return;
+
+    const reordered = [...tabs];
+    const [movedItem] = reordered.splice(fromIdx, 1);
+
+    let toIdx = reordered.findIndex(t => t.id === targetTabId);
+    if (toIdx === -1) return;
+    if (dropPosition === 'after') {
+      toIdx += 1;
+    }
+    reordered.splice(toIdx, 0, movedItem);
+
+    onTabsChange(reordered);
+    onAddSyncLog?.(`Đã sắp xếp lại chế độ xem: ${movedItem.label}`);
+    setDraggedTabId(null);
+    setDragOverTabId(null);
+    setDropPosition(null);
+  };
+
+  const handleTabDragEnd = () => {
+    setDraggedTabId(null);
+    setDragOverTabId(null);
+    setDropPosition(null);
   };
 
   const handleDuplicateTab = (tabId: string) => {
@@ -606,7 +675,7 @@ export default function SpaceViewTabBar({
       {canScrollLeft && (
         <button
           onClick={() => scroll('left')}
-          className="p-1 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm transition-all cursor-pointer z-10 shrink-0"
+          className="p-1 rounded-lg bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm transition-all cursor-pointer z-10 shrink-0"
           title="Cuộn sang trái"
           aria-label="Cuộn sang trái"
         >
@@ -614,8 +683,8 @@ export default function SpaceViewTabBar({
         </button>
       )}
 
-      {/* Main Pill Segmented Container */}
-      <div className="apexa-space-view-dock relative flex items-center bg-slate-100/90 dark:bg-white/[0.04] p-1 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] shadow-3xs backdrop-blur-md max-w-full overflow-hidden">
+      {/* Main Segmented Dock Container */}
+      <div className="apexa-space-view-dock relative flex items-center bg-slate-100/90 dark:bg-white/[0.04] p-1 rounded-xl border border-slate-200/80 dark:border-white/[0.08] shadow-3xs backdrop-blur-md max-w-full overflow-hidden">
         <div
           ref={scrollContainerRef}
           onScroll={checkScroll}
@@ -624,7 +693,7 @@ export default function SpaceViewTabBar({
           className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5 px-0.5 scroll-smooth"
         >
           {tabs.map((tab) => {
-            const TabIcon = tab.icon;
+            const TabIcon = VIEW_ICON_MAP[tab.viewId] || tab.icon || List;
             const isActive = activeTabId === tab.id;
             const isEditing = editingTabId === tab.id;
             const isPro = ['gantt', 'timeline', 'workload', 'mindmap', 'ai'].includes(tab.viewId);
@@ -636,9 +705,26 @@ export default function SpaceViewTabBar({
             return (
               <div
                 key={tab.id}
+                draggable={!isEditing}
+                onDragStart={e => handleTabDragStart(e, tab.id)}
+                onDragOver={e => handleTabDragOver(e, tab.id)}
+                onDragLeave={e => handleTabDragLeave(e, tab.id)}
+                onDrop={e => handleTabDrop(e, tab.id)}
+                onDragEnd={handleTabDragEnd}
                 onContextMenu={e => handleTabContextMenu(e, tab.id)}
-                className="relative group/tab flex items-center"
+                className={`relative group/tab flex items-center transition-all duration-150 ${
+                  draggedTabId === tab.id ? 'opacity-35 scale-95' : ''
+                }`}
               >
+                {/* Drop Insertion Indicator */}
+                {dragOverTabId === tab.id && draggedTabId !== tab.id && (
+                  <div
+                    className={`absolute top-1 bottom-1 w-0.5 bg-indigo-600 dark:bg-indigo-400 rounded-full z-30 pointer-events-none ${
+                      dropPosition === 'before' ? '-left-0.5' : '-right-0.5'
+                    }`}
+                  />
+                )}
+
                 <button
                   type="button"
                   role="tab"
@@ -669,9 +755,9 @@ export default function SpaceViewTabBar({
                     tabButtons[nextIndex]?.click();
                   }}
                   onDoubleClick={() => handleStartRename(tab)}
-                  className={`apexa-space-view-tab relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer select-none shrink-0 ${
+                  className={`apexa-space-view-tab relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-grab active:cursor-grabbing select-none shrink-0 ${
                     isActive
-                      ? 'text-indigo-600 dark:text-white font-bold'
+                      ? 'text-slate-900 dark:text-white font-bold'
                       : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.06]'
                   }`}
                 >
@@ -680,7 +766,7 @@ export default function SpaceViewTabBar({
                     <motion.div
                       layoutId="activeSpaceViewTabPill"
                       transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-                      className="apexa-space-tab-active absolute inset-0 bg-white dark:bg-white/[0.08] rounded-xl shadow-xs border border-slate-200/90 dark:border-white/10"
+                      className="apexa-space-tab-active absolute inset-0 bg-white dark:bg-zinc-800 rounded-lg shadow-[0_1.5px_4px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.4)] border border-slate-200/90 dark:border-white/10"
                     />
                   )}
 
@@ -691,7 +777,7 @@ export default function SpaceViewTabBar({
                       style={{ color: isActive ? activeColor : undefined }}
                     />
 
-                    {/* Label or Inline Input */}
+                    {/* Label or Modern Inline Input (No awkward border/pill) */}
                     {isEditing ? (
                       <input
                         ref={renameInputRef}
@@ -703,7 +789,7 @@ export default function SpaceViewTabBar({
                           if (e.key === 'Enter') handleSaveRename(tab.id);
                           if (e.key === 'Escape') setEditingTabId(null);
                         }}
-                        className="bg-white dark:bg-[#161926] border border-indigo-500 rounded px-1.5 py-0.5 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none w-24"
+                        className="bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-md px-2 py-0.5 text-xs font-semibold text-slate-900 dark:text-zinc-100 outline-none focus:ring-1.5 focus:ring-indigo-500/30 focus:border-indigo-500/40 w-28 shadow-3xs"
                         onClick={e => e.stopPropagation()}
                       />
                     ) : (
@@ -743,7 +829,7 @@ export default function SpaceViewTabBar({
                 <button
                   type="button"
                   onClick={e => handleTabContextMenu(e, tab.id)}
-                  className={`relative z-10 ml-0.5 p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-white/[0.08] transition-opacity cursor-pointer ${
+                  className={`relative z-10 ml-0.5 p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-white/[0.08] transition-opacity cursor-pointer ${
                     isActive ? 'opacity-70 hover:opacity-100' : 'opacity-0 group-hover/tab:opacity-100'
                   }`}
                   title="Tùy chọn chế độ xem"
@@ -762,7 +848,7 @@ export default function SpaceViewTabBar({
             ref={addBtnRef}
             type="button"
             onClick={handleToggleAddMenu}
-            className={`apexa-space-add-view flex items-center gap-1 px-2 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            className={`apexa-space-add-view flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               showAddMenu
                 ? 'bg-indigo-600 text-white shadow-xs'
                 : 'text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-white/80 dark:hover:bg-slate-800/60'
@@ -779,7 +865,7 @@ export default function SpaceViewTabBar({
       {canScrollRight && (
         <button
           onClick={() => scroll('right')}
-          className="p-1 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm transition-all cursor-pointer z-10 shrink-0"
+          className="p-1 rounded-lg bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm transition-all cursor-pointer z-10 shrink-0"
           title="Cuộn sang phải"
           aria-label="Cuộn sang phải"
         >
@@ -800,7 +886,7 @@ export default function SpaceViewTabBar({
           />
           <div
             style={{ top: contextMenu.y, left: contextMenu.x }}
-            className="fixed w-[250px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xl z-50 text-left font-sans select-none overflow-hidden py-1.5 text-xs text-slate-700 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-150"
+            className="fixed w-[250px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-2xl z-50 text-left font-sans select-none overflow-hidden py-1.5 text-xs text-slate-700 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-150"
           >
             {/* Header info */}
             <div className="px-3.5 py-1.5 border-b border-slate-100 dark:border-slate-800/80 mb-1 flex items-center justify-between">
@@ -944,7 +1030,7 @@ export default function SpaceViewTabBar({
                 top: addMenuCoords?.top ?? 60,
                 left: addMenuCoords?.left ?? 16,
               }}
-              className="w-[340px] sm:w-[420px] max-w-[calc(100vw-24px)] bg-white/98 dark:bg-slate-900/98 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xl z-50 p-3.5 font-sans select-none"
+              className="w-[340px] sm:w-[420px] max-w-[calc(100vw-24px)] bg-white/98 dark:bg-slate-900/98 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-2xl z-50 p-3.5 font-sans select-none"
             >
               {/* Modal Header */}
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800/80 mb-2.5">
@@ -960,7 +1046,7 @@ export default function SpaceViewTabBar({
               </div>
 
               {/* Search view input */}
-              <div className="group flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 mb-2.5 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
+              <div className="group flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 mb-2.5 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
                 <Search className="w-3.5 h-3.5 text-slate-400 group-focus-within:text-indigo-500 dark:group-focus-within:text-indigo-400 transition-colors shrink-0" />
                 <input
                   type="text"
@@ -1014,7 +1100,7 @@ export default function SpaceViewTabBar({
                         key={v.id}
                         type="button"
                         onClick={() => handleAddView(v)}
-                        className={`w-full flex items-center justify-between p-2 rounded-xl transition-all text-left cursor-pointer border ${
+                        className={`w-full flex items-center justify-between p-2 rounded-lg transition-all text-left cursor-pointer border ${
                           isAlreadyAdded
                             ? 'border-indigo-200/60 bg-indigo-50/40 dark:border-indigo-900/30 dark:bg-indigo-950/20'
                             : 'border-transparent hover:border-slate-200 dark:hover:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'
@@ -1045,7 +1131,7 @@ export default function SpaceViewTabBar({
                         </div>
 
                         {isAlreadyAdded && (
-                          <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-950 px-2 py-0.5 rounded-full shrink-0 ml-2">
+                          <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-950 px-2 py-0.5 rounded-md shrink-0 ml-2">
                             {locale === 'vi' ? 'Đang mở' : 'Open'}
                           </span>
                         )}

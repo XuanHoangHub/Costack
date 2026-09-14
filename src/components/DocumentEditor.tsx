@@ -1459,7 +1459,7 @@ export default function DocumentEditor({
                       initial={{ opacity: 0, scale: 0.95, y: 5 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: 5 }}
-                      className="absolute right-0 top-full mt-2 w-64 bg-white/98 dark:bg-[#181818]/98 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-2 z-50 space-y-1 text-left select-none font-sans"
+                      className="absolute right-0 top-full mt-2 w-64 bg-white/98 dark:bg-[#111218]/98 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl p-2 z-50 space-y-1 text-left select-none font-sans"
                     >
                       <div className="px-2 py-1.5 border-b border-slate-100 dark:border-slate-800/80 mb-1 flex items-center gap-2">
                         <ApexaAiIcon className="w-4 h-4" variant="gradient" />
@@ -1540,7 +1540,7 @@ export default function DocumentEditor({
                       initial={{ opacity: 0, scale: 0.95, y: 5 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: 5 }}
-                      className="absolute right-0 top-full mt-2 w-72 bg-white/98 dark:bg-[#181818]/98 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-4 z-50 space-y-3.5 text-left font-sans select-none"
+                      className="absolute right-0 top-full mt-2 w-72 bg-white/98 dark:bg-[#111218]/98 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl p-4 z-50 space-y-3.5 text-left font-sans select-none"
                     >
                       <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                         <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">Kiểu Trang Giấy</span>
@@ -1687,7 +1687,7 @@ export default function DocumentEditor({
                       initial={{ opacity: 0, scale: 0.95, y: 5 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: 5 }}
-                      className="absolute right-0 top-full mt-2 w-56 bg-white/98 dark:bg-[#181818]/98 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-2 z-50 space-y-1 text-left font-sans select-none"
+                      className="absolute right-0 top-full mt-2 w-56 bg-white/98 dark:bg-[#111218]/98 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl p-2 z-50 space-y-1 text-left font-sans select-none"
                     >
                       <button
                         type="button"

@@ -303,7 +303,7 @@ function KanbanCard({
                       }}
                       onBlur={() => submitInlineEdit(task)}
                       onClick={e => e.stopPropagation()}
-                      className="text-[13px] font-bold text-slate-900 dark:text-slate-100 bg-transparent border-b border-indigo-500 outline-none py-0.5 w-full leading-snug" 
+                      className="text-[13px] font-semibold text-slate-900 dark:text-slate-100 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-md px-2 py-0.5 outline-none focus:ring-1.5 focus:ring-indigo-500/30 focus:border-indigo-500/40 shadow-3xs w-full leading-snug" 
                     />
                   ) : (
                     <h4 

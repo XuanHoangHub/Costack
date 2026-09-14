@@ -2,13 +2,13 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from '../contexts/TranslationContext';
+import dynamic from 'next/dynamic';
 import { Task, User, SyncLog, Document } from '../types';
 import {
   DashboardHeader,
   DashboardControls,
   DashboardKpis,
   DashboardHealthBar,
-  DashboardCharts,
   DashboardFocusQueue,
   DashboardAiReport,
   DashboardActivityFeed,
@@ -25,6 +25,15 @@ import {
   DashboardOverviewProps,
   PeriodInsights
 } from './dashboard';
+
+const DashboardCharts = dynamic(() => import('./dashboard/DashboardCharts'), {
+  ssr: false,
+  loading: () => (
+    <div className="bg-[var(--cu-surface-1)] border border-[var(--cu-border)] rounded-[var(--cu-radius-xl)] p-6 shadow-xs animate-pulse min-h-[300px] flex items-center justify-center">
+      <div className="h-6 w-32 bg-[var(--cu-surface-3)] rounded-lg" />
+    </div>
+  ),
+});
 
 const DEFAULT_DASHBOARD_WIDGETS: Record<DashboardWidgetKey, boolean> = {
   kpis: true,

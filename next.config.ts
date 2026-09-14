@@ -87,6 +87,13 @@ const privateApiHeaders = [
   },
 ];
 
+const staticAssetHeaders = [
+  {
+    key: 'Cache-Control',
+    value: 'public, max-age=31536000, immutable',
+  },
+];
+
 const nextConfig: NextConfig = {
   output: 'standalone',
   reactStrictMode: true,
@@ -130,6 +137,10 @@ const nextConfig: NextConfig = {
       {
         source: '/:path*',
         headers: securityHeaders,
+      },
+      {
+        source: '/(icon.svg|icon.png|apple-icon.png|favicon.ico|manifest.webmanifest|robots.txt)',
+        headers: staticAssetHeaders,
       },
       {
         source: '/admin/:path*',

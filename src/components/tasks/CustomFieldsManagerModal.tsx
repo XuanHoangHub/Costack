@@ -77,6 +77,7 @@ export interface CustomFieldsManagerModalProps {
   }) => void;
   openPromptModal?: (config: any) => void;
   triggerToast?: (type: 'success' | 'error' | 'warning' | 'info' | 'comment', title: string, description: string) => void;
+  anchorPosition?: { x: number; y: number } | null;
 }
 
 const FIELD_CATEGORY_META: Record<string, { category: 'popular' | 'metrics' | 'choices' | 'contact' | 'text'; tags: string[] }> = {
@@ -109,15 +110,39 @@ export default function CustomFieldsManagerModal({
   spaces,
   onSaveSpaces,
   openDialog,
-  triggerToast
+  triggerToast,
+  anchorPosition
 }: CustomFieldsManagerModalProps) {
   const { locale } = useTranslation();
   const isVi = locale === 'vi';
+  const isDropdown = !!anchorPosition;
 
   const [activeTab, setActiveTab] = useState<'create' | 'manage'>('create');
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [editingFieldConfig, setEditingFieldConfig] = useState<any>(null);
+
+  // Compute dropdown position to stay within viewport
+  const dropdownStyle = useMemo(() => {
+    if (!anchorPosition) return {};
+    const popupW = 380;
+    const popupH = 480;
+    let left = anchorPosition.x;
+    let top = anchorPosition.y + 4;
+    // Prevent going off-screen right
+    if (typeof window !== 'undefined') {
+      if (left + popupW > window.innerWidth - 16) {
+        left = window.innerWidth - popupW - 16;
+      }
+      if (left < 16) left = 16;
+      // Prevent going off-screen bottom
+      if (top + popupH > window.innerHeight - 16) {
+        top = anchorPosition.y - popupH - 4;
+      }
+      if (top < 16) top = 16;
+    }
+    return { position: 'fixed' as const, left, top, width: popupW };
+  }, [anchorPosition]);
 
   // Close on Escape key
   useEffect(() => {
@@ -148,8 +173,6 @@ export default function CustomFieldsManagerModal({
     { key: 'priority', label: isVi ? 'Mức ưu tiên' : 'Priority', type: 'dropdown', icon: Flag, isStandard: true },
     { key: 'assignee', label: isVi ? 'Người phụ trách' : 'Assignee', type: 'member', icon: UserIcon, isStandard: true },
     { key: 'dueDate', label: isVi ? 'Hạn chót' : 'Due Date', type: 'date', icon: Calendar, isStandard: true },
-    { key: 'progress', label: isVi ? 'Tiến độ' : 'Progress', type: 'progress', icon: BarChart3, isStandard: true },
-    { key: 'tags', label: isVi ? 'Thẻ phân loại' : 'Tags', type: 'labels', icon: Bookmark, isStandard: true },
   ], [isVi]);
 
   // Combined property list
@@ -394,12 +417,309 @@ export default function CustomFieldsManagerModal({
 
   if (!isOpen) return null;
 
+  if (isDropdown) {
+    return (
+      <Portal>
+        {/* Backdrop for click outside - Pure transparent, zero blur */}
+        <div 
+          className="fixed inset-0 z-[120] bg-transparent cursor-default"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+
+        {/* Floating Dropdown Popup positioned right at the "+" button */}
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={isVi ? 'Thêm trường tùy chỉnh' : 'Add custom field'}
+          className="fixed z-[121] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-[0_16px_40px_-8px_rgba(0,0,0,0.18),0_6px_16px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8),0_8px_20px_-4px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden text-slate-800 dark:text-zinc-100 select-none animate-in fade-in zoom-in-95 duration-150"
+          style={{
+            left: `${dropdownStyle.left}px`,
+            top: `${dropdownStyle.top}px`,
+            width: `${dropdownStyle.width || 360}px`,
+            maxHeight: 'min(520px, 85vh)'
+          }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-slate-800 dark:text-zinc-100 tracking-tight leading-tight">
+                  {isVi ? 'Thêm trường dữ liệu' : 'Add Custom Field'}
+                </h3>
+                <p className="text-[10px] text-slate-400 dark:text-zinc-400 font-medium">
+                  {isVi ? 'Chọn loại trường hoặc quản lý cột' : 'Select field type or manage columns'}
+                </p>
+              </div>
+            </div>
+
+            <button 
+              type="button"
+              onClick={onClose}
+              className="w-6 h-6 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer"
+              title={isVi ? 'Đóng (Esc)' : 'Close (Esc)'}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Search bar & Tabs */}
+          <div className="p-2.5 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-2 shrink-0">
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input 
+                type="text" 
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder={isVi ? 'Tìm loại trường...' : 'Search field types...'} 
+                className="w-full pl-8 pr-7 py-1.5 text-xs bg-slate-50 dark:bg-zinc-800/70 border border-slate-200/90 dark:border-zinc-700/80 rounded-xl outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-zinc-850 focus:ring-1 focus:ring-blue-500/20 transition-all text-slate-800 dark:text-zinc-100 font-medium placeholder:text-slate-400" 
+              />
+              {search && (
+                <button 
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 cursor-pointer text-xs"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Compact Segmented Tabs */}
+            <div className="flex items-center gap-1 p-0.5 bg-slate-100 dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setActiveTab('create')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'create'
+                    ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                }`}
+              >
+                <Sparkles className="w-3 h-3" />
+                <span>{isVi ? 'Loại trường' : 'Field Types'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('manage')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'manage'
+                    ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                }`}
+              >
+                <Layers className="w-3 h-3" />
+                <span>{isVi ? 'Cột hiển thị' : 'Columns'}</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200">
+                  {visibleFields.length}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2">
+            {activeTab === 'create' && (
+              <div className="space-y-1.5">
+                {/* Category Pills */}
+                <div className="flex items-center gap-1 overflow-x-auto scrollbar-none pb-1 px-0.5">
+                  {[
+                    { id: 'all', label: isVi ? 'Tất cả' : 'All' },
+                    { id: 'popular', label: isVi ? '🔥 Phổ biến' : '🔥 Popular' },
+                    { id: 'metrics', label: isVi ? '🔢 Số & Tiền' : '🔢 Metrics' },
+                    { id: 'choices', label: isVi ? '🏷️ Nhãn' : '🏷️ Labels' },
+                    { id: 'contact', label: isVi ? '🌐 Link' : '🌐 Links' },
+                    { id: 'text', label: isVi ? '📝 Chữ' : '📝 Text' }
+                  ].map(cat => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setSelectedCategory(cat.id)}
+                      className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all shrink-0 cursor-pointer ${
+                        selectedCategory === cat.id
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200/80 dark:hover:bg-zinc-700'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* List of field types */}
+                {filteredCatalog.length === 0 ? (
+                  <div className="text-center py-8 space-y-1.5">
+                    <p className="text-xs font-bold text-slate-400">
+                      {isVi ? 'Không tìm thấy loại trường' : 'No field types found'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => { setSearch(''); setSelectedCategory('all'); }}
+                      className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                    >
+                      {isVi ? 'Xem tất cả' : 'View all'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-0.5">
+                    {filteredCatalog.map(fc => {
+                      const IconComp = fc.icon;
+                      return (
+                        <button
+                          key={fc.id}
+                          type="button"
+                          onClick={() => handleOpenCreateStudio(fc)}
+                          className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 transition-all text-left group cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${fc.color} text-white flex items-center justify-center shadow-2xs shrink-0 group-hover:scale-105 transition-transform`}>
+                              <IconComp className="w-3.5 h-3.5 stroke-[2.5]" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-slate-800 dark:text-zinc-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate transition-colors">
+                                {isVi ? fc.label : fc.labelEn}
+                              </div>
+                              <div className="text-[10px] text-slate-400 dark:text-zinc-400 truncate">
+                                {isVi ? fc.desc : fc.labelEn}
+                              </div>
+                            </div>
+                          </div>
+
+                          <span className="shrink-0 text-[10px] font-bold text-blue-600 dark:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900/50">
+                            <Plus className="w-3 h-3" />
+                            <span>{isVi ? 'Thêm' : 'Add'}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'manage' && (
+              <div className="space-y-3">
+                {/* Quick actions */}
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    {visibleFields.length} / {allPropertiesList.length} {isVi ? 'cột hiển thị' : 'visible'}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleShowAll}
+                      className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-white/[0.06] hover:bg-slate-200/80 text-[10px] font-bold text-slate-600 dark:text-slate-300 cursor-pointer"
+                    >
+                      {isVi ? 'Hiện tất cả' : 'Show All'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResetVisibility}
+                      className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-white/[0.06] hover:bg-slate-200/80 text-[10px] font-bold text-slate-400 cursor-pointer"
+                    >
+                      {isVi ? 'Đặt lại' : 'Reset'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Properties list */}
+                <div className="space-y-1">
+                  {filteredProperties.map(prop => {
+                    const IconComponent = prop.icon || Tag;
+                    const isVisible = visibleFields.includes(prop.key);
+                    const isLocked = prop.locked;
+
+                    return (
+                      <div
+                        key={prop.key}
+                        className={`flex items-center justify-between p-2 rounded-xl border transition-all ${
+                          isVisible
+                            ? 'bg-white dark:bg-zinc-800/80 border-slate-200/90 dark:border-zinc-700/80 shadow-2xs'
+                            : 'bg-slate-50/50 dark:bg-zinc-850/40 border-transparent opacity-60'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
+                            <IconComponent className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                              {prop.label}
+                            </div>
+                            <div className="text-[9px] text-slate-400 uppercase tracking-wider">
+                              {prop.isStandard ? (isVi ? 'Hệ thống' : 'System') : prop.type}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {!prop.isStandard && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditStudio(prop)}
+                                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                                title={isVi ? 'Cài đặt' : 'Settings'}
+                              >
+                                <Cog className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteField(prop.key)}
+                                className="p-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 text-slate-400 hover:text-rose-600 cursor-pointer"
+                                title={isVi ? 'Xóa' : 'Delete'}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+
+                          <label className="relative inline-flex items-center cursor-pointer ml-1">
+                            <input
+                              type="checkbox"
+                              checked={isVisible}
+                              disabled={isLocked}
+                              onChange={() => toggleFieldVisibility(prop.key)}
+                              className="sr-only peer"
+                            />
+                            <div className={`w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all dark:border-slate-600 peer-checked:bg-blue-600 ${
+                              isLocked ? 'opacity-40 cursor-not-allowed' : ''
+                            }`}></div>
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sub-modal studio */}
+          {editingFieldConfig && (
+            <FieldSettingsModal
+              existingFields={customFields}
+              config={editingFieldConfig}
+              onClose={() => setEditingFieldConfig(null)}
+              onSave={handleSaveFieldFromModal}
+            />
+          )}
+        </div>
+      </Portal>
+    );
+  }
+
   return (
     <Portal>
       <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-5 md:p-8 font-sans select-none animate-in fade-in duration-200">
-        {/* Backdrop */}
+        {/* Backdrop - Clean dark overlay, zero blur */}
         <div 
-          className="fixed inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs transition-opacity cursor-pointer"
+          className="fixed inset-0 bg-black/40 dark:bg-black/65 transition-opacity cursor-pointer"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -409,27 +729,24 @@ export default function CustomFieldsManagerModal({
           role="dialog"
           aria-modal="true"
           aria-label={isVi ? 'Quản lý trường dữ liệu' : 'Manage custom fields'}
-          className="relative w-full max-w-4xl max-h-[88vh] bg-white dark:bg-[#13151b] border border-slate-200/90 dark:border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-200"
-          style={{
-            boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05)'
-          }}
+          className="relative w-full max-w-4xl max-h-[88vh] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-200"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4.5 border-b border-slate-100 dark:border-white/[0.06] bg-slate-50/60 dark:bg-[#161922] shrink-0">
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-blue-500/25 shrink-0">
-                <SlidersHorizontal className="w-5 h-5 stroke-[2.5]" />
+          <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-2xs shrink-0">
+                <SlidersHorizontal className="w-4 h-4 stroke-[2.5]" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-base font-black text-slate-850 dark:text-white tracking-tight">
+                  <h2 className="text-sm font-bold text-slate-800 dark:text-zinc-100 tracking-tight">
                     {isVi ? 'Trường dữ liệu & Thuộc tính' : 'Custom Fields & Properties'}
                   </h2>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/50">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/50">
                     {allPropertiesList.length} {isVi ? 'thuộc tính' : 'properties'}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                <p className="text-[11px] text-slate-500 dark:text-zinc-400 font-medium mt-0.5">
                   {isVi 
                     ? 'Tùy biến cấu hình cột, thêm trường dữ liệu tùy chỉnh và kiểm soát hiển thị trong Không gian'
                     : 'Customize column attributes, create custom fields and control visibility across views'}
@@ -439,45 +756,45 @@ export default function CustomFieldsManagerModal({
 
             <button 
               onClick={onClose}
-              className="p-2 hover:bg-slate-200/70 dark:hover:bg-white/[0.08] rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer"
+              className="w-7 h-7 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer"
               title={isVi ? 'Đóng (Esc)' : 'Close (Esc)'}
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
           {/* Navigation & Action Bar */}
-          <div className="px-6 py-3 border-b border-slate-100 dark:border-white/[0.06] bg-white dark:bg-[#13151b] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+          <div className="px-6 py-2.5 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
             {/* Tabs */}
-            <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-[#1a1d26] rounded-2xl shrink-0">
+            <div className="flex items-center gap-1 p-0.5 bg-slate-100 dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 rounded-xl shrink-0">
               <button
                 type="button"
                 onClick={() => setActiveTab('create')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'create'
-                    ? 'bg-white dark:bg-blue-600 text-indigo-700 dark:text-white shadow-xs font-black'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>{isVi ? '✨ Khám phá & Tạo mới' : 'Explore & Create'}</span>
+                <span>{isVi ? 'Khám phá & Tạo mới' : 'Explore & Create'}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab('manage')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'manage'
-                    ? 'bg-white dark:bg-blue-600 text-indigo-700 dark:text-white shadow-xs font-black'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>{isVi ? '⚙️ Quản lý thuộc tính' : 'Manage Properties'}</span>
+                <span>{isVi ? 'Quản lý thuộc tính' : 'Manage Properties'}</span>
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
                   activeTab === 'manage'
-                    ? 'bg-indigo-100 dark:bg-white/20 text-indigo-800 dark:text-white'
-                    : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                    ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300'
+                    : 'bg-slate-200 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400'
                 }`}>
                   {allPropertiesList.length}
                 </span>
@@ -492,12 +809,12 @@ export default function CustomFieldsManagerModal({
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder={isVi ? 'Tìm kiếm loại trường hoặc thuộc tính...' : 'Search field types or attributes...'} 
-                className="w-full pl-8 pr-7 py-2 text-xs bg-slate-50 dark:bg-[#1a1d26] border border-slate-200/80 dark:border-white/[0.08] rounded-xl outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-[#13151b] focus:ring-2 focus:ring-indigo-500/20 transition-all text-slate-800 dark:text-slate-100 font-semibold placeholder:text-slate-400" 
+                className="w-full pl-8 pr-7 py-1.5 text-xs bg-slate-50 dark:bg-zinc-800/70 border border-slate-200/90 dark:border-zinc-700/80 rounded-xl outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-zinc-850 focus:ring-1 focus:ring-blue-500/20 transition-all text-slate-800 dark:text-zinc-100 font-medium placeholder:text-slate-400" 
               />
               {search && (
                 <button 
                   onClick={() => setSearch('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 cursor-pointer"
                 >
                   ✕
                 </button>

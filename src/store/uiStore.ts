@@ -146,9 +146,10 @@ export interface SidebarZone {
   isCollapsed?: boolean;
 }
 
+export const REMOVED_MODULE_IDS = new Set(['goals', 'planner', 'whiteboard', 'base', 'crm', 'erp']);
+
 export const DEFAULT_SIDEBAR_ORDER: string[] = [
-  'dashboard', 'inbox', 'tasks', 'calendar', 'goals',
-  'finance', 'docs', 'chat', 'team', 'miniapps'
+  'dashboard', 'tasks', 'inbox', 'finance', 'docs', 'team', 'calendar', 'chat'
 ];
 
 export const useUiStore = create<UiState>()(
@@ -284,7 +285,7 @@ export const useUiStore = create<UiState>()(
 
       setShowPomoSettings: (showPomoSettings) => set({ showPomoSettings }),
       setViewingMemberProfileId: (viewingMemberProfileId) => set({ viewingMemberProfileId }),
-      setSidebarOrder: (sidebarOrder) => set({ sidebarOrder: (sidebarOrder || []).filter(id => id !== 'crm') }),
+      setSidebarOrder: (sidebarOrder) => set({ sidebarOrder: (sidebarOrder || []).filter(id => !REMOVED_MODULE_IDS.has(id)) }),
       setSidebarZones: (sidebarZones) => set({ sidebarZones: sidebarZones || [] }),
       createSidebarZone: (zoneData) => {
         const id = `zone_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -293,12 +294,12 @@ export const useUiStore = create<UiState>()(
           name: zoneData.name.trim() || 'New Zone',
           emoji: zoneData.emoji || '📁',
           color: zoneData.color || 'sky',
-          itemIds: zoneData.itemIds || [],
+          itemIds: (zoneData.itemIds || []).filter(itemId => !REMOVED_MODULE_IDS.has(itemId)),
           isCollapsed: zoneData.isCollapsed ?? false,
         };
         const existingZones = (get().sidebarZones || []).map(z => ({
           ...z,
-          itemIds: z.itemIds.filter(itemId => !(newZone.itemIds.includes(itemId)))
+          itemIds: z.itemIds.filter(itemId => !(newZone.itemIds.includes(itemId)) && !REMOVED_MODULE_IDS.has(itemId))
         }));
         set({ sidebarZones: [...existingZones, newZone] });
         return id;
@@ -307,7 +308,11 @@ export const useUiStore = create<UiState>()(
         set(state => ({
           sidebarZones: (state.sidebarZones || []).map(z => {
             if (z.id !== zoneId) return z;
-            return { ...z, ...updates };
+            return { 
+              ...z, 
+              ...updates,
+              itemIds: updates.itemIds ? updates.itemIds.filter(itemId => !REMOVED_MODULE_IDS.has(itemId)) : z.itemIds
+            };
           })
         }));
       },
@@ -315,9 +320,9 @@ export const useUiStore = create<UiState>()(
         const state = get();
         const zoneToDelete = (state.sidebarZones || []).find(z => z.id === zoneId);
         if (!zoneToDelete) return;
-        const newSidebarOrder = [...(state.sidebarOrder || DEFAULT_SIDEBAR_ORDER)];
+        const newSidebarOrder = [...(state.sidebarOrder || DEFAULT_SIDEBAR_ORDER)].filter(id => !REMOVED_MODULE_IDS.has(id));
         zoneToDelete.itemIds.forEach(itemId => {
-          if (!newSidebarOrder.includes(itemId)) {
+          if (!newSidebarOrder.includes(itemId) && !REMOVED_MODULE_IDS.has(itemId)) {
             newSidebarOrder.push(itemId);
           }
         });
@@ -334,10 +339,11 @@ export const useUiStore = create<UiState>()(
         }));
       },
       moveItemToZone: (itemId, targetZoneId, targetIndex) => {
+        if (REMOVED_MODULE_IDS.has(itemId)) return;
         set(state => {
           const currentZones = state.sidebarZones || [];
           const updatedZones = currentZones.map(z => {
-            const filtered = z.itemIds.filter(id => id !== itemId);
+            const filtered = z.itemIds.filter(id => id !== itemId && !REMOVED_MODULE_IDS.has(id));
             if (z.id === targetZoneId) {
               const newItems = [...filtered];
               if (typeof targetIndex === 'number' && targetIndex >= 0 && targetIndex <= newItems.length) {
@@ -357,13 +363,15 @@ export const useUiStore = create<UiState>()(
           const currentZones = state.sidebarZones || [];
           const updatedZones = currentZones.map(z => {
             if (zoneId && z.id !== zoneId) return z;
-            return { ...z, itemIds: z.itemIds.filter(id => id !== itemId) };
+            return { ...z, itemIds: z.itemIds.filter(id => id !== itemId && !REMOVED_MODULE_IDS.has(id)) };
           });
-          const newSidebarOrder = (state.sidebarOrder || DEFAULT_SIDEBAR_ORDER).filter(id => id !== itemId);
-          if (typeof rootIndex === 'number' && rootIndex >= 0 && rootIndex <= newSidebarOrder.length) {
-            newSidebarOrder.splice(rootIndex, 0, itemId);
-          } else {
-            newSidebarOrder.push(itemId);
+          const newSidebarOrder = (state.sidebarOrder || DEFAULT_SIDEBAR_ORDER).filter(id => id !== itemId && !REMOVED_MODULE_IDS.has(id));
+          if (!REMOVED_MODULE_IDS.has(itemId)) {
+            if (typeof rootIndex === 'number' && rootIndex >= 0 && rootIndex <= newSidebarOrder.length) {
+              newSidebarOrder.splice(rootIndex, 0, itemId);
+            } else {
+              newSidebarOrder.push(itemId);
+            }
           }
           return {
             sidebarZones: updatedZones,
@@ -371,19 +379,32 @@ export const useUiStore = create<UiState>()(
           };
         });
       },
-      reorderSidebarZones: (zones) => set({ sidebarZones: zones || [] }),
+      reorderSidebarZones: (zones) => set({ 
+        sidebarZones: (zones || []).map(z => ({
+          ...z,
+          itemIds: (z.itemIds || []).filter(id => !REMOVED_MODULE_IDS.has(id))
+        }))
+      }),
     }),
     {
       name: 'apexa_ui',
-      version: 4,
+      version: 5,
       migrate: (persistedState) => {
         const state = persistedState as Partial<UiState>;
+        const cleanZones = (Array.isArray(state.sidebarZones) ? state.sidebarZones : []).map(z => ({
+          ...z,
+          itemIds: (z.itemIds || []).filter(id => !REMOVED_MODULE_IDS.has(id))
+        }));
+        const activeTab = state.activeTab && REMOVED_MODULE_IDS.has(state.activeTab) ? 'dashboard' : (state.activeTab || 'dashboard');
+        const defaultStartupTab = state.defaultStartupTab && REMOVED_MODULE_IDS.has(state.defaultStartupTab) ? 'dashboard' : (state.defaultStartupTab || 'dashboard');
         return {
           ...state,
+          activeTab,
+          defaultStartupTab,
           presencePreference: state.presencePreference || 'online',
           themePreference: getStoredThemePreference(),
-          sidebarOrder: (state.sidebarOrder || []).filter(id => id !== 'crm'),
-          sidebarZones: Array.isArray(state.sidebarZones) ? state.sidebarZones : [],
+          sidebarOrder: (state.sidebarOrder || []).filter(id => !REMOVED_MODULE_IDS.has(id)),
+          sidebarZones: cleanZones,
         } as UiState;
       },
       onRehydrateStorage: () => (state) => {
@@ -392,13 +413,20 @@ export const useUiStore = create<UiState>()(
         const isDarkMode = applyThemePreference(themePreference, false, false);
         state.themePreference = themePreference;
         state.isDarkMode = isDarkMode;
-        if (state.defaultStartupTab) {
+        if (state.defaultStartupTab && !REMOVED_MODULE_IDS.has(state.defaultStartupTab)) {
           state.activeTab = state.defaultStartupTab;
+        } else if (REMOVED_MODULE_IDS.has(state.activeTab)) {
+          state.activeTab = 'dashboard';
         }
         if (state.sidebarOrder) {
-          state.sidebarOrder = state.sidebarOrder.filter(id => id !== 'crm');
+          state.sidebarOrder = state.sidebarOrder.filter(id => !REMOVED_MODULE_IDS.has(id));
         }
-        if (!state.sidebarZones || !Array.isArray(state.sidebarZones)) {
+        if (state.sidebarZones && Array.isArray(state.sidebarZones)) {
+          state.sidebarZones = state.sidebarZones.map(z => ({
+            ...z,
+            itemIds: (z.itemIds || []).filter(id => !REMOVED_MODULE_IDS.has(id))
+          }));
+        } else {
           state.sidebarZones = [];
         }
       },

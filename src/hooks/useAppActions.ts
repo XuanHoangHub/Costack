@@ -96,6 +96,13 @@ export function useAppActions() {
           }
 
           if (data && data.length > 0) {
+            void supabase.from('workspace_memberships').insert([{
+              workspace_id: data[0].id,
+              user_id: session.user.id,
+              role: 'owner',
+              status: 'active'
+            }]).then(null, () => null);
+
             const current = useWorkspaceStore.getState().workspaces;
             const alreadyHas = current.some(item => item.id === data[0].id);
             if (!alreadyHas) {

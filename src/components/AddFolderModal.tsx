@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Space } from '@/types';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { renderSpaceIcon } from '@/components/RenderSpaceIcon';
 import { createPortal } from 'react-dom';
 
 function Portal({ children }: { children: React.ReactNode }) {
@@ -144,8 +145,8 @@ export default function AddFolderModal({
               {targetSpace && (
                 <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
                   <span className="whitespace-nowrap">{locale === 'vi' ? 'Không gian:' : 'Space:'}</span>
-                  <span className="font-bold text-slate-700 dark:text-slate-200 inline-flex items-center gap-1 bg-slate-100/80 dark:bg-slate-800/80 px-2 py-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60 text-[11px] whitespace-nowrap shrink-0">
-                    <span>{targetSpace.emoji || '📁'}</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-200 inline-flex items-center gap-1.5 bg-slate-100/80 dark:bg-slate-800/80 px-2 py-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60 text-[11px] whitespace-nowrap shrink-0">
+                    <span className="flex items-center justify-center shrink-0">{renderSpaceIcon(targetSpace.emoji || 'Folder', "w-3.5 h-3.5 shrink-0", undefined, { preserveEmoji: true })}</span>
                     <span className="truncate max-w-[150px]">{targetSpace.name}</span>
                   </span>
                 </div>

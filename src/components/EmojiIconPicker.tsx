@@ -537,71 +537,8 @@ export const EMOJI_KEYWORDS: Record<string, string[]> = {
   '📋': ['clipboard', 'danh sach', 'checklist', 'ke hoach', 'todo']
 };
 
-export const parseIconValue = (val: string): { iconName: string; color?: string } => {
-  if (!val) return { iconName: 'Package', color: 'indigo' };
-  if (val.includes(':')) {
-    const parts = val.split(':');
-    return { iconName: parts[0], color: parts[1] };
-  }
-  return { iconName: val };
-};
-
-export interface RenderSpaceIconOptions {
-  preserveEmoji?: boolean;
-}
-
-export const renderSpaceIcon = (
-  iconStr: string, 
-  className = "w-4 h-4", 
-  forcedColor?: string,
-  options?: RenderSpaceIconOptions
-) => {
-  if (!iconStr) {
-    return <LucideIcons.Package className={`${className} shrink-0 text-indigo-500`} />;
-  }
-
-  const { iconName, color: customColor } = parseIconValue(iconStr);
-
-  // Check if it is an emoji character
-  const isEmojiChar = /\p{Extended_Pictographic}/u.test(iconName);
-
-  // If preserveEmoji is not explicitly disabled and it is an emoji, render native emoji directly!
-  if (options?.preserveEmoji !== false && (options?.preserveEmoji || isEmojiChar)) {
-    if (isEmojiChar || !(LucideIcons as any)[iconName]) {
-      return (
-        <span className="inline-flex items-center justify-center leading-none select-none text-[1.15em] shrink-0">
-          {iconName}
-        </span>
-      );
-    }
-  }
-
-  // Resolve legacy emoji or direct icon name (only for legacy space mappings when preserveEmoji is explicitly false)
-  const targetName = options?.preserveEmoji ? iconName : (EMOJI_TO_LUCIDE_MAP[iconName] || iconName);
-  const IconComponent = (LucideIcons as any)[targetName];
-
-  if (IconComponent) {
-    // Determine accurate rich color
-    let iconHex = forcedColor || customColor;
-    if (!iconHex) {
-      iconHex = ICON_DEFAULT_COLORS[targetName] || '#6366F1';
-    } else if (!iconHex.startsWith('#')) {
-      const found = ICON_COLORS.find(c => c.id === iconHex);
-      if (found) iconHex = found.hex;
-      else iconHex = ICON_DEFAULT_COLORS[targetName] || '#6366F1';
-    }
-
-    return (
-      <IconComponent 
-        className={`${className} shrink-0 transition-colors`} 
-        style={{ color: iconHex }} 
-      />
-    );
-  }
-
-  // If raw emoji, render directly in an emoji span
-  return <span className="inline-flex items-center justify-center leading-none select-none text-[1.15em] shrink-0">{iconName}</span>;
-};
+import { renderSpaceIcon, parseIconValue } from './RenderSpaceIcon';
+export { renderSpaceIcon, parseIconValue, type RenderSpaceIconOptions } from './RenderSpaceIcon';
 
 export interface EmojiIconPickerProps {
   value: string;

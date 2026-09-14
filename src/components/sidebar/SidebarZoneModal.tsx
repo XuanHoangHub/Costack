@@ -136,7 +136,7 @@ export function SidebarZoneModal({
 
   // Available modules to pick from
   const allModules = useMemo(() => {
-    return DEFAULT_SIDEBAR_ORDER.filter(id => id !== 'crm');
+    return DEFAULT_SIDEBAR_ORDER;
   }, []);
 
   if (!isOpen) return null;

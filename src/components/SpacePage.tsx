@@ -415,8 +415,6 @@ export default function SpacePage({
     }
   };
 
-  const [showQuickTools, setShowQuickTools] = useState(false);
-
   // Folder & Sprint Modal state
   const [folderModalState, setFolderModalState] = useState<{
     isOpen: boolean;
@@ -552,7 +550,7 @@ export default function SpacePage({
   const [showFieldsPanel, setShowFieldsPanel] = useState<boolean>(false);
   const [fieldsPanelAnchor, setFieldsPanelAnchor] = useState<{ x: number; y: number } | null>(null);
   const [visibleFields, setVisibleFields] = useState<string[]>([
-    'title', 'status', 'priority', 'assignee', 'dueDate', 'progress', 'tags'
+    'title', 'status', 'priority', 'assignee', 'dueDate'
   ]);
   const [customFields, setCustomFields] = useState<any[]>([]);
   const openFieldsPanel = (anchor?: { x: number; y: number; rect?: DOMRect } | React.MouseEvent) => {
@@ -585,7 +583,7 @@ export default function SpacePage({
     const previous = previousFieldScope.current;
     setCustomFields(fields);
     setVisibleFields(visible => {
-      const standard = ['title', 'status', 'priority', 'assignee', 'dueDate', 'startDate', 'progress', 'tags'];
+      const standard = ['title', 'status', 'priority', 'assignee', 'dueDate', 'startDate'];
       const retained = visible.filter(name => standard.includes(name) || names.includes(name));
       const added = names.filter(name => previous.id !== activeSpace.id || !previous.names.includes(name));
       return [...new Set([...retained, ...added])];
@@ -2084,7 +2082,7 @@ export default function SpacePage({
   const isTaskWorkspaceView = TASK_WORKSPACE_VIEWS.has(activeView);
 
   return (
-    <div className="apexa-space-shell flex-grow flex h-full bg-white dark:bg-[#090a0f] font-sans overflow-hidden relative">
+    <div className="apexa-space-shell flex-grow flex h-full bg-white dark:bg-[#08090c] font-sans overflow-hidden relative">
       
       {/* Backdrop overlay for mobile Spaces sidebar */}
       <AnimatePresence>
@@ -2167,7 +2165,7 @@ export default function SpacePage({
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 4, scale: 0.95 }}
                             transition={{ duration: 0.12 }}
-                            className="absolute right-0 mt-1.5 w-48 rounded-xl bg-white dark:bg-[#151824] border border-slate-200 dark:border-white/[0.08] p-1.5 shadow-xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-50 divide-y divide-slate-100 dark:divide-white/[0.06]"
+                            className="absolute right-0 mt-1.5 w-48 rounded-xl bg-white dark:bg-[#111218] border border-slate-200 dark:border-white/10 p-1.5 shadow-xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-50 divide-y divide-slate-100 dark:divide-white/[0.06]"
                           >
                             <div className="space-y-0.5 pb-1">
                               <button
@@ -3061,7 +3059,7 @@ export default function SpacePage({
                                     top: breadcrumbCoords.top,
                                     left: breadcrumbCoords.left,
                                   }}
-                                  className="w-[310px] bg-white dark:bg-[#151824] border border-slate-200 dark:border-white/[0.08] rounded-2xl shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-3 z-[150] text-left font-sans select-none"
+                                  className="w-[310px] bg-white dark:bg-[#111218] border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-3 z-[150] text-left font-sans select-none"
                                 >
                                   {/* Header Box: Rename list input & options */}
                                   <div className="flex items-center gap-2 p-1.5 border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/60 dark:bg-white/[0.04] rounded-xl mb-3 shadow-3xs">
@@ -3215,108 +3213,8 @@ export default function SpacePage({
 
             </div>
 
-            {/* Right Side: Quick Tools, Share, Cog Settings, and "+ Task" primary action */}
+            {/* Right Side: Share, Cog Settings, and "+ Task" primary action */}
             <div className="apexa-space-header-actions flex w-full sm:w-auto items-center justify-end gap-1.5 sm:gap-2 shrink-0">
-              
-              {/* Quick Tools Dropdown (Sleek Ghost Pill) */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowQuickTools(!showQuickTools)}
-                  className={`h-8 px-2.5 sm:px-3 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    showQuickTools 
-                      ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold' 
-                      : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-white/5'
-                  }`}
-                  title="Công cụ & Tiện ích không gian"
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                  <span>{t('quickTools') || (locale === 'vi' ? 'Công cụ' : 'Tools')}</span>
-                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${showQuickTools ? 'rotate-180 text-indigo-500' : ''}`} />
-                </button>
-
-                {showQuickTools && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowQuickTools(false)} />
-                    <div className="absolute right-0 top-full mt-2 w-[285px] bg-white/98 dark:bg-[#151824]/98 backdrop-blur-2xl border border-slate-200/80 dark:border-white/[0.08] rounded-2xl shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-50 p-2.5 font-sans select-none animate-in fade-in zoom-in-95 duration-150">
-                      
-                      {/* Section 1: AI & Automations */}
-                      <div className="px-2 py-1 text-[9.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-1">
-                        <Sparkles className="w-3 h-3 text-indigo-500" />
-                        <span>Trí tuệ AI & Năng suất</span>
-                      </div>
-                      
-                      <button
-                        type="button"
-                        onClick={() => { setShowQuickTools(false); triggerToast?.('info', 'Apexa AI', 'Trợ lý sẽ sử dụng Space và danh sách đang mở làm ngữ cảnh.'); }}
-                        className="w-full flex items-start gap-2.5 p-2 rounded-xl bg-gradient-to-r from-blue-500/10 via-sky-500/10 to-cyan-500/5 hover:from-blue-500/15 hover:via-sky-500/15 dark:from-indigo-950/40 dark:via-cyan-950/30 border border-indigo-500/20 text-left cursor-pointer group transition-all mb-1"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                          <ApexaAiIcon className="w-4 h-4" variant="gradient" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[11.5px] font-black text-indigo-700 dark:text-indigo-300">Apexa AI Copilot</span>
-                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-indigo-500/20 text-indigo-600 dark:text-indigo-300">Pro</span>
-                          </div>
-                          <span className="text-[9.5px] text-slate-500 dark:text-slate-400 block leading-tight mt-0.5 font-medium">Hỏi đáp, tóm tắt và xử lý thông minh</span>
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => { setShowQuickTools(false); onOpenAutomations?.(); }}
-                        className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-slate-100/80 dark:hover:bg-white/[0.06] transition-all text-left cursor-pointer group"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                          <Zap className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-[11.5px] font-bold text-slate-700 dark:text-slate-200 block group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Tự động hóa (Automations)</span>
-                          <span className="text-[9.5px] text-slate-400 dark:text-slate-500 block leading-tight mt-0.5">Tạo quy tắc kích hoạt và luồng tự động</span>
-                        </div>
-                      </button>
-
-                      <div className="border-t border-slate-200/60 dark:border-white/[0.06] my-1.5" />
-                      
-                      {/* Section 2: View Customization */}
-                      <div className="px-2 py-1 text-[9.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-1">
-                        <SlidersHorizontal className="w-3 h-3 text-slate-400" />
-                        <span>Tùy chỉnh chế độ xem</span>
-                      </div>
-                      
-                      <button
-                        type="button"
-                        onClick={() => { setShowQuickTools(false); setActiveView('table'); setShowFieldsPanel(true); }}
-                        className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-slate-100/80 dark:hover:bg-white/[0.06] transition-all text-left cursor-pointer group"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                          <Table className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-[11.5px] font-bold text-slate-700 dark:text-slate-200 block group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Bố cục & Trường tùy chỉnh</span>
-                          <span className="text-[9.5px] text-slate-400 dark:text-slate-500 block leading-tight mt-0.5">Cấu hình cột và dữ liệu hiển thị</span>
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => { setShowQuickTools(false); setActiveTabId('tab-calendar'); setActiveView('calendar'); }}
-                        className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-slate-100/80 dark:hover:bg-white/[0.06] transition-all text-left cursor-pointer group"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                          <Calendar className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-[11.5px] font-bold text-slate-700 dark:text-slate-200 block group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Lịch biểu & Dòng thời gian</span>
-                          <span className="text-[9.5px] text-slate-400 dark:text-slate-500 block leading-tight mt-0.5">Theo dõi hạn chót trên timeline</span>
-                        </div>
-                      </button>
-                      
-                    </div>
-                  </>
-                )}
-              </div>
 
               {/* Share button (Sleek Ghost Pill) */}
               <button 
@@ -3493,7 +3391,7 @@ export default function SpacePage({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 4, scale: 0.96 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute right-0 top-full mt-1.5 z-50 w-72 p-2 bg-white/98 dark:bg-[#151824]/98 backdrop-blur-xl border border-slate-200/90 dark:border-white/[0.08] rounded-2xl shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] space-y-1 font-sans text-xs"
+                    className="absolute right-0 top-full mt-1.5 z-50 w-72 p-2 bg-white/98 dark:bg-[#111218]/98 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] space-y-1 font-sans text-xs"
                   >
                     <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-slate-100 dark:border-white/[0.08] mb-1">
                       <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
@@ -3615,7 +3513,7 @@ export default function SpacePage({
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 4, scale: 0.96 }}
                         transition={{ duration: 0.15, ease: 'easeOut' }}
-                        className="absolute right-0 top-full mt-1.5 z-50 w-60 p-3 bg-white/98 dark:bg-[#151824]/98 backdrop-blur-xl border border-slate-200/90 dark:border-white/[0.08] rounded-2xl shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] space-y-3 font-sans text-xs"
+                        className="absolute right-0 top-full mt-1.5 z-50 w-60 p-3 bg-white/98 dark:bg-[#111218]/98 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] space-y-3 font-sans text-xs"
                       >
                         <div>
                           <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1.5">
@@ -3927,7 +3825,7 @@ export default function SpacePage({
       </AnimatePresence>
 
       {/* ── Active Module Rendering Body Section ── */}
-      <section className="apexa-space-content flex-1 overflow-y-auto select-none scrollbar-none bg-white dark:bg-[#07080c] flex flex-col" aria-label="Không gian làm việc" data-view={activeView}>
+      <section className="apexa-space-content flex-1 overflow-y-auto select-none scrollbar-none bg-white dark:bg-[#08090c] flex flex-col" aria-label="Không gian làm việc" data-view={activeView}>
         
         {/* Render Overview Dashboard */}
         {activeView === 'overview' && (
@@ -4995,7 +4893,7 @@ export default function SpacePage({
           />
           <div 
             style={{ top: viewContextMenu.y, left: viewContextMenu.x }}
-            className="fixed w-[240px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-50 text-left font-sans select-none overflow-hidden py-1.5 text-xs animate-fadeIn text-slate-700 dark:text-slate-200"
+            className="fixed w-[240px] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-[0_16px_40px_-8px_rgba(0,0,0,0.18),0_6px_16px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8),0_8px_20px_-4px_rgba(0,0,0,0.6)] z-50 text-left font-sans select-none overflow-hidden p-1.5 text-xs animate-fadeIn text-slate-700 dark:text-zinc-200 space-y-0.5"
           >
             {/* Favorite */}
             <button 
@@ -5003,7 +4901,7 @@ export default function SpacePage({
                 updateViewSetting(viewContextMenu.tabId, 'pin', true);
                 setViewContextMenu(prev => ({ ...prev, show: false }));
               }}
-              className="w-full flex items-center justify-between px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold"
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 text-left cursor-pointer font-bold transition-colors"
             >
               <div className="flex items-center gap-2">
                 <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
@@ -5032,7 +4930,7 @@ export default function SpacePage({
                   }
                 });
               }}
-              className="w-full flex items-center gap-2 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold"
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 text-left cursor-pointer font-bold transition-colors"
             >
               <Pencil className="w-3.5 h-3.5 text-slate-400" />
               <span>Đổi tên</span>
@@ -5049,7 +4947,7 @@ export default function SpacePage({
                 navigator.clipboard.writeText(url.toString());
                 triggerToast?.('success', 'Sao chép liên kết', 'Đã sao chép liên kết trực tiếp tới chế độ xem này.');
               }}
-              className="w-full flex items-center gap-2 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold"
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 text-left cursor-pointer font-bold transition-colors"
             >
               <LinkIcon className="w-3.5 h-3.5 text-slate-400" />
               <span>Sao chép liên kết chế độ xem</span>
@@ -5062,16 +4960,16 @@ export default function SpacePage({
                 openFieldsPanel();
                 triggerToast?.('info', 'Tùy chỉnh', 'Đã mở bảng tùy chỉnh trường và hiển thị cột.');
               }}
-              className="w-full flex items-center gap-2 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold"
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 text-left cursor-pointer font-bold transition-colors"
             >
               <Cog className="w-3.5 h-3.5 text-slate-400" />
               <span>Tùy chỉnh chế độ xem</span>
             </button>
 
-            <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+            <div className="border-t border-slate-100 dark:border-zinc-800 my-1" />
 
             {/* Toggle Switches */}
-            <div className="px-3.5 py-1 space-y-1.5">
+            <div className="px-2.5 py-1 space-y-1.5">
               {[ 
                 { label: 'Ghim chế độ xem', key: 'pin' },
                 { label: 'Chế độ riêng tư', key: 'private' },
@@ -5080,7 +4978,7 @@ export default function SpacePage({
                 { label: 'Đặt làm mặc định', key: 'default' },
               ].map(toggle => (
                 <div key={toggle.key} className="flex items-center justify-between text-[11px]">
-                  <span className="text-slate-650 dark:text-slate-300 font-bold">{toggle.label}</span>
+                  <span className="text-slate-650 dark:text-zinc-300 font-bold">{toggle.label}</span>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
@@ -5088,13 +4986,13 @@ export default function SpacePage({
                       onChange={event => updateViewSetting(viewContextMenu.tabId, toggle.key as ViewSettingKey, event.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all dark:border-slate-650 peer-checked:bg-indigo-600"></div>
+                    <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all dark:border-zinc-600 peer-checked:bg-blue-600"></div>
                   </label>
                 </div>
               ))}
             </div>
 
-            <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+            <div className="border-t border-slate-100 dark:border-zinc-800 my-1" />
 
             {/* Export view */}
             <button 
@@ -5102,7 +5000,7 @@ export default function SpacePage({
                 setViewContextMenu(prev => ({ ...prev, show: false }));
                 handleExportViewData('csv');
               }}
-              className="w-full flex items-center justify-between px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold"
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 text-left cursor-pointer font-bold transition-colors"
             >
               <span>Xuất dữ liệu CSV</span>
               <ChevronRight className="w-3 h-3 text-slate-400" />
@@ -5114,7 +5012,7 @@ export default function SpacePage({
                 setViewContextMenu(prev => ({ ...prev, show: false }));
                 setTemplatesModalOpen(true);
               }}
-              className="w-full flex items-center justify-between px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold"
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 text-left cursor-pointer font-bold transition-colors"
             >
               <span>Thư viện Mẫu dự án</span>
               <ChevronRight className="w-3 h-3 text-slate-400" />
@@ -5136,7 +5034,7 @@ export default function SpacePage({
                   triggerToast?.('success', 'Nhân bản', `Đã nhân bản chế độ xem "${currentTab.label}".`);
                 }
               }}
-              className="w-full flex items-center justify-between px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold"
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 text-left cursor-pointer font-bold transition-colors"
             >
               <span>Nhân bản chế độ xem</span>
               <ChevronRight className="w-3 h-3 text-slate-400" />
@@ -5167,12 +5065,12 @@ export default function SpacePage({
                   }
                 });
               }}
-              className="w-full flex items-center gap-2 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold text-red-600"
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-rose-50/80 dark:hover:bg-rose-950/30 text-left cursor-pointer font-bold text-rose-600 dark:text-rose-400 transition-colors"
             >
               <span>Xóa chế độ xem</span>
             </button>
 
-            <div className="p-2 pt-1 border-t border-slate-100 dark:border-slate-800/80 mt-1">
+            <div className="pt-1 border-t border-slate-100 dark:border-zinc-800 mt-1">
               <button 
                 onClick={() => {
                   setViewContextMenu(prev => ({ ...prev, show: false }));
@@ -5183,9 +5081,10 @@ export default function SpacePage({
                   setSharingTargetShareSettings(activeSpace.shareSettings || {});
                   setSharingModalOpen(true);
                 }}
-                className="w-full py-1.5 bg-[#007fff] hover:bg-blue-650 text-white font-extrabold text-center rounded-lg shadow-sm transition-colors cursor-pointer text-xs"
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs shadow-xs hover:shadow-sm active:scale-[0.99] transition-all cursor-pointer"
               >
-                Chia sẻ và phân quyền
+                <Shield className="w-3.5 h-3.5 text-white/90" />
+                <span>Chia sẻ và phân quyền</span>
               </button>
             </div>
           </div>
@@ -5202,10 +5101,27 @@ export default function SpacePage({
               top: activeSpaceMenu.y, 
               left: Math.min(activeSpaceMenu.x, typeof window !== 'undefined' ? window.innerWidth - 290 : activeSpaceMenu.x)
             }}
-            className="w-[280px] p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-50 text-left font-sans select-none animate-fadeIn max-h-[80vh] overflow-y-auto scrollbar-none"
+            className="w-[280px] p-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-[0_16px_40px_-8px_rgba(0,0,0,0.18),0_6px_16px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8),0_8px_20px_-4px_rgba(0,0,0,0.6)] z-50 text-left font-sans select-none animate-fadeIn max-h-[80vh] overflow-y-auto scrollbar-none space-y-0.5"
           >
-            {/* Section: CREATE */}
-            <div className="px-2.5 py-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Tạo</div>
+            {/* Header: Tạo trong không gian */}
+            <div className="p-2 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-800 flex items-center justify-between gap-2 mb-1">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-5 h-5 rounded-md bg-blue-50 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                  <Plus className="w-3 h-3" />
+                </div>
+                <span className="font-bold text-[11px] text-slate-600 dark:text-zinc-305 uppercase tracking-wider">
+                  Tạo trong không gian
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveSpaceMenu(null)}
+                className="w-5 h-5 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-200/60 dark:hover:bg-zinc-700 flex items-center justify-center cursor-pointer transition-colors shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
             <div className="space-y-0.5">
               {/* List */}
               <button 
@@ -5214,14 +5130,14 @@ export default function SpacePage({
                   onAddListSpace?.(activeSpaceMenu.id);
                   setActiveSpaceMenu(null);
                 }}
-                className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
+                className="w-full flex items-start gap-2.5 p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 text-left cursor-pointer group transition-colors"
               >
-                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
-                  <List className="w-4 h-4 text-slate-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
+                <div className="w-6.5 h-6.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200/60 dark:border-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5">
+                  <List className="w-3.5 h-3.5" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Danh sách</p>
-                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Theo dõi công việc, dự án, thành viên và hơn thế nữa</p>
+                  <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Danh sách</p>
+                  <p className="text-[10px] text-slate-400 dark:text-zinc-400 leading-tight mt-0.5">Theo dõi công việc, dự án, thành viên và hơn thế nữa</p>
                 </div>
               </button>
 
@@ -5239,14 +5155,14 @@ export default function SpacePage({
                     editingFolderId: null,
                   });
                 }}
-                className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
+                className="w-full flex items-start gap-2.5 p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 text-left cursor-pointer group transition-colors"
               >
-                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
-                  <Folder className="w-4 h-4 text-amber-500 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors" />
+                <div className="w-6.5 h-6.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200/60 dark:border-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">
+                  <Folder className="w-3.5 h-3.5" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Thư mục</p>
-                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Nhóm danh sách, tài liệu và nội dung khác</p>
+                  <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Thư mục</p>
+                  <p className="text-[10px] text-slate-400 dark:text-zinc-400 leading-tight mt-0.5">Nhóm danh sách, tài liệu và nội dung khác</p>
                 </div>
               </button>
 
@@ -5264,22 +5180,22 @@ export default function SpacePage({
                     editingFolderId: null,
                   });
                 }}
-                className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
+                className="w-full flex items-start gap-2.5 p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 text-left cursor-pointer group transition-colors"
               >
-                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
-                  <RefreshCw className="w-4 h-4 text-cyan-500 group-hover:text-cyan-600 dark:group-hover:text-cyan-455 transition-colors" />
+                <div className="w-6.5 h-6.5 rounded-lg bg-cyan-50 dark:bg-cyan-950/50 border border-cyan-200/60 dark:border-cyan-900/40 flex items-center justify-center text-cyan-600 dark:text-cyan-400 shrink-0 mt-0.5">
+                  <RefreshCw className="w-3.5 h-3.5" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Thư mục Sprint</p>
-                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Quản lý chu kỳ và Sprint</p>
+                  <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Thư mục Sprint</p>
+                  <p className="text-[10px] text-slate-400 dark:text-zinc-400 leading-tight mt-0.5">Quản lý chu kỳ và Sprint</p>
                 </div>
               </button>
             </div>
 
-            <div className="border-t border-slate-100 dark:border-slate-800 my-2" />
+            <div className="border-t border-slate-100 dark:border-zinc-800 my-1" />
 
             {/* Section: DOCS & VIEWS */}
-            <div className="px-2.5 py-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Tài liệu và chế độ xem</div>
+            <div className="px-2.5 py-1 text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Tài liệu và chế độ xem</div>
             <div className="space-y-0.5">
               {/* Doc */}
               <button 
@@ -5301,14 +5217,14 @@ export default function SpacePage({
                     }
                   });
                 }}
-                className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
+                className="w-full flex items-start gap-2.5 p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 text-left cursor-pointer group transition-colors"
               >
-                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
-                  <FileText className="w-4 h-4 text-blue-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
+                <div className="w-6.5 h-6.5 rounded-lg bg-blue-50 dark:bg-blue-950/50 border border-blue-200/60 dark:border-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 mt-0.5">
+                  <FileText className="w-3.5 h-3.5" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Tài liệu</p>
-                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Cộng tác và ghi chép mọi nội dung</p>
+                  <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Tài liệu</p>
+                  <p className="text-[10px] text-slate-400 dark:text-zinc-400 leading-tight mt-0.5">Cộng tác và ghi chép mọi nội dung</p>
                 </div>
               </button>
 
@@ -5320,14 +5236,14 @@ export default function SpacePage({
                   setActiveSpaceMenu(null);
                   triggerToast?.('success', 'Bảng điều khiển', 'Đã chuyển sang chế độ xem tổng quan bảng điều khiển.');
                 }}
-                className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
+                className="w-full flex items-start gap-2.5 p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 text-left cursor-pointer group transition-colors"
               >
-                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
-                  <Activity className="w-4 h-4 text-pink-500 group-hover:text-pink-650 dark:group-hover:text-pink-400 transition-colors" />
+                <div className="w-6.5 h-6.5 rounded-lg bg-pink-50 dark:bg-pink-950/50 border border-pink-200/60 dark:border-pink-900/40 flex items-center justify-center text-pink-600 dark:text-pink-400 shrink-0 mt-0.5">
+                  <Activity className="w-3.5 h-3.5" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-855 dark:text-slate-200">Bảng điều khiển</p>
-                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Theo dõi chỉ số và thông tin chuyên sâu</p>
+                  <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Bảng điều khiển</p>
+                  <p className="text-[10px] text-slate-400 dark:text-zinc-400 leading-tight mt-0.5">Theo dõi chỉ số và thông tin chuyên sâu</p>
                 </div>
               </button>
 
@@ -5339,22 +5255,22 @@ export default function SpacePage({
                   setActiveSpaceMenu(null);
                   triggerToast?.('success', 'Biểu mẫu', 'Đã chuyển sang chế độ xem biểu mẫu thu thập công việc.');
                 }}
-                className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
+                className="w-full flex items-start gap-2.5 p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 text-left cursor-pointer group transition-colors"
               >
-                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
-                  <CheckSquare className="w-4 h-4 text-purple-500 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors" />
+                <div className="w-6.5 h-6.5 rounded-lg bg-purple-50 dark:bg-purple-950/50 border border-purple-200/60 dark:border-purple-900/40 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0 mt-0.5">
+                  <CheckSquare className="w-3.5 h-3.5" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Biểu mẫu</p>
-                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Thu thập, theo dõi và báo cáo dữ liệu</p>
+                  <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Biểu mẫu</p>
+                  <p className="text-[10px] text-slate-400 dark:text-zinc-400 leading-tight mt-0.5">Thu thập, theo dõi và báo cáo dữ liệu</p>
                 </div>
               </button>
             </div>
 
-            <div className="border-t border-slate-100 dark:border-slate-800 my-2" />
+            <div className="border-t border-slate-100 dark:border-zinc-800 my-1" />
 
             {/* Section: MORE */}
-            <div className="px-2.5 py-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Thêm</div>
+            <div className="px-2.5 py-1 text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Thêm</div>
             <div className="space-y-0.5">
               {/* Imports */}
               <button 
@@ -5363,14 +5279,14 @@ export default function SpacePage({
                   setActiveSpaceMenu(null);
                   fileImportInputRef.current?.click();
                 }}
-                className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
+                className="w-full flex items-start gap-2.5 p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 text-left cursor-pointer group transition-colors"
               >
-                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
-                  <LinkIcon className="w-4 h-4 text-teal-500 group-hover:text-teal-655 dark:group-hover:text-teal-400 transition-colors" />
+                <div className="w-6.5 h-6.5 rounded-lg bg-teal-50 dark:bg-teal-950/50 border border-teal-200/60 dark:border-teal-900/40 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0 mt-0.5">
+                  <LinkIcon className="w-3.5 h-3.5" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Nhập dữ liệu (CSV / JSON)</p>
-                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Nhập công việc từ file CSV hoặc JSON</p>
+                  <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Nhập dữ liệu (CSV / JSON)</p>
+                  <p className="text-[10px] text-slate-400 dark:text-zinc-400 leading-tight mt-0.5">Nhập công việc từ file CSV hoặc JSON</p>
                 </div>
               </button>
 
@@ -5381,14 +5297,14 @@ export default function SpacePage({
                   setActiveSpaceMenu(null);
                   setTemplatesModalOpen(true);
                 }}
-                className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
+                className="w-full flex items-start gap-2.5 p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 text-left cursor-pointer group transition-colors"
               >
-                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
-                  <Star className="w-4 h-4 text-amber-500 fill-amber-500 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors" />
+                <div className="w-6.5 h-6.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200/60 dark:border-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">
+                  <Star className="w-3.5 h-3.5 fill-amber-500" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Mẫu có sẵn</p>
-                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Tạo quy trình từ thư viện mẫu</p>
+                  <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Mẫu có sẵn</p>
+                  <p className="text-[10px] text-slate-400 dark:text-zinc-400 leading-tight mt-0.5">Tạo quy trình từ thư viện mẫu</p>
                 </div>
               </button>
             </div>
@@ -5431,10 +5347,10 @@ export default function SpacePage({
                 top: Math.max(16, Math.min(activeSpaceSettings.y, typeof window !== 'undefined' ? window.innerHeight - 560 : activeSpaceSettings.y)), 
                 left: Math.max(16, Math.min(activeSpaceSettings.x, typeof window !== 'undefined' ? window.innerWidth - 295 : activeSpaceSettings.x))
               }}
-              className="w-[285px] bg-white/98 dark:bg-[#0d1017]/98 border border-slate-200/90 dark:border-slate-800/90 rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.18)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] backdrop-blur-2xl z-50 text-left font-sans select-none overflow-hidden text-xs p-2.5 space-y-1.5"
+              className="w-[275px] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-[0_16px_40px_-8px_rgba(0,0,0,0.18),0_6px_16px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8),0_8px_20px_-4px_rgba(0,0,0,0.6)] z-50 text-left font-sans select-none overflow-hidden text-xs p-2 space-y-0.5"
             >
               {/* Space Identity Banner / Quick Edit Header */}
-              <div className="p-2.5 rounded-2xl bg-slate-50/90 dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-800/70">
+              <div className="p-2 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-800 mb-1">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <EmojiIconPicker
@@ -5443,8 +5359,8 @@ export default function SpacePage({
                       onChange={(newIcon) => updateSpaceProperties(space.id, { emoji: newIcon }, 'Đã cập nhật biểu tượng không gian.')}
                       title="Đổi biểu tượng không gian"
                     >
-                      <div className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-center shrink-0 shadow-3xs hover:border-indigo-500 hover:scale-105 transition-all cursor-pointer">
-                        {renderSpaceIcon(space.emoji || 'Folder', "w-5 h-5")}
+                      <div className="w-7 h-7 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700/80 flex items-center justify-center shrink-0 shadow-3xs hover:border-blue-500 hover:scale-105 transition-all cursor-pointer">
+                        {renderSpaceIcon(space.emoji || 'Folder', "w-4 h-4")}
                       </div>
                     </EmojiIconPicker>
                     
@@ -5460,13 +5376,13 @@ export default function SpacePage({
                               if (e.key === 'Enter') handleSaveRename();
                               if (e.key === 'Escape') setInlineRenameSpaceId(null);
                             }}
-                            className="w-full bg-white dark:bg-slate-800 border border-indigo-500 rounded-lg px-2 py-0.5 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none"
+                            className="w-full bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-md px-2 py-0.5 text-xs font-semibold text-slate-800 dark:text-zinc-100 outline-none focus:ring-1.5 focus:ring-indigo-500/30 focus:border-indigo-500/40 shadow-3xs"
                             placeholder="Tên không gian..."
                           />
                           <button
                             type="button"
                             onClick={handleSaveRename}
-                            className="p-1 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer shrink-0"
+                            className="p-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer shrink-0"
                             title="Lưu tên"
                           >
                             <Check className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -5475,7 +5391,7 @@ export default function SpacePage({
                       ) : (
                         <>
                           <div className="flex items-center gap-1.5">
-                            <span className="font-black text-[13px] text-slate-850 dark:text-slate-100 truncate block">
+                            <span className="font-bold text-xs text-slate-800 dark:text-zinc-100 truncate block">
                               {space.name}
                             </span>
                           </div>
@@ -5488,7 +5404,7 @@ export default function SpacePage({
                               {space.isPrivate ? <Lock className="w-2.5 h-2.5 inline" /> : null}
                               {space.isPrivate ? 'Riêng tư' : 'Công khai'}
                             </span>
-                            <span className="text-[9.5px] text-slate-400 font-semibold">
+                            <span className="text-[9.5px] text-slate-400 dark:text-zinc-400 font-semibold">
                               {space.lists?.length || 0} danh sách
                             </span>
                           </div>
@@ -5503,7 +5419,7 @@ export default function SpacePage({
                       setActiveSpaceSettings(null);
                       setInlineRenameSpaceId(null);
                     }}
-                    className="w-6 h-6 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 flex items-center justify-center cursor-pointer transition-colors shrink-0"
+                    className="w-5 h-5 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-200/60 dark:hover:bg-zinc-700 flex items-center justify-center cursor-pointer transition-colors shrink-0"
                     title="Đóng"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -5521,17 +5437,17 @@ export default function SpacePage({
                     setActiveSpaceSettings(null);
                     toggleSpaceFavorite(space);
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200/60 dark:border-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
                       <Star className={`w-3.5 h-3.5 ${space.isFavorite ? 'fill-amber-500 text-amber-500' : ''}`} />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-amber-600 dark:group-hover/item:text-amber-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                       {space.isFavorite ? 'Bỏ yêu thích' : 'Yêu thích'}
                     </span>
                   </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-amber-500 group-hover/item:translate-x-0.5 transition-all duration-200" />
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all duration-200" />
                 </button>
 
                 {/* Rename */}
@@ -5542,13 +5458,13 @@ export default function SpacePage({
                     setInlineRenameSpaceId(space.id);
                     setInlineRenameSpaceName(space.name);
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-blue-500/10 dark:bg-blue-500/15 flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-blue-50 dark:bg-blue-950/50 border border-blue-200/60 dark:border-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                       <Pencil className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-blue-600 dark:group-hover/item:text-blue-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                       Đổi tên
                     </span>
                   </div>
@@ -5572,20 +5488,20 @@ export default function SpacePage({
                     }
                     onAddSyncLog(`Copied space link for space ${space.name}`);
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/15 flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200/60 dark:border-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
                       <LinkIcon className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                       Sao chép liên kết
                     </span>
                   </div>
                 </button>
               </div>
 
-              <div className="border-t border-slate-200/60 dark:border-slate-800/80 my-1" />
+              <div className="my-1 border-t border-slate-100 dark:border-zinc-800" />
 
               {/* Group 2: Create & Automations */}
               <div className="space-y-0.5">
@@ -5601,54 +5517,54 @@ export default function SpacePage({
                       y: activeSpaceSettings.y
                     });
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
                       <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-emerald-600 dark:group-hover/item:text-emerald-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                       Tạo mới
                     </span>
                   </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-emerald-500 group-hover/item:translate-x-0.5 transition-all duration-200" />
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 group-hover:translate-x-0.5 transition-all duration-200" />
                 </button>
 
                 {/* Color & Icon */}
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); onOpenSpaceSettings?.(space); }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-violet-500/10 dark:bg-violet-500/15 flex items-center justify-center text-violet-600 dark:text-violet-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-violet-50 dark:bg-violet-950/50 border border-violet-200/60 dark:border-violet-900/40 flex items-center justify-center text-violet-600 dark:text-violet-400 shrink-0">
                       <Droplet className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-violet-600 dark:group-hover/item:text-violet-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
                       Màu sắc & biểu tượng
                     </span>
                   </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-violet-500 group-hover/item:translate-x-0.5 transition-all duration-200" />
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-violet-500 group-hover:translate-x-0.5 transition-all duration-200" />
                 </button>
 
                 {/* Automations */}
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); onOpenAutomations?.(); }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200/60 dark:border-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
                       <Zap className="w-3.5 h-3.5 fill-amber-500/20" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-amber-600 dark:group-hover/item:text-amber-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                       Tự động hóa
                     </span>
                   </div>
                 </button>
               </div>
 
-              <div className="border-t border-slate-200/60 dark:border-slate-800/80 my-1" />
+              <div className="my-1 border-t border-slate-100 dark:border-zinc-800" />
 
               {/* Group 3: Space Visibility & Actions */}
               <div className="space-y-0.5">
@@ -5661,17 +5577,17 @@ export default function SpacePage({
                     updateSpaceProperties(space.id, { isHidden: !space.isHidden }, space.isHidden ? `Đã hiển thị lại ${space.name}.` : `Đã ẩn ${space.name} khỏi danh sách mặc định.`);
                     onAddSyncLog(`${space.isHidden ? 'Unhid' : 'Hid'} Space "${space.name}"`);
                   }}
-                  className="w-full p-2 rounded-2xl text-left hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item flex items-center justify-between"
+                  className="w-full p-2 rounded-xl text-left border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group flex items-center justify-between"
                 >
                   <div className="flex items-start gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-slate-500/10 dark:bg-slate-500/15 flex items-center justify-center text-slate-600 dark:text-slate-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs mt-0.5">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-600 dark:text-slate-400 shrink-0 mt-0.5">
                       <EyeOff className="w-3.5 h-3.5" />
                     </div>
                     <div>
-                      <span className="font-extrabold text-[12px] text-slate-700 dark:text-slate-200 block group-hover/item:text-slate-950 dark:group-hover/item:white transition-colors">
+                      <span className="font-bold text-xs text-slate-700 dark:text-zinc-200 block group-hover:text-slate-950 dark:group-hover:text-white transition-colors">
                         {space.isHidden ? 'Hiển thị Space' : 'Ẩn Space'}
                       </span>
-                      <span className="block text-[9.5px] text-slate-400 dark:text-slate-500 font-medium leading-tight mt-0.5">
+                      <span className="block text-[9.5px] text-slate-400 dark:text-zinc-400 font-medium leading-tight mt-0.5">
                         {space.isHidden ? 'Đưa Space trở lại danh sách mặc định' : 'Vẫn giữ quyền truy cập và toàn bộ dữ liệu'}
                       </span>
                     </div>
@@ -5686,13 +5602,13 @@ export default function SpacePage({
                     setActiveSpaceSettings(null);
                     duplicateSpace(space);
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-sky-500/10 dark:bg-sky-500/15 flex items-center justify-center text-sky-600 dark:text-sky-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-sky-50 dark:bg-sky-950/50 border border-sky-200/60 dark:border-sky-900/40 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0">
                       <Copy className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-sky-600 dark:group-hover/item:text-sky-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
                       Nhân bản cấu trúc
                     </span>
                   </div>
@@ -5712,13 +5628,13 @@ export default function SpacePage({
                     }
                     onAddSyncLog(`${space.isArchived ? 'Restored' : 'Archived'} Space "${space.name}"`);
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-orange-500/10 dark:bg-orange-500/15 flex items-center justify-center text-orange-600 dark:text-orange-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-orange-50 dark:bg-orange-950/50 border border-orange-200/60 dark:border-orange-900/40 flex items-center justify-center text-orange-600 dark:text-orange-400 shrink-0">
                       <Archive className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-orange-600 dark:group-hover/item:text-orange-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
                       {space.isArchived ? 'Khôi phục' : 'Lưu trữ'}
                     </span>
                   </div>
@@ -5751,19 +5667,19 @@ export default function SpacePage({
                       }
                     });
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-rose-200 dark:hover:border-rose-900/50 bg-transparent hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-rose-500/10 dark:bg-rose-500/15 flex items-center justify-center text-rose-600 dark:text-rose-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200/60 dark:border-rose-900/40 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
                       <Trash2 className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px]">Xóa Space</span>
+                    <span className="font-bold text-xs text-rose-600 dark:text-rose-400">Xóa Space</span>
                   </div>
                 </button>
               </div>
 
               {/* Group 4: Sharing & Permissions CTA */}
-              <div className="pt-1.5 border-t border-slate-200/60 dark:border-slate-800/80">
+              <div className="pt-1 border-t border-slate-100 dark:border-zinc-800">
                 <button
                   type="button"
                   onClick={(e) => {
@@ -5776,7 +5692,7 @@ export default function SpacePage({
                     setSharingTargetShareSettings(space.shareSettings || {});
                     setSharingModalOpen(true);
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl bg-gradient-to-r from-blue-600 via-sky-500 to-blue-600 hover:from-blue-500 hover:to-cyan-500 text-white font-black text-xs shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/35 hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs shadow-xs hover:shadow-sm active:scale-[0.99] transition-all cursor-pointer"
                 >
                   <Shield className="w-3.5 h-3.5 text-white/90" />
                   <span>Chia sẻ và phân quyền</span>
@@ -5805,9 +5721,16 @@ export default function SpacePage({
                 top: Math.max(16, Math.min(activeListMenu.y, typeof window !== 'undefined' ? window.innerHeight - 380 : activeListMenu.y)), 
                 left: Math.max(16, Math.min(activeListMenu.x, typeof window !== 'undefined' ? window.innerWidth - 275 : activeListMenu.x))
               }}
-              className="w-[265px] bg-white/98 dark:bg-[#0d1017]/98 border border-slate-200/90 dark:border-slate-800/90 rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.18)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] backdrop-blur-2xl z-50 text-left font-sans select-none overflow-hidden text-xs p-2.5 space-y-1"
+              className="w-[265px] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-[0_16px_40px_-8px_rgba(0,0,0,0.18),0_6px_16px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8),0_8px_20px_-4px_rgba(0,0,0,0.6)] z-50 text-left font-sans select-none overflow-hidden text-xs p-2 space-y-0.5"
             >
-              <div className="px-2 py-1 text-[9.5px] font-black text-slate-400 uppercase tracking-widest">Tạo mới trong danh sách</div>
+              <div className="px-2.5 py-1.5 border-b border-slate-100 dark:border-zinc-800 mb-1 flex items-center gap-2">
+                <div className="w-5 h-5 rounded-md bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                  <Plus className="w-3 h-3 stroke-[2.5]" />
+                </div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                  Tạo mới trong danh sách
+                </span>
+              </div>
               
               {/* Task */}
               <button
@@ -5838,14 +5761,14 @@ export default function SpacePage({
                     }
                   });
                 }}
-                className="w-full flex items-center gap-2.5 p-2 rounded-2xl hover:bg-slate-100/80 dark:hover:bg-slate-800/80 text-left cursor-pointer transition-all duration-150 group/item"
+                className="w-full flex items-center gap-2.5 p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 text-left cursor-pointer transition-all duration-150 group"
               >
-                <div className="w-7 h-7 rounded-xl bg-blue-500/10 dark:bg-blue-500/15 flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                <div className="w-6.5 h-6.5 rounded-lg bg-blue-50 dark:bg-blue-950/50 border border-blue-200/60 dark:border-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                   <CheckSquare className="w-3.5 h-3.5" />
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Công việc</p>
-                  <p className="text-[9.5px] text-slate-400 font-medium leading-tight mt-0.5">Tạo từng công việc để quản lý tiến độ</p>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-800 dark:text-zinc-200 group-hover:text-slate-950 dark:group-hover:text-white">Công việc</p>
+                  <p className="text-[10px] text-slate-400 dark:text-zinc-400 font-medium leading-tight mt-0.5">Tạo từng công việc để quản lý tiến độ</p>
                 </div>
               </button>
               
@@ -5877,14 +5800,14 @@ export default function SpacePage({
                     }
                   });
                 }}
-                className="w-full flex items-center gap-2.5 p-2 rounded-2xl hover:bg-slate-100/80 dark:hover:bg-slate-800/80 text-left cursor-pointer transition-all duration-150 group/item"
+                className="w-full flex items-center gap-2.5 p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 text-left cursor-pointer transition-all duration-150 group"
               >
-                <div className="w-7 h-7 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/15 flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                <div className="w-6.5 h-6.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200/60 dark:border-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
                   <List className="w-3.5 h-3.5" />
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Danh sách</p>
-                  <p className="text-[9.5px] text-slate-400 font-medium leading-tight mt-0.5">Theo dõi công việc, dự án và thành viên</p>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-800 dark:text-zinc-200 group-hover:text-slate-950 dark:group-hover:text-white">Danh sách</p>
+                  <p className="text-[10px] text-slate-400 dark:text-zinc-400 font-medium leading-tight mt-0.5">Theo dõi công việc, dự án và thành viên</p>
                 </div>
               </button>
               
@@ -5917,18 +5840,18 @@ export default function SpacePage({
                     }
                   });
                 }}
-                className="w-full flex items-center gap-2.5 p-2 rounded-2xl hover:bg-slate-100/80 dark:hover:bg-slate-800/80 text-left cursor-pointer transition-all duration-150 group/item"
+                className="w-full flex items-center gap-2.5 p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 text-left cursor-pointer transition-all duration-150 group"
               >
-                <div className="w-7 h-7 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                <div className="w-6.5 h-6.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200/60 dark:border-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
                   <RefreshCw className="w-3.5 h-3.5" />
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Sprint</p>
-                  <p className="text-[9.5px] text-slate-400 font-medium leading-tight mt-0.5">Lập kế hoạch chu kỳ Sprint mới</p>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-800 dark:text-zinc-200 group-hover:text-slate-950 dark:group-hover:text-white">Sprint</p>
+                  <p className="text-[10px] text-slate-400 dark:text-zinc-400 font-medium leading-tight mt-0.5">Lập kế hoạch chu kỳ Sprint mới</p>
                 </div>
               </button>
 
-              <div className="border-t border-slate-200/60 dark:border-slate-800/80 my-1" />
+              <div className="my-1 border-t border-slate-100 dark:border-zinc-800" />
               
               {/* Doc */}
               <button
@@ -5949,12 +5872,12 @@ export default function SpacePage({
                     }
                   });
                 }}
-                className="w-full flex items-center gap-2.5 p-2 rounded-2xl hover:bg-slate-100/80 dark:hover:bg-slate-800/80 text-left cursor-pointer transition-all duration-150 group/item"
+                className="w-full flex items-center gap-2.5 p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 text-left cursor-pointer transition-all duration-150 group"
               >
-                <div className="w-7 h-7 rounded-xl bg-violet-500/10 dark:bg-violet-500/15 flex items-center justify-center text-violet-600 dark:text-violet-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                <div className="w-6.5 h-6.5 rounded-lg bg-violet-50 dark:bg-violet-950/50 border border-violet-200/60 dark:border-violet-900/40 flex items-center justify-center text-violet-600 dark:text-violet-400 shrink-0">
                   <FileText className="w-3.5 h-3.5" />
                 </div>
-                <span className="font-extrabold text-xs text-slate-700 dark:text-slate-200">Tài liệu</span>
+                <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-slate-950 dark:group-hover:text-white">Tài liệu</span>
               </button>
 
               {/* Whiteboard */}
@@ -5981,20 +5904,20 @@ export default function SpacePage({
                 top: Math.max(16, Math.min(activeListSettings.y, typeof window !== 'undefined' ? window.innerHeight - 520 : activeListSettings.y)), 
                 left: Math.max(16, Math.min(activeListSettings.x, typeof window !== 'undefined' ? window.innerWidth - 280 : activeListSettings.x))
               }}
-              className="w-[275px] bg-white/98 dark:bg-[#0d1017]/98 border border-slate-200/90 dark:border-slate-800/90 rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.18)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] backdrop-blur-2xl z-50 text-left font-sans select-none overflow-hidden text-xs p-2.5 space-y-1.5"
+              className="w-[275px] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-[0_16px_40px_-8px_rgba(0,0,0,0.18),0_6px_16px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8),0_8px_20px_-4px_rgba(0,0,0,0.6)] z-50 text-left font-sans select-none overflow-hidden text-xs p-2 space-y-0.5"
             >
               {/* List Identity Banner */}
-              <div className="p-2.5 rounded-2xl bg-slate-50/90 dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-800/70 flex items-center justify-between gap-2">
+              <div className="p-2 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-800 flex items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <div className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 shadow-3xs">
-                    <List className="w-4 h-4" />
+                  <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                    <List className="w-3.5 h-3.5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <span className="font-black text-[13px] text-slate-850 dark:text-slate-100 truncate block">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-100 truncate block">
                       {list.name}
                     </span>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="text-[9.5px] font-bold text-slate-450 dark:text-slate-400 truncate">
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <span className="text-[10px] text-slate-400 dark:text-zinc-400 truncate">
                         {space.name}
                       </span>
                     </div>
@@ -6003,7 +5926,7 @@ export default function SpacePage({
                 <button
                   type="button"
                   onClick={() => setActiveListSettings(null)}
-                  className="w-6 h-6 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 flex items-center justify-center cursor-pointer transition-colors shrink-0"
+                  className="w-5 h-5 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-200/60 dark:hover:bg-zinc-700 flex items-center justify-center cursor-pointer transition-colors shrink-0"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -6021,17 +5944,17 @@ export default function SpacePage({
                     onSaveSpaces?.(spaces.map(item => item.id === space.id ? { ...item, lists: updatedLists } : item));
                     triggerToast?.('success', 'Đã cập nhật danh sách', list.isFavorite ? `Đã bỏ “${list.name}” khỏi yêu thích.` : `Đã ghim “${list.name}”.`);
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200/60 dark:border-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
                       <Star className={`w-3.5 h-3.5 ${list.isFavorite ? 'fill-amber-500 text-amber-500' : ''}`} />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-amber-600 dark:group-hover/item:text-amber-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                       {list.isFavorite ? 'Bỏ yêu thích' : 'Yêu thích'}
                     </span>
                   </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-amber-500 group-hover/item:translate-x-0.5 transition-all duration-200" />
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all duration-200" />
                 </button>
 
                 {/* Rename */}
@@ -6057,13 +5980,13 @@ export default function SpacePage({
                       }
                     });
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-blue-500/10 dark:bg-blue-500/15 flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-blue-50 dark:bg-blue-950/50 border border-blue-200/60 dark:border-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                       <Pencil className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-blue-600 dark:group-hover/item:text-blue-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                       Đổi tên
                     </span>
                   </div>
@@ -6084,20 +6007,20 @@ export default function SpacePage({
                     }
                     onAddSyncLog(`Copied list link for list ${list.name}`);
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/15 flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200/60 dark:border-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
                       <LinkIcon className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                       Sao chép liên kết
                     </span>
                   </div>
                 </button>
               </div>
 
-              <div className="border-t border-slate-200/60 dark:border-slate-800/80 my-1" />
+              <div className="my-1 border-t border-slate-100 dark:border-zinc-800" />
 
               {/* Group 2: Configure & Automations */}
               <div className="space-y-0.5">
@@ -6110,17 +6033,17 @@ export default function SpacePage({
                       setActiveListSettings(null);
                       setShowFieldsPanel(true);
                     }}
-                    className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                    className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                   >
                     <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-xl bg-purple-500/10 dark:bg-purple-500/15 flex items-center justify-center text-purple-600 dark:text-purple-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                      <div className="w-6.5 h-6.5 rounded-lg bg-purple-50 dark:bg-purple-950/50 border border-purple-200/60 dark:border-purple-900/40 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
                         <SlidersHorizontal className="w-3.5 h-3.5" />
                       </div>
-                      <span className="font-extrabold text-[12px] group-hover/item:text-purple-600 dark:group-hover/item:text-purple-400 transition-colors">
+                      <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
                         Trường tùy chỉnh
                       </span>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-purple-500 group-hover/item:translate-x-0.5 transition-all duration-200" />
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-purple-500 group-hover:translate-x-0.5 transition-all duration-200" />
                   </button>
                 )}
 
@@ -6129,13 +6052,13 @@ export default function SpacePage({
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setActiveListSettings(null); setActiveSpaceId?.(space.id); setActiveListId?.(list.id); onOpenAutomations?.(); }}
-                    className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                    className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                   >
                     <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                      <div className="w-6.5 h-6.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200/60 dark:border-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
                         <Zap className="w-3.5 h-3.5 fill-amber-500/20" />
                       </div>
-                      <span className="font-extrabold text-[12px] group-hover/item:text-amber-600 dark:group-hover/item:text-amber-400 transition-colors">
+                      <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                         Tự động hóa
                       </span>
                     </div>
@@ -6143,7 +6066,7 @@ export default function SpacePage({
                 )}
               </div>
 
-              <div className="border-t border-slate-200/60 dark:border-slate-800/80 my-1" />
+              <div className="my-1 border-t border-slate-100 dark:border-zinc-800" />
 
               {/* Group 3: Manage Actions */}
               <div className="space-y-0.5">
@@ -6177,13 +6100,13 @@ export default function SpacePage({
                       onAddSyncLog(`Duplicated List "${list.name}" with ${listTasks.length} tasks`);
                       triggerToast?.('success', 'Đã nhân bản danh sách', `Đã tạo "${newListName}" cùng ${listTasks.length} công việc.`);
                     }}
-                    className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                    className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                   >
                     <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-xl bg-sky-500/10 dark:bg-sky-500/15 flex items-center justify-center text-sky-600 dark:text-sky-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                      <div className="w-6.5 h-6.5 rounded-lg bg-sky-50 dark:bg-sky-950/50 border border-sky-200/60 dark:border-sky-900/40 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0">
                         <Copy className="w-3.5 h-3.5" />
                       </div>
-                      <span className="font-extrabold text-[12px] group-hover/item:text-sky-600 dark:group-hover/item:text-sky-400 transition-colors">
+                      <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
                         Nhân bản danh sách
                       </span>
                     </div>
@@ -6201,13 +6124,13 @@ export default function SpacePage({
                     if (!list.isArchived && activeListId === list.id) setActiveListId?.(null);
                     triggerToast?.('success', list.isArchived ? 'Đã khôi phục danh sách' : 'Đã lưu trữ danh sách', `“${list.name}” đã được cập nhật.`);
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-orange-500/10 dark:bg-orange-500/15 flex items-center justify-center text-orange-600 dark:text-orange-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-orange-50 dark:bg-orange-950/50 border border-orange-200/60 dark:border-orange-900/40 flex items-center justify-center text-orange-600 dark:text-orange-400 shrink-0">
                       <Archive className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-orange-600 dark:group-hover/item:text-orange-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
                       {list.isArchived ? 'Khôi phục' : 'Lưu trữ'}
                     </span>
                   </div>
@@ -6234,19 +6157,19 @@ export default function SpacePage({
                       }
                     });
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-rose-200 dark:hover:border-rose-900/50 bg-transparent hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-rose-500/10 dark:bg-rose-500/15 flex items-center justify-center text-rose-600 dark:text-rose-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200/60 dark:border-rose-900/40 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
                       <Trash2 className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px]">Xóa danh sách</span>
+                    <span className="font-bold text-xs text-rose-600 dark:text-rose-400">Xóa danh sách</span>
                   </div>
                 </button>
               </div>
 
               {/* Group 4: Sharing CTA */}
-              <div className="pt-1.5 border-t border-slate-200/60 dark:border-slate-800/80">
+              <div className="pt-1 border-t border-slate-100 dark:border-zinc-800">
                 <button
                   type="button"
                   onClick={(e) => {
@@ -6259,7 +6182,7 @@ export default function SpacePage({
                     setSharingTargetShareSettings(list.shareSettings || {});
                     setSharingModalOpen(true);
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl bg-gradient-to-r from-blue-600 via-sky-500 to-blue-600 hover:from-blue-500 hover:to-cyan-500 text-white font-black text-xs shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/35 hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs shadow-xs hover:shadow-sm active:scale-[0.99] transition-all cursor-pointer"
                 >
                   <Shield className="w-3.5 h-3.5 text-white/90" />
                   <span>Chia sẻ và phân quyền</span>
@@ -6290,27 +6213,27 @@ export default function SpacePage({
                 top: Math.max(16, Math.min(activeFolderSettings.y, typeof window !== 'undefined' ? window.innerHeight - 560 : activeFolderSettings.y)), 
                 left: Math.max(16, Math.min(activeFolderSettings.x, typeof window !== 'undefined' ? window.innerWidth - 280 : activeFolderSettings.x))
               }}
-              className="w-[275px] bg-white/98 dark:bg-[#0d1017]/98 border border-slate-200/90 dark:border-slate-800/90 rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.18)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] backdrop-blur-2xl z-50 text-left font-sans select-none overflow-hidden text-xs p-2.5 space-y-1.5"
+              className="w-[275px] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-[0_16px_40px_-8px_rgba(0,0,0,0.18),0_6px_16px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8),0_8px_20px_-4px_rgba(0,0,0,0.6)] z-50 text-left font-sans select-none overflow-hidden text-xs p-2 space-y-0.5"
             >
               {/* Folder Identity Banner */}
-              <div className="p-2.5 rounded-2xl bg-slate-50/90 dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-800/70 flex items-center justify-between gap-2">
+              <div className="p-2 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-800 flex items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <div 
-                    className="w-8 h-8 rounded-xl border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-center shrink-0 shadow-3xs"
-                    style={{ backgroundColor: `${resolveFolderColor(folder.color)}20`, color: resolveFolderColor(folder.color) }}
+                    className="w-7 h-7 rounded-lg border border-slate-200/80 dark:border-zinc-700/80 flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: `${resolveFolderColor(folder.color)}18`, color: resolveFolderColor(folder.color) }}
                   >
-                    <FolderOpen className="w-4 h-4" />
+                    <FolderOpen className="w-3.5 h-3.5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <span className="font-black text-[13px] text-slate-850 dark:text-slate-100 truncate block">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-100 truncate block">
                       {folder.name}
                     </span>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="text-[9.5px] font-bold text-slate-450 dark:text-slate-400">
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <span className="text-[10px] text-slate-400 dark:text-zinc-400">
                         {folderListsCount} danh sách
                       </span>
-                      <span className="text-slate-300 dark:text-slate-700">•</span>
-                      <span className="text-[9.5px] font-bold text-slate-450 dark:text-slate-400 truncate">
+                      <span className="text-slate-300 dark:text-zinc-600">•</span>
+                      <span className="text-[10px] text-slate-400 dark:text-zinc-400 truncate">
                         {space.name}
                       </span>
                     </div>
@@ -6319,7 +6242,7 @@ export default function SpacePage({
                 <button
                   type="button"
                   onClick={() => { setActiveFolderSettings(null); setFolderColorMenuOpen(null); }}
-                  className="w-6 h-6 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 flex items-center justify-center cursor-pointer transition-colors shrink-0"
+                  className="w-5 h-5 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-200/60 dark:hover:bg-zinc-700 flex items-center justify-center cursor-pointer transition-colors shrink-0"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -6337,17 +6260,17 @@ export default function SpacePage({
                     onSaveSpaces?.(spaces.map(item => item.id === space.id ? { ...item, folders: updatedFolders } : item));
                     triggerToast?.('success', 'Đã cập nhật thư mục', folder.isFavorite ? `Đã bỏ “${folder.name}” khỏi yêu thích.` : `Đã ghim “${folder.name}”.`);
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200/60 dark:border-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
                       <Star className={`w-3.5 h-3.5 ${folder.isFavorite ? 'fill-amber-500 text-amber-500' : ''}`} />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-amber-600 dark:group-hover/item:text-amber-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                       {folder.isFavorite ? 'Bỏ yêu thích' : 'Yêu thích'}
                     </span>
                   </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-amber-500 group-hover/item:translate-x-0.5 transition-all duration-200" />
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all duration-200" />
                 </button>
 
                 {/* Rename */}
@@ -6367,13 +6290,13 @@ export default function SpacePage({
                       editingFolderId: folderId,
                     });
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-blue-500/10 dark:bg-blue-500/15 flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-blue-50 dark:bg-blue-950/50 border border-blue-200/60 dark:border-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                       <Pencil className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-blue-600 dark:group-hover/item:text-blue-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                       Đổi tên
                     </span>
                   </div>
@@ -6394,13 +6317,13 @@ export default function SpacePage({
                     }
                     onAddSyncLog(`Copied folder link for folder ${folder.name}`);
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/15 flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200/60 dark:border-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
                       <LinkIcon className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                       Sao chép liên kết
                     </span>
                   </div>
@@ -6425,20 +6348,20 @@ export default function SpacePage({
                       }
                     });
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
                       <Plus className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-emerald-600 dark:group-hover/item:text-emerald-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                       Tạo danh sách mới
                     </span>
                   </div>
                 </button>
               </div>
 
-              <div className="border-t border-slate-200/60 dark:border-slate-800/80 my-1" />
+              <div className="border-t border-slate-100 dark:border-zinc-800 my-1" />
 
               {/* Group 2: Color & Automations */}
               <div className="space-y-0.5">
@@ -6449,13 +6372,13 @@ export default function SpacePage({
                     e.stopPropagation();
                     setFolderColorMenuOpen(folderColorMenuOpen === folder.id ? null : folder.id);
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-violet-500/10 dark:bg-violet-500/15 flex items-center justify-center text-violet-600 dark:text-violet-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-violet-50 dark:bg-violet-950/50 border border-violet-200/60 dark:border-violet-900/40 flex items-center justify-center text-violet-600 dark:text-violet-400 shrink-0">
                       <Droplet className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-violet-600 dark:group-hover/item:text-violet-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
                       Màu thư mục
                     </span>
                   </div>
@@ -6466,7 +6389,7 @@ export default function SpacePage({
                 </button>
 
                 {folderColorMenuOpen === folder.id && (
-                  <div className="p-2 grid grid-cols-6 gap-2 bg-slate-100/70 dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 my-1 animate-fadeIn">
+                  <div className="p-1.5 grid grid-cols-6 gap-1.5 bg-slate-50 dark:bg-zinc-800/60 rounded-xl border border-slate-100 dark:border-zinc-800 my-1 animate-fadeIn">
                     {[
                       { hex: '#6366f1', name: 'indigo' },
                       { hex: '#ec4899', name: 'rose' },
@@ -6486,7 +6409,7 @@ export default function SpacePage({
                           onAddSyncLog(`Changed Folder "${folder.name}" color to ${colorOpt.name}`);
                           setFolderColorMenuOpen(null);
                         }}
-                        className={`w-6 h-6 rounded-full cursor-pointer hover:scale-115 transition-transform border ${
+                        className={`w-6 h-6 rounded-full cursor-pointer hover:scale-110 transition-transform border ${
                           resolveFolderColor(folder.color) === colorOpt.hex ? 'border-slate-900 dark:border-white ring-2 ring-violet-400' : 'border-transparent'
                         }`}
                         style={{ backgroundColor: colorOpt.hex }}
@@ -6500,13 +6423,13 @@ export default function SpacePage({
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setActiveFolderSettings(null); setActiveSpaceId?.(space.id); setActiveListId?.(null); setActiveFolderId(folder.id); onOpenAutomations?.(); }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200/60 dark:border-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
                       <Zap className="w-3.5 h-3.5 fill-amber-500/20" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-amber-600 dark:group-hover/item:text-amber-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                       Tự động hóa
                     </span>
                   </div>
@@ -6520,21 +6443,21 @@ export default function SpacePage({
                     setActiveFolderSettings(null);
                     setShowFieldsPanel(true);
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-purple-500/10 dark:bg-purple-500/15 flex items-center justify-center text-purple-600 dark:text-purple-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-purple-50 dark:bg-purple-950/50 border border-purple-200/60 dark:border-purple-900/40 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
                       <SlidersHorizontal className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-purple-600 dark:group-hover/item:text-purple-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
                       Trường tùy chỉnh
                     </span>
                   </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-purple-500 group-hover/item:translate-x-0.5 transition-all duration-200" />
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-purple-500 group-hover:translate-x-0.5 transition-all duration-200" />
                 </button>
               </div>
 
-              <div className="border-t border-slate-200/60 dark:border-slate-800/80 my-1" />
+              <div className="border-t border-slate-100 dark:border-zinc-800 my-1" />
 
               {/* Group 3: Manage Actions */}
               <div className="space-y-0.5">
@@ -6611,13 +6534,13 @@ export default function SpacePage({
                     onAddSyncLog(`Duplicated Folder "${folder.name}" with ${clonedTaskCount} tasks, ${clonedDocs.length} docs and ${clonedWhiteboards.length} whiteboards`);
                     triggerToast?.('success', 'Đã nhân bản thư mục', `Đã tạo "${newFolderName}" cùng ${clonedLists.length} danh sách, ${clonedTaskCount} công việc, ${clonedDocs.length} tài liệu và ${clonedWhiteboards.length} bảng trắng.`);
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-sky-500/10 dark:bg-sky-500/15 flex items-center justify-center text-sky-600 dark:text-sky-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-sky-50 dark:bg-sky-950/50 border border-sky-200/60 dark:border-sky-900/40 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0">
                       <Copy className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-sky-600 dark:group-hover/item:text-sky-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
                       Nhân bản thư mục
                     </span>
                   </div>
@@ -6634,13 +6557,13 @@ export default function SpacePage({
                     if (!folder.isArchived && activeFolderId === folder.id) setActiveFolderId(null);
                     triggerToast?.('success', folder.isArchived ? 'Đã khôi phục thư mục' : 'Đã lưu trữ thư mục', `“${folder.name}” đã được cập nhật.`);
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-orange-500/10 dark:bg-orange-500/15 flex items-center justify-center text-orange-600 dark:text-orange-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-orange-50 dark:bg-orange-950/50 border border-orange-200/60 dark:border-orange-900/40 flex items-center justify-center text-orange-600 dark:text-orange-400 shrink-0">
                       <Archive className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-orange-600 dark:group-hover/item:text-orange-400 transition-colors">
+                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
                       {folder.isArchived ? 'Khôi phục' : 'Lưu trữ'}
                     </span>
                   </div>
@@ -6673,19 +6596,19 @@ export default function SpacePage({
                       }
                     });
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-2xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer transition-all duration-150 group/item"
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-rose-200 dark:hover:border-rose-900/50 bg-transparent hover:bg-rose-50/80 dark:hover:bg-rose-950/30 cursor-pointer transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-rose-500/10 dark:bg-rose-500/15 flex items-center justify-center text-rose-600 dark:text-rose-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
+                    <div className="w-6.5 h-6.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200/60 dark:border-rose-900/40 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
                       <Trash2 className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px]">Xóa thư mục</span>
+                    <span className="font-bold text-xs text-rose-600 dark:text-rose-400">Xóa thư mục</span>
                   </div>
                 </button>
               </div>
 
               {/* Group 4: Sharing CTA */}
-              <div className="pt-1.5 border-t border-slate-200/60 dark:border-slate-800/80">
+              <div className="pt-1 border-t border-slate-100 dark:border-zinc-800">
                 <button
                   type="button"
                   onClick={(e) => {
@@ -6698,7 +6621,7 @@ export default function SpacePage({
                     setSharingTargetShareSettings(folder.shareSettings || {});
                     setSharingModalOpen(true);
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl bg-gradient-to-r from-blue-600 via-sky-500 to-blue-600 hover:from-blue-500 hover:to-cyan-500 text-white font-black text-xs shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/35 hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs shadow-xs hover:shadow-sm active:scale-[0.99] transition-all cursor-pointer"
                 >
                   <Shield className="w-3.5 h-3.5 text-white/90" />
                   <span>Chia sẻ và phân quyền</span>
@@ -6717,6 +6640,7 @@ export default function SpacePage({
         tasks={tasks.filter(task => task.spaceId === activeSpace.id)} onUpdateTask={guardedUpdateTask}
         activeSpace={activeSpace} spaces={spaces} onSaveSpaces={onSaveSpaces}
         openDialog={triggerConfirm} triggerToast={triggerToast}
+        anchorPosition={fieldsPanelAnchor}
       />
 
       <ConfirmModal 

@@ -12,6 +12,7 @@ import {
 import { DEFAULT_SIDEBAR_ORDER, useUiStore, SidebarZone } from '@/store/uiStore';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { SidebarZoneModal } from '@/components/sidebar/SidebarZoneModal';
+import { renderSpaceIcon } from '@/components/RenderSpaceIcon';
 
 interface SidebarOrderModalProps {
   isOpen: boolean;
@@ -67,21 +68,10 @@ export function SidebarOrderModal({
         icon: Layers,
         description: isVi ? 'Không gian làm việc & danh sách việc' : 'Spaces, lists & task tracking',
       },
-      planner: {
-        label: isVi ? 'Kế hoạch ngày' : 'Daily planner',
-        icon: Calendar,
-        description: isVi ? 'Xếp lịch công việc & tập trung mỗi ngày' : 'Time blocks & daily focus',
-      },
       calendar: {
         label: t('calendarView') || (isVi ? 'Lịch trình' : 'Calendar'),
         icon: Calendar,
         description: isVi ? 'Lịch trình, mốc thời gian & deadline' : 'Calendar & milestone deadlines',
-      },
-      goals: {
-        label: isVi ? 'Mục tiêu (OKRs)' : 'Goals & OKRs',
-        icon: Target,
-        badge: isVi ? 'Mới' : 'New',
-        description: isVi ? 'Chiến lược mục tiêu & đo lường kết quả' : 'Strategic goals & measurable OKRs',
       },
       finance: {
         label: isVi ? 'Tài chính & Kế toán' : 'Finance & Accounting',
@@ -342,7 +332,7 @@ export function SidebarOrderModal({
                   }}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-white/[0.04] border border-white/[0.08] hover:border-sky-500/40 hover:bg-white/[0.08] text-zinc-300 hover:text-white transition-all cursor-pointer group"
                 >
-                  <span>{z.emoji || '📁'}</span>
+                  <span className="flex items-center justify-center shrink-0">{renderSpaceIcon(z.emoji || 'Folder', "w-3.5 h-3.5 shrink-0", undefined, { preserveEmoji: true })}</span>
                   <span className="font-medium text-white">{z.name}</span>
                   <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-sky-500/15 text-sky-300 border border-sky-500/25">
                     {z.itemIds.length}
@@ -420,7 +410,7 @@ export function SidebarOrderModal({
                       )}
                       {itemZone && (
                         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/30 flex items-center gap-1">
-                          <span>{itemZone.emoji || '📁'}</span>
+                          <span className="flex items-center justify-center shrink-0">{renderSpaceIcon(itemZone.emoji || 'Folder', "w-3 h-3 shrink-0", undefined, { preserveEmoji: true })}</span>
                           <span className="truncate max-w-[100px]">{itemZone.name}</span>
                         </span>
                       )}

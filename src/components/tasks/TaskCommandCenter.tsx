@@ -147,7 +147,7 @@ export default function TaskCommandCenter({
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [aiSummary, setAiSummary] = useState('');
   const [visibleFields, setVisibleFields] = useState([
-    'title', 'status', 'priority', 'assignee', 'startDate', 'dueDate', 'progress', 'tags',
+    'title', 'status', 'priority', 'assignee', 'startDate', 'dueDate',
   ]);
   const [customFields, setCustomFields] = useState<any[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);

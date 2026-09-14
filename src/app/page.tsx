@@ -17,7 +17,6 @@ import { normalizeTaskCompletion, resolveTaskLocation } from '@/lib/taskLifecycl
 import { getTaskAssigneeIds, isUserAssignedToTask } from '@/lib/taskAssignees';
 import { useUiStore, SidebarZone } from '@/store/uiStore';
 import { SidebarZoneGroup } from '@/components/sidebar/SidebarZoneGroup';
-import { SidebarZoneModal } from '@/components/sidebar/SidebarZoneModal';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import { useSpaceStore } from '@/store/spaceStore';
 import { useTaskStore } from '@/store/taskStore';
@@ -25,28 +24,25 @@ import { useDocStore } from '@/store/docStore';
 import { useMemberStore } from '@/store/memberStore';
 import { useBaseStore } from '@/store/baseStore';
 import { useSyncStore } from '@/store/syncStore';
-  import { useNotificationStore } from '@/store/notificationStore';
+import { useNotificationStore } from '@/store/notificationStore';
 import { usePomodoroStore } from '@/store/pomodoroStore';
 import { useAuthStore } from '@/store/authStore';
 import { useBillingEntitlement } from '@/hooks/useBillingEntitlement';
 import { useThemeSync } from '@/hooks/useThemeSync';
 import { useRuntimeConfig } from '@/hooks/useRuntimeConfig';
 import { resolveAppRole } from '@/lib/authRole';
-import { APEXA_SUPER_ADMIN_UID, isApexaSuperAdmin } from '@/lib/admin/constants';
+import { isApexaSuperAdmin } from '@/lib/admin/constants';
 
 import { NavItem } from '@/components/ui';
 import { ApexaAiIcon } from '@/components/ApexaAiIcon';
 import { Select } from '@/components/ui/Select';
-import LoginScreen from '../components/LoginScreen';
-import EmojiIconPicker from '../components/EmojiIconPicker';
-import DocumentHub from '../components/DocumentHub';
+import { renderSpaceIcon } from '@/components/RenderSpaceIcon';
 import SignedImage from '../components/SignedImage';
 import { useTranslation } from '../contexts/TranslationContext';
 import ToastNotification, { Toast } from '../components/ToastNotification';
-import { WORKSPACE_COVERS } from '../components/SettingsPanel';
 import ThemeSwitch from '../components/ThemeSwitch';
 import LanguageDropdown from '../components/LanguageDropdown';
-import PromptModal, { PromptModalConfig } from '../components/PromptModal';
+import type { PromptModalConfig } from '../components/PromptModal';
 import HeaderLiveClockPill from '../components/header/HeaderLiveClockPill';
 import GlobalTimerPill from '../components/timer/GlobalTimerPill';
 import { useGlobalTimerStore } from '@/store/globalTimerStore';
@@ -118,7 +114,6 @@ const AnalyticsHub = dynamic(retryLoader(() => import('../components/AnalyticsHu
 const KeyboardShortcutsModal = dynamic(retryLoader(() => import('../components/KeyboardShortcutsModal')));
 const AddListModal = dynamic(retryLoader(() => import('../components/AddListModal')));
 const FinanceHub = dynamic(retryLoader(() => import('../components/FinanceHub')), { loading: ComponentLoading });
-const GoalsHub = dynamic(retryLoader(() => import('../components/GoalsHub')), { loading: ComponentLoading });
 const SidebarOrderModal = dynamic(retryLoader(() => import('../components/SidebarOrderModal')), { ssr: false });
 const GlobalSearchModal = dynamic(() => import('../components/GlobalSearchModal').then(m => m.GlobalSearchModal), { ssr: false });
 const AutomationRulesModal = dynamic(() => import('../components/AutomationRulesModal').then(m => m.AutomationRulesModal), { ssr: false });
@@ -126,32 +121,24 @@ const ExportDataModal = dynamic(() => import('../components/ExportDataModal').th
 const PricingModal = dynamic(() => import('../components/PricingModal').then(m => m.PricingModal), { ssr: false });
 const MemberProfileModal = dynamic(() => import('../components/MemberProfileModal'), { ssr: false });
 const AcceptInviteModal = dynamic(() => import('../components/workspace/AcceptInviteModal'), { ssr: false });
-const MiniAppHub = dynamic(retryLoader(() => import('../components/miniapp/MiniAppHub')), { loading: ComponentLoading });
-const MiniAppContainer = dynamic(retryLoader(() => import('../components/miniapp/MiniAppContainer')), { ssr: false });
-const CRMWorkspace = dynamic(retryLoader(() => import('../components/CRMWorkspace')), { loading: ComponentLoading, ssr: false });
-const ERPHub = dynamic(retryLoader(() => import('../components/ERPHub')), { loading: ComponentLoading, ssr: false });
-const BaseHub = dynamic(retryLoader(() => import('../components/BaseHub')), { loading: ComponentLoading, ssr: false });
-const WhiteboardHub = dynamic(retryLoader(() => import('../components/WhiteboardHub')), { loading: ComponentLoading, ssr: false });
-const DayPlanner = dynamic(retryLoader(() => import('../components/DayPlanner')), { loading: ComponentLoading, ssr: false });
-const PomodoroMiniApp = dynamic(retryLoader(() => import('../components/miniapp/PomodoroMiniApp')), { loading: ComponentLoading, ssr: false });
-const NotesMiniApp = dynamic(retryLoader(() => import('../components/miniapp/NotesMiniApp')), { loading: ComponentLoading, ssr: false });
-const ConverterMiniApp = dynamic(retryLoader(() => import('../components/miniapp/ConverterMiniApp')), { loading: ComponentLoading, ssr: false });
-const MiniAppLauncherButton = dynamic(() => import('../components/header/MiniAppLauncherButton'), { ssr: false });
-import { useMiniAppStore, selectAllMiniApps } from '@/store/miniAppStore';
-import { SYSTEM_MINI_APPS } from '@/lib/miniAppsRegistry';
-import MiniAppIcon from '@/components/miniapp/MiniAppIcon';
+const DocumentHub = dynamic(retryLoader(() => import('../components/DocumentHub')), { loading: ComponentLoading });
+const LoginScreen = dynamic(() => import('../components/LoginScreen'), { ssr: false });
+const EmojiIconPicker = dynamic(() => import('../components/EmojiIconPicker'), { ssr: false });
+const PromptModal = dynamic(() => import('../components/PromptModal'), { ssr: false });
+const SidebarZoneModal = dynamic(() => import('@/components/sidebar/SidebarZoneModal').then(m => m.SidebarZoneModal), { ssr: false });
 
 import { 
   Briefcase, MessageSquare, Edit3, Users, 
   Grid, LogOut, Cloud, RefreshCw, Sparkles, LayoutDashboard,
-  Search, X, FileText, Hash, Cog, Copy, Link as LinkIcon, ArrowRight, CornerDownLeft, Check, ChevronDown, Lock,
-  Timer, Bell, Calendar, Settings, Plus, Sliders, Sun, Moon,
-  Trash2, Zap, User as UserIcon, ChevronRight, ChevronLeft, RotateCcw, Database, Play, Pause, Clock,
-  BarChart3, Target, Menu, Globe, Keyboard, Handshake, Landmark, Boxes,
-  ListPlus, ListTodo, CheckSquare, Folder, WifiOff,
+  Search, X, Cog, ArrowRight, Check, ChevronDown, Lock,
+  Timer, Bell, Calendar, Settings, Plus, Sun, Moon,
+  Trash2, User as UserIcon, ChevronRight, Database, Play,
+  BarChart3, Target, Menu, Keyboard, Boxes, Palette, CalendarClock,
+  ListTodo, CheckSquare, Folder,
   ChevronsLeft, ChevronsRight,
-  CalendarClock, CalendarDays, Languages, UnfoldVertical, FoldVertical,
-  ShieldCheck, SlidersHorizontal, Monitor, Palette, Power, FolderPlus
+  CalendarDays,
+  ShieldCheck, Power, FolderPlus,
+  CheckCheck, BellOff, Settings2, Inbox
 } from 'lucide-react';
 
 import {
@@ -161,12 +148,8 @@ import {
   ChatCircleDots as PhChat,
   FileText as PhFileText,
   SquaresFour as PhSquaresFour,
-  ChartBar as PhChartBar,
   Target as PhTarget,
-  Table as PhTable,
   Users as PhUsers,
-  Robot as PhBot,
-  Handshake as PhHandshake,
   Bank as PhBank,
 } from '@phosphor-icons/react';
 
@@ -212,7 +195,6 @@ const getShortLabel = (label: string) => {
   if (label === 'Danh bạ thành viên') return 'Thành viên';
   if (label === 'Không gian làm việc') return 'Không gian';
   if (label === 'Hộp thư đến') return 'Hộp thư';
-  if (label === 'Mục tiêu (OKRs)') return 'Mục tiêu';
   if (label.includes('(')) {
     return label.split('(')[0].trim();
   }
@@ -220,8 +202,7 @@ const getShortLabel = (label: string) => {
 };
 
 const DEFAULT_SIDEBAR_ORDER = [
-  'dashboard', 'inbox', 'tasks', 'calendar', 'goals',
-  'finance', 'docs', 'chat', 'team', 'miniapps'
+  'dashboard', 'tasks', 'inbox', 'finance', 'docs', 'team', 'calendar', 'chat'
 ];
 
 const buildTaskCustomFields = (task: Partial<Task> | any) => {
@@ -399,7 +380,6 @@ export default function App() {
   const setPomodoroMode = usePomodoroStore((s) => s.setPomodoroMode);
   const showPomoSettings = usePomodoroStore((s) => s.showPomoSettings);
   const setShowPomoSettings = usePomodoroStore((s) => s.setShowPomoSettings);
-  const pomodoroTime = usePomodoroStore((s) => s.pomodoroTime);
   const setPomodoroTime = usePomodoroStore((s) => s.setPomodoroTime);
   const pomodoroActive = usePomodoroStore((s) => s.pomodoroActive);
   const setPomodoroActive = usePomodoroStore((s) => s.setPomodoroActive);
@@ -1276,17 +1256,11 @@ export default function App() {
   const setSyncProgress = useUiStore((s) => s.setSyncProgress);
   const viewingMemberProfileId = useUiStore((s) => s.viewingMemberProfileId);
   const setViewingMemberProfileId = useUiStore((s) => s.setViewingMemberProfileId);
-  const offlineTasksQueue = useSyncStore((s) => s.offlineTasksQueue);
   const setOfflineTasksQueue = useSyncStore((s) => s.setOfflineTasksQueue);
-  const offlineDocsQueue = useSyncStore((s) => s.offlineDocsQueue);
   const setOfflineDocsQueue = useSyncStore((s) => s.setOfflineDocsQueue);
-  const offlineMembersQueue = useSyncStore((s) => s.offlineMembersQueue);
   const setOfflineMembersQueue = useSyncStore((s) => s.setOfflineMembersQueue);
-  const offlineDeletedTasks = useSyncStore((s) => s.offlineDeletedTasks);
   const setOfflineDeletedTasks = useSyncStore((s) => s.setOfflineDeletedTasks);
-  const offlineDeletedDocs = useSyncStore((s) => s.offlineDeletedDocs);
   const setOfflineDeletedDocs = useSyncStore((s) => s.setOfflineDeletedDocs);
-  const offlineDeletedMembers = useSyncStore((s) => s.offlineDeletedMembers);
   const setOfflineDeletedMembers = useSyncStore((s) => s.setOfflineDeletedMembers);
 
   // Sync Activity log state - consumed from useSyncStore
@@ -1378,6 +1352,7 @@ export default function App() {
 
   const notificationsMenuRef = useRef<HTMLDivElement>(null);
   const notificationsButtonRef = useRef<HTMLButtonElement>(null);
+  const [notificationFilter, setNotificationFilter] = useState<'all' | 'unread'>('all');
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const statusButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -1439,12 +1414,6 @@ export default function App() {
   const moveItemToZone = useUiStore((s) => s.moveItemToZone);
   const removeItemFromZone = useUiStore((s) => s.removeItemFromZone);
   const reorderSidebarZones = useUiStore((s) => s.reorderSidebarZones);
-
-  const pinnedMiniAppIds = useMiniAppStore((s) => s.pinnedAppIds);
-  const customMiniApps = useMiniAppStore((s) => s.customApps);
-  const disabledMiniAppIds = useMiniAppStore((s) => s.disabledAppIds);
-  const enableMiniApp = useMiniAppStore((s) => s.enableApp);
-  const allMiniApps = useMemo(() => selectAllMiniApps(pinnedMiniAppIds, customMiniApps, disabledMiniAppIds), [pinnedMiniAppIds, customMiniApps, disabledMiniAppIds]);
 
   const [editingZone, setEditingZone] = useState<SidebarZone | null>(null);
   const [showZoneModal, setShowZoneModal] = useState(false);
@@ -1521,11 +1490,10 @@ export default function App() {
         icon: PhCalendar,
         description: locale === 'vi' ? 'Lịch trình, mốc thời gian & deadline' : 'Calendar & milestone deadlines',
       },
-      goals: { 
-        label: locale === 'vi' ? 'Mục tiêu (OKRs)' : 'Goals & OKRs', 
-        icon: PhTarget, 
-        badge: locale === 'vi' ? 'Mới' : 'New',
-        description: locale === 'vi' ? 'Chiến lược mục tiêu & đo lường kết quả' : 'Strategic goals & measurable OKRs',
+      finance: { 
+        label: locale === 'vi' ? 'Tài chính & Kế toán' : 'Finance & Accounting', 
+        icon: PhBank, 
+        description: locale === 'vi' ? 'Thu chi, hóa đơn & báo cáo tài chính' : 'Finance invoicing & accounting',
       },
       docs: { 
         label: t('docs') || 'Docs', 
@@ -1542,47 +1510,14 @@ export default function App() {
         icon: PhUsers,
         description: locale === 'vi' ? 'Danh bạ thành viên & phân quyền' : 'Team directory & workspace roles',
       },
-      finance: { 
-        label: locale === 'vi' ? 'Tài chính & Kế toán' : 'Finance & Accounting', 
-        icon: PhBank, 
-        description: locale === 'vi' ? 'Thu chi, hóa đơn & báo cáo tài chính' : 'Finance invoicing & accounting',
-      },
-      miniapps: {
-        label: t('miniApps') || (locale === 'vi' ? 'Kho ứng dụng' : 'Mini Apps'),
-        icon: Boxes,
-        badge: 'Apps',
-        description: locale === 'vi' ? 'Tính năng đang được phát triển' : 'Feature currently under development',
-        disabled: true,
-        disabledTooltip: locale === 'vi' ? 'Tính năng đang phát triển - Tạm thời chưa khả dụng' : 'Feature under development - Currently unavailable',
-      },
     };
 
-    // Dynamically populate pinned Mini Apps into navigation (only if enabled)
-    allMiniApps
-      .filter((app) => pinnedMiniAppIds.includes(app.id) && app.isEnabled !== false)
-      .forEach((app) => {
-        meta[app.id] = {
-          label: locale === 'vi' ? app.nameVi || app.name : app.name,
-          icon: () => (
-            <MiniAppIcon
-              appId={app.id}
-              icon={app.icon}
-              iconName={app.iconName}
-              variant="sidebar"
-            />
-          ),
-          badge: app.badge,
-          description: locale === 'vi' ? app.descriptionVi || app.description : app.description,
-        };
-      });
-
     return meta;
-  }, [locale, unreadNotificationsCount, t, allMiniApps, pinnedMiniAppIds]);
+  }, [locale, unreadNotificationsCount, t]);
 
   const orderedItems = useMemo(() => {
-    const activePinnedIds = pinnedMiniAppIds.filter(id => !disabledMiniAppIds.includes(id));
-    const defaultOrder = [...DEFAULT_SIDEBAR_ORDER, ...activePinnedIds];
-    const currentOrder = [...sidebarOrder].filter(id => id !== 'erp' || activePinnedIds.includes('erp'));
+    const defaultOrder = DEFAULT_SIDEBAR_ORDER;
+    const currentOrder = [...sidebarOrder];
     defaultOrder.forEach((id) => {
       if (!currentOrder.includes(id)) {
         currentOrder.push(id);
@@ -1604,7 +1539,7 @@ export default function App() {
           disabledTooltip: meta?.disabledTooltip as string | undefined,
         };
       });
-  }, [sidebarOrder, sidebarItemsMeta, pinnedMiniAppIds, disabledMiniAppIds]);
+  }, [sidebarOrder, sidebarItemsMeta]);
 
   const rootOrderedItems = useMemo(() => {
     const zoneItemIds = new Set((sidebarZones || []).flatMap(z => z.itemIds));
@@ -1870,7 +1805,8 @@ export default function App() {
       } else if (docParam) {
         setActiveTab('docs');
       } else if (whiteboardParam) {
-        setActiveTab('whiteboard');
+        if (spaceParam) setActiveSpaceId(spaceParam);
+        setActiveTab('tasks');
       } else if (spaceParam) {
         setActiveSpaceId(spaceParam);
         if (listParam) setActiveListId(listParam);
@@ -1881,6 +1817,14 @@ export default function App() {
       }
     }
   }, [setActiveTab, triggerToast, setActiveSpaceId, setActiveListId, setInitialSelectedTaskId]);
+
+  // Safety fallback: if activeTab is in removed modules, redirect to dashboard
+  useEffect(() => {
+    const REMOVED_TABS = new Set(['goals', 'planner', 'whiteboard', 'base', 'crm', 'erp']);
+    if (REMOVED_TABS.has(activeTab)) {
+      setActiveTab('dashboard');
+    }
+  }, [activeTab, setActiveTab]);
 
   // Auto-scan tasks for upcoming deadlines and alert user via Toast on login
   useEffect(() => {
@@ -2184,17 +2128,7 @@ export default function App() {
   }, []);
 
   const handleNavItemClick = useCallback((itemId: string, label: string, isDisabled?: boolean) => {
-    if (itemId === 'miniapps' || isDisabled) {
-      if (typeof window !== 'undefined') {
-        (window as any).playSystemSound?.('error');
-      }
-      triggerToast(
-        'info',
-        locale === 'vi' ? 'Tính năng đang phát triển' : 'Feature Under Development',
-        locale === 'vi'
-          ? 'Kho ứng dụng (Mini Apps) hiện đang được phát triển và tạm thời bị vô hiệu hoá.'
-          : 'Mini Apps is currently under development and temporarily unavailable.'
-      );
+    if (isDisabled) {
       return;
     }
     if (itemId === 'tasks') {
@@ -2364,6 +2298,14 @@ export default function App() {
                   if (session?.user) {
                     const userId = session.user.id;
                     const syncPromises: PromiseLike<any>[] = [];
+                    const {
+                      offlineTasksQueue,
+                      offlineDocsQueue,
+                      offlineMembersQueue,
+                      offlineDeletedTasks,
+                      offlineDeletedDocs,
+                      offlineDeletedMembers
+                    } = useSyncStore.getState();
 
                     // 1. Batch Sync tasks
                     const tasksToUpsert = Object.values(offlineTasksQueue) as Task[];
@@ -2678,22 +2620,40 @@ export default function App() {
         const myAvatar = googleAvatar || cachedAvatar || '';
         const myRole = resolveAppRole(session.user);
         
-        let dbMembers: any[] = [];
-        let membersFetchError = false;
-        try {
-          const { data, error: fetchErr } = await supabase.from('members').select('*');
-          if (fetchErr) {
-            console.warn('Could not load members table:', fetchErr);
-            membersFetchError = true;
-          } else if (data) {
-            dbMembers = data;
-          }
-        } catch (e) {
-          console.warn('Could not load members table:', e);
-          membersFetchError = true;
-        }
+        // Concurrently query all workspace databases in parallel to eliminate waterfall network latency
+        const [
+          membersFetchResult,
+          workspacesFetchResult,
+          tasksFetchResult,
+          docsFetchResult,
+          basesFetchResult,
+          spacesFetchResult,
+          listsFetchResult
+        ] = await Promise.allSettled([
+          supabase.from('members').select('*'),
+          supabase.from('workspaces').select('*'),
+          supabase.from('tasks').select('*'),
+          supabase.from('docs').select('*'),
+          supabase.from('base_apps').select('*'),
+          supabase.from('spaces').select('*'),
+          supabase.from('lists').select('*'),
+        ]);
 
         if (!active) return;
+
+        let dbMembers: any[] = [];
+        let membersFetchError = false;
+        if (membersFetchResult.status === 'fulfilled') {
+          if (membersFetchResult.value.error) {
+            console.warn('Could not load members table:', membersFetchResult.value.error);
+            membersFetchError = true;
+          } else if (membersFetchResult.value.data) {
+            dbMembers = membersFetchResult.value.data;
+          }
+        } else {
+          console.warn('Could not load members table:', membersFetchResult.reason);
+          membersFetchError = true;
+        }
 
         let finalMembers = dbMembers || [];
         
@@ -2832,6 +2792,12 @@ export default function App() {
           };
           try {
             await supabase.from('workspaces').insert([fallbackWs]);
+            await supabase.from('workspace_memberships').insert([{
+              workspace_id: fallbackWsId,
+              user_id: userId,
+              role: 'owner',
+              status: 'active'
+            }]).then(null, () => null);
             
             // Create default space & lists
             const generalSpaceId = `s-${fallbackWsId}-general`;
@@ -2871,14 +2837,13 @@ export default function App() {
         // A0. Load all Workspaces from Supabase
         let wsSuccess = false;
         try {
-          const { data: dbWorkspaces, error: wsError } = await supabase
-            .from('workspaces')
-            .select('*');
+          const wsError = workspacesFetchResult.status === 'fulfilled' ? workspacesFetchResult.value.error : workspacesFetchResult.reason;
+          const dbWorkspaces = workspacesFetchResult.status === 'fulfilled' ? workspacesFetchResult.value.data : null;
 
           if (!active) return;
 
           if (wsError) {
-            console.warn('workspaces table check or fetch failed:', wsError.message);
+            console.warn('workspaces table check or fetch failed:', wsError?.message || wsError);
           } else {
             wsSuccess = true;
             const finalWorkspaces = dbWorkspaces || [];
@@ -2913,6 +2878,12 @@ export default function App() {
               };
               try {
                 await supabase.from('workspaces').insert([fallbackWs]);
+                await supabase.from('workspace_memberships').insert([{
+                  workspace_id: fallbackWsId,
+                  user_id: userId,
+                  role: 'owner',
+                  status: 'active'
+                }]).then(null, () => null);
                 const generalSpaceId = `s-${fallbackWsId}-general`;
                 await supabase.from('spaces').insert([
                   {
@@ -3017,9 +2988,11 @@ export default function App() {
         }
 
         // B. Load Tasks from Supabase
-        const { data: dbTasks, error: tasksErr } = await supabase
-          .from('tasks')
-          .select('*');
+        const dbTasks = tasksFetchResult.status === 'fulfilled' ? tasksFetchResult.value.data : null;
+        const tasksErr = tasksFetchResult.status === 'fulfilled' ? tasksFetchResult.value.error : tasksFetchResult.reason;
+        if (tasksErr) {
+          console.warn('tasks table fetch warning:', tasksErr?.message || tasksErr);
+        }
 
         if (!active) return;
 
@@ -3054,6 +3027,7 @@ export default function App() {
             aiSummary: t.aiSummary || undefined,
             comments: t.comments || [],
             attachments: t.attachments || [],
+            deletedAt: t.deleted_at || undefined,
             workspaceId: t.workspace_id || undefined,
             spaceId: t.space_id || undefined,
             listId: t.list_id || undefined,
@@ -3064,9 +3038,11 @@ export default function App() {
         }
 
         // C. Load Documents
-        const { data: dbDocs, error: docsErr } = await supabase
-          .from('docs')
-          .select('*');
+        const dbDocs = docsFetchResult.status === 'fulfilled' ? docsFetchResult.value.data : null;
+        const docsErr = docsFetchResult.status === 'fulfilled' ? docsFetchResult.value.error : docsFetchResult.reason;
+        if (docsErr) {
+          console.warn('docs table fetch warning:', docsErr?.message || docsErr);
+        }
 
         if (!active) return;
 
@@ -3108,9 +3084,7 @@ export default function App() {
         // C2. Load Base apps from Supabase
         const fetchBaseApps = async () => {
           try {
-            const { data: dbBases } = await supabase
-              .from('base_apps')
-              .select('*');
+            const dbBases = basesFetchResult.status === 'fulfilled' ? basesFetchResult.value.data : null;
 
             if (active && dbBases) {
               setBases(dbBases.map(b => ({
@@ -3140,18 +3114,14 @@ export default function App() {
         // D. Load Spaces and Lists from Supabase
         const fetchSpacesAndLists = async () => {
           try {
-            const { data: dbSpaces, error: spacesErr } = await supabase
-              .from('spaces')
-              .select('*');
-            
-            const { data: dbLists, error: listsErr } = await supabase
-              .from('lists')
-              .select('*');
+            const dbSpaces = spacesFetchResult.status === 'fulfilled' ? spacesFetchResult.value.data : null;
+            const dbLists = listsFetchResult.status === 'fulfilled' ? listsFetchResult.value.data : null;
+            const spacesErr = spacesFetchResult.status === 'fulfilled' ? spacesFetchResult.value.error : spacesFetchResult.reason;
 
             if (!active) return false;
 
             if (spacesErr) {
-              console.warn('Spaces table fetch failed:', spacesErr.message);
+              console.warn('Spaces table fetch failed:', spacesErr?.message || spacesErr);
               return false;
             }
 
@@ -3388,6 +3358,7 @@ export default function App() {
                     aiSummary: t.aiSummary || undefined,
                     comments: t.comments || [],
                     attachments: t.attachments || [],
+                    deletedAt: t.deleted_at || undefined,
                     workspaceId: t.workspace_id || undefined,
                     spaceId: t.space_id || undefined,
                     listId: t.list_id || undefined,
@@ -3831,6 +3802,13 @@ export default function App() {
 
           if (!error && data && data.length > 0) {
             const saved = data[0];
+            void supabase.from('workspace_memberships').insert([{
+              workspace_id: saved.id,
+              user_id: session.user.id,
+              role: 'owner',
+              status: 'active'
+            }]).then(null, () => null);
+
             const mappedSaved = {
               id: saved.id,
               name: saved.name,
@@ -4677,7 +4655,10 @@ export default function App() {
             department: updated.department || null,
             bio: updated.bio || null,
             joined_date: updated.joinedDate || null,
-            workspace_ids: updated.workspaceIds || null
+            workspace_ids: updated.workspaceIds || null,
+            custom_status: updated.customStatus || null,
+            status_message: updated.statusMessage || null,
+            status_emoji: updated.statusEmoji || null
           }).eq('id', dbId).eq('user_id', session.user.id);
           if (error) {
             console.error('Supabase Member Update Error:', error);
@@ -5152,7 +5133,7 @@ export default function App() {
                           : 'border border-transparent text-slate-500 hover:bg-slate-100/80 hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white'
                       }`}
                     >
-                      <span className="text-sm select-none">{sp.emoji || '📁'}</span>
+                      <span className="text-sm select-none flex items-center justify-center">{renderSpaceIcon(sp.emoji || 'Folder', "w-4 h-4 shrink-0", undefined, { preserveEmoji: true })}</span>
                     </button>
                   );
                 })}
@@ -5217,7 +5198,7 @@ export default function App() {
                             <div className="absolute left-0 top-1.5 bottom-1.5 w-0.75 rounded-r-full bg-blue-600 dark:bg-blue-400 shadow-xs" />
                           )}
                           {sp.emoji && sp.emoji !== '📦' ? (
-                            <span className="text-sm shrink-0 select-none">{sp.emoji}</span>
+                            <span className="text-sm shrink-0 select-none flex items-center justify-center">{renderSpaceIcon(sp.emoji, "w-4 h-4 shrink-0", undefined, { preserveEmoji: true })}</span>
                           ) : (
                             <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded text-[9.5px] font-bold text-white bg-blue-600 dark:bg-blue-500 shadow-2xs">
                               {sp.name.charAt(0).toUpperCase()}
@@ -5546,152 +5527,85 @@ export default function App() {
                   return {
                     label: locale === 'vi' ? 'Tổng quan' : 'Dashboard',
                     icon: PhHouse,
-                    isMiniApp: false,
                   };
                 }
                 if (tabId === 'my-tasks') {
                   return {
                     label: locale === 'vi' ? 'Việc của tôi' : 'My Tasks',
                     icon: CheckSquare,
-                    isMiniApp: false,
                   };
                 }
                 if (tabId === 'tasks') {
                   return {
                     label: locale === 'vi' ? 'Không gian' : 'Spaces',
                     icon: PhSquaresFour,
-                    isMiniApp: false,
                   };
                 }
                 if (tabId === 'inbox') {
                   return {
                     label: locale === 'vi' ? 'Hộp thư' : 'Inbox',
                     icon: PhTray,
-                    isMiniApp: false,
                   };
                 }
                 if (tabId === 'calendar') {
                   return {
                     label: locale === 'vi' ? 'Lịch trình' : 'Calendar',
                     icon: PhCalendar,
-                    isMiniApp: false,
-                  };
-                }
-                if (tabId === 'goals') {
-                  return {
-                    label: locale === 'vi' ? 'Mục tiêu (OKRs)' : 'Goals & OKRs',
-                    icon: PhTarget,
-                    isMiniApp: false,
                   };
                 }
                 if (tabId === 'analytics') {
                   return {
                     label: locale === 'vi' ? 'Phân tích' : 'Analytics',
                     icon: BarChart3,
-                    isMiniApp: false,
                   };
                 }
                 if (tabId === 'finance') {
                   return {
                     label: locale === 'vi' ? 'Tài chính' : 'Finance',
                     icon: PhBank,
-                    isMiniApp: true,
                   };
                 }
                 if (tabId === 'team') {
                   return {
                     label: locale === 'vi' ? 'Đội ngũ' : 'Team',
                     icon: PhUsers,
-                    isMiniApp: false,
                   };
                 }
                 if (tabId === 'chat') {
                   return {
                     label: locale === 'vi' ? 'Trò chuyện' : 'Chat',
                     icon: PhChat,
-                    isMiniApp: false,
                   };
                 }
                 if (tabId === 'docs') {
                   return {
                     label: locale === 'vi' ? 'Tài liệu' : 'Docs',
                     icon: PhFileText,
-                    isMiniApp: false,
                   };
                 }
                 if (tabId === 'profile') {
                   return {
                     label: locale === 'vi' ? 'Hồ sơ' : 'Profile',
                     icon: UserIcon,
-                    isMiniApp: false,
                   };
                 }
                 if (tabId === 'settings') {
                   return {
                     label: locale === 'vi' ? 'Cài đặt' : 'Settings',
                     icon: Settings,
-                    isMiniApp: false,
                   };
                 }
-                if (tabId === 'miniapps') {
-                  return {
-                    label: locale === 'vi' ? 'Kho ứng dụng' : 'Mini Apps',
-                    icon: Boxes,
-                    isMiniApp: false,
-                  };
-                }
-
-                // Check custom / dynamic Mini Apps
-                const dynamicMiniApp = allMiniApps.find(a => a.id === tabId);
-                if (dynamicMiniApp) {
-                  return {
-                    label: locale === 'vi' ? (dynamicMiniApp.nameVi || dynamicMiniApp.name) : dynamicMiniApp.name,
-                    icon: () => (
-                      <MiniAppIcon
-                        appId={dynamicMiniApp.id}
-                        icon={dynamicMiniApp.icon}
-                        iconName={dynamicMiniApp.iconName}
-                        variant="sidebar"
-                      />
-                    ),
-                    isMiniApp: true,
-                  };
-                }
-
-                // Built-in standard mini-apps
-                const miniAppMap: Record<string, { labelVi: string; labelEn: string; icon: any }> = {
-                  crm: { labelVi: 'CRM Khách hàng', labelEn: 'CRM Workspace', icon: Users },
-                  erp: { labelVi: 'ERP Doanh nghiệp', labelEn: 'ERP Hub', icon: Grid },
-                  base: { labelVi: 'Apexa Base', labelEn: 'Apexa Base', icon: Database },
-                  whiteboard: { labelVi: 'Bảng trắng', labelEn: 'Whiteboard', icon: Edit3 },
-                  planner: { labelVi: 'Kế hoạch ngày', labelEn: 'Day Planner', icon: CalendarDays },
-                  pomodoro: { labelVi: 'Pomodoro', labelEn: 'Pomodoro', icon: Timer },
-                  notes: { labelVi: 'Ghi chú', labelEn: 'Notes', icon: Edit3 },
-                  converter: { labelVi: 'Chuyển đổi dữ liệu', labelEn: 'Converter', icon: RefreshCw },
-                };
-
-                if (miniAppMap[tabId]) {
-                  const m = miniAppMap[tabId];
-                  return {
-                    label: locale === 'vi' ? m.labelVi : m.labelEn,
-                    icon: m.icon,
-                    isMiniApp: true,
-                  };
-                }
-
                 // Fallback to sidebarItemsMeta
                 if (sidebarItemsMeta[tabId]) {
                   return {
                     label: sidebarItemsMeta[tabId].label,
                     icon: sidebarItemsMeta[tabId].icon,
-                    isMiniApp: false,
                   };
                 }
 
                 return {
                   label: tabId,
                   icon: LayoutDashboard,
-                  isMiniApp: false,
                 };
               };
 
@@ -5789,7 +5703,7 @@ export default function App() {
                                         }`}
                                       >
                                         <div className="flex items-center gap-2 truncate">
-                                          <span className="text-sm shrink-0">{sp.emoji || '📁'}</span>
+                                          <span className="text-sm shrink-0 flex items-center justify-center">{renderSpaceIcon(sp.emoji || 'Folder', "w-4 h-4 shrink-0", undefined, { preserveEmoji: true })}</span>
                                           <span className="truncate">{sp.name}</span>
                                         </div>
                                         {sp.id === activeSpaceId && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-sky-300 shrink-0" />}
@@ -5931,32 +5845,7 @@ export default function App() {
                     </>
                   ) : (() => {
                     const tabInfo = getTabMeta(activeTab);
-                    return tabInfo.isMiniApp ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            triggerToast(
-                              'info',
-                              locale === 'vi' ? 'Tính năng đang phát triển' : 'In Development',
-                              locale === 'vi'
-                                ? 'Kho ứng dụng (Mini Apps) hiện đang được phát triển và tạm thời bị vô hiệu hoá.'
-                                : 'Mini Apps is currently under development and temporarily unavailable.'
-                            );
-                          }}
-                          className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-slate-400 dark:text-zinc-500 font-medium text-[13px] transition-colors cursor-not-allowed"
-                          title={locale === 'vi' ? 'Kho ứng dụng đang phát triển' : 'Mini Apps under development'}
-                        >
-                          <Boxes className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span>{locale === 'vi' ? 'Ứng dụng' : 'Apps'}</span>
-                        </button>
-                        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300 dark:text-zinc-600 stroke-[1.5]" />
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-slate-900 dark:text-zinc-100 font-semibold text-[13px] bg-black/[0.03] dark:bg-white/[0.06]">
-                          {tabInfo.icon && <tabInfo.icon className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />}
-                          <span>{tabInfo.label}</span>
-                        </div>
-                      </>
-                    ) : (
+                    return (
                       <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-slate-900 dark:text-zinc-100 font-semibold text-[13px] bg-black/[0.03] dark:bg-white/[0.06]">
                         {tabInfo.icon && <tabInfo.icon className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />}
                         <span>{tabInfo.label}</span>
@@ -6003,152 +5892,6 @@ export default function App() {
           </div>
 
           <div className="apexa-header-actions flex shrink-0 items-center gap-1.5 sm:gap-2 pr-1 sm:pr-2">
-            {/* Quick "+ Tạo mới" Create Action Button */}
-            <div className="relative">
-              <button
-                ref={quickCreateButtonRef}
-                type="button"
-                onClick={() => setShowQuickCreateMenu(prev => !prev)}
-                aria-expanded={showQuickCreateMenu}
-                aria-label={locale === 'vi' ? 'Tạo mới nhanh' : 'Quick Create'}
-                className="flex h-8.5 items-center gap-1.5 px-2.5 sm:px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span className="hidden sm:inline tracking-tight">{locale === 'vi' ? 'Tạo mới' : 'New'}</span>
-                <ChevronDown className="w-3 h-3 opacity-70" />
-              </button>
-
-              <AnimatePresence>
-                {showQuickCreateMenu && (
-                  <motion.div
-                    ref={quickCreateMenuRef}
-                    initial={{ opacity: 0, y: 6, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 6, scale: 0.95 }}
-                    transition={{ duration: 0.12 }}
-                    className="absolute left-0 sm:right-0 sm:left-auto top-full mt-1.5 w-52 p-1.5 bg-white dark:bg-[#121318] border border-slate-200/90 dark:border-white/[0.12] rounded-xl shadow-[0_16px_36px_rgba(15,23,42,0.14)] dark:shadow-[0_16px_36px_rgba(0,0,0,0.8)] z-[100] text-left divide-y divide-slate-100 dark:divide-white/[0.06]"
-                  >
-                    <div className="p-1 space-y-0.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowQuickCreateMenu(false);
-                          setActiveTab('tasks');
-                          setPromptModalConfig({
-                            isOpen: true,
-                            type: 'status',
-                            title: locale === 'vi' ? 'Tạo công việc mới' : 'Create New Task',
-                            placeholder: locale === 'vi' ? 'Ví dụ: Thiết kế giao diện báo cáo tuần...' : 'e.g. Design weekly report UI...',
-                            confirmText: locale === 'vi' ? 'Tạo việc' : 'Create Task',
-                            onConfirm: (val: string) => {
-                              setPromptModalConfig(null);
-                              if (val && val.trim()) {
-                                handleAddTask({
-                                  title: val.trim(),
-                                  description: '',
-                                  status: 'todo',
-                                  priority: 'medium',
-                                  subtasks: [],
-                                  spaceId: activeSpaceId || spaces[0]?.id,
-                                  listId: activeListId || spaces[0]?.lists?.[0]?.id,
-                                });
-                                triggerToast('success', locale === 'vi' ? 'Đã tạo việc' : 'Task Created', val.trim());
-                              }
-                            },
-                            onCancel: () => setPromptModalConfig(null),
-                          });
-                        }}
-                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:text-blue-600 hover:bg-blue-50/80 dark:text-zinc-300 dark:hover:text-sky-300 dark:hover:bg-blue-500/15 transition-colors cursor-pointer text-left"
-                      >
-                        <div className="w-5 h-5 rounded flex items-center justify-center bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-sky-300 shrink-0">
-                          <CheckSquare className="w-3.5 h-3.5" />
-                        </div>
-                        <span className="flex-1">{locale === 'vi' ? 'Công việc mới' : 'New Task'}</span>
-                        <kbd className="text-[9px] font-mono text-slate-400 dark:text-zinc-500">T</kbd>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowQuickCreateMenu(false);
-                          setActiveTab('docs');
-                        }}
-                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:text-amber-600 hover:bg-amber-50/80 dark:text-zinc-300 dark:hover:text-amber-300 dark:hover:bg-amber-500/15 transition-colors cursor-pointer text-left"
-                      >
-                        <div className="w-5 h-5 rounded flex items-center justify-center bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-300 shrink-0">
-                          <PhFileText className="w-3.5 h-3.5" />
-                        </div>
-                        <span className="flex-1">{locale === 'vi' ? 'Tài liệu mới' : 'New Document'}</span>
-                        <kbd className="text-[9px] font-mono text-slate-400 dark:text-zinc-500">D</kbd>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowQuickCreateMenu(false);
-                          handleOpenAddSpaceModal();
-                        }}
-                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:text-indigo-600 hover:bg-indigo-50/80 dark:text-zinc-300 dark:hover:text-indigo-300 dark:hover:bg-indigo-500/15 transition-colors cursor-pointer text-left"
-                      >
-                        <div className="w-5 h-5 rounded flex items-center justify-center bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 shrink-0">
-                          <PhSquaresFour className="w-3.5 h-3.5" />
-                        </div>
-                        <span className="flex-1">{locale === 'vi' ? 'Không gian mới' : 'New Space'}</span>
-                        <kbd className="text-[9px] font-mono text-slate-400 dark:text-zinc-500">S</kbd>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowQuickCreateMenu(false);
-                          setActiveTab('calendar');
-                        }}
-                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:text-emerald-600 hover:bg-emerald-50/80 dark:text-zinc-300 dark:hover:text-emerald-300 dark:hover:bg-emerald-500/15 transition-colors cursor-pointer text-left"
-                      >
-                        <div className="w-5 h-5 rounded flex items-center justify-center bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 shrink-0">
-                          <PhCalendar className="w-3.5 h-3.5" />
-                        </div>
-                        <span className="flex-1">{locale === 'vi' ? 'Sự kiện lịch' : 'Calendar Event'}</span>
-                        <kbd className="text-[9px] font-mono text-slate-400 dark:text-zinc-500">C</kbd>
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowKeyboardShortcuts(true)}
-              className="apexa-header-icon-button hidden h-8.5 w-8.5 items-center justify-center rounded-xl border border-slate-200/80 bg-white/70 text-slate-400 shadow-3xs transition-all hover:border-indigo-300/80 hover:bg-indigo-50 hover:text-indigo-600 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-zinc-400 dark:hover:border-indigo-500/40 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-300 xl:flex cursor-pointer"
-              title={locale === 'vi' ? 'Phím tắt (?)' : 'Keyboard shortcuts (?)'}
-              aria-label={locale === 'vi' ? 'Mở bảng phím tắt' : 'Open keyboard shortcuts'}
-            >
-              <Keyboard className="h-4 w-4" />
-            </button>
-            {/* Quick Mini App Launcher Popover */}
-            <MiniAppLauncherButton
-              disabled={true}
-              onSelectApp={() => {
-                triggerToast(
-                  'info',
-                  locale === 'vi' ? 'Tính năng đang phát triển' : 'In Development',
-                  locale === 'vi'
-                    ? 'Mini Apps đang được phát triển và tạm thời bị vô hiệu hoá.'
-                    : 'Mini Apps is currently under development and temporarily unavailable.'
-                );
-              }}
-              onOpenHub={() => {
-                triggerToast(
-                  'info',
-                  locale === 'vi' ? 'Tính năng đang phát triển' : 'In Development',
-                  locale === 'vi'
-                    ? 'Kho ứng dụng (Mini Apps) đang được phát triển và tạm thời bị vô hiệu hoá.'
-                    : 'Mini Apps Hub is currently under development and temporarily unavailable.'
-                );
-              }}
-            />
-
             {/* Interactive Date & Display Options Pill Widget (Memoized & Isolated) */}
             <HeaderLiveClockPill />
             
@@ -6183,8 +5926,8 @@ export default function App() {
                     ? 'bg-blue-50 dark:bg-zinc-800 border-blue-500/50 dark:border-blue-400/50 text-blue-600 dark:text-sky-300 ring-2 ring-blue-500/15'
                     : 'bg-white/70 dark:bg-white/[0.03] border-slate-200/80 dark:border-white/[0.08] text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-100 hover:bg-white dark:hover:bg-white/[0.06] hover:border-slate-300 dark:hover:border-white/15'
                 }`}
-                title="Cài đặt thông báo"
-                aria-label="Mở trung tâm thông báo"
+                title={locale === 'vi' ? 'Thông báo' : 'Notifications'}
+                aria-label={locale === 'vi' ? 'Mở trung tâm thông báo' : 'Open notifications center'}
                 aria-expanded={showNotificationsMenu}
               >
                 <Bell className="w-4 h-4" />
@@ -6196,170 +5939,233 @@ export default function App() {
               </button>
 
               <AnimatePresence>
-                {showNotificationsMenu && (
-                  <motion.div
-                    ref={notificationsMenuRef}
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 mt-2.5 w-[min(95vw,24rem)] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-[0_16px_40px_-8px_rgba(0,0,0,0.18),0_6px_16px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8),0_8px_20px_-4px_rgba(0,0,0,0.6)] z-[90] overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 font-sans"
-                  >
-                    {/* Header */}
-                    <div className="p-3.5 flex items-center justify-between bg-slate-50 dark:bg-zinc-800/60">
-                      <div className="flex items-center gap-1.5">
-                        <Bell className="w-4 h-4 text-indigo-500" />
-                        <span className="text-xs font-black text-slate-800 dark:text-slate-200">
-                          Thông báo ({notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length + (workspaceInvitations?.length || 0)})
-                        </span>
-                      </div>
-                      {notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length > 0 && (
-                        <div className="flex gap-2.5">
-                          <button
-                            onClick={() => {
-                              const activeIds = notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).map(n => n.id);
-                              setNotificationsList(prev => prev.map(n => activeIds.includes(n.id) ? { ...n, read: true } : n));
-                              (window as any).playSystemSound?.('success');
-                            }}
-                            className="text-[10px] font-extrabold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 cursor-pointer hover:underline"
-                          >
-                            Đánh dấu đã đọc
-                          </button>
-                          <button
-                            onClick={() => {
-                              const activeIds = notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).map(n => n.id);
-                              setNotificationsList(prev => prev.map(n => activeIds.includes(n.id) ? { ...n, cleared: true } : n));
-                              (window as any).playSystemSound?.('delete');
-                            }}
-                            className="text-[10px] font-extrabold text-rose-500 hover:text-rose-600 cursor-pointer flex items-center gap-0.5 hover:underline"
-                          >
-                            Xóa tất cả
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                {showNotificationsMenu && (() => {
+                  const activeNotifications = notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now()));
+                  const unreadNotifications = activeNotifications.filter(n => !n.read);
+                  const displayedNotifications = notificationFilter === 'unread' ? unreadNotifications : activeNotifications;
 
-                    {/* Notifications List scrollable */}
-                    <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/40">
-                      {/* Pending workspace invitations in dropdown */}
-                      {workspaceInvitations && workspaceInvitations.length > 0 && (
-                        workspaceInvitations.map(inv => (
-                          <div 
-                            key={inv.id} 
-                            onClick={() => {
-                              setActiveTab('inbox');
-                              setShowNotificationsMenu(false);
-                            }}
-                            className="p-3 bg-blue-50/70 dark:bg-blue-950/40 flex gap-2.5 items-start cursor-pointer hover:bg-blue-100/70 dark:hover:bg-blue-900/40 transition-colors"
-                          >
-                            <div className="p-1.5 rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-sky-300 mt-0.5 shrink-0">
-                              <Sparkles className="w-3.5 h-3.5" />
+                  return (
+                    <motion.div
+                      ref={notificationsMenuRef}
+                      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                      transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+                      className="absolute right-0 mt-2.5 w-[min(95vw,23.5rem)] bg-white dark:bg-zinc-900 border border-slate-200/90 dark:border-zinc-800 rounded-2xl shadow-[0_16px_40px_-8px_rgba(0,0,0,0.18),0_6px_16px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8),0_8px_20px_-4px_rgba(0,0,0,0.6)] z-[90] overflow-hidden font-sans"
+                    >
+                      {/* Modern Header */}
+                      <div className="p-3 px-3.5 flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-850/50">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                            <Bell className="w-3.5 h-3.5" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-black text-slate-900 dark:text-white block">
+                              {locale === 'vi' ? 'Thông báo' : 'Notifications'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {activeNotifications.length > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const activeIds = activeNotifications.map(n => n.id);
+                                setNotificationsList(prev => prev.map(n => activeIds.includes(n.id) ? { ...n, read: true } : n));
+                                (window as any).playSystemSound?.('success');
+                              }}
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10.5px] font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-sky-300 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                              title={locale === 'vi' ? 'Đánh dấu tất cả đã đọc' : 'Mark all as read'}
+                            >
+                              <CheckCheck className="w-3.5 h-3.5" />
+                              <span className="hidden xs:inline">{locale === 'vi' ? 'Đã đọc' : 'Read all'}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const activeIds = activeNotifications.map(n => n.id);
+                                setNotificationsList(prev => prev.map(n => activeIds.includes(n.id) ? { ...n, cleared: true } : n));
+                                (window as any).playSystemSound?.('delete');
+                              }}
+                              className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors cursor-pointer"
+                              title={locale === 'vi' ? 'Xóa tất cả' : 'Clear all'}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Filter Segmented Control Tabs */}
+                      <div className="px-3 pt-2 pb-1.5 bg-slate-50/40 dark:bg-zinc-850/20 border-b border-slate-100 dark:border-zinc-800/80 flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setNotificationFilter('all')}
+                          className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-bold text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                            notificationFilter === 'all'
+                              ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 shadow-3xs border border-slate-200/80 dark:border-white/10'
+                              : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200'
+                          }`}
+                        >
+                          <span>{locale === 'vi' ? 'Tất cả' : 'All'}</span>
+                          <span className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-mono ${
+                            notificationFilter === 'all' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'bg-slate-200/60 dark:bg-zinc-700/60 text-slate-500 dark:text-zinc-400'
+                          }`}>
+                            {activeNotifications.length + (workspaceInvitations?.length || 0)}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNotificationFilter('unread')}
+                          className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-bold text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                            notificationFilter === 'unread'
+                              ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 shadow-3xs border border-slate-200/80 dark:border-white/10'
+                              : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200'
+                          }`}
+                        >
+                          <span>{locale === 'vi' ? 'Chưa đọc' : 'Unread'}</span>
+                          {unreadNotifications.length > 0 && (
+                            <span className="text-[9.5px] px-1.5 py-0.2 rounded-full font-mono bg-rose-500 text-white font-bold">
+                              {unreadNotifications.length}
+                            </span>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Notifications List scrollable */}
+                      <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-zinc-800/60">
+                        {/* Pending workspace invitations in dropdown */}
+                        {notificationFilter !== 'unread' && workspaceInvitations && workspaceInvitations.length > 0 && (
+                          workspaceInvitations.map(inv => (
+                            <div 
+                              key={inv.id} 
+                              onClick={() => {
+                                setActiveTab('inbox');
+                                setShowNotificationsMenu(false);
+                              }}
+                              className="p-3 bg-blue-50/70 dark:bg-blue-950/40 flex gap-2.5 items-start cursor-pointer hover:bg-blue-100/70 dark:hover:bg-blue-900/40 transition-colors"
+                            >
+                              <div className="p-1.5 rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-sky-300 mt-0.5 shrink-0">
+                                <Sparkles className="w-3.5 h-3.5" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <span className="text-[11px] font-black text-slate-900 dark:text-white block truncate">
+                                  Lời mời: {inv.workspaceName || 'Không gian mới'}
+                                </span>
+                                <p className="text-[10px] text-slate-600 dark:text-slate-400 leading-snug">
+                                  {inv.invitedByName || 'Quản trị viên'} mời bạn tham gia với vai trò <span className="font-bold uppercase text-blue-600 dark:text-sky-300">{inv.role}</span>.
+                                </p>
+                              </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <span className="text-[11px] font-black text-slate-900 dark:text-white block truncate">
-                                Lời mời: {inv.workspaceName || 'Không gian mới'}
-                              </span>
-                              <p className="text-[10px] text-slate-600 dark:text-slate-400 leading-snug">
-                                {inv.invitedByName || 'Quản trị viên'} mời bạn tham gia với vai trò <span className="font-bold uppercase text-blue-600 dark:text-sky-300">{inv.role}</span>.
+                          ))
+                        )}
+
+                        {displayedNotifications.length === 0 && (!workspaceInvitations || workspaceInvitations.length === 0 || notificationFilter === 'unread') ? (
+                          <div className="py-8 px-4 text-center space-y-2.5">
+                            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 dark:from-blue-500/20 dark:to-indigo-500/20 border border-blue-200/60 dark:border-blue-500/20 flex items-center justify-center mx-auto text-blue-600 dark:text-blue-400 shadow-3xs">
+                              <BellOff className="w-5 h-5 stroke-[1.8]" />
+                            </div>
+                            <div className="space-y-0.5">
+                              <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                                {locale === 'vi' ? 'Hộp thư thông báo gọn gàng! ✨' : 'All caught up! ✨'}
+                              </p>
+                              <p className="text-[10.5px] text-slate-400 dark:text-zinc-500 font-medium max-w-[210px] mx-auto leading-relaxed">
+                                {notificationFilter === 'unread'
+                                  ? (locale === 'vi' ? 'Bạn không có thông báo chưa đọc nào.' : 'You have no unread notifications.')
+                                  : (locale === 'vi' ? 'Hiện tại không có thông báo mới nào.' : 'No new notifications to display.')}
                               </p>
                             </div>
                           </div>
-                        ))
-                      )}
+                        ) : (
+                          displayedNotifications.map(notif => {
+                            const isUnread = !notif.read;
+                            return (
+                              <div 
+                                key={notif.id} 
+                                className={`p-3 relative transition-colors flex gap-2.5 hover:bg-slate-50/80 dark:hover:bg-zinc-800/50 group ${isUnread ? 'bg-blue-50/40 dark:bg-blue-950/20' : ''}`}
+                              >
+                                {/* Left Icon indicator based on type */}
+                                <div className="shrink-0 mt-0.5">
+                                  <div className={`p-1.5 rounded-xl border ${
+                                    notif.type === 'assignment' ? 'bg-indigo-50 border-indigo-100 text-indigo-600 dark:bg-indigo-950/50 dark:border-indigo-900/40' :
+                                    notif.type === 'deadline' ? 'bg-rose-50 border-rose-100 text-rose-600 dark:bg-rose-950/50 dark:border-rose-900/40' :
+                                    notif.type === 'comment' || notif.type === 'message' || notif.type === 'chat_message' ? 'bg-sky-50 border-sky-100 text-sky-600 dark:bg-sky-950/50 dark:border-sky-900/40' :
+                                    'bg-emerald-50 border-emerald-100 text-emerald-600 dark:bg-emerald-950/50 dark:border-emerald-900/40'
+                                  }`}>
+                                    {notif.type === 'assignment' && <Briefcase className="w-3.5 h-3.5" />}
+                                    {notif.type === 'deadline' && <Timer className="w-3.5 h-3.5" />}
+                                    {(notif.type === 'comment' || notif.type === 'message' || notif.type === 'chat_message') && <MessageSquare className="w-3.5 h-3.5" />}
+                                    {notif.type !== 'assignment' && notif.type !== 'deadline' && notif.type !== 'comment' && notif.type !== 'message' && notif.type !== 'chat_message' && <Sparkles className="w-3.5 h-3.5" />}
+                                  </div>
+                                </div>
 
-                      {notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length === 0 && (!workspaceInvitations || workspaceInvitations.length === 0) ? (
-                        <div className="py-10 px-4 text-center space-y-2">
-                          <span className="text-xl inline-block">🎉</span>
-                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Hộp thư trống!</p>
-                          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Bạn không có thông báo mới.</p>
-                        </div>
-                      ) : (
-                        notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).map(notif => {
-                          const isUnread = !notif.read;
-                          return (
-                            <div 
-                              key={notif.id} 
-                              className={`p-3.5 relative transition-colors flex gap-3 hover:bg-slate-50/50 dark:hover:bg-slate-850/30 group ${isUnread ? 'bg-indigo-500/5 dark:bg-indigo-500/10' : ''}`}
-                            >
-                              {/* Left Icon indicator based on type */}
-                              <div className="shrink-0 mt-0.5">
-                                <div className={`p-1.5 rounded-xl border ${
-                                  notif.type === 'assignment' ? 'bg-indigo-50 border-indigo-100/50 text-indigo-600 dark:bg-indigo-950/40 dark:border-indigo-900/30' :
-                                  notif.type === 'deadline' ? 'bg-rose-50 border-rose-100/50 text-rose-600 dark:bg-rose-955/40 dark:border-rose-900/30' :
-                                  notif.type === 'comment' || notif.type === 'message' || notif.type === 'chat_message' ? 'bg-sky-50 border-sky-100/50 text-sky-600 dark:bg-sky-955/40 dark:border-sky-900/30' :
-                                  'bg-emerald-50 border-emerald-100/50 text-emerald-600 dark:bg-emerald-955/40 dark:border-emerald-900/30'
-                                }`}>
-                                  {notif.type === 'assignment' && <Briefcase className="w-3.5 h-3.5" />}
-                                  {notif.type === 'deadline' && <Timer className="w-3.5 h-3.5" />}
-                                  {(notif.type === 'comment' || notif.type === 'message' || notif.type === 'chat_message') && <MessageSquare className="w-3.5 h-3.5" />}
-                                  {notif.type !== 'assignment' && notif.type !== 'deadline' && notif.type !== 'comment' && notif.type !== 'message' && notif.type !== 'chat_message' && <Sparkles className="w-3.5 h-3.5" />}
+                                {/* Body */}
+                                <div className="space-y-0.5 flex-1 pr-6 cursor-pointer" onClick={() => {
+                                  setNotificationsList(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
+                                  setActiveTab('inbox');
+                                  setShowNotificationsMenu(false);
+                                }}>
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className={`text-[11px] block truncate ${isUnread ? 'font-black text-slate-900 dark:text-slate-100' : 'font-semibold text-slate-600 dark:text-slate-400'}`}>
+                                      {notif.title}
+                                    </span>
+                                    <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono shrink-0">{notif.timestamp}</span>
+                                  </div>
+                                  <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed break-words line-clamp-2">
+                                    {notif.message}
+                                  </p>
+                                </div>
+
+                                {/* Quick Individual Delete & Read markers */}
+                                <div className="absolute right-2 top-2.5 flex items-center gap-1">
+                                  {isUnread && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.8)] shrink-0 mr-1" />
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setNotificationsList(prev => prev.filter(n => n.id !== notif.id));
+                                      (window as any).playSystemSound?.('delete');
+                                    }}
+                                    className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/35 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                                    title={locale === 'vi' ? 'Xóa thông báo' : 'Delete'}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
                                 </div>
                               </div>
-
-                              {/* Body */}
-                              <div className="space-y-0.5 flex-1 pr-6 cursor-pointer" onClick={() => {
-                                // mark as read and open inbox
-                                setNotificationsList(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
-                                setActiveTab('inbox');
-                                setShowNotificationsMenu(false);
-                              }}>
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className={`text-[11px] block truncate ${isUnread ? 'font-black text-slate-900 dark:text-slate-100' : 'font-semibold text-slate-600 dark:text-slate-400'}`}>
-                                    {notif.title}
-                                  </span>
-                                  <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono shrink-0">{notif.timestamp}</span>
-                                </div>
-                                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed break-words line-clamp-2">
-                                  {notif.message}
-                                </p>
-                              </div>
-
-                              {/* Quick Individual Delete & Read markers */}
-                              <div className="absolute right-2 top-3 flex items-center gap-1.5">
-                                {isUnread && (
-                                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
-                                )}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setNotificationsList(prev => prev.filter(n => n.id !== notif.id));
-                                    (window as any).playSystemSound?.('delete');
-                                  }}
-                                  className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/35 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
-                                  title="Xóa thông báo"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                    
-                    {/* Footer link to settings & inbox */}
-                    <div className="p-2.5 flex items-center justify-between bg-slate-50 dark:bg-zinc-800/60 px-3">
-                      <button
-                        onClick={() => {
-                          setActiveTab('inbox');
-                          setShowNotificationsMenu(false);
-                        }}
-                        className="text-[10px] font-black text-blue-600 hover:text-blue-700 dark:text-sky-400 hover:underline cursor-pointer inline-flex items-center gap-1"
-                      >
-                        📥 Mở Hộp thư Apexa
-                      </button>
-                      <button
-                        onClick={() => {
-                          setActiveTab('settings');
-                          setShowNotificationsMenu(false);
-                        }}
-                        className="text-[10px] font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 hover:underline cursor-pointer inline-flex items-center gap-1"
-                      >
-                        ⚙️ Cài đặt
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
+                            );
+                          })
+                        )}
+                      </div>
+                      
+                      {/* Modern Clean Footer */}
+                      <div className="p-2 flex items-center justify-between bg-slate-50 dark:bg-zinc-800/60 px-3 border-t border-slate-100 dark:border-zinc-800">
+                        <button
+                          onClick={() => {
+                            setActiveTab('inbox');
+                            setShowNotificationsMenu(false);
+                          }}
+                          className="text-[10.5px] font-bold text-blue-600 hover:text-blue-700 dark:text-sky-400 hover:underline cursor-pointer inline-flex items-center gap-1.5"
+                        >
+                          <Inbox className="w-3.5 h-3.5" />
+                          <span>{locale === 'vi' ? 'Mở Hộp thư Apexa' : 'Open Inbox Hub'}</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveTab('settings');
+                            setShowNotificationsMenu(false);
+                          }}
+                          className="text-[10.5px] font-semibold text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:underline cursor-pointer inline-flex items-center gap-1.5"
+                        >
+                          <Settings2 className="w-3.5 h-3.5" />
+                          <span>{locale === 'vi' ? 'Cài đặt' : 'Settings'}</span>
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                })()}
               </AnimatePresence>
             </div>
 
@@ -6373,16 +6179,24 @@ export default function App() {
                 onClick={() => setShowStatusMenu(!showStatusMenu)}
                 aria-expanded={showStatusMenu}
                 aria-label={`Tài khoản ${currentUser.name} — ${accountPresenceLabel}`}
-                className={`apexa-profile-trigger cursor-pointer shrink-0 flex items-center gap-2 h-8.5 px-2 bg-white/70 dark:bg-white/[0.03] hover:bg-white dark:hover:bg-white/[0.06] border rounded-xl transition-all select-none shadow-3xs ${
+                className={`apexa-profile-trigger group cursor-pointer shrink-0 flex items-center gap-2 h-8.5 px-2 rounded-xl transition-all select-none ${
                   showStatusMenu
-                    ? 'border-blue-500/50 dark:border-blue-400/50 ring-2 ring-blue-500/15'
+                    ? 'border-blue-500/50 dark:border-blue-400/50 ring-2 ring-blue-500/15 bg-white dark:bg-zinc-800'
                     : (currentUser.isPremium || isApexaSuperAdmin(currentUser.id))
-                      ? 'border-amber-500/40 hover:border-amber-500/60' 
-                      : 'border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15'
+                      ? 'relative overflow-hidden bg-gradient-to-r from-amber-500/[0.08] via-amber-400/[0.04] to-orange-500/[0.08] dark:from-amber-400/[0.12] dark:via-yellow-500/[0.06] dark:to-orange-500/[0.12] border border-amber-400/60 dark:border-amber-400/50 shadow-[0_0_12px_rgba(245,158,11,0.18)] hover:shadow-[0_0_18px_rgba(245,158,11,0.32)] hover:border-amber-400'
+                      : 'border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 bg-white/70 dark:bg-white/[0.03] hover:bg-white dark:hover:bg-white/[0.06] shadow-3xs'
                 }`}
               >
                 <div className="relative shrink-0 flex items-center">
-                  <SignedImage filePath={currentUser.avatar} className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-zinc-800 object-cover border border-slate-200/60 dark:border-white/10 shadow-3xs transition-all relative z-10" alt={currentUser.name} />
+                  <SignedImage
+                    filePath={currentUser.avatar}
+                    className={`w-6 h-6 rounded-lg bg-slate-100 dark:bg-zinc-800 object-cover border shadow-3xs transition-all relative z-10 ${
+                      (currentUser.isPremium || isApexaSuperAdmin(currentUser.id))
+                        ? 'border-amber-300/80 dark:border-amber-400/80 ring-1.5 ring-amber-400/40'
+                        : 'border-slate-200/60 dark:border-white/10'
+                    }`}
+                    alt={currentUser.name}
+                  />
                   {/* Status indicator absolute dot on avatar */}
                   <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white dark:border-[var(--sidebar-bg)] z-20 ${
                     presenceDotClass(accountPresenceStatus, true)
@@ -6394,7 +6208,11 @@ export default function App() {
                     {currentUser.name}
                   </span>
                   {(currentUser.isPremium || isApexaSuperAdmin(currentUser.id)) ? (
-                    <span className="text-[7.5px] font-black tracking-widest bg-gradient-to-r from-amber-500 to-orange-500 text-white px-1.5 py-0.5 rounded-md leading-none shadow-xs uppercase">PRO</span>
+                    <span className="relative overflow-hidden inline-flex items-center gap-1 text-[8px] font-black tracking-wider bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 px-1.5 py-0.5 rounded-md leading-none shadow-[0_2px_8px_rgba(245,158,11,0.4)] uppercase border border-amber-300/80">
+                      <Sparkles className="w-2.5 h-2.5 animate-pulse text-amber-900 shrink-0" />
+                      <span className="font-black tracking-tight">PRO</span>
+                      <span className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_infinite] bg-gradient-to-r from-transparent via-white/50 to-transparent pointer-events-none" />
+                    </span>
                   ) : (
                     <span className="text-[7.5px] font-black tracking-widest bg-slate-200/80 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 px-1 py-0.5 rounded-md leading-none uppercase font-mono">FREE</span>
                   )}
@@ -6459,25 +6277,28 @@ export default function App() {
                             setShowStatusMenu(false);
                             (window as any).playSystemSound?.('click');
                           }}
-                          className="w-full flex items-center justify-between p-2 rounded-xl text-xs bg-amber-50/70 hover:bg-amber-50 dark:bg-amber-500/10 dark:hover:bg-amber-500/15 border border-amber-200 dark:border-amber-500/30 transition-all cursor-pointer group text-left"
+                          className="relative overflow-hidden w-full flex items-center justify-between p-2.5 rounded-xl text-xs bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-orange-500/15 hover:from-amber-500/20 hover:to-orange-500/20 border border-amber-400/50 dark:border-amber-400/40 shadow-[0_0_12px_rgba(245,158,11,0.12)] transition-all cursor-pointer group text-left"
                         >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-6 h-6 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:rotate-12 transition-transform">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-400 text-slate-950 flex items-center justify-center shrink-0 shadow-xs group-hover:rotate-12 transition-transform">
                               <Sparkles className="w-3.5 h-3.5" />
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
-                                <span className="font-bold text-[11.5px] text-amber-900 dark:text-amber-200 truncate">
+                                <span className="font-extrabold text-[12px] text-amber-950 dark:text-amber-100 truncate">
                                   {locale === 'vi' ? 'Gói Apexa Pro' : 'Apexa Pro'}
                                 </span>
-                                <span className="text-[7.5px] font-black uppercase bg-gradient-to-r from-amber-500 to-orange-500 text-white px-1.5 py-0.2 rounded-md shadow-xs">PRO</span>
+                                <span className="relative overflow-hidden inline-flex items-center gap-0.5 text-[7.5px] font-black uppercase bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 px-1.5 py-0.5 rounded-md shadow-xs border border-amber-300/80">
+                                  <Sparkles className="w-2 h-2 text-amber-950" />
+                                  <span>PRO</span>
+                                </span>
                               </div>
-                              <p className="text-[9.5px] text-amber-700/80 dark:text-amber-400 font-medium truncate">
-                                {locale === 'vi' ? 'Đã kích hoạt • Toàn bộ tính năng' : 'Active • All features'}
+                              <p className="text-[9.5px] text-amber-800/90 dark:text-amber-300/90 font-medium truncate">
+                                {locale === 'vi' ? 'Đã kích hoạt • Toàn bộ tính năng cao cấp' : 'Active • All premium features'}
                               </p>
                             </div>
                           </div>
-                          <ChevronRight className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                          <ChevronRight className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                         </button>
                       ) : (
                         <button
@@ -6797,23 +6618,7 @@ export default function App() {
         
 
         {(() => {
-          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'goals' || activeTab === 'chat' || activeTab === 'docs' || activeTab === 'inbox' || activeTab === 'calendar' || activeTab === 'settings' || activeTab === 'finance' || activeTab === 'miniapps' || activeTab === 'crm' || activeTab === 'erp' || activeTab === 'base' || activeTab === 'whiteboard' || activeTab === 'planner' || activeTab === 'pomodoro' || activeTab === 'notes' || activeTab === 'converter' || activeTab.startsWith('custom-');
-          const activeMiniApp = allMiniApps.find(a => a.id === activeTab) || (
-            activeTab.startsWith('custom-')
-              ? customMiniApps.find(a => a.id === activeTab) || {
-                  id: activeTab,
-                  name: 'Custom Web App',
-                  nameVi: 'Ứng dụng Web tùy chỉnh',
-                  description: '',
-                  descriptionVi: '',
-                  icon: '🌐',
-                  category: 'custom' as const,
-                  color: '#3b82f6',
-                  isSystem: false,
-                  openMode: 'embedded' as const,
-                }
-              : undefined
-          );
+          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'chat' || activeTab === 'docs' || activeTab === 'inbox' || activeTab === 'calendar' || activeTab === 'settings' || activeTab === 'finance';
           
           return (
             <main id="apexa-main-content" tabIndex={-1} className="apexa-main-canvas cu-content-area relative h-full w-full flex-1 overflow-hidden bg-white dark:bg-transparent">
@@ -6958,25 +6763,6 @@ export default function App() {
                       onAddDoc={handleAddDoc}
                       onUpdateDoc={handleUpdateDoc}
                       onDeleteDoc={handleDeleteDoc}
-                    />
-                  )}
-
-                  {activeTab === 'goals' && (
-                    <GoalsHub
-                      activeWorkspaceId={activeWorkspaceId}
-                      currentUser={currentUser}
-                      members={currentWorkspaceMembers}
-                      tasks={currentWorkspaceTasks}
-                      isOffline={isOffline}
-                      onOpenTask={(taskId) => {
-                        const task = currentWorkspaceTasks.find((item) => item.id === taskId);
-                        setActiveTab('tasks');
-                        if (task?.spaceId) setActiveSpaceId(task.spaceId);
-                        if (task?.listId) setActiveListId(task.listId);
-                        setInitialSelectedTaskId(taskId);
-                      }}
-                      onAddSyncLog={addSyncLog}
-                      triggerToast={triggerToast}
                     />
                   )}
 
@@ -7130,247 +6916,6 @@ export default function App() {
                       }}
                       triggerToast={triggerToast}
                       onSendWorkspaceInvites={handleSendWorkspaceInvites}
-                    />
-                  )}
-
-                  {activeTab === 'miniapps' && (
-                    <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-slate-50/50 dark:bg-zinc-950/50">
-                      <div className="max-w-md p-8 rounded-3xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-zinc-900 shadow-xl flex flex-col items-center">
-                        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4 shadow-xs">
-                          <Boxes className="w-8 h-8" />
-                        </div>
-                        <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-300 dark:border-amber-800/50 mb-3">
-                          {locale === 'vi' ? 'Tính năng đang phát triển' : 'In Development'}
-                        </span>
-                        <h2 className="text-xl font-black text-slate-900 dark:text-white">
-                          {locale === 'vi' ? 'Kho ứng dụng Mini Apps' : 'Mini Apps Hub'}
-                        </h2>
-                        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2 leading-relaxed">
-                          {locale === 'vi'
-                            ? 'Kho ứng dụng Mini Apps hiện đang trong quá trình nâng cấp và tạm thời bị vô hiệu hoá để phát triển. Vui lòng quay lại sau!'
-                            : 'The Mini Apps feature is currently under active development and temporarily disabled. Please check back later!'}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab('tasks')}
-                          className="mt-6 py-2.5 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                        >
-                          <span>{locale === 'vi' ? 'Quay lại Bảng công việc' : 'Back to Tasks'}</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Fallback if active mini app is disabled */}
-                  {activeMiniApp && activeMiniApp.isEnabled === false && activeTab !== 'miniapps' && (
-                    <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-slate-50/50 dark:bg-zinc-950/50">
-                      <div className="max-w-md p-8 rounded-3xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-zinc-900 shadow-xl flex flex-col items-center">
-                        <MiniAppIcon
-                          appId={activeMiniApp.id}
-                          icon={activeMiniApp.icon}
-                          iconName={activeMiniApp.iconName}
-                          gradient={activeMiniApp.gradient}
-                          color={activeMiniApp.color}
-                          variant="card"
-                          disabled={true}
-                          className="w-16 h-16 rounded-2xl mb-4 shadow-lg"
-                        />
-                        <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-300 dark:border-amber-800/50 mb-3">
-                          {locale === 'vi' ? 'Ứng dụng đang tắt' : 'Mini App Disabled'}
-                        </span>
-                        <h2 className="text-xl font-black text-slate-900 dark:text-white">
-                          {locale === 'vi' ? activeMiniApp.nameVi || activeMiniApp.name : activeMiniApp.name}
-                        </h2>
-                        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2 leading-relaxed">
-                          {locale === 'vi'
-                            ? 'Ứng dụng này hiện đang ở trạng thái tắt. Hãy bật lại để tiếp tục sử dụng các công cụ và dữ liệu làm việc.'
-                            : 'This mini app is currently turned off. Re-enable it to continue accessing its tools and workspace data.'}
-                        </p>
-                        <div className="flex items-center gap-3 mt-6 w-full">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              enableMiniApp(activeMiniApp.id);
-                              if (triggerToast) triggerToast('success', locale === 'vi' ? 'Đã bật ứng dụng' : 'App Enabled', activeMiniApp.name);
-                            }}
-                            className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                          >
-                            <Power className="w-4 h-4" />
-                            <span>{locale === 'vi' ? 'Kích hoạt ngay' : 'Enable App'}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setActiveTab('miniapps')}
-                            className="py-2.5 px-4 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold text-xs transition-all cursor-pointer"
-                          >
-                            {locale === 'vi' ? 'Về Hub' : 'Back to Hub'}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeTab === 'crm' && activeMiniApp && activeMiniApp.isEnabled !== false && (
-                    <MiniAppContainer
-                      app={activeMiniApp}
-                      onBackToHub={() => setActiveTab('miniapps')}
-                      triggerToast={triggerToast}
-                    >
-                      <CRMWorkspace
-                        bases={currentWorkspaceBases}
-                        members={currentWorkspaceMembers}
-                        activeWorkspaceId={activeWorkspaceId}
-                        isOffline={isOffline}
-                        onAddBase={handleAddBase}
-                        onUpdateBase={handleUpdateBase}
-                        onAddSyncLog={addSyncLog}
-                        triggerToast={triggerToast}
-                      />
-                    </MiniAppContainer>
-                  )}
-
-                  {activeTab === 'erp' && activeMiniApp && activeMiniApp.isEnabled !== false && (
-                    <MiniAppContainer
-                      app={activeMiniApp}
-                      onBackToHub={() => setActiveTab('miniapps')}
-                      triggerToast={triggerToast}
-                    >
-                      <ERPHub
-                        activeWorkspaceId={activeWorkspaceId}
-                        members={currentWorkspaceMembers}
-                        isOffline={isOffline}
-                        onAddSyncLog={addSyncLog}
-                        triggerToast={triggerToast}
-                      />
-                    </MiniAppContainer>
-                  )}
-
-                  {activeTab === 'base' && activeMiniApp && activeMiniApp.isEnabled !== false && (
-                    <MiniAppContainer
-                      app={activeMiniApp}
-                      onBackToHub={() => setActiveTab('miniapps')}
-                      triggerToast={triggerToast}
-                    >
-                      <BaseHub
-                        bases={currentWorkspaceBases}
-                        members={currentWorkspaceMembers}
-                        isOffline={isOffline}
-                        spaces={currentWorkspaceSpaces}
-                        tasks={currentWorkspaceTasks}
-                        onAddBase={handleAddBase}
-                        onUpdateBase={handleUpdateBase}
-                        onDeleteBase={handleDeleteBase}
-                        onAddSyncLog={addSyncLog}
-                        triggerToast={triggerToast}
-                      />
-                    </MiniAppContainer>
-                  )}
-
-                  {activeTab === 'whiteboard' && activeMiniApp && activeMiniApp.isEnabled !== false && (
-                    <MiniAppContainer
-                      app={activeMiniApp}
-                      onBackToHub={() => setActiveTab('miniapps')}
-                      triggerToast={triggerToast}
-                    >
-                      <WhiteboardHub
-                        activeWorkspaceId={activeWorkspaceId}
-                        members={currentWorkspaceMembers}
-                        tasks={currentWorkspaceTasks}
-                        isOffline={isOffline}
-                        currentUser={currentUser}
-                        onUpgradePremium={() => setShowPremiumModal(true)}
-                        onAddSyncLog={addSyncLog}
-                        onAddTask={handleAddTask}
-                        triggerToast={triggerToast}
-                      />
-                    </MiniAppContainer>
-                  )}
-
-                  {activeTab === 'planner' && activeMiniApp && activeMiniApp.isEnabled !== false && (
-                    <MiniAppContainer
-                      app={activeMiniApp}
-                      onBackToHub={() => setActiveTab('miniapps')}
-                      triggerToast={triggerToast}
-                    >
-                      <DayPlanner
-                        tasks={currentWorkspaceTasks}
-                        members={currentWorkspaceMembers}
-                        currentUser={currentUser || {
-                          id: 'anon',
-                          name: 'Member',
-                          email: '',
-                          avatar: '',
-                          role: 'member',
-                          status: 'online',
-                        }}
-                        workspaceId={activeWorkspaceId}
-                        onOpenTask={(taskId) => {
-                          const task = currentWorkspaceTasks.find((item) => item.id === taskId);
-                          setActiveTab('tasks');
-                          if (task?.spaceId) setActiveSpaceId(task.spaceId);
-                          if (task?.listId) setActiveListId(task.listId);
-                          setInitialSelectedTaskId(taskId);
-                        }}
-                      />
-                    </MiniAppContainer>
-                  )}
-
-                  {activeTab === 'pomodoro' && activeMiniApp && activeMiniApp.isEnabled !== false && (
-                    <MiniAppContainer
-                      app={activeMiniApp}
-                      onBackToHub={() => setActiveTab('miniapps')}
-                      triggerToast={triggerToast}
-                    >
-                      <PomodoroMiniApp
-                        tasks={currentWorkspaceTasks}
-                        onOpenTask={(taskId) => {
-                          const task = currentWorkspaceTasks.find((item) => item.id === taskId);
-                          setActiveTab('tasks');
-                          if (task?.spaceId) setActiveSpaceId(task.spaceId);
-                          if (task?.listId) setActiveListId(task.listId);
-                          setInitialSelectedTaskId(taskId);
-                        }}
-                        triggerToast={triggerToast}
-                      />
-                    </MiniAppContainer>
-                  )}
-
-                  {activeTab === 'notes' && activeMiniApp && activeMiniApp.isEnabled !== false && (
-                    <MiniAppContainer
-                      app={activeMiniApp}
-                      onBackToHub={() => setActiveTab('miniapps')}
-                      triggerToast={triggerToast}
-                    >
-                      <NotesMiniApp
-                        onExportToDoc={(title, content) => {
-                          handleAddDoc({
-                            title,
-                            content,
-                            category: 'General',
-                            updatedBy: currentUser?.name || 'User',
-                          });
-                          triggerToast('success', locale === 'vi' ? 'Đã xuất sang Docs' : 'Exported to Docs', title);
-                        }}
-                        triggerToast={triggerToast}
-                      />
-                    </MiniAppContainer>
-                  )}
-
-                  {activeTab === 'converter' && activeMiniApp && activeMiniApp.isEnabled !== false && (
-                    <MiniAppContainer
-                      app={activeMiniApp}
-                      onBackToHub={() => setActiveTab('miniapps')}
-                      triggerToast={triggerToast}
-                    >
-                      <ConverterMiniApp />
-                    </MiniAppContainer>
-                  )}
-
-                  {activeTab.startsWith('custom-') && activeMiniApp && activeMiniApp.isEnabled !== false && (
-                    <MiniAppContainer
-                      app={activeMiniApp}
-                      onBackToHub={() => setActiveTab('miniapps')}
-                      triggerToast={triggerToast}
                     />
                   )}
                 </motion.div>
@@ -7942,16 +7487,6 @@ export default function App() {
           setViewingMemberProfileId(memberId);
         }}
         onNavigateTab={(tab) => {
-          if (tab === 'miniapps') {
-            triggerToast(
-              'info',
-              locale === 'vi' ? 'Tính năng đang phát triển' : 'Feature Under Development',
-              locale === 'vi'
-                ? 'Kho ứng dụng (Mini Apps) hiện đang được phát triển và tạm thời bị vô hiệu hoá.'
-                : 'Mini Apps is currently under development and temporarily unavailable.'
-            );
-            return;
-          }
           setActiveTab(tab);
           if (tab === 'tasks') {
             setActiveSpaceId(null);

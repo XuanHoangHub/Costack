@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { Task, Document, Space, User as UserType } from '@/types';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { renderSpaceIcon } from './RenderSpaceIcon';
 import { createPortal } from 'react-dom';
 
 function Portal({ children }: { children: React.ReactNode }) {
@@ -211,19 +212,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       },
     },
     {
-      id: 'goto-goals',
-      name: '/goals',
-      label: isVietnamese ? 'Mục tiêu & OKRs' : 'Goals & OKRs',
-      shortLabel: isVietnamese ? 'Mục tiêu & OKRs' : 'Goals & OKRs',
-      description: isVietnamese ? 'Theo dõi mục tiêu, key results và tiến độ chiến lược' : 'Track objectives, key results, and strategic progress',
-      icon: Target,
-      badge: 'OKR',
-      action: () => {
-        onNavigateTab('goals');
-        addSyncLog(isVietnamese ? 'Lệnh: Mở Mục tiêu & OKRs' : 'Command: Opened Goals & OKRs');
-      },
-    },
-    {
       id: 'goto-chat',
       name: '/chat',
       label: isVietnamese ? 'Kênh trò chuyện nhóm' : 'Go to Chat Channels',
@@ -263,84 +251,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           if (aiBtn) aiBtn.click();
         }
         addSyncLog(isVietnamese ? 'Lệnh: Kích hoạt Trợ lý AI Apexa Brain' : 'Command: Launched Apexa Brain AI Assistant');
-      },
-    },
-    {
-      id: 'goto-whiteboard',
-      name: '/whiteboard',
-      label: isVietnamese ? 'Bảng vẽ tương tác' : 'Open Whiteboard',
-      shortLabel: isVietnamese ? 'Bảng vẽ tương tác' : 'Whiteboard',
-      description: isVietnamese ? 'Phác thảo ý tưởng, vẽ sơ đồ tư duy & flow' : 'Interactive canvas for sketching & diagramming',
-      icon: Grid,
-      badge: isVietnamese ? 'Bảng vẽ' : 'Whiteboard',
-      action: () => {
-        onNavigateTab('whiteboard');
-        addSyncLog(isVietnamese ? 'Lệnh: Mở Bảng vẽ' : 'Command: Opened Whiteboard');
-      },
-    },
-    {
-      id: 'goto-miniapps',
-      name: '/apps',
-      label: isVietnamese ? 'Kho ứng dụng Mini Apps' : 'Open Mini Apps Hub',
-      shortLabel: isVietnamese ? 'Kho ứng dụng' : 'Mini Apps',
-      description: isVietnamese ? 'Tính năng đang được phát triển và tạm thời bị vô hiệu hoá' : 'Feature under development and temporarily unavailable',
-      icon: Boxes,
-      badge: isVietnamese ? 'Đang phát triển' : 'In Dev',
-      action: () => {
-        onNavigateTab('miniapps');
-        addSyncLog(isVietnamese ? 'Lệnh: Mở Kho ứng dụng (Đang phát triển)' : 'Command: Opened Mini Apps (In Dev)');
-      },
-    },
-    {
-      id: 'goto-crm',
-      name: '/crm',
-      label: isVietnamese ? 'Quản trị khách hàng (CRM)' : 'Open CRM Workspace',
-      shortLabel: 'CRM',
-      description: isVietnamese ? 'Quản lý phễu bán hàng, cơ hội giao dịch và khách hàng' : 'Deals pipeline, contacts and sales',
-      icon: Briefcase,
-      badge: 'CRM',
-      action: () => {
-        onNavigateTab('crm');
-        addSyncLog(isVietnamese ? 'Lệnh: Mở CRM' : 'Command: Opened CRM');
-      },
-    },
-    {
-      id: 'goto-erp',
-      name: '/erp',
-      label: isVietnamese ? 'Quản trị nguồn lực (ERP)' : 'Open ERP Hub',
-      shortLabel: 'ERP',
-      description: isVietnamese ? 'Kho vận, phiếu xuất nhập kho, đơn hàng và nhà cung cấp' : 'Inventory, warehouse, orders and supply',
-      icon: Boxes,
-      badge: 'ERP',
-      action: () => {
-        onNavigateTab('erp');
-        addSyncLog(isVietnamese ? 'Lệnh: Mở ERP' : 'Command: Opened ERP');
-      },
-    },
-    {
-      id: 'goto-base',
-      name: '/base',
-      label: isVietnamese ? 'Cơ sở dữ liệu Apexa Base' : 'Open Apexa Base',
-      shortLabel: 'Base',
-      description: isVietnamese ? 'Bảng dữ liệu quan hệ không mã (Bitable)' : 'Relational no-code bitable database',
-      icon: Layers3,
-      badge: 'Base',
-      action: () => {
-        onNavigateTab('base');
-        addSyncLog(isVietnamese ? 'Lệnh: Mở Base' : 'Command: Opened Base');
-      },
-    },
-    {
-      id: 'goto-planner',
-      name: '/planner',
-      label: isVietnamese ? 'Kế hoạch ngày (Day Planner)' : 'Open Day Planner',
-      shortLabel: isVietnamese ? 'Kế hoạch ngày' : 'Planner',
-      description: isVietnamese ? 'Timeboxing và lịch trình công việc trong ngày' : 'Daily schedule and timeboxing',
-      icon: Calendar,
-      badge: isVietnamese ? 'Kế hoạch' : 'Planner',
-      action: () => {
-        onNavigateTab('planner');
-        addSyncLog(isVietnamese ? 'Lệnh: Mở Kế hoạch ngày' : 'Command: Opened Day Planner');
       },
     },
     {
@@ -706,14 +616,14 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.96, opacity: 0, y: -12 }}
           transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-          className="relative bg-white dark:bg-[#10121a] border border-slate-200/90 dark:border-white/[0.12] rounded-2xl w-[min(95vw,680px)] max-sm:w-full max-sm:mx-2 overflow-hidden shadow-[0_24px_64px_rgba(15,23,42,0.18)] dark:shadow-[0_28px_72px_rgba(0,0,0,0.85)] flex flex-col max-h-[88dvh] z-10"
+          className="relative bg-white dark:bg-[#111218] border border-slate-200/90 dark:border-white/10 rounded-2xl w-[min(95vw,680px)] max-sm:w-full max-sm:mx-2 overflow-hidden shadow-[0_24px_64px_rgba(15,23,42,0.18)] dark:shadow-[0_28px_72px_rgba(0,0,0,0.85)] flex flex-col max-h-[88dvh] z-10"
         >
           <h2 id="global-search-title" className="sr-only">
             {isVietnamese ? 'Tìm kiếm toàn cục Apexa' : 'Apexa Global Search'}
           </h2>
 
           {/* Search Input Bar */}
-          <div className="px-4 py-3 border-b border-slate-200/80 dark:border-white/[0.08] flex items-center justify-between gap-3 bg-white dark:bg-[#10121a] focus-within:border-blue-500/60 transition-colors">
+          <div className="px-4 py-3 border-b border-slate-200/80 dark:border-white/[0.08] flex items-center justify-between gap-3 bg-white dark:bg-[#111218] focus-within:border-blue-500/60 transition-colors">
             {isCommandMode ? (
               <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-200/60 dark:border-purple-800/40">
                 <Terminal className="w-4 h-4 animate-pulse" />
@@ -1268,8 +1178,13 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                             <Layers3 className="w-4 h-4" />
                           </div>
                           <div className="truncate min-w-0">
-                            <span className="text-xs font-bold text-slate-800 dark:text-slate-100 block group-hover:text-cyan-600 transition-colors truncate">
-                              {space.emoji ? `${space.emoji} ` : ''}{highlightMatch(space.name, searchQuery)}
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5 group-hover:text-cyan-600 transition-colors truncate">
+                              {space.emoji && (
+                                <span className="shrink-0 flex items-center justify-center">
+                                  {renderSpaceIcon(space.emoji, "w-3.5 h-3.5 shrink-0", undefined, { preserveEmoji: true })}
+                                </span>
+                              )}
+                              <span className="truncate">{highlightMatch(space.name, searchQuery)}</span>
                             </span>
                             <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate mt-0.5">
                               {space.lists?.length || 0} {isVietnamese ? 'danh sách công việc' : 'task lists'} • {space.channels?.length || 0} {isVietnamese ? 'kênh chat' : 'channels'}
@@ -1371,7 +1286,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           </div>
 
           {/* Footer Guide */}
-          <div className="px-4 py-2.5 border-t border-slate-200/80 dark:border-white/[0.08] bg-slate-50/80 dark:bg-[#0c0d12]/90 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-zinc-400 shrink-0 select-none">
+          <div className="px-4 py-2.5 border-t border-slate-200/80 dark:border-white/[0.08] bg-slate-50/80 dark:bg-[#08090c]/90 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-zinc-400 shrink-0 select-none">
             <div className="flex items-center gap-2.5 text-[11px]">
               <span className="flex items-center gap-1.5">
                 <kbd className="px-1.5 py-0.5 rounded-md bg-white dark:bg-white/[0.08] border border-slate-200/90 dark:border-white/10 font-mono text-[9.5px] text-slate-700 dark:text-zinc-200 font-bold shadow-2xs">↑↓</kbd>

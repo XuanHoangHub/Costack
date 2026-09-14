@@ -123,11 +123,11 @@ export default function ConfirmModal({
 
             {/* Modal Card Container */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 8 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 6 }}
-              transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-              className="relative w-full max-w-[420px] bg-white dark:bg-[#181818] border border-slate-200/90 dark:border-slate-800 shadow-[0_16px_40px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.65)] rounded-2xl p-5 sm:p-6 text-left z-10 font-sans select-none overflow-hidden"
+              initial={{ scale: 0.94, opacity: 0, y: 8 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.94, opacity: 0, y: 8 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              className="relative w-full max-w-[420px] bg-white dark:bg-[#111218] border border-slate-200/90 dark:border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.65)] rounded-2xl p-5 sm:p-6 text-left z-10 font-sans select-none overflow-hidden"
             >
               {/* Top Row: Icon + Title + Close Button */}
               <div className="flex items-start justify-between gap-3">
@@ -157,7 +157,7 @@ export default function ConfirmModal({
                 <button
                   type="button"
                   onClick={onCancel}
-                  className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer shrink-0 -mt-1 -mr-1"
+                  className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] flex items-center justify-center transition-colors cursor-pointer shrink-0 -mt-1 -mr-1"
                   title="Đóng (Esc)"
                 >
                   <X className="w-4 h-4" />
@@ -171,8 +171,8 @@ export default function ConfirmModal({
 
               {/* Target Item Callout (if specific item is targeted) */}
               {detectedInfo.name && (
-                <div className="mt-3.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-850/60 border border-slate-200/80 dark:border-slate-800 flex items-center gap-2.5 min-w-0">
-                  <div className="w-6 h-6 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 shadow-3xs">
+                <div className="mt-3.5 p-2.5 rounded-xl bg-slate-50 dark:bg-[#161822] border border-slate-200/80 dark:border-white/10 flex items-center gap-2.5 min-w-0">
+                  <div className="w-6 h-6 rounded-lg bg-white dark:bg-[#111218] border border-slate-200 dark:border-white/10 flex items-center justify-center shrink-0 shadow-3xs">
                     {getItemIcon()}
                   </div>
                   <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate min-w-0 flex-1" title={detectedInfo.name}>
@@ -182,12 +182,12 @@ export default function ConfirmModal({
               )}
 
               {/* Actions Footer */}
-              <div className="flex items-center justify-end gap-2.5 mt-5 pt-3.5 border-t border-slate-100 dark:border-slate-800/70">
+              <div className="flex items-center justify-end gap-2.5 mt-5 pt-3.5 border-t border-slate-100 dark:border-white/10">
                 {/* Cancel Button */}
                 <button
                   type="button"
                   onClick={onCancel}
-                  className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors cursor-pointer select-none shadow-3xs flex items-center gap-1.5 whitespace-nowrap shrink-0"
+                  className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#161822] text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1f2230] transition-colors cursor-pointer select-none shadow-3xs flex items-center gap-1.5 whitespace-nowrap shrink-0"
                 >
                   <span className="whitespace-nowrap">{effectiveCancelText}</span>
                   <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono font-medium px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-700 whitespace-nowrap">

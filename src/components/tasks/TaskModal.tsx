@@ -1300,41 +1300,6 @@ export default function TaskModal({
                       transition={{ duration: 0.15 }}
                       className="overflow-hidden space-y-4"
                     >
-                      {/* Tags */}
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                          {isVietnamese ? 'Thẻ nhãn' : 'Tags'}
-                        </label>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {tags.map(tag => (
-                            <span
-                              key={tag}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300 text-[11px] font-medium border border-indigo-200/50 dark:border-indigo-800/40"
-                            >
-                              #{tag}
-                              <button type="button" onClick={() => handleRemoveTag(tag)} className="hover:text-rose-500 cursor-pointer ml-0.5">
-                                <X className="w-2.5 h-2.5" />
-                              </button>
-                            </span>
-                          ))}
-                          <div className="inline-flex items-center gap-1">
-                            <input
-                              type="text"
-                              value={newTagInput}
-                              onChange={e => setNewTagInput(e.target.value)}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter' || e.key === ',') {
-                                  e.preventDefault();
-                                  handleAddTag();
-                                }
-                              }}
-                              placeholder={isVietnamese ? 'Thêm thẻ...' : 'Add tag...'}
-                              className="w-20 sm:w-28 text-[11px] font-medium text-slate-700 dark:text-slate-200 bg-transparent border-none outline-none p-0 placeholder:text-slate-300 dark:placeholder:text-slate-600"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
                       {/* Hours Estimate & Logged */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
@@ -1405,24 +1370,6 @@ export default function TaskModal({
                             />
                           </div>
                         </div>
-                      </div>
-
-                      {/* Progress */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                            {isVietnamese ? 'Tiến độ' : 'Progress'}
-                          </label>
-                          <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">{progress}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={progress}
-                          onChange={e => setProgress(Number(e.target.value))}
-                          className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-indigo-600"
-                        />
                       </div>
 
                       {/* Recurrence Setting */}

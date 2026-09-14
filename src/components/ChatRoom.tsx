@@ -2916,8 +2916,8 @@ ${channelMessagesText}`;
         spaceId = space.id;
         entityId = infoStr.substring(space.id.length + 1);
         const foundChan = space.channels?.find(c => c.id === entityId);
-        spaceChanName = foundChan?.name || 'general';
-        spaceChanDesc = foundChan?.description || `${space.emoji || '📁'} Kênh chat của Space: ${space.name}`;
+        const spaceEmojiPrefix = space.emoji && /\p{Extended_Pictographic}/u.test(space.emoji) ? `${space.emoji} ` : '';
+        spaceChanDesc = foundChan?.description || `${spaceEmojiPrefix}Kênh chat của Space: ${space.name}`;
       }
     }
   }

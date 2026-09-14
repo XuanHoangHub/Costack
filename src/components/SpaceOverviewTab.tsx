@@ -1,10 +1,9 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, ArrowUpRight, Bookmark, CalendarDays, Check, CheckCircle2, ChevronRight, Clock3, ExternalLink, Eye, FileText, Flag, Folder, FolderOpen, Layers, Link2, List, Loader2, Plus, Search, ShieldCheck, Sparkles, Target, Trash2, Users, X } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Bookmark, CalendarDays, Check, CheckCircle2, ChevronRight, Clock3, ExternalLink, FileText, Flag, Folder, FolderOpen, Layers, Link2, List, Loader2, Plus, Search, Sparkles, Target, Trash2, Users, X } from 'lucide-react';
 import type { Document, Space, SpaceBookmark, Task, TaskStatus, User } from '../types';
 import { useTranslation } from '../contexts/TranslationContext';
-import EmojiIconPicker, { renderSpaceIcon } from './EmojiIconPicker';
 import SignedImage from './SignedImage';
 import { callAiApi } from '../lib/aiClient';
 import { useAuthStore } from '../store/authStore';
@@ -57,18 +56,6 @@ export default function SpaceOverviewTab({ space, tasks, members, docs = [], onO
   const [bookmarkError, setBookmarkError] = useState('');
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [isHeroDismissed, setIsHeroDismissed] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem('apexa_hide_space_hero') === 'true';
-  });
-  const handleDismissHero = () => {
-    setIsHeroDismissed(true);
-    try { localStorage.setItem('apexa_hide_space_hero', 'true'); } catch {}
-  };
-  const handleRestoreHero = () => {
-    setIsHeroDismissed(false);
-    try { localStorage.removeItem('apexa_hide_space_hero'); } catch {}
-  };
   const analysisRequest = useRef(0);
   const quickInput = useRef<HTMLInputElement>(null);
   const accent = accents[space.themeColor || 'indigo'] || accents.indigo;
@@ -158,68 +145,6 @@ export default function SpaceOverviewTab({ space, tasks, members, docs = [], onO
   return (
     <div className="apexa-space-overview space-hub" style={{ '--space-accent': accent } as React.CSSProperties}>
       <div className="space-hub-inner">
-        {isHeroDismissed ? (
-          <div className="flex justify-end -mb-2">
-            <button
-              type="button"
-              onClick={handleRestoreHero}
-              className="text-[11px] font-bold text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1.5 transition-colors py-1 px-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/60 cursor-pointer"
-              title={tr('Hiện lại tiêu đề Space', 'Show Space header')}
-            >
-              <Eye size={13} />
-              <span>{tr('Hiện tiêu đề Space', 'Show Space header')}</span>
-            </button>
-          </div>
-        ) : (
-          <section className="space-hero space-hero-compact">
-            <div className="space-hero-content">
-              <div className="space-hero-left">
-                {onUpdateSpaceEmoji ? (
-                  <EmojiIconPicker size="inline" value={space.emoji || 'Package'} onChange={onUpdateSpaceEmoji} title={tr('Đổi biểu tượng Space', 'Change Space icon')}>
-                    <div className="space-hero-icon space-hero-icon-compact">{renderSpaceIcon(space.emoji || 'Package', 'h-4.5 w-4.5')}</div>
-                  </EmojiIconPicker>
-                ) : (
-                  <div className="space-hero-icon space-hero-icon-compact">{renderSpaceIcon(space.emoji || 'Package', 'h-4.5 w-4.5')}</div>
-                )}
-                <div className="space-hero-title-group">
-                  <div className="space-hero-title-row">
-                    <h1 className="space-hero-title">{folder?.name || space.name}</h1>
-                    <span className="space-hero-privacy-badge">
-                      <ShieldCheck size={11} />
-                      {space.isPrivate ? tr('Riêng tư', 'Private') : tr('Cộng tác', 'Collaborative')}
-                    </span>
-                  </div>
-                  <div className="space-hero-meta-row">
-                    <span><List size={11} />{lists.length} {tr('danh sách', 'lists')}</span>
-                    <span className="space-meta-bullet">•</span>
-                    <span><FileText size={11} />{visibleDocs.length} {tr('tài liệu', 'documents')}</span>
-                    <span className="space-meta-bullet">•</span>
-                    <span><Users size={11} />{assignedMembers.length} {tr('người nhận việc', 'assigned')}</span>
-                    <span className="space-meta-bullet">•</span>
-                    <span className="space-hero-date-inline"><CalendarDays size={11} />{new Date().toLocaleDateString(vi ? 'vi-VN' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-hero-right">
-                <button type="button" className="space-button space-button-primary space-button-compact" onClick={createTask}>
-                  <Plus size={14} />
-                  <span>{tr('Tạo công việc', 'Create task')}</span>
-                </button>
-                <button
-                  type="button"
-                  className="space-hero-dismiss-btn"
-                  onClick={handleDismissHero}
-                  title={tr('Ẩn phần này', 'Hide this banner')}
-                  aria-label={tr('Ẩn tiêu đề', 'Hide banner')}
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            </div>
-          </section>
-        )}
-
         <div className="space-metrics">
           {[
             { label: tr('Tổng công việc', 'Total tasks'), value: spaceTasks.length, note: tr(`${spaceTasks.length - completed} việc đang mở`, `${spaceTasks.length - completed} open tasks`), icon: Layers, focus: 'all', tone: 'blue' },

@@ -9,6 +9,7 @@ import {
 import { SidebarZone, useUiStore } from '@/store/uiStore';
 import { NavItem } from '@/components/ui/NavItem';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { renderSpaceIcon } from '@/components/RenderSpaceIcon';
 
 export interface SidebarZoneGroupProps {
   zone: SidebarZone;
@@ -100,7 +101,7 @@ const COLOR_MAP: Record<string, {
   },
 };
 
-export function SidebarZoneGroup({
+function SidebarZoneGroupComponent({
   zone,
   collapsed = false,
   activeTab,
@@ -211,8 +212,8 @@ export function SidebarZoneGroup({
           {/* Zone Accent Dot */}
           <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${zoneColor.dot} ring-2 ring-white dark:ring-[var(--sidebar-bg)] shadow-sm`} />
 
-          {/* Emoji */}
-          <span className="text-sm select-none">{zone.emoji || '📁'}</span>
+          {/* Emoji / Icon */}
+          <span className="text-sm select-none flex items-center justify-center shrink-0">{renderSpaceIcon(zone.emoji || 'Folder', "w-4 h-4 shrink-0", undefined, { preserveEmoji: true })}</span>
 
           {/* Unread badge if any */}
           {totalUnreadCount > 0 && (
@@ -226,7 +227,7 @@ export function SidebarZoneGroup({
             {/* Flyout Header */}
             <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-white/[0.08]">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-base">{zone.emoji || '📁'}</span>
+                <span className="text-base flex items-center justify-center shrink-0">{renderSpaceIcon(zone.emoji || 'Folder', "w-4.5 h-4.5 shrink-0", undefined, { preserveEmoji: true })}</span>
                 <span className="font-bold text-xs text-slate-900 dark:text-white truncate">{zone.name}</span>
               </div>
               <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${zoneColor.badge}`}>
@@ -374,7 +375,7 @@ export function SidebarZoneGroup({
 
           {/* Zone Icon / Emoji */}
           <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md ${zoneColor.bg} border ${zoneColor.border} text-xs`}>
-            {zone.emoji || '📁'}
+            {renderSpaceIcon(zone.emoji || 'Folder', "w-3.5 h-3.5 shrink-0", undefined, { preserveEmoji: true })}
           </div>
 
           {/* Zone Title */}
@@ -570,3 +571,6 @@ export function SidebarZoneGroup({
     </div>
   );
 }
+
+export const SidebarZoneGroup = React.memo(SidebarZoneGroupComponent);
+export default SidebarZoneGroup;

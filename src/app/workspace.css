@@ -38,25 +38,25 @@
   -webkit-font-smoothing: antialiased;
 }
 .dark .apexa-app-shell.apexa-design-system {
-  --cu-bg: #09090b;
-  --cu-bg-subtle: #0d0e12;
-  --cu-surface: #121318;
-  --cu-surface-2: #181920;
-  --cu-surface-3: #22232c;
-  --cu-border: rgba(255, 255, 255, 0.08);
-  --cu-border-strong: rgba(255, 255, 255, 0.15);
-  --cu-text-primary: #f8fafc;
-  --cu-text-secondary: #cbd5e1;
-  --cu-text-muted: #94a3b8;
-  --cu-text-tertiary: #64748b;
+  --cu-bg: #08090c;
+  --cu-bg-subtle: #0c0d12;
+  --cu-surface: #111218;
+  --cu-surface-2: #161822;
+  --cu-surface-3: #1c1e2a;
+  --cu-border: rgba(255, 255, 255, 0.07);
+  --cu-border-strong: rgba(255, 255, 255, 0.13);
+  --cu-text-primary: #f4f4f6;
+  --cu-text-secondary: #a1a1aa;
+  --cu-text-muted: #71717a;
+  --cu-text-tertiary: #52525b;
   --cu-primary: #3b82f6;
   --cu-primary-hover: #60a5fa;
   --cu-primary-subtle: rgba(59, 130, 246, 0.12);
-  --sidebar-bg: #0c0d12;
-  --sidebar-surface: #121318;
+  --sidebar-bg: #0b0c10;
+  --sidebar-surface: #111218;
   --sidebar-border: rgba(255, 255, 255, 0.07);
-  --sidebar-text: #f8fafc;
-  --sidebar-muted: #94a3b8;
+  --sidebar-text: #f4f4f6;
+  --sidebar-muted: #71717a;
   --sidebar-signal: #3b82f6;
 }
 
@@ -196,20 +196,29 @@
 
 /* Spaces: secondary navigation belongs to the workspace, not another app shell. */
 .apexa-app-shell.apexa-design-system .apexa-space-sidebar { background: var(--cu-surface) !important; border-right: 1px solid var(--cu-border) !important; }
-.apexa-app-shell.apexa-design-system .apexa-space-sidebar-header { min-height: 64px; background: var(--cu-surface) !important; border-bottom: 1px solid var(--cu-border) !important; }
+.dark .apexa-app-shell.apexa-design-system .apexa-space-sidebar { background: var(--sidebar-bg) !important; border-right: 1px solid var(--sidebar-border) !important; }
+.apexa-app-shell.apexa-design-system .apexa-space-sidebar-header { min-height: 52px; background: var(--cu-surface) !important; border-bottom: 1px solid var(--cu-border) !important; }
+.dark .apexa-app-shell.apexa-design-system .apexa-space-sidebar-header { background: var(--sidebar-bg) !important; border-bottom: 1px solid var(--sidebar-border) !important; }
 .apexa-app-shell.apexa-design-system .apexa-space-sidebar::after, .apexa-app-shell.apexa-design-system .apexa-space-sidebar-header::before { display: none; }
 .apexa-app-shell.apexa-design-system .apexa-space-sidebar > div:last-child { background: var(--cu-surface) !important; }
+.dark .apexa-app-shell.apexa-design-system .apexa-space-sidebar > div:last-child { background: var(--sidebar-bg) !important; border-top: 1px solid var(--sidebar-border) !important; }
 .apexa-app-shell.apexa-design-system .apexa-space-sidebar button { font-weight: 500; }
 .apexa-app-shell.apexa-design-system .apexa-space-header { background: var(--cu-surface) !important; border-bottom: 1px solid var(--cu-border); backdrop-filter: none; }
+.dark .apexa-app-shell.apexa-design-system .apexa-space-header { background: var(--cu-surface) !important; border-bottom: 1px solid var(--cu-border); }
 .apexa-app-shell.apexa-design-system .apexa-space-header-left { min-width: 0; }
 .apexa-app-shell.apexa-design-system .apexa-space-view-dock { border-radius: 9px; background: var(--cu-surface) !important; box-shadow: none; }
+.dark .apexa-app-shell.apexa-design-system .apexa-space-view-dock { background: var(--cu-surface-2) !important; border: 1px solid var(--cu-border) !important; }
 .apexa-app-shell.apexa-design-system .apexa-space-view-tab { border-radius: 7px; font-size: 12px; }
 .apexa-app-shell.apexa-design-system .apexa-board-controls { padding: 12px 14px; border-radius: 12px; box-shadow: none; background: var(--cu-surface); }
 .apexa-app-shell.apexa-design-system .apexa-board-column { border-radius: 14px; background: var(--cu-surface-2) !important; border-color: var(--cu-border) !important; box-shadow: none !important; padding: 12px !important; gap: 10px; }
+.dark .apexa-app-shell.apexa-design-system .apexa-board-column { background: var(--cu-surface) !important; border-color: var(--cu-border) !important; }
 .apexa-app-shell.apexa-design-system .apexa-space-board { min-height: 0; }
 .apexa-app-shell.apexa-design-system .apexa-task-table { background: var(--cu-surface); }
+.dark .apexa-app-shell.apexa-design-system .apexa-task-table { background: var(--cu-bg) !important; }
 .apexa-app-shell.apexa-design-system .apexa-task-table th { height: 44px; }
+.dark .apexa-app-shell.apexa-design-system .apexa-task-table th { background: var(--cu-bg) !important; border-color: var(--cu-border) !important; }
 .apexa-app-shell.apexa-design-system .apexa-task-table td { height: 52px; padding-block: 9px; }
+.dark .apexa-app-shell.apexa-design-system .apexa-task-table td { border-color: var(--cu-border) !important; }
 .apexa-app-shell.apexa-design-system .apexa-task-table :where(th, td, button) { white-space: nowrap; }
 .apexa-app-shell.apexa-design-system .apexa-module-heading,
 .apexa-app-shell.apexa-design-system .apexa-finance-header { flex-wrap: wrap; gap: 16px; background: var(--cu-surface); border-color: var(--cu-border); box-shadow: none; }

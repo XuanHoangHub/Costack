@@ -1226,97 +1226,6 @@ export default function TaskDetailsPanel({
             </div>
           ) : null}
         </div>
-
-        {/* Time Estimate */}
-        {isShown('progress') && (
-          <div className="py-1.5 px-2 -mx-1 rounded-xl flex items-center justify-between min-h-[38px] group/row relative hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
-            <span className="w-28 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
-              <Timer className="w-3.5 h-3.5 text-slate-400" /> {isVietnamese ? 'Ước tính' : 'Estimate'}
-            </span>
-            <div className="flex items-center gap-1 flex-1 min-w-0 justify-end">
-              <input type="number" min={0} step={0.5} placeholder="—"
-                value={task.hoursEstimate || ''}
-                onChange={e => onUpdateTask({ ...task, hoursEstimate: parseFloat(e.target.value) || undefined })}
-                className="text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-white/10 rounded-xl outline-none px-2.5 py-1 w-16 text-right placeholder-slate-400 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/15 transition-all shadow-3xs" />
-              {task.hoursEstimate ? <span className="text-[11px] text-slate-400 font-medium">{isVietnamese ? 'giờ' : 'hrs'}</span> : null}
-              {onToggleFieldVisibility && (
-                <button 
-                  type="button" 
-                  onClick={() => onToggleFieldVisibility('progress')}
-                  className="opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 cursor-pointer shrink-0 -mr-1"
-                  title={isVietnamese ? "Ẩn trường" : "Hide field"}
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Tags */}
-        {isShown('tags') && (
-          <div className="py-1.5 px-2 -mx-1 rounded-xl flex items-start justify-between min-h-[38px] pt-2 group/row relative hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
-            <span className="w-28 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none mt-0.5">
-              <Tag className="w-3.5 h-3.5 text-slate-400" /> {isVietnamese ? 'Nhãn' : 'Tags'}
-            </span>
-            <div className="flex items-center gap-1.5 flex-wrap relative flex-1 min-w-0 justify-end">
-              {(task.tags || []).map(tag => {
-                const color = getTagColor(tag);
-                return (
-                  <span key={tag} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10.5px] font-semibold border ${color.bg} ${color.text} ${color.border} select-none`}>
-                    {tag}
-                    <button onClick={() => {
-                      const list = (task.tags || []).filter(t => t !== tag);
-                      onUpdateTask({ ...task, tags: list });
-                    }} className="hover:text-rose-500 cursor-pointer text-[9px] ml-0.5">✕</button>
-                  </span>
-                );
-              })}
-              <div className="relative">
-                <button onClick={() => setShowTagsDropdown(!showTagsDropdown)}
-                  className="w-5 h-5 rounded-md border border-dashed border-slate-300 hover:border-slate-500 dark:border-slate-700 dark:hover:border-slate-500 flex items-center justify-center cursor-pointer transition-all hover:bg-slate-100 dark:hover:bg-slate-800">
-                  <Plus className="w-3 h-3 text-slate-400" />
-                </button>
-                <AnimatePresence>
-                  {showTagsDropdown && (
-                    <>
-                      <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowTagsDropdown(false)} />
-                      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-                        className="absolute right-0 mt-1.5 z-30 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl w-36 space-y-0.5">
-                        {['Design', 'Frontend', 'Backend', 'Bug', 'Marketing', 'Research', 'Copywriting'].map(preset => (
-                          <button key={preset}
-                            onClick={() => {
-                              const current = task.tags || [];
-                              if (!current.includes(preset)) onUpdateTask({ ...task, tags: [...current, preset] });
-                              setShowTagsDropdown(false);
-                            }}
-                            className="w-full text-left px-2 py-1 text-[11px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg cursor-pointer flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${getTagColor(preset).bg} border ${getTagColor(preset).border}`} />
-                            {preset}
-                          </button>
-                        ))}
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
-              </div>
-              {(!task.tags || task.tags.length === 0) && (
-                <button onClick={() => setShowTagsDropdown(true)}
-                  className="text-xs font-medium text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">{isVietnamese ? 'Trống' : 'Empty'}</button>
-              )}
-              {onToggleFieldVisibility && (
-                <button 
-                  type="button" 
-                  onClick={() => onToggleFieldVisibility('tags')}
-                  className="opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 cursor-pointer shrink-0 -mr-1"
-                  title={isVietnamese ? "Ẩn trường" : "Hide field"}
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     );
   };
@@ -3009,8 +2918,7 @@ export default function TaskDetailsPanel({
                           value={titleValue} 
                           onChange={e => setTitleValue(e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false); }}
-                          onBlur={saveTitle}
-                          className="w-full text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white bg-transparent border-b-2 border-indigo-500 outline-none pb-1 leading-tight" 
+                          className="w-full text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white bg-slate-100/70 dark:bg-zinc-800/70 border border-slate-200 dark:border-zinc-700 rounded-lg px-2 py-0.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 leading-tight" 
                         />
                       ) : (
                         <h2 
@@ -3201,8 +3109,7 @@ export default function TaskDetailsPanel({
                                       <input autoFocus value={editingSubtaskValue}
                                         onChange={e => setEditingSubtaskValue(e.target.value)}
                                         onKeyDown={e => { if (e.key === 'Enter') editSubtask(sub.id, editingSubtaskValue); if (e.key === 'Escape') setEditingSubtaskId(null); }}
-                                        onBlur={() => editSubtask(sub.id, editingSubtaskValue)}
-                                        className="flex-1 w-full text-[12.5px] font-bold bg-transparent border-b-2 border-indigo-500 outline-none focus:outline-none focus:ring-0 py-0.5 text-slate-900 dark:text-slate-100" />
+                                        className="flex-1 w-full text-[12.5px] font-semibold bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-md px-2 py-0.5 outline-none focus:ring-1.5 focus:ring-indigo-500/30 focus:border-indigo-500/40 text-slate-900 dark:text-slate-100 shadow-3xs" />
                                     ) : (
                                       <span tabIndex={0} onKeyDown={event => { if (event.key === 'Enter') { setEditingSubtaskId(sub.id); setEditingSubtaskValue(sub.title); } }} onDoubleClick={() => { setEditingSubtaskId(sub.id); setEditingSubtaskValue(sub.title); }}
                                         className={`flex-1 text-[12.5px] cursor-text text-left transition-all ${sub.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200 font-bold'}`}>

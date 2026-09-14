@@ -327,9 +327,11 @@ export default function LanguageDropdown({
   // 3. Standard Dropdown Variant (Default & Header / Landing)
   return (
     <div ref={dropdownRef} className={`relative inline-block text-left select-none ${className}`}>
-      {/* Trigger Button */}
-      <button
+      {/* Trigger Button with spring micro-interaction */}
+      <motion.button
         type="button"
+        whileHover={{ scale: 1.03 }}
+        whileTap={{ scale: 0.96 }}
         onClick={() => setIsOpen(!isOpen)}
         onKeyDown={(event) => {
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -348,24 +350,30 @@ export default function LanguageDropdown({
           ${
             isOpen
               ? 'bg-blue-50 dark:bg-zinc-800 border-blue-500/50 dark:border-blue-400/50 ring-2 ring-blue-500/15 shadow-xs'
-              : 'bg-white/70 dark:bg-white/[0.03] border-slate-200/80 dark:border-white/[0.08] hover:bg-white dark:hover:bg-white/[0.06] hover:border-slate-300 dark:hover:border-white/15 shadow-3xs'
+              : 'bg-white/70 dark:bg-white/[0.03] border-slate-200/80 dark:border-white/[0.08] hover:bg-white dark:hover:bg-white/[0.06] hover:border-blue-300 dark:hover:border-blue-500/30 shadow-3xs'
           }
           text-slate-700 dark:text-zinc-200
           ${size === 'sm' ? 'h-7.5 px-2 text-[11px]' : size === 'lg' ? 'h-9.5 px-3.5 text-xs' : 'h-8.5 px-2.5 text-xs'}
         `}
       >
         <div className="flex items-center gap-1.5 min-w-0">
-          <currentLang.FlagIcon className="w-4.5 h-3 rounded-xs" />
+          <currentLang.FlagIcon className="w-4.5 h-3 rounded-xs shadow-2xs group-hover:scale-105 transition-transform" />
           <span className="font-sans font-bold text-[11.5px] tracking-tight text-slate-800 dark:text-zinc-200">
             {localeMode === 'system' ? (showLabel ? t('systemLanguage') : 'AUTO') : showLabel ? currentLang.label : currentLang.shortCode}
           </span>
         </div>
-        <ChevronDown
-          className={`w-3 h-3 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-zinc-300 transition-transform duration-200 shrink-0 ${
-            isOpen ? 'rotate-180 text-blue-600 dark:text-blue-400' : ''
-          }`}
-        />
-      </button>
+        <motion.div
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+          className="flex items-center"
+        >
+          <ChevronDown
+            className={`w-3 h-3 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-zinc-300 transition-colors shrink-0 ${
+              isOpen ? 'text-blue-600 dark:text-blue-400' : ''
+            }`}
+          />
+        </motion.div>
+      </motion.button>
 
       {/* Dropdown Menu Popover (100% Solid Opaque Background) */}
       <AnimatePresence>

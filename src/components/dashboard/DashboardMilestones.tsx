@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { Task, Space } from '@/types';
+import { renderSpaceIcon } from '@/components/RenderSpaceIcon';
 
 interface DashboardMilestonesProps {
   tasks: Task[];
@@ -134,7 +135,7 @@ export default function DashboardMilestones({
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 dark:bg-violet-500/15 dark:border dark:border-violet-500/20 dark:text-violet-400 font-semibold text-xs shadow-none">
-                      {item.space.emoji || <Folder className="h-4 w-4" />}
+                      {renderSpaceIcon(item.space.emoji || 'Folder', "h-4 w-4 shrink-0", undefined, { preserveEmoji: true })}
                     </div>
                     <div className="min-w-0">
                       <h4 className="truncate text-xs font-semibold text-neutral-900 dark:text-white group-hover:text-[#0071e3] dark:group-hover:text-[#0a84ff] transition-colors">

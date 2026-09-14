@@ -27,7 +27,7 @@ interface NavItemProps {
   dragIndicator?: React.ReactNode;
 }
 
-export function NavItem({
+function NavItemComponent({
   icon: Icon,
   label,
   shortLabel,
@@ -253,4 +253,5 @@ export function NavItem({
   );
 }
 
+export const NavItem = React.memo(NavItemComponent);
 export default NavItem;

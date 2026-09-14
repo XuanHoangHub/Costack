@@ -723,7 +723,7 @@ const TaskListView = React.memo(function TaskListView({
                                                 onChange={e => setInlineEditTitle(e.target.value)}
                                                 onKeyDown={e => { if (e.key === 'Enter') submitInlineEdit(task); if (e.key === 'Escape') setInlineEditTaskId(null); }}
                                                 onBlur={() => submitInlineEdit(task)}
-                                                className="w-full text-xs font-bold text-slate-800 dark:text-slate-100 bg-transparent border-b-2 border-blue-500 outline-none py-0.5" 
+                                                className="w-full text-xs font-semibold text-slate-900 dark:text-slate-100 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-md px-2 py-0.5 outline-none focus:ring-1.5 focus:ring-indigo-500/30 focus:border-indigo-500/40 shadow-3xs" 
                                               />
                                             ) : (
                                               <div className="flex items-center justify-between min-w-0 gap-2" onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}>
