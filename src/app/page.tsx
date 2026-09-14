@@ -6376,7 +6376,7 @@ export default function App() {
             <motion.button
               type="button"
               aria-label="Đóng trình đơn điều hướng"
-              className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm"
+              className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -6876,7 +6876,7 @@ export default function App() {
                 setShowSpacePermissionMenu(false);
                 setShowAddSpaceModal(false);
               }} 
-              className="absolute inset-0 bg-slate-950/50 backdrop-blur-md" 
+              className="absolute inset-0 bg-slate-950/50 cursor-pointer" 
             />
             <motion.div 
               initial={{ scale: 0.95, y: 12, opacity: 0 }} 
@@ -7190,7 +7190,7 @@ export default function App() {
       <AnimatePresence>
         {showSpaceSettingsId && (
           <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowSpaceSettingsId(null)} className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowSpaceSettingsId(null)} className="absolute inset-0 bg-slate-950/60 cursor-pointer" />
             <motion.div initial={{ scale: 0.95, y: 15, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 15, opacity: 0 }} className="relative w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 overflow-hidden z-10 text-left">
               <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
                 <h3 className="text-sm font-extrabold text-slate-850 dark:text-white flex items-center gap-2">

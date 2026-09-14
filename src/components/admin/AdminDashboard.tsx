@@ -1911,7 +1911,7 @@ function Modal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-[100] grid place-items-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-md"
+      className="fixed inset-0 z-[100] grid place-items-center overflow-y-auto bg-slate-950/70 p-4"
       onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}
     >
       <motion.section

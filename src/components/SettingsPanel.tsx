@@ -2224,7 +2224,7 @@ export default function SettingsPanel({
       <AnimatePresence>
         {createWorkspaceOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.button type="button" aria-label="Close" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setCreateWorkspaceOpen(false)} className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm" />
+            <motion.button type="button" aria-label="Close" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setCreateWorkspaceOpen(false)} className="absolute inset-0 bg-slate-950/50 cursor-pointer" />
             <motion.form initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }} onSubmit={createWorkspace} className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-start justify-between border-b border-slate-100 p-5 dark:border-slate-800">
                 <div>
@@ -2272,7 +2272,7 @@ export default function SettingsPanel({
         {/* Modal: Delete Workspace */}
         {deleteWorkspace && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <motion.button type="button" aria-label="Close" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDeleteWorkspace(null)} className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" />
+            <motion.button type="button" aria-label="Close" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDeleteWorkspace(null)} className="absolute inset-0 bg-slate-950/60 cursor-pointer" />
             <motion.div initial={{ opacity: 0, scale: 0.96, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="relative z-10 w-full max-w-md rounded-3xl border border-rose-200 bg-white p-6 shadow-2xl dark:border-rose-900 dark:bg-slate-900">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">
                 <AlertTriangle className="h-5 w-5" />
@@ -2299,7 +2299,7 @@ export default function SettingsPanel({
         {/* Modal: Confirm Disable MFA */}
         {confirmDisableMfaModal && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <motion.button type="button" aria-label="Close" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setConfirmDisableMfaModal(null)} className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" />
+            <motion.button type="button" aria-label="Close" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setConfirmDisableMfaModal(null)} className="absolute inset-0 bg-slate-950/60 cursor-pointer" />
             <motion.div initial={{ opacity: 0, scale: 0.96, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="relative z-10 w-full max-w-md rounded-3xl border border-rose-200 bg-white p-6 shadow-2xl dark:border-rose-900 dark:bg-slate-900">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">
                 <ShieldAlert className="h-6 w-6" />

@@ -2092,7 +2092,7 @@ export default function SpacePage({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsMobileSidebarOpen(false)}
-            className="md:hidden fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-40 cursor-pointer"
+            className="md:hidden fixed inset-0 bg-slate-950/40 z-40 cursor-pointer"
           />
         )}
       </AnimatePresence>
@@ -4538,7 +4538,7 @@ export default function SpacePage({
 
       {/* Bulk Move Modal */}
       {showBulkMoveModal && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 animate-in fade-in duration-150">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-5 max-w-md w-full space-y-4 text-left">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -4686,7 +4686,7 @@ export default function SpacePage({
 
       {/* AI Urgency Suggestion Modal */}
       {showAiPriorityModal && (
-        <div className="fixed inset-0 z-[140] bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+        <div className="fixed inset-0 z-[140] bg-slate-950/70 flex items-center justify-center p-3 sm:p-4">
           <div className="absolute inset-0 cursor-pointer" onClick={() => setShowAiPriorityModal(false)} />
           <motion.div 
             initial={{ scale: 0.95, opacity: 0 }}
@@ -6723,7 +6723,7 @@ export default function SpacePage({
       {/* Templates Selection Modal */}
       {templatesModalOpen && (
         <Portal>
-          <div className="fixed inset-0 z-[120] bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[120] bg-slate-950/60 flex items-center justify-center p-4">
             <div className="absolute inset-0 cursor-pointer" onClick={() => setTemplatesModalOpen(false)} />
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}

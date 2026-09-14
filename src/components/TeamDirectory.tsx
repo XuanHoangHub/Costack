@@ -694,7 +694,7 @@ export default function TeamDirectory({
     <div className="space-y-6 max-w-7xl mx-auto px-1 sm:px-2 pb-12">
       
       {/* 1. TOP HEADER: Modern Neu-SaaS Header with Pulse & Actions */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 p-6 shadow-sm backdrop-blur-xl">
+      <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 p-6 shadow-sm">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/25">
@@ -1125,7 +1125,7 @@ export default function TeamDirectory({
           </div>
 
           {/* B. TOOLBAR: Search, Scope Switcher, Filters, and View Mode Toggle */}
-          <div className="p-3.5 bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl backdrop-blur-xl shadow-xs flex flex-col lg:flex-row items-center gap-3">
+          <div className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-xs flex flex-col lg:flex-row items-center gap-3">
             
             {/* Scope segmented control: Workspace vs Organization */}
             <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-800/70 p-1 border border-slate-200/60 dark:border-slate-700/60 shrink-0 self-stretch sm:self-auto">
@@ -1430,7 +1430,7 @@ export default function TeamDirectory({
             </div>
           ) : (
             /* D. MEMBERS DISPLAY: TABLE VIEW */
-            <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-xs overflow-hidden">
+            <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
@@ -1825,7 +1825,7 @@ export default function TeamDirectory({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm cursor-pointer"
+              className="absolute inset-0 bg-slate-950/60 cursor-pointer"
               onClick={() => setSelectedMember(null)}
             />
 

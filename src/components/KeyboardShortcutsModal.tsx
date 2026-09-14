@@ -81,7 +81,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose, locale = 'en' 
               aria-label={vi ? 'Đóng bảng phím tắt' : 'Close shortcuts'}
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={onClose}
-              className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs cursor-pointer"
+              className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 cursor-pointer"
             />
           <motion.div
             role="dialog"

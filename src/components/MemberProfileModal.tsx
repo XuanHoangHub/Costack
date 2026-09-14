@@ -412,7 +412,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs cursor-pointer" 
+            className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 cursor-pointer" 
             onClick={onClose} 
           />
 
@@ -626,7 +626,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
           </div>
 
           {/* Profile Header Details Bar */}
-          <div className="px-6 sm:px-8 pb-5 relative shrink-0 border-b border-slate-200/70 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg">
+          <div className="px-6 sm:px-8 pb-5 relative shrink-0 border-b border-slate-200/70 dark:border-slate-800/80 bg-white dark:bg-slate-900">
             <div className="flex flex-col sm:flex-row sm:items-end justify-between -mt-16 sm:-mt-20 mb-4 gap-4">
               {/* Avatar with HD Ring & Live Status */}
               <div 
@@ -968,7 +968,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-2xl flex flex-col items-center justify-center p-4 select-none"
+          className="fixed inset-0 z-[100] bg-slate-950/90 flex flex-col items-center justify-center p-4 select-none"
           onClick={() => setLightboxImage(null)}
         >
           <div className="relative max-w-5xl max-h-[85vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>

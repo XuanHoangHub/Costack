@@ -327,7 +327,7 @@ export default function ShareSettingsModal({
     <Portal>
       <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 animate-fade-in font-sans">
         {/* Backdrop */}
-        <div className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs cursor-pointer" onClick={onClose} />
+        <div className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 cursor-pointer" onClick={onClose} />
 
       <div className="relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xl z-10 flex flex-col text-left select-none max-h-[92vh]">
         

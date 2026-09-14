@@ -3262,7 +3262,7 @@ export default function TaskDetailsPanel({
 
       {/* Move Task Modal */}
       {showMoveModal && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 animate-in fade-in duration-150">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-5 max-w-md w-full space-y-4 text-left">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">

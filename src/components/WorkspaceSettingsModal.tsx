@@ -606,7 +606,7 @@ export default function WorkspaceSettingsModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
           transition={{ type: 'spring', duration: 0.4, bounce: 0.15 }}
-          className="relative w-[min(95vw,896px)] max-sm:w-full max-sm:mx-2 h-[85vh] max-h-[90dvh] modal-glass-card rounded-3xl overflow-hidden shadow-2xl border border-white/80 dark:border-slate-800/80 flex flex-col z-10 select-none"
+          className="relative w-[min(95vw,896px)] max-sm:w-full max-sm:mx-2 h-[85vh] max-h-[90dvh] bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col z-10 select-none"
         >
           {/* Header */}
           <div className="px-4 sm:px-5 md:px-6 py-3 sm:py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-905/50 shrink-0">

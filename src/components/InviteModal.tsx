@@ -404,16 +404,16 @@ export default function InviteModal({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={onClose}
-              className="absolute inset-0 modal-backdrop bg-slate-950/60 backdrop-blur-md cursor-pointer"
+              className="absolute inset-0 modal-backdrop bg-slate-950/60 cursor-pointer"
             />
 
-            {/* Modal Glass Container */}
+            {/* Modal Container */}
             <motion.div
               initial={{ scale: 0.95, y: 15, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.95, y: 15, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-              className="relative w-full max-w-[520px] max-h-[92dvh] overflow-y-auto bg-white/95 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 rounded-[28px] shadow-2xl shadow-slate-900/20 p-5 sm:p-7 z-10 select-none custom-scrollbar text-left backdrop-blur-xl"
+              className="relative w-full max-w-[520px] max-h-[92dvh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-[28px] shadow-2xl shadow-slate-900/20 p-5 sm:p-7 z-10 select-none custom-scrollbar text-left"
             >
               {/* Close Button */}
               <button

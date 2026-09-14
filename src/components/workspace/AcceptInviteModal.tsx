@@ -227,7 +227,7 @@ export default function AcceptInviteModal({
             cleanUrlToken();
             onClose();
           }}
-          className="absolute inset-0 modal-backdrop-blur bg-slate-950/60 backdrop-blur-md cursor-pointer"
+          className="absolute inset-0 modal-backdrop-blur bg-slate-950/60 cursor-pointer"
         />
 
         {/* Modal Container */}
@@ -236,7 +236,7 @@ export default function AcceptInviteModal({
           animate={{ scale: 1, y: 0, opacity: 1 }}
           exit={{ scale: 0.94, y: 15, opacity: 0 }}
           transition={{ type: "spring", stiffness: 360, damping: 28 }}
-          className="relative w-[min(95vw,460px)] bg-white/95 dark:bg-slate-900/95 rounded-[32px] shadow-2xl border border-slate-200/90 dark:border-slate-800/90 p-6 sm:p-7 z-10 select-none text-center backdrop-blur-xl"
+          className="relative w-[min(95vw,460px)] bg-white dark:bg-slate-900 rounded-[32px] shadow-2xl border border-slate-200/90 dark:border-slate-800/90 p-6 sm:p-7 z-10 select-none text-center"
         >
           {/* Close button */}
           <button

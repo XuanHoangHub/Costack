@@ -661,7 +661,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
               exit={{ opacity: 0 }}
               transition={{ duration: 0.25 }}
               onClick={closeAuth}
-              className="fixed inset-0 bg-[#000000]/80 backdrop-blur-xl"
+              className="fixed inset-0 bg-[#000000]/80 cursor-pointer"
             />
 
             <div className="pointer-events-none fixed inset-0 overflow-hidden">

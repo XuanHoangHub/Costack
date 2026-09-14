@@ -687,7 +687,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => !loadingPlan && handleModalClose()}
-              className="fixed inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs cursor-pointer"
+              className="fixed inset-0 modal-backdrop bg-black/25 dark:bg-black/60 cursor-pointer"
             />
 
           {/* Main Modal Shell */}

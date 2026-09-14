@@ -134,7 +134,7 @@ export default function TaskTrashModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
+          className="fixed inset-0 bg-slate-900/60 cursor-pointer"
         />
 
         {/* Modal Dialog */}

@@ -118,7 +118,7 @@ export default function ConfirmModal({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
               onClick={onCancel}
-              className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs cursor-pointer"
+              className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 cursor-pointer"
             />
 
             {/* Modal Card Container */}

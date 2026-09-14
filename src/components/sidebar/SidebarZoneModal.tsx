@@ -244,7 +244,7 @@ export function SidebarZoneModal({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
           onClick={onClose}
-          className="fixed inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs cursor-pointer"
+          className="fixed inset-0 modal-backdrop bg-black/25 dark:bg-black/60 cursor-pointer"
         />
 
       {/* Modal Dialog */}

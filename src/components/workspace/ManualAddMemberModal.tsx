@@ -191,7 +191,7 @@ export default function ManualAddMemberModal({
           animate={{ scale: 1, y: 0, opacity: 1 }}
           exit={{ scale: 0.94, y: 15, opacity: 0 }}
           transition={{ type: "spring", stiffness: 360, damping: 28 }}
-          className="relative w-[min(95vw,520px)] max-h-[90dvh] overflow-y-auto modal-glass-card rounded-[28px] shadow-2xl border border-white/80 dark:border-slate-800/80 p-5 sm:p-6 z-10 select-none custom-scrollbar text-left"
+          className="relative w-[min(95vw,520px)] max-h-[90dvh] overflow-y-auto bg-white dark:bg-slate-900 rounded-[28px] shadow-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 z-10 select-none custom-scrollbar text-left"
         >
           {/* Close button */}
           <button

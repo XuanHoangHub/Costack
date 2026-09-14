@@ -6388,7 +6388,7 @@ ${channelMessagesText}`;
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.94, y: 15, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 350, damping: 28 }}
-              className="relative w-full max-w-md rounded-3xl modal-glass-card p-6 overflow-hidden space-y-4 text-left border border-white/80 dark:border-slate-800/80 shadow-2xl shadow-blue-500/10 select-none z-10"
+              className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 overflow-hidden space-y-4 text-left border border-slate-200 dark:border-slate-800 shadow-2xl shadow-blue-500/10 select-none z-10"
             >
               <div className="absolute -top-16 -right-16 w-36 h-36 rounded-full bg-indigo-500/10 blur-2xl pointer-events-none" />
               

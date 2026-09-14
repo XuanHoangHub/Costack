@@ -235,7 +235,7 @@ export default function PromptModal({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={onCancel}
-              className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs transition-opacity cursor-pointer"
+              className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 transition-opacity cursor-pointer"
             />
 
           {/* Modal Container */}

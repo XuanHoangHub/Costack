@@ -527,8 +527,8 @@ export default function TeamManagement({
       {/* Selected Team Sidebar Drawer */}
       {selectedTeam && (
         <>
-          <button aria-label={isVietnamese ? "Đóng chi tiết Team" : "Close team details"} onClick={() => setSelectedTeamId(null)} className="fixed inset-0 z-[80] bg-slate-950/40 backdrop-blur-xs" />
-          <aside className="fixed inset-y-0 right-0 z-[85] w-full max-w-lg overflow-y-auto border-l border-slate-200 bg-white/95 p-6 shadow-2xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95">
+          <button aria-label={isVietnamese ? "Đóng chi tiết Team" : "Close team details"} onClick={() => setSelectedTeamId(null)} className="fixed inset-0 z-[80] bg-slate-950/40" />
+          <aside className="fixed inset-y-0 right-0 z-[85] w-full max-w-lg overflow-y-auto border-l border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-2xl dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50">
@@ -591,7 +591,7 @@ export default function TeamManagement({
 
       {/* Editor Modal */}
       {showEditor && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs overflow-y-auto">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4 overflow-y-auto">
           <form onSubmit={saveTeam} className="w-full max-w-[460px] rounded-3xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-2xl shadow-slate-900/10 dark:border-slate-800 dark:bg-slate-900 my-auto text-left relative transition-all">
             {/* Modal Header */}
             <div className="flex items-start justify-between">
@@ -877,7 +877,7 @@ export default function TeamManagement({
 
       {/* Add Members Modal */}
       {showMembers && selectedTeam && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/60 p-4">
           <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-start justify-between">
               <div>

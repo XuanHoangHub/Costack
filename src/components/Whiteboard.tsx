@@ -3164,7 +3164,7 @@ export default function Whiteboard({
       {/* Board Templates Selector Modal */}
       <AnimatePresence>
         {showTemplateModal && (
-          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="fixed inset-0 bg-slate-950/40 flex items-center justify-center z-50 p-4 animate-fadeIn">
             <motion.div 
               initial={{ scale: 0.95, y: 15, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
@@ -3211,7 +3211,7 @@ export default function Whiteboard({
 
       <AnimatePresence>
         {showClearConfirm && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -3240,7 +3240,7 @@ export default function Whiteboard({
 
       <AnimatePresence>
         {showShortcutHelp && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm" onClick={() => setShowShortcutHelp(false)}>
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-4" onClick={() => setShowShortcutHelp(false)}>
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}

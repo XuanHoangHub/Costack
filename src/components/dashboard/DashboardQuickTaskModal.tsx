@@ -83,10 +83,10 @@ export default function DashboardQuickTaskModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md text-left animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/50 text-left animate-in fade-in duration-150">
       <div className="fixed inset-0" onClick={onClose} />
 
-      <div className="relative w-full max-w-lg rounded-2xl bg-white/95 dark:bg-[#151824]/98 backdrop-blur-2xl border border-black/[0.08] dark:border-white/[0.1] shadow-2xl dark:shadow-[0_25px_60px_rgba(0,0,0,0.85),inset_0_1px_0_0_rgba(255,255,255,0.06)] p-5 sm:p-6 z-10 space-y-4">
+      <div className="relative w-full max-w-lg rounded-2xl bg-white dark:bg-[#151824] border border-black/[0.08] dark:border-white/[0.1] shadow-2xl dark:shadow-[0_25px_60px_rgba(0,0,0,0.85),inset_0_1px_0_0_rgba(255,255,255,0.06)] p-5 sm:p-6 z-10 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-black/[0.05] dark:border-white/[0.06]">
           <div className="flex items-center gap-2.5">
