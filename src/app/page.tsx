@@ -5084,7 +5084,7 @@ export default function App() {
                   setEditingZone(null);
                   setShowZoneModal(true);
                 }}
-                title={locale === 'vi' ? 'Tạo Vùng mới (+ Zone)' : 'Create New Zone'}
+                title={locale === 'vi' ? 'Tạo Vùng mới' : 'Create New Zone'}
                 className="flex h-10 w-10 mx-auto items-center justify-center rounded-[14px] border border-dashed border-slate-300/90 dark:border-white/15 bg-slate-50/70 dark:bg-white/[0.02] text-slate-500 dark:text-zinc-400 hover:border-blue-400/80 hover:bg-blue-50/60 hover:text-blue-600 dark:hover:border-sky-400/50 dark:hover:bg-sky-500/15 dark:hover:text-sky-300 active:scale-92 transition-all cursor-pointer group shadow-3xs"
               >
                 <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />
@@ -5092,20 +5092,18 @@ export default function App() {
             ) : (
               <button
                 type="button"
+                title={locale === 'vi' ? 'Tạo Vùng mới' : 'Create New Zone'}
                 onClick={() => {
                   setEditingZone(null);
                   setShowZoneModal(true);
                 }}
-                className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-xl border border-dashed border-slate-200/80 bg-slate-50/60 text-slate-600 hover:border-blue-400/60 hover:bg-blue-50/50 hover:text-blue-600 dark:border-white/[0.08] dark:bg-white/[0.02] dark:text-zinc-400 dark:hover:border-sky-500/40 dark:hover:bg-sky-500/10 dark:hover:text-sky-300 transition-all cursor-pointer group text-left"
+                className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-xl border border-dashed border-slate-300/80 bg-slate-50/50 text-slate-500 hover:border-blue-400 hover:bg-blue-50/50 hover:text-blue-600 dark:border-white/12 dark:bg-white/[0.02] dark:text-zinc-400 dark:hover:border-sky-500/40 dark:hover:bg-sky-500/10 dark:hover:text-sky-300 transition-all cursor-pointer text-left group"
               >
                 <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-slate-200/60 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 dark:bg-white/[0.06] dark:text-zinc-400 dark:group-hover:bg-sky-500/20 dark:group-hover:text-sky-300 transition-colors">
                   <Plus className="h-3 w-3" />
                 </div>
                 <span className="text-xs font-semibold tracking-tight truncate">
                   {locale === 'vi' ? 'Tạo Vùng mới' : 'New Zone'}
-                </span>
-                <span className="ml-auto text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 dark:bg-white/[0.04] dark:text-zinc-500 dark:group-hover:bg-sky-500/20 dark:group-hover:text-sky-300 transition-colors">
-                  + Zone
                 </span>
               </button>
             )}
@@ -5814,9 +5812,6 @@ export default function App() {
                 <Search className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-zinc-500 group-hover:text-blue-600 dark:group-hover:text-sky-300 transition-colors" />
                 <span className="truncate font-medium">{locale === 'vi' ? 'Tìm công việc, tài liệu...' : 'Search tasks, docs, spaces...'}</span>
               </span>
-              <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold text-slate-400 dark:text-zinc-500 bg-white dark:bg-white/[0.06] border border-slate-200/80 dark:border-white/10 shrink-0">
-                <span>⌘</span>K
-              </kbd>
             </button>
           </div>
 
@@ -6505,9 +6500,6 @@ export default function App() {
                     </div>
                     <span className="text-xs font-semibold tracking-tight truncate">
                       {locale === 'vi' ? 'Tạo Vùng mới' : 'New Zone'}
-                    </span>
-                    <span className="ml-auto text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-white/[0.04] text-zinc-500 group-hover:bg-sky-500/20 group-hover:text-sky-300 transition-colors">
-                      + Zone
                     </span>
                   </button>
                 </div>

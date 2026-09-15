@@ -115,27 +115,24 @@ export default function AddFolderModal({
         />
 
       <motion.div 
-        initial={{ scale: 0.93, y: 16, opacity: 0 }} 
+        initial={{ scale: 0.95, y: 10, opacity: 0 }} 
         animate={{ scale: 1, y: 0, opacity: 1 }} 
-        exit={{ scale: 0.93, y: 16, opacity: 0 }} 
+        exit={{ scale: 0.95, y: 10, opacity: 0 }} 
         transition={{ type: "spring", stiffness: 380, damping: 28 }}
-        className="relative w-[min(95vw,440px)] max-sm:w-full max-sm:mx-2 max-h-[90dvh] overflow-y-auto rounded-[28px] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-2xl p-4 sm:p-5 md:p-6 z-10 text-left font-sans select-none"
+        className="relative w-[min(95vw,440px)] max-sm:w-full max-sm:mx-2 max-h-[90dvh] overflow-y-auto rounded-xl bg-white dark:bg-[#12141e] border border-slate-200/90 dark:border-white/10 shadow-xl p-4 sm:p-5 md:p-6 z-10 text-left font-sans select-none"
       >
-        {/* Subtle Ambient Radial Glow */}
-        <div className={`absolute -top-20 -right-20 w-44 h-44 bg-gradient-to-br ${activeColorObj.gradient} opacity-20 rounded-full blur-3xl pointer-events-none transition-all duration-500`} />
-
         {/* ── Header ── */}
-        <div className="flex items-start justify-between pb-4 mb-4 border-b border-slate-100 dark:border-slate-800/80">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-2xl bg-gradient-to-tr ${activeColorObj.gradient} text-white flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0 transition-all duration-300`}>
+        <div className="flex items-start justify-between pb-3.5 mb-3.5 border-b border-slate-100 dark:border-white/10">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/40 flex items-center justify-center shrink-0">
               {isSprintMode ? (
-                <RefreshCw className="w-5 h-5 drop-shadow-xs" />
+                <RefreshCw className="w-4.5 h-4.5" />
               ) : (
-                <Folder className="w-5 h-5 drop-shadow-xs" />
+                <Folder className="w-4.5 h-4.5" />
               )}
             </div>
             <div>
-              <h3 className="text-[15px] font-black text-slate-900 dark:text-white tracking-tight text-balance">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight text-balance">
                 {isEditing 
                   ? (locale === 'vi' ? 'Đổi tên thư mục' : 'Rename Folder')
                   : isSprintMode 
@@ -145,7 +142,7 @@ export default function AddFolderModal({
               {targetSpace && (
                 <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
                   <span className="whitespace-nowrap">{locale === 'vi' ? 'Không gian:' : 'Space:'}</span>
-                  <span className="font-bold text-slate-700 dark:text-slate-200 inline-flex items-center gap-1.5 bg-slate-100/80 dark:bg-slate-800/80 px-2 py-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60 text-[11px] whitespace-nowrap shrink-0">
+                  <span className="font-semibold text-slate-700 dark:text-slate-200 inline-flex items-center gap-1.5 bg-slate-100/80 dark:bg-white/[0.06] px-2 py-0.5 rounded-md border border-slate-200/60 dark:border-white/10 text-[11px] whitespace-nowrap shrink-0">
                     <span className="flex items-center justify-center shrink-0">{renderSpaceIcon(targetSpace.emoji || 'Folder', "w-3.5 h-3.5 shrink-0", undefined, { preserveEmoji: true })}</span>
                     <span className="truncate max-w-[150px]">{targetSpace.name}</span>
                   </span>
@@ -157,7 +154,7 @@ export default function AddFolderModal({
           <button 
             type="button"
             onClick={onClose} 
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer flex items-center justify-center"
             title="Đóng (Esc)"
           >
             <X className="w-4 h-4" />
@@ -188,13 +185,13 @@ export default function AddFolderModal({
                     ? (locale === 'vi' ? 'Nhập tên Sprint (VD: Sprint 14, Q3 Launch)...' : 'Enter sprint name...')
                     : (locale === 'vi' ? 'Nhập tên thư mục...' : 'Enter folder name...')
                 } 
-                className="w-full pl-8 pr-9 py-2.5 min-h-[44px] text-xs font-semibold rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/90 dark:bg-slate-850/80 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all duration-200 focus:border-amber-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-amber-500/10 shadow-3xs" 
+                className="w-full pl-8 pr-9 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-[#181a26] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all duration-200 focus:border-amber-500 focus:bg-white dark:focus:bg-[#12141e] focus:ring-2 focus:ring-amber-500/20 shadow-2xs" 
               />
               {folderName && (
                 <button 
                   type="button" 
                   onClick={() => setFolderName('')}
-                  className="absolute right-1.5 p-1 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  className="absolute right-1.5 p-1 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -211,7 +208,7 @@ export default function AddFolderModal({
               </span>
               <span className="text-[10px] font-bold text-slate-400 capitalize">{activeColorObj.name}</span>
             </div>
-            <div className="flex items-center gap-2 p-2 bg-slate-50/80 dark:bg-slate-850/60 rounded-xl border border-slate-200/60 dark:border-slate-800 min-h-[44px] overflow-x-auto">
+            <div className="flex items-center gap-2 p-2 bg-slate-50/80 dark:bg-[#181a26] rounded-lg border border-slate-200/60 dark:border-white/10 overflow-x-auto">
               {FOLDER_COLORS.map(c => {
                 const isSelected = selectedColor === c.id;
                 return (
@@ -219,14 +216,14 @@ export default function AddFolderModal({
                     key={c.id}
                     type="button"
                     onClick={() => setSelectedColor(c.id)}
-                    className={`w-7 h-7 shrink-0 rounded-lg ${c.bg} transition-all duration-150 flex items-center justify-center cursor-pointer relative ${
+                    className={`w-6 h-6 shrink-0 rounded-md ${c.bg} transition-all duration-150 flex items-center justify-center cursor-pointer relative ${
                       isSelected 
-                        ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900 scale-110 shadow-sm ' + c.ring
+                        ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#12141e] scale-110 shadow-sm ' + c.ring
                         : 'opacity-70 hover:opacity-100 hover:scale-105'
                     }`}
                     title={c.name}
                   >
-                    {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                    {isSelected && <Check className="w-3 h-3 text-white stroke-[3]" />}
                   </button>
                 );
               })}
@@ -235,31 +232,31 @@ export default function AddFolderModal({
 
           {/* Sprint info note if in Sprint mode */}
           {isSprintMode && (
-            <div className="p-3 rounded-xl bg-cyan-500/10 dark:bg-cyan-950/40 border border-cyan-500/20 text-[11px] text-cyan-700 dark:text-cyan-300 font-medium flex items-center gap-2">
+            <div className="p-2.5 rounded-lg bg-cyan-500/10 dark:bg-cyan-950/40 border border-cyan-500/20 text-[11px] text-cyan-700 dark:text-cyan-300 font-medium flex items-center gap-2">
               <Sparkles className="w-4 h-4 shrink-0 text-cyan-500" />
               <span>{locale === 'vi' ? 'Thư mục Sprint tự động gom nhóm chu kỳ và quản lý các công việc của sprint.' : 'Sprint folders group sprint cycles and iterations.'}</span>
             </div>
           )}
 
           {/* ── Actions / Footer ── */}
-          <div className="flex items-center justify-end gap-2.5 pt-3 mt-2 border-t border-slate-100 dark:border-slate-800/80">
+          <div className="flex items-center justify-end gap-2 pt-2.5 mt-1 border-t border-slate-100 dark:border-white/10">
             <button 
               type="button" 
               onClick={onClose} 
-              className="px-4 py-2 min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 transition-all cursor-pointer active:scale-95"
+              className="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/[0.08] text-xs font-semibold text-slate-600 dark:text-slate-300 transition-colors cursor-pointer active:scale-95"
             >
               {locale === 'vi' ? 'Hủy' : 'Cancel'}
             </button>
             <button 
               type="submit" 
               disabled={!folderName.trim()}
-              className={`group px-5 py-2 min-h-[44px] rounded-xl text-xs font-black text-white bg-gradient-to-r ${activeColorObj.gradient} hover:brightness-110 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-md shadow-amber-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none`}
+              className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-[#0071E3] hover:bg-[#0077ED] dark:bg-[#0A84FF] dark:hover:bg-[#0071E3] transition-colors cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isEditing ? (
                 <span>{locale === 'vi' ? 'Lưu thay đổi' : 'Save Changes'}</span>
               ) : (
                 <>
-                  <Plus className="w-3.5 h-3.5 stroke-[3] transition-transform group-hover:rotate-90" />
+                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                   <span>{locale === 'vi' ? 'Tạo thư mục' : 'Create Folder'}</span>
                 </>
               )}

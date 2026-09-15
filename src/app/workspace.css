@@ -38,13 +38,13 @@
   -webkit-font-smoothing: antialiased;
 }
 .dark .apexa-app-shell.apexa-design-system {
-  --cu-bg: #08090c;
-  --cu-bg-subtle: #0c0d12;
-  --cu-surface: #111218;
-  --cu-surface-2: #161822;
-  --cu-surface-3: #1c1e2a;
-  --cu-border: rgba(255, 255, 255, 0.07);
-  --cu-border-strong: rgba(255, 255, 255, 0.13);
+  --cu-bg: #0c0e14;
+  --cu-bg-subtle: #0f111a;
+  --cu-surface: #121520;
+  --cu-surface-2: #181c2b;
+  --cu-surface-3: #1f2436;
+  --cu-border: rgba(255, 255, 255, 0.08);
+  --cu-border-strong: rgba(255, 255, 255, 0.14);
   --cu-text-primary: #f4f4f6;
   --cu-text-secondary: #a1a1aa;
   --cu-text-muted: #71717a;
@@ -52,11 +52,11 @@
   --cu-primary: #3b82f6;
   --cu-primary-hover: #60a5fa;
   --cu-primary-subtle: rgba(59, 130, 246, 0.12);
-  --sidebar-bg: #0b0c10;
-  --sidebar-surface: #111218;
-  --sidebar-border: rgba(255, 255, 255, 0.07);
+  --sidebar-bg: #090a10;
+  --sidebar-surface: #121520;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
   --sidebar-text: #f4f4f6;
-  --sidebar-muted: #71717a;
+  --sidebar-muted: #8b92a5;
   --sidebar-signal: #3b82f6;
 }
 

@@ -2082,7 +2082,7 @@ export default function SpacePage({
   const isTaskWorkspaceView = TASK_WORKSPACE_VIEWS.has(activeView);
 
   return (
-    <div className="apexa-space-shell flex-grow flex h-full bg-white dark:bg-[#08090c] font-sans overflow-hidden relative">
+    <div className="apexa-space-shell flex-grow flex h-full bg-white dark:bg-[#0c0e14] font-sans overflow-hidden relative">
       
       {/* Backdrop overlay for mobile Spaces sidebar */}
       <AnimatePresence>
@@ -3825,7 +3825,7 @@ export default function SpacePage({
       </AnimatePresence>
 
       {/* ── Active Module Rendering Body Section ── */}
-      <section className="apexa-space-content flex-1 overflow-y-auto select-none scrollbar-none bg-white dark:bg-[#08090c] flex flex-col" aria-label="Không gian làm việc" data-view={activeView}>
+      <section className={`apexa-space-content flex-1 select-none scrollbar-none bg-white dark:bg-[var(--cu-bg)] flex flex-col ${activeView === 'board' ? 'overflow-hidden min-h-0' : 'overflow-y-auto'}`} aria-label="Không gian làm việc" data-view={activeView}>
         
         {/* Render Overview Dashboard */}
         {activeView === 'overview' && (
@@ -4448,62 +4448,68 @@ export default function SpacePage({
         )}
       </AnimatePresence>
 
-      {/* Floating Bulk Action Bar (Unified & Modern) */}
+      {/* Floating Bulk Action Bar */}
       <AnimatePresence>
         {selectedTaskIds.length > 0 && (
           <motion.div
-            initial={{ y: 80, opacity: 0, scale: 0.95 }}
+            initial={{ y: 50, opacity: 0, scale: 0.97 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 80, opacity: 0, scale: 0.95 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 sm:gap-3 px-3.5 sm:px-4 py-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl shadow-[0_12px_36px_-6px_rgba(0,0,0,0.15),0_0_0_1px_rgba(99,102,241,0.1)] max-w-[95vw] sm:max-w-fit overflow-x-auto scrollbar-none select-none"
+            exit={{ y: 50, opacity: 0, scale: 0.97 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 340 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/95 dark:bg-[#151824]/95 backdrop-blur-md border border-slate-200/90 dark:border-white/12 shadow-[0_12px_36px_-6px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_48px_-8px_rgba(0,0,0,0.6)] max-w-[95vw] overflow-x-auto scrollbar-none select-none text-xs"
           >
-            {/* Selection Count Badge */}
-            <div className="flex items-center gap-2 pr-3 border-r border-slate-200 dark:border-slate-800 shrink-0">
-              <span className="w-5 h-5 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 text-white text-[10.5px] font-black flex items-center justify-center shadow-xs">
+            {/* Selection Count */}
+            <div className="flex items-center gap-1.5 pl-0.5 pr-1.5 shrink-0">
+              <span className="w-5 h-5 rounded-md bg-[#0071E3] dark:bg-[#0A84FF] text-white text-[10.5px] font-black flex items-center justify-center shadow-xs">
                 {selectedTaskIds.length}
               </span>
-              <span className="text-[11px] font-extrabold text-slate-800 dark:text-slate-200">Đã chọn</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                {t('selected') ? t('selected').replace('{count}', '') : 'đã chọn'}
+              </span>
             </div>
 
-            {/* Quick Bulk Complete */}
-            <button
-              onClick={handleBulkComplete}
-              className="px-2.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100/80 dark:hover:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0"
-              title="Đánh dấu hoàn thành tất cả"
-            >
-              <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span className="hidden sm:inline">Hoàn thành</span>
-            </button>
+            <div className="w-px h-4 bg-slate-200 dark:bg-white/10 shrink-0 mx-0.5" />
 
-            {/* Quick Bulk Duplicate */}
-            <button
-              onClick={handleBulkDuplicate}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/80 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0"
-              title="Nhân bản các công việc đã chọn"
-            >
-              <Copy className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Nhân bản</span>
-            </button>
+            {/* Primary Actions */}
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={handleBulkComplete}
+                className="px-2.5 py-1.5 rounded-lg text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors active:scale-95 shrink-0"
+                title={t('markComplete') || "Hoàn thành"}
+              >
+                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span className="hidden sm:inline">{t('markComplete') || 'Hoàn thành'}</span>
+              </button>
 
-            {/* Quick Bulk Move */}
-            <button
-              onClick={() => {
-                const initSpId = activeSpaceId || spaces[0]?.id || '';
-                setBulkMoveSpaceId(initSpId);
-                const sp = spaces.find(s => s.id === initSpId);
-                setBulkMoveListId(activeListId || sp?.lists?.[0]?.id || '');
-                setShowBulkMoveModal(true);
-              }}
-              className="px-2.5 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100/80 dark:hover:bg-indigo-950/50 border border-indigo-200/60 dark:border-indigo-900/40 text-indigo-700 dark:text-indigo-400 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0"
-              title="Di chuyển các công việc đã chọn"
-            >
-              <FolderInput className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Di chuyển</span>
-            </button>
+              <button
+                onClick={handleBulkDuplicate}
+                className="px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors active:scale-95 shrink-0"
+                title={t('duplicate') || "Nhân bản"}
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{t('duplicate') || 'Nhân bản'}</span>
+              </button>
 
-            {/* Status, Assignee, Priority Pill Selects */}
-            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => {
+                  const initSpId = activeSpaceId || spaces[0]?.id || '';
+                  setBulkMoveSpaceId(initSpId);
+                  const sp = spaces.find(s => s.id === initSpId);
+                  setBulkMoveListId(activeListId || sp?.lists?.[0]?.id || '');
+                  setShowBulkMoveModal(true);
+                }}
+                className="px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors active:scale-95 shrink-0"
+                title={t('moveTo') || "Di chuyển"}
+              >
+                <FolderInput className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
+                <span className="hidden sm:inline">{t('moveTo') || 'Di chuyển'}</span>
+              </button>
+            </div>
+
+            <div className="w-px h-4 bg-slate-200 dark:bg-white/10 shrink-0 mx-0.5" />
+
+            {/* Attribute Selects */}
+            <div className="flex items-center gap-1 shrink-0">
               <BulkStatusSelect onChange={handleBulkStatusChange} />
               <BulkAssigneeSelect 
                 members={members.filter(m => !activeWorkspaceId || m.workspaceIds?.includes(activeWorkspaceId))}
@@ -4512,23 +4518,23 @@ export default function SpacePage({
               <BulkPrioritySelect onChange={handleBulkPriorityChange} />
             </div>
 
-            <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-800 shrink-0" />
+            <div className="w-px h-4 bg-slate-200 dark:bg-white/10 shrink-0 mx-0.5" />
 
-            {/* Bulk Delete with confirmation */}
+            {/* Delete */}
             <button
               onClick={handleBulkDelete}
-              className="px-2.5 py-1.5 text-[11px] font-extrabold rounded-xl bg-rose-50 hover:bg-rose-100/80 dark:bg-rose-950/30 border border-rose-200/60 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center gap-1.5 shrink-0"
-              title="Xóa tất cả công việc đã chọn"
+              className="px-2.5 py-1.5 rounded-lg text-rose-600 hover:text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 shrink-0 active:scale-95"
+              title={t('deleteSelected') || "Xóa"}
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Xóa</span>
+              <span className="hidden sm:inline">{t('delete') || "Xóa"}</span>
             </button>
 
-            {/* Clear Selection */}
+            {/* Dismiss */}
             <button
               onClick={() => setSelectedTaskIds([])}
-              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer transition-colors shrink-0 active:scale-95"
-              title="Bỏ chọn tất cả"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] cursor-pointer transition-colors shrink-0 active:scale-95"
+              title={t('deselectAll') || "Bỏ chọn"}
             >
               <X className="w-3.5 h-3.5" />
             </button>

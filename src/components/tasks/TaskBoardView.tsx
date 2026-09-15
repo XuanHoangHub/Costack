@@ -67,7 +67,7 @@ function KanbanColumn({ id, children, isOver }: { id: string; children: React.Re
   return (
     <div 
       ref={setNodeRef}
-      className={`flex-1 space-y-2.5 min-h-[200px] transition-colors duration-150 rounded-2xl p-1 overflow-y-auto max-h-[calc(100vh-250px)] custom-scrollbar ${
+      className={`flex-1 space-y-2 min-h-[140px] transition-colors duration-150 rounded-xl p-0.5 overflow-y-auto custom-scrollbar ${
         isOver ? 'bg-indigo-50/50 dark:bg-indigo-950/40 ring-2 ring-indigo-500/40 ring-dashed' : 'bg-transparent'
       }`}
     >
@@ -157,7 +157,7 @@ function KanbanCard({
         onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
         {...attributes}
         {...listeners}
-        className={`group relative bg-white dark:bg-[#181920] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] rounded-2xl border ${
+        className={`group relative bg-white dark:bg-[#181c2b] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] rounded-xl border ${
           isCardDragging 
             ? 'border-2 border-dashed border-indigo-400/80 bg-indigo-50/20 dark:bg-indigo-950/20 shadow-none pointer-events-none' 
             : 'border-slate-200/80 dark:border-white/[0.08] hover:border-indigo-400/60 dark:hover:border-indigo-500/50 shadow-xs hover:shadow-md'
@@ -1521,13 +1521,13 @@ export default function TaskBoardView({
     return (
       <div className="flex flex-col h-full w-full select-none animate-pulse">
         <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/80 rounded-2xl p-3 mb-4 h-12" />
-        <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
+        <div className="flex gap-3 sm:gap-3.5 overflow-x-auto pb-4 custom-scrollbar">
           {[1, 2, 3, 4].map(idx => (
-            <div key={idx} className="min-w-[315px] sm:min-w-[335px] 2xl:min-w-[350px] w-[315px] sm:w-[335px] 2xl:w-[350px] flex-shrink-0 bg-slate-50/50 dark:bg-slate-900/25 p-4 rounded-2xl border border-slate-200/50 dark:border-slate-805/50 flex flex-col gap-3">
+            <div key={idx} className="w-[265px] sm:w-[275px] min-w-[265px] sm:min-w-[275px] flex-shrink-0 bg-slate-50/50 dark:bg-slate-900/25 p-3 rounded-xl border border-slate-200/50 dark:border-slate-805/50 flex flex-col gap-3">
               <div className="flex justify-between items-center h-6 bg-slate-200/50 dark:bg-slate-800/50 rounded-lg w-1/2" />
               <div className="space-y-3 mt-2">
                 {[1, 2].map(cIdx => (
-                  <div key={cIdx} className="h-28 bg-white dark:bg-slate-900 border border-slate-200/30 dark:border-slate-800/30 rounded-2xl p-4 space-y-3" />
+                  <div key={cIdx} className="h-28 bg-white dark:bg-slate-900 border border-slate-200/30 dark:border-slate-800/30 rounded-xl p-3 space-y-3" />
                 ))}
               </div>
             </div>
@@ -1545,7 +1545,7 @@ export default function TaskBoardView({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="apexa-space-board flex flex-col h-full w-full">
+      <div className="apexa-space-board flex flex-col h-full w-full flex-1 min-h-0">
         
         {/* Kanban Board Controls Bar (Sleek & Integrated - Hidden when unified with top filterbar) */}
         {!hideHeaderControls && (
@@ -1650,7 +1650,7 @@ export default function TaskBoardView({
         {boardSwimlaneBy === 'none' ? (
           <div 
             ref={boardScrollRef}
-            className="flex gap-4 sm:gap-5 overflow-x-auto pb-4 custom-scrollbar custom-touch-scroll select-none px-1"
+            className="flex gap-3 sm:gap-3.5 overflow-x-auto pb-3 custom-scrollbar custom-touch-scroll select-none px-1 flex-1 min-h-0 h-full items-stretch"
           >
             {columns.map(col => {
               const colMeta = getColumnMeta(col);
@@ -1663,7 +1663,7 @@ export default function TaskBoardView({
                   role="group"
                   aria-label={`${colMeta.label}: ${colTasks.length} ${locale === 'vi' ? 'công việc' : 'tasks'}`}
                   style={{ '--column-accent': boardGroupBy === 'status' ? ({ todo: '#8190a8', inprogress: '#e9a23b', review: '#7c6ce7', completed: '#26a885' }[col] || '#8190a8') : boardGroupBy === 'priority' ? ({ urgent: '#dc668b', high: '#e9a23b', medium: '#5871e9', low: '#26a885' }[col] || '#8190a8') : '#5871e9' } as React.CSSProperties}
-                  className={`apexa-board-column min-w-[315px] sm:min-w-[335px] 2xl:min-w-[350px] w-[315px] sm:w-[335px] 2xl:w-[350px] flex-shrink-0 bg-slate-100/70 dark:bg-[#121318]/90 backdrop-blur-2xl p-4 rounded-[22px] flex flex-col gap-3 transition-colors duration-150 border border-slate-200/80 dark:border-white/[0.08] shadow-[0_4px_24px_-6px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] hover:border-slate-300 dark:hover:border-white/15 hover:shadow-[0_12px_36px_-6px_rgba(0,0,0,0.08)] ${
+                  className={`apexa-board-column w-[265px] sm:w-[275px] min-w-[265px] sm:min-w-[275px] flex-shrink-0 bg-slate-100/70 dark:bg-[#121520]/90 backdrop-blur-2xl p-3 rounded-xl flex flex-col gap-2.5 transition-colors duration-150 border border-slate-200/80 dark:border-white/[0.08] shadow-[0_4px_24px_-6px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] hover:border-slate-300 dark:hover:border-white/15 hover:shadow-[0_12px_36px_-6px_rgba(0,0,0,0.08)] ${
                     isOverColumn ? 'ring-2 ring-indigo-500/40 bg-indigo-50/40 dark:bg-indigo-950/40 border-indigo-400/60' : ''
                   }`}
                 >
@@ -1833,8 +1833,8 @@ export default function TaskBoardView({
                         <div className="flex items-center justify-between text-[11px] font-bold">
                           <span className="text-[9.5px] font-mono text-slate-400 dark:text-slate-500">Esc để hủy</span>
                           <div className="flex items-center gap-1.5">
-                            <button onClick={() => { setInlineAddCell(null); setInlineTitle(''); }} className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors">{locale === 'vi' ? 'Hủy' : 'Cancel'}</button>
-                            <button onClick={() => handleInlineAddSubmit(col)} className="px-3 py-1 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-cyan-500 text-white font-black shadow-xs cursor-pointer active:scale-95 transition-all">{locale === 'vi' ? 'Lưu' : 'Save'}</button>
+                            <button onClick={() => { setInlineAddCell(null); setInlineTitle(''); }} className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors">{locale === 'vi' ? 'Hủy' : 'Cancel'}</button>
+                            <button onClick={() => handleInlineAddSubmit(col)} className="px-3 py-1 rounded-lg bg-[#0071E3] hover:bg-blue-600 text-white font-bold shadow-xs cursor-pointer active:scale-95 transition-all">{locale === 'vi' ? 'Lưu' : 'Save'}</button>
                           </div>
                         </div>
                       </div>
@@ -1842,16 +1842,13 @@ export default function TaskBoardView({
                       <button
                         type="button"
                         onClick={() => { setInlineAddCell(col); setInlineTitle(''); }}
-                        className="space-board-empty w-full flex flex-col items-center justify-center text-center py-9 px-4 rounded-2xl border-2 border-dashed border-slate-200/90 dark:border-white/[0.08] bg-white/40 dark:bg-slate-900/30 hover:bg-white/90 dark:hover:bg-slate-900/70 hover:border-indigo-400 dark:hover:border-indigo-500/60 transition-all cursor-pointer group shadow-3xs hover:shadow-xs"
+                        className="space-board-empty w-full flex flex-col items-center justify-center text-center py-7 px-3 rounded-xl border-2 border-dashed border-slate-200/90 dark:border-white/[0.08] bg-white/40 dark:bg-slate-900/30 hover:bg-white/90 dark:hover:bg-slate-900/70 hover:border-indigo-400 dark:hover:border-indigo-500/60 transition-all cursor-pointer group shadow-3xs hover:shadow-xs"
                       >
-                        <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800/80 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/50 flex items-center justify-center text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors mb-2">
-                          <Plus className="w-4 h-4" />
+                        <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800/80 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/50 flex items-center justify-center text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors mb-1.5">
+                          <Plus className="w-3.5 h-3.5" />
                         </div>
                         <p className="text-xs font-bold text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                           {locale === 'vi' ? 'Thêm công việc' : 'Add task'}
-                        </p>
-                        <p className="text-[10.5px] text-slate-400 dark:text-slate-500 mt-0.5">
-                          {locale === 'vi' ? 'Kéo thả hoặc nhấp để tạo' : 'Drag tasks here or click to add'}
                         </p>
                       </button>
                     ) : (
@@ -1870,9 +1867,9 @@ export default function TaskBoardView({
             })}
             
             {/* Add Column Card */}
-            <div className="min-w-[315px] sm:min-w-[335px] 2xl:min-w-[350px] w-[315px] sm:w-[335px] 2xl:w-[350px] flex-shrink-0">
+            <div className="w-[265px] sm:w-[275px] min-w-[265px] sm:min-w-[275px] flex-shrink-0">
               {isAddingColumn ? (
-                <div className="bg-white dark:bg-[#181818] p-4 rounded-[22px] flex flex-col gap-3.5 border-2 border-indigo-500/80 dark:border-indigo-500 shadow-xl dark:shadow-[0_12px_40px_rgba(0,0,0,0.6)] animate-in fade-in zoom-in-95 duration-150">
+                <div className="bg-white dark:bg-[#181c2b] p-3.5 rounded-xl flex flex-col gap-3 border border-indigo-500/80 dark:border-indigo-500 shadow-xl dark:shadow-[0_12px_40px_rgba(0,0,0,0.6)] animate-in fade-in zoom-in-95 duration-150">
                   <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-white/[0.06]">
                     <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: getColorOption(newColumnColor).hex }} />
@@ -1950,7 +1947,7 @@ export default function TaskBoardView({
                         type="button"
                         onClick={handleCreateColumn}
                         disabled={!newColumnTitle.trim()}
-                        className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white text-xs font-black shadow-xs cursor-pointer active:scale-95 transition-all"
+                        className="px-3.5 py-1.5 rounded-lg bg-[#0071E3] hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-bold shadow-xs cursor-pointer active:scale-95 transition-all"
                       >
                         {locale === 'vi' ? 'Thêm bảng' : 'Add Column'}
                       </button>
@@ -1961,17 +1958,14 @@ export default function TaskBoardView({
                 <button
                   type="button"
                   onClick={handleOpenAddColumn}
-                  className="w-full min-h-[140px] flex flex-col items-center justify-center gap-2.5 p-5 rounded-[22px] border-2 border-dashed border-slate-300/80 dark:border-white/[0.1] hover:border-indigo-400 dark:hover:border-indigo-500/60 bg-slate-100/50 dark:bg-[#181818]/40 hover:bg-white dark:hover:bg-slate-900/60 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-200 cursor-pointer group shadow-3xs hover:shadow-md"
+                  className="w-full min-h-[120px] flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed border-slate-300/80 dark:border-white/[0.1] hover:border-blue-400 dark:hover:border-blue-500/60 bg-slate-100/50 dark:bg-[#121520]/50 hover:bg-white dark:hover:bg-[#181c2b] text-slate-500 dark:text-slate-400 hover:text-[#0071E3] dark:hover:text-sky-300 transition-all duration-150 cursor-pointer group shadow-3xs hover:shadow-md"
                 >
-                  <div className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-white/[0.08] flex items-center justify-center shadow-xs group-hover:scale-110 group-hover:border-indigo-300 dark:group-hover:border-indigo-500/50 transition-all duration-200">
-                    <Plus className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
+                  <div className="w-8 h-8 rounded-lg bg-white dark:bg-[#181c2b] border border-slate-200/80 dark:border-white/[0.08] flex items-center justify-center shadow-xs group-hover:scale-105 group-hover:border-blue-300 dark:group-hover:border-blue-500/50 transition-all duration-150">
+                    <Plus className="w-4 h-4 text-slate-400 group-hover:text-[#0071E3] dark:group-hover:text-sky-300 transition-colors" />
                   </div>
                   <div className="text-center">
-                    <span className="text-xs font-black uppercase tracking-wider block">
+                    <span className="text-xs font-bold tracking-tight block">
                       {locale === 'vi' ? '+ Thêm bảng mới' : '+ Add new column'}
-                    </span>
-                    <span className="text-[10.5px] text-slate-400 dark:text-slate-500 font-medium mt-0.5 block">
-                      {locale === 'vi' ? 'Tạo cột trạng thái phân loại' : 'Create status column'}
                     </span>
                   </div>
                 </button>
@@ -1994,7 +1988,7 @@ export default function TaskBoardView({
                   }).length;
 
                   return (
-                    <div key={col} className="min-w-[315px] sm:min-w-[335px] 2xl:min-w-[350px] w-[315px] sm:w-[335px] 2xl:w-[350px] flex-shrink-0 px-2.5 py-1.5 flex items-center justify-between text-xs font-bold text-slate-655 dark:text-slate-405">
+                    <div key={col} className="w-[265px] sm:w-[275px] min-w-[265px] sm:min-w-[275px] flex-shrink-0 px-2 py-1 flex items-center justify-between text-xs font-bold text-slate-655 dark:text-slate-405">
                       <div className="flex items-center gap-2">
                         {colMeta.avatar && (
                           <SignedImage filePath={colMeta.avatar} className="w-4.5 h-4.5 rounded-full object-cover border border-slate-200 dark:border-slate-700" alt={colMeta.label} />
@@ -2069,7 +2063,7 @@ export default function TaskBoardView({
                             return (
                               <div 
                                 key={col} 
-                                className={`min-w-[315px] sm:min-w-[335px] 2xl:min-w-[350px] w-[315px] sm:w-[335px] 2xl:w-[350px] flex-shrink-0 bg-slate-50/70 dark:bg-slate-900/30 p-3.5 rounded-2xl flex flex-col gap-2.5 transition-[background-color,border-color,box-shadow,ring] duration-150 border border-slate-200/80 dark:border-slate-800/60 min-h-[160px] ${
+                                className={`w-[265px] sm:w-[275px] min-w-[265px] sm:min-w-[275px] flex-shrink-0 bg-slate-50/70 dark:bg-[#121520]/60 p-3 rounded-xl flex flex-col gap-2 transition-[background-color,border-color,box-shadow,ring] duration-150 border border-slate-200/80 dark:border-white/[0.08] min-h-[140px] ${
                                   isOverCell ? 'ring-2 ring-indigo-400/50 bg-indigo-50/30 dark:bg-indigo-950/20' : ''
                                 }`}
                               >

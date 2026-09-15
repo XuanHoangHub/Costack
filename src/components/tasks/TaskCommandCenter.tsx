@@ -594,25 +594,37 @@ export default function TaskCommandCenter({
       <AnimatePresence>
         {selectedTaskIds.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: 20, x: '-50%' }}
+            initial={{ opacity: 0, y: 30, x: '-50%' }}
             animate={{ opacity: 1, y: 0, x: '-50%' }}
-            exit={{ opacity: 0, y: 20, x: '-50%' }}
-            className="fixed bottom-5 left-1/2 z-[70] flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/95 px-3 py-2 text-white shadow-2xl backdrop-blur-xl"
+            exit={{ opacity: 0, y: 30, x: '-50%' }}
+            transition={{ type: 'spring', damping: 28, stiffness: 340 }}
+            className="fixed bottom-6 left-1/2 z-[100] flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/95 dark:bg-[#151824]/95 backdrop-blur-md border border-slate-200/90 dark:border-white/12 shadow-[0_12px_36px_-6px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_48px_-8px_rgba(0,0,0,0.6)] max-w-[95vw] overflow-x-auto scrollbar-none select-none text-xs"
           >
-            <span className="px-2 text-[11px] font-extrabold text-indigo-400">
-              {l(`${selectedTaskIds.length} đã chọn`, `${selectedTaskIds.length} selected`)}
-            </span>
+            {/* Count */}
+            <div className="flex items-center gap-1.5 pl-0.5 pr-1.5 shrink-0">
+              <span className="w-5 h-5 rounded-md bg-[#0071E3] dark:bg-[#0A84FF] text-white text-[10.5px] font-black flex items-center justify-center shadow-xs">
+                {selectedTaskIds.length}
+              </span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                {l('đã chọn', 'selected')}
+              </span>
+            </div>
 
+            <div className="w-px h-4 bg-slate-200 dark:bg-white/10 shrink-0 mx-0.5" />
+
+            {/* Complete */}
             <button
               type="button"
               onClick={completeSelected}
-              className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-emerald-500 px-3 text-[10px] font-black hover:bg-emerald-400 text-white transition shadow-sm"
+              className="px-2.5 py-1.5 rounded-lg text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors active:scale-95 shrink-0"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
-              {l("Hoàn thành", "Complete")}
+              <span>{l("Hoàn thành", "Complete")}</span>
             </button>
 
-            {/* Trạng thái */}
+            <div className="w-px h-4 bg-slate-200 dark:bg-white/10 shrink-0 mx-0.5" />
+
+            {/* Status */}
             <div className="relative">
               <select
                 onChange={(e) => {
@@ -620,20 +632,20 @@ export default function TaskCommandCenter({
                   e.target.value = '';
                 }}
                 defaultValue=""
-                className="h-8 appearance-none rounded-xl border border-white/10 bg-white/10 pl-2.5 pr-7 text-[10px] font-black text-white hover:bg-white/20 focus:outline-none cursor-pointer"
+                className="h-7 appearance-none rounded-lg bg-transparent border border-slate-200/80 dark:border-white/10 pl-2.5 pr-7 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] focus:outline-none cursor-pointer transition-colors"
               >
-                <option value="" disabled className="bg-slate-900 text-slate-400">
-                  {l("Đổi trạng thái...", "Change status...")}
+                <option value="" disabled className="bg-white dark:bg-slate-900 text-slate-400">
+                  {l("Trạng thái", "Status")}
                 </option>
-                <option value="todo" className="bg-slate-900 text-white">{l("Cần làm", "To Do")}</option>
-                <option value="inprogress" className="bg-slate-900 text-white">{l("Đang làm", "In Progress")}</option>
-                <option value="review" className="bg-slate-900 text-white">{l("Chờ duyệt", "In Review")}</option>
-                <option value="completed" className="bg-slate-900 text-white">{l("Hoàn thành", "Done")}</option>
+                <option value="todo" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">{l("Cần làm", "To Do")}</option>
+                <option value="inprogress" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">{l("Đang làm", "In Progress")}</option>
+                <option value="review" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">{l("Chờ duyệt", "In Review")}</option>
+                <option value="completed" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">{l("Hoàn thành", "Done")}</option>
               </select>
               <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" />
             </div>
 
-            {/* Độ ưu tiên */}
+            {/* Priority */}
             <div className="relative">
               <select
                 onChange={(e) => {
@@ -641,20 +653,20 @@ export default function TaskCommandCenter({
                   e.target.value = '';
                 }}
                 defaultValue=""
-                className="h-8 appearance-none rounded-xl border border-white/10 bg-white/10 pl-2.5 pr-7 text-[10px] font-black text-white hover:bg-white/20 focus:outline-none cursor-pointer"
+                className="h-7 appearance-none rounded-lg bg-transparent border border-slate-200/80 dark:border-white/10 pl-2.5 pr-7 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] focus:outline-none cursor-pointer transition-colors"
               >
-                <option value="" disabled className="bg-slate-900 text-slate-400">
-                  {l("Độ ưu tiên...", "Priority...")}
+                <option value="" disabled className="bg-white dark:bg-slate-900 text-slate-400">
+                  {l("Ưu tiên", "Priority")}
                 </option>
-                <option value="urgent" className="bg-slate-900 text-rose-400">{l("Khẩn cấp", "Urgent")}</option>
-                <option value="high" className="bg-slate-900 text-orange-400">{l("Cao", "High")}</option>
-                <option value="medium" className="bg-slate-900 text-amber-400">{l("Bình thường", "Normal")}</option>
-                <option value="low" className="bg-slate-900 text-slate-300">{l("Thấp", "Low")}</option>
+                <option value="urgent" className="bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400">{l("Khẩn cấp", "Urgent")}</option>
+                <option value="high" className="bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400">{l("Cao", "High")}</option>
+                <option value="medium" className="bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400">{l("Bình thường", "Normal")}</option>
+                <option value="low" className="bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300">{l("Thấp", "Low")}</option>
               </select>
               <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" />
             </div>
 
-            {/* Gán thành viên */}
+            {/* Assign */}
             {members.length > 0 && (
               <div className="relative">
                 <select
@@ -663,13 +675,13 @@ export default function TaskCommandCenter({
                     e.target.value = '';
                   }}
                   defaultValue=""
-                  className="h-8 appearance-none rounded-xl border border-white/10 bg-white/10 pl-2.5 pr-7 text-[10px] font-black text-white hover:bg-white/20 focus:outline-none cursor-pointer"
+                  className="h-7 appearance-none rounded-lg bg-transparent border border-slate-200/80 dark:border-white/10 pl-2.5 pr-7 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] focus:outline-none cursor-pointer transition-colors"
                 >
-                  <option value="" disabled className="bg-slate-900 text-slate-400">
-                    {l("Gán người phụ trách...", "Assign member...")}
+                  <option value="" disabled className="bg-white dark:bg-slate-900 text-slate-400">
+                    {l("Người phụ trách", "Assignee")}
                   </option>
                   {members.map(m => (
-                    <option key={m.id} value={m.id} className="bg-slate-900 text-white">
+                    <option key={m.id} value={m.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">
                       {m.name || m.email}
                     </option>
                   ))}
@@ -678,25 +690,27 @@ export default function TaskCommandCenter({
               </div>
             )}
 
-            {/* Xóa hàng loạt */}
+            <div className="w-px h-4 bg-slate-200 dark:bg-white/10 shrink-0 mx-0.5" />
+
+            {/* Delete */}
             <button
               type="button"
               onClick={deleteSelected}
               title={l("Xóa công việc đã chọn", "Delete selected tasks")}
-              className="inline-flex h-8 items-center gap-1 rounded-xl bg-rose-500/20 px-2.5 text-[10px] font-black text-rose-400 hover:bg-rose-500 hover:text-white transition"
+              className="px-2.5 py-1.5 rounded-lg text-rose-600 hover:text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors active:scale-95"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              {l("Xóa", "Delete")}
+              <span>{l("Xóa", "Delete")}</span>
             </button>
 
-            {/* Bỏ chọn */}
+            {/* Dismiss */}
             <button
               type="button"
               onClick={() => setSelectedTaskIds([])}
               aria-label={l("Bỏ chọn", "Deselect")}
-              className="grid h-8 w-8 place-items-center rounded-xl text-slate-400 hover:bg-white/10 hover:text-white transition"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] cursor-pointer transition-colors active:scale-95"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5" />
             </button>
           </motion.div>
         )}

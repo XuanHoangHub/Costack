@@ -247,20 +247,20 @@
   --cu-accent-subtle: rgba(56, 189, 248, 0.12);
 
   /* Atmospheric Obsidian & Ergonomic Layer Surfaces */
-  --cu-bg: #08090c;
-  --cu-bg-subtle: #0c0d12;
-  --cu-surface: #111218;
-  --cu-surface-2: #161822;
-  --cu-surface-3: #1c1e2a;
-  --cu-border: rgba(255, 255, 255, 0.07);
-  --cu-border-strong: rgba(255, 255, 255, 0.13);
+  --cu-bg: #0c0e14;
+  --cu-bg-subtle: #0f111a;
+  --cu-surface: #121520;
+  --cu-surface-2: #181c2b;
+  --cu-surface-3: #1f2436;
+  --cu-border: rgba(255, 255, 255, 0.08);
+  --cu-border-strong: rgba(255, 255, 255, 0.14);
 
   /* Unified Sidebar & Navigation System */
-  --sidebar-bg: #0b0c10;
-  --sidebar-surface: #111218;
-  --sidebar-border: rgba(255, 255, 255, 0.07);
+  --sidebar-bg: #090a10;
+  --sidebar-surface: #121520;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
   --sidebar-text: #f4f4f6;
-  --sidebar-muted: #71717a;
+  --sidebar-muted: #8b92a5;
   --sidebar-signal: #3B82F6;
 
   /* High Legibility WCAG AA+ Typography (No harsh glare, high contrast) */
@@ -268,7 +268,7 @@
   --cu-text-secondary: #a1a1aa;
   --cu-text-muted: #71717a;
   --cu-text-tertiary: #52525b;
-  --cu-text-inverse: #08090c;
+  --cu-text-inverse: #0c0e14;
 
   --cu-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
   --cu-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.55);
@@ -285,10 +285,10 @@
   --slate-500: #71717a;
   --slate-600: #52525b;
   --slate-700: #3f3f46;
-  --slate-800: #161822;
-  --slate-850: #111218;
-  --slate-900: #111218;
-  --slate-950: #08090c;
+  --slate-800: #181c2b;
+  --slate-850: #121520;
+  --slate-900: #121520;
+  --slate-950: #0c0e14;
 
   --slate-55: #fafafa;
   --slate-101: #f4f4f6;
@@ -312,14 +312,14 @@
   --slate-650: #3f3f46;
   --slate-655: #3f3f46;
   --slate-705: #27272a;
-  --slate-750: #161822;
-  --slate-755: #161822;
-  --slate-805: #14151d;
-  --slate-808: #14151d;
-  --slate-850: #111218;
-  --slate-855: #111218;
-  --slate-905: #0b0c10;
-  --slate-955: #08090c;
+  --slate-750: #181c2b;
+  --slate-755: #181c2b;
+  --slate-805: #181c2b;
+  --slate-808: #181c2b;
+  --slate-850: #121520;
+  --slate-855: #121520;
+  --slate-905: #090a10;
+  --slate-955: #0c0e14;
 
   /* Apexa Core Theme Color Gradients */
   --apexa-primary: #3B82F6;

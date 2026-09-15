@@ -59,7 +59,7 @@ const CustomizableHeader = ({
 }) => (
   <th 
     onClick={() => isSortable && onToggleSort(col)}
-    className={`h-10 px-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 cursor-pointer hover:bg-slate-100/70 dark:hover:bg-white/[0.04] border-b border-slate-200/70 dark:border-white/[0.06] bg-white/95 dark:bg-[#08090c]/95 backdrop-blur-md group/h select-none sticky top-0 z-10 transition-colors ${className}`}
+    className={`h-10 px-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 cursor-pointer hover:bg-slate-100/70 dark:hover:bg-white/[0.04] border-b border-slate-200/70 dark:border-white/[0.06] bg-white/95 dark:bg-[#0c0e14]/95 backdrop-blur-md group/h select-none sticky top-0 z-10 transition-colors ${className}`}
   >
     <div className="flex items-center justify-between gap-1 w-full">
       <div className="flex items-center gap-1.5">
@@ -470,8 +470,8 @@ export default function TaskTableView({
       <div className="overflow-x-auto custom-touch-scroll flex-1">
       <table className="apexa-task-table w-full min-w-[900px] border-separate border-spacing-0 text-left">
         <thead>
-          <tr className="bg-white dark:bg-[#08090c]/95">
-            <th className="sticky left-0 top-0 z-20 w-11 h-10 px-3 border-b border-slate-200/70 dark:border-white/[0.06] bg-white dark:bg-[#08090c]/95 backdrop-blur-md text-center">
+          <tr className="bg-white dark:bg-[#0c0e14]/95">
+            <th className="sticky left-0 top-0 z-20 w-11 h-10 px-3 border-b border-slate-200/70 dark:border-white/[0.06] bg-white dark:bg-[#0c0e14]/95 backdrop-blur-md text-center">
               <input 
                 type="checkbox" 
                 ref={el => { if (el) el.indeterminate = selectedTaskIds.length > 0 && !allSelected; }}
@@ -485,7 +485,7 @@ export default function TaskTableView({
             <CustomizableHeader 
               col="title" 
               label={getColumnLabel('title', 'Task', 'Công việc')}
-              className="min-w-[260px] sticky left-11 z-20 bg-white dark:bg-[#08090c]/95 backdrop-blur-md" 
+              className="min-w-[260px] sticky left-11 z-20 bg-white dark:bg-[#0c0e14]/95 backdrop-blur-md" 
               sortCol={sortCol} 
               sortDir={sortDir} 
               onToggleSort={toggleSort}
@@ -591,7 +591,7 @@ export default function TaskTableView({
             ))}
 
             {/* Plus button at the end to add field */}
-            <th className="sticky top-0 z-10 w-11 h-10 px-2 text-center border-b border-slate-200/70 dark:border-white/[0.06] bg-white dark:bg-[#08090c]">
+            <th className="sticky top-0 z-10 w-11 h-10 px-2 text-center border-b border-slate-200/70 dark:border-white/[0.06] bg-white/95 dark:bg-[#0c0e14]/95 backdrop-blur-md">
               <button 
                 type="button" 
                 onClick={(e) => {
@@ -620,14 +620,14 @@ export default function TaskTableView({
                 className={`cursor-pointer transition-colors duration-150 group/row border-b border-slate-200/50 dark:border-white/[0.04] ${
                   isSelected 
                     ? 'bg-indigo-50/70 dark:bg-indigo-950/30' 
-                    : 'bg-white dark:bg-[#08090c]'
-                } hover:bg-slate-50/90 dark:hover:bg-slate-850/60`}
+                    : 'bg-white dark:bg-[#0c0e14]'
+                } hover:bg-slate-50/90 dark:hover:bg-[#121520]`}
               >
                 {/* Sticky Checkbox Column */}
                 <td 
                   className={`sticky left-0 z-[5] h-11 px-3 border-b border-slate-200/50 dark:border-white/[0.04] text-center w-11 ${
-                    isSelected ? 'bg-indigo-50/90 dark:bg-[#0c1220]' : 'bg-white/95 dark:bg-[#08090c]/95'
-                  } group-hover/row:bg-slate-50/95 dark:group-hover/row:bg-slate-850/95 transition-colors`} 
+                    isSelected ? 'bg-indigo-50/90 dark:bg-[#0c1220]' : 'bg-white/95 dark:bg-[#0c0e14]/95'
+                  } group-hover/row:bg-slate-50 dark:group-hover/row:bg-[#121520] transition-colors`} 
                   onClick={e => e.stopPropagation()}
                 >
                   <div className="relative flex items-center justify-center w-4 h-4 mx-auto">
@@ -643,9 +643,9 @@ export default function TaskTableView({
 
                 {/* Sticky Task Title Column */}
                 <td 
-                  className={`sticky left-11 z-[5] h-11 px-3.5 border-b border-slate-200/50 dark:border-white/[0.04] ${
-                    isSelected ? 'bg-indigo-50/90 dark:bg-[#0c1220]' : 'bg-white/95 dark:bg-[#08090c]/95'
-                  } group-hover/row:bg-slate-50/95 dark:group-hover/row:bg-slate-850/95 transition-colors`}
+                  className={`sticky left-11 z-[5] h-11 px-3.5 border-b border-slate-200/50 dark:border-white/[0.04] min-w-[260px] ${
+                    isSelected ? 'bg-indigo-50/90 dark:bg-[#0c1220]' : 'bg-white/95 dark:bg-[#0c0e14]/95'
+                  } group-hover/row:bg-slate-50 dark:group-hover/row:bg-[#121520] transition-colors`}
                 >
                   <div className="flex items-center gap-2">
                     {/* Render visual indentation and connector lines */}
@@ -843,7 +843,11 @@ export default function TaskTableView({
                       align="left"
                       taskId={task.id}
                       taskTitle={task.title}
-                      className="text-[11px] text-slate-400 cursor-pointer border-0 bg-transparent"
+                      className={
+                        task.startDate
+                          ? "px-2.5 py-1 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                          : "px-2.5 py-1 rounded-xl text-xs font-semibold text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 border border-dashed border-slate-300/80 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 hover:bg-slate-100/80 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                      }
                     />
                   </td>
                 )}
@@ -861,11 +865,17 @@ export default function TaskTableView({
                         onUpdateTask({ ...task, dueDate: newD || '' });
                         onAddSyncLog?.(`Due Date "${task.title}" → ${newD || 'Cleared'}`);
                       }}
-                      label={locale === 'vi' ? 'Hạn' : 'Due date'}
+                      label={locale === 'vi' ? 'Hạn chót' : 'Due date'}
                       align="left"
                       taskId={task.id}
                       taskTitle={task.title}
-                      className={daysInfo ? `text-[11px] font-bold px-2 py-1 rounded-lg border-0 cursor-pointer select-none transition-all ${daysInfo.cls}` : "text-[11px] text-slate-400 cursor-pointer border-0 bg-transparent"}
+                      className={
+                        daysInfo
+                          ? `px-2.5 py-1 rounded-xl text-xs font-bold border transition-all cursor-pointer select-none ${daysInfo.cls}`
+                          : task.dueDate
+                            ? "px-2.5 py-1 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                            : "px-2.5 py-1 rounded-xl text-xs font-semibold text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 border border-dashed border-slate-300/80 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 hover:bg-slate-100/80 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                      }
                     />
                   </td>
                 )}
@@ -928,7 +938,7 @@ export default function TaskTableView({
                   <Plus className="w-2.5 h-2.5 stroke-[2.5]" />
                 </div>
               </td>
-              <td className="sticky left-11 z-[5] h-11 px-3.5 border-b border-indigo-200/60 dark:border-indigo-900/40 bg-indigo-50/80 dark:bg-[#0c1220]">
+              <td className="sticky left-11 z-[5] h-11 px-3.5 border-b border-indigo-200/60 dark:border-indigo-900/40 min-w-[260px] bg-indigo-50/80 dark:bg-[#0c1220]">
                 <div className="flex items-center w-full">
                   <input
                     ref={inlineTitleInputRef}
@@ -1069,17 +1079,17 @@ export default function TaskTableView({
           ) : sortedTasks.length > 0 ? (
             <tr
               onClick={() => setIsCreatingInline(true)}
-              className="bg-transparent hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors duration-150 group cursor-pointer border-b border-slate-200/40 dark:border-white/[0.03]"
+              className="bg-white dark:bg-[#0c0e14] hover:bg-slate-50/80 dark:hover:bg-[#121520] transition-colors duration-150 group cursor-pointer border-b border-slate-200/40 dark:border-white/[0.03]"
             >
               {/* Sticky Column 0: Checkbox column alignment */}
-              <td className="sticky left-0 z-[5] w-11 h-11 px-3 text-center border-b border-slate-200/40 dark:border-white/[0.03] bg-white/95 dark:bg-[#08090c]/95 group-hover:bg-slate-50/95 dark:group-hover:bg-slate-850/95 transition-colors">
+              <td className="sticky left-0 z-[5] w-11 h-11 px-3 text-center border-b border-slate-200/40 dark:border-white/[0.03] bg-white/95 dark:bg-[#0c0e14]/95 group-hover:bg-slate-50 dark:group-hover:bg-[#121520] transition-colors">
                 <div className="w-5 h-5 rounded-lg border border-dashed border-slate-300 dark:border-slate-700/80 group-hover:border-indigo-500 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/50 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 flex items-center justify-center transition-all duration-150 shadow-3xs mx-auto">
                   <Plus className="w-3.5 h-3.5 stroke-[2.2]" />
                 </div>
               </td>
 
               {/* Sticky Column 1: Task Title column alignment */}
-              <td className="sticky left-11 z-[5] h-11 px-3.5 border-b border-slate-200/40 dark:border-white/[0.03] bg-white/95 dark:bg-[#08090c]/95 group-hover:bg-slate-50/95 dark:group-hover:bg-slate-850/95 transition-colors">
+              <td className="sticky left-11 z-[5] h-11 px-3.5 border-b border-slate-200/40 dark:border-white/[0.03] min-w-[260px] bg-white/95 dark:bg-[#0c0e14]/95 group-hover:bg-slate-50 dark:group-hover:bg-[#121520] transition-colors">
                 <div className="flex items-center gap-2.5">
                   <span className="text-xs font-semibold text-slate-500 group-hover:text-indigo-600 dark:text-slate-400 dark:group-hover:text-indigo-400 transition-colors">
                     {t('addNewTask') || (locale === 'vi' ? 'Thêm công việc mới...' : 'Add a new task...')}
@@ -1092,7 +1102,7 @@ export default function TaskTableView({
               </td>
 
               {/* Remaining columns */}
-              <td colSpan={columnCount - 2} className="h-11 px-3.5 border-b border-slate-200/40 dark:border-white/[0.03]">
+              <td colSpan={columnCount - 2} className="h-11 px-3.5 border-b border-slate-200/40 dark:border-white/[0.03] bg-white/95 dark:bg-[#0c0e14]/95 group-hover:bg-slate-50 dark:group-hover:bg-[#121520] transition-colors">
                 <div className="w-full" />
               </td>
             </tr>
@@ -1150,7 +1160,7 @@ export default function TaskTableView({
       </div>
 
       {sortedTasks.length > 0 && (
-        <div className="sticky bottom-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-2 bg-white dark:bg-[#08090c]/95 backdrop-blur-md text-[11px] font-medium border-t border-slate-200/60 dark:border-white/[0.06] text-slate-500 dark:text-slate-400 select-none">
+        <div className="sticky bottom-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-2 bg-white dark:bg-[#0c0e14]/95 backdrop-blur-md text-[11px] font-medium border-t border-slate-200/60 dark:border-white/[0.06] text-slate-500 dark:text-slate-400 select-none">
           <div className="flex items-center gap-3">
             <span className="font-semibold text-slate-700 dark:text-slate-300">{sortedTasks.length} {locale === 'vi' ? 'công việc' : sortedTasks.length === 1 ? 'task' : 'tasks'}</span>
             <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />

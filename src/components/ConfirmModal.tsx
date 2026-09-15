@@ -123,27 +123,27 @@ export default function ConfirmModal({
 
             {/* Modal Card Container */}
             <motion.div
-              initial={{ scale: 0.94, opacity: 0, y: 8 }}
+              initial={{ scale: 0.95, opacity: 0, y: 8 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.94, opacity: 0, y: 8 }}
+              exit={{ scale: 0.95, opacity: 0, y: 8 }}
               transition={{ type: "spring", stiffness: 400, damping: 28 }}
-              className="relative w-full max-w-[420px] bg-white dark:bg-[#111218] border border-slate-200/90 dark:border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.65)] rounded-2xl p-5 sm:p-6 text-left z-10 font-sans select-none overflow-hidden"
+              className="relative w-full max-w-[420px] bg-white dark:bg-[#12141e] border border-slate-200/90 dark:border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.65)] rounded-xl p-5 sm:p-6 text-left z-10 font-sans select-none overflow-hidden"
             >
               {/* Top Row: Icon + Title + Close Button */}
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-2.5 min-w-0">
                   {/* Clean Icon Badge */}
                   <div 
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border transition-transform ${
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border transition-transform ${
                       resolvedIsDestructive 
                         ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200/80 dark:border-rose-900/50 shadow-3xs' 
-                        : 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-200/80 dark:border-indigo-900/50 shadow-3xs'
+                        : 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-200/80 dark:border-blue-900/50 shadow-3xs'
                     }`}
                   >
                     {resolvedIsDestructive ? (
-                      <AlertTriangle className="w-4.5 h-4.5 stroke-[2.2]" />
+                      <AlertTriangle className="w-4 h-4 stroke-[2.2]" />
                     ) : (
-                      <CheckCircle2 className="w-4.5 h-4.5 stroke-[2.2]" />
+                      <CheckCircle2 className="w-4 h-4 stroke-[2.2]" />
                     )}
                   </div>
 
@@ -158,7 +158,7 @@ export default function ConfirmModal({
                   type="button"
                   onClick={onCancel}
                   className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] flex items-center justify-center transition-colors cursor-pointer shrink-0 -mt-1 -mr-1"
-                  title="Đóng (Esc)"
+                  title="Đóng"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -171,8 +171,8 @@ export default function ConfirmModal({
 
               {/* Target Item Callout (if specific item is targeted) */}
               {detectedInfo.name && (
-                <div className="mt-3.5 p-2.5 rounded-xl bg-slate-50 dark:bg-[#161822] border border-slate-200/80 dark:border-white/10 flex items-center gap-2.5 min-w-0">
-                  <div className="w-6 h-6 rounded-lg bg-white dark:bg-[#111218] border border-slate-200 dark:border-white/10 flex items-center justify-center shrink-0 shadow-3xs">
+                <div className="mt-3.5 p-2.5 rounded-lg bg-slate-50 dark:bg-[#181a26] border border-slate-200/80 dark:border-white/10 flex items-center gap-2.5 min-w-0">
+                  <div className="w-6 h-6 rounded-md bg-white dark:bg-[#12141e] border border-slate-200 dark:border-white/10 flex items-center justify-center shrink-0 shadow-3xs">
                     {getItemIcon()}
                   </div>
                   <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate min-w-0 flex-1" title={detectedInfo.name}>
@@ -182,27 +182,24 @@ export default function ConfirmModal({
               )}
 
               {/* Actions Footer */}
-              <div className="flex items-center justify-end gap-2.5 mt-5 pt-3.5 border-t border-slate-100 dark:border-white/10">
+              <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-white/10">
                 {/* Cancel Button */}
                 <button
                   type="button"
                   onClick={onCancel}
-                  className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#161822] text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1f2230] transition-colors cursor-pointer select-none shadow-3xs flex items-center gap-1.5 whitespace-nowrap shrink-0"
+                  className="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-[#181a26] text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.08] transition-colors cursor-pointer select-none shadow-3xs flex items-center whitespace-nowrap shrink-0"
                 >
-                  <span className="whitespace-nowrap">{effectiveCancelText}</span>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono font-medium px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-700 whitespace-nowrap">
-                    Esc
-                  </span>
+                  <span>{effectiveCancelText}</span>
                 </button>
 
                 {/* Confirm Button */}
                 <button
                   type="button"
                   onClick={onConfirm}
-                  className={`px-4 py-1.5 rounded-xl text-xs font-bold text-white transition-all cursor-pointer select-none flex items-center gap-1.5 shadow-sm whitespace-nowrap shrink-0 ${
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold text-white transition-all cursor-pointer select-none flex items-center gap-1.5 shadow-sm whitespace-nowrap shrink-0 ${
                     resolvedIsDestructive
                       ? 'bg-rose-600 hover:bg-rose-500 active:bg-rose-700 shadow-rose-500/20'
-                      : 'bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 shadow-indigo-500/20'
+                      : 'bg-[#0071E3] hover:bg-[#0077ED] active:bg-blue-700 shadow-blue-500/20'
                   }`}
                 >
                   {resolvedIsDestructive ? (
@@ -210,11 +207,7 @@ export default function ConfirmModal({
                   ) : (
                     <CheckCircle2 className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
                   )}
-                  <span className="whitespace-nowrap">{effectiveConfirmText}</span>
-                  <span className="text-[10px] text-white/80 font-mono font-bold px-1 py-0.2 rounded bg-white/20 flex items-center gap-0.5 whitespace-nowrap">
-                    <CornerDownLeft className="w-2.5 h-2.5" />
-                    Enter
-                  </span>
+                  <span>{effectiveConfirmText}</span>
                 </button>
               </div>
             </motion.div>
