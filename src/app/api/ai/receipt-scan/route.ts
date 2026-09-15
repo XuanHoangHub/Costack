@@ -42,7 +42,7 @@ Lưu ý quan trọng:
       model: targetModel,
       contents: [imagePart, promptText],
       config: {
-        systemInstruction: "Bạn là chuyên gia kế toán và chuyên gia trích xuất dữ liệu hóa đơn/biên lai/chứng từ tài chính thông minh của Apexa AI. Trích xuất chính xác các trường dữ liệu số tiền, ngày tháng, nhà cung cấp, phân loại danh mục và chi tiết hàng hóa từ ảnh hóa đơn tiếng Việt và quốc tế. Trả về đúng định dạng JSON theo schema được cung cấp.",
+        systemInstruction: "Bạn là chuyên gia kế toán và chuyên gia trích xuất dữ liệu hóa đơn/biên lai/chứng từ tài chính thông minh của Upgen AI. Trích xuất chính xác các trường dữ liệu số tiền, ngày tháng, nhà cung cấp, phân loại danh mục và chi tiết hàng hóa từ ảnh hóa đơn tiếng Việt và quốc tế. Trả về đúng định dạng JSON theo schema được cung cấp.",
         responseMimeType: "application/json",
         temperature: temperature !== undefined ? temperature : 0.1,
         responseSchema: {

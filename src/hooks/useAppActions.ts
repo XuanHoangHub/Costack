@@ -769,7 +769,7 @@ export function useAppActions() {
       let newInvite: WorkspaceInvitation = {
         id: inviteId,
         workspaceId: activeWsId,
-        workspaceName: currentWS?.name || 'Apexa Workspace',
+        workspaceName: currentWS?.name || 'Upgen Workspace',
         email: cleanEmail,
         role: (role as any) || 'member',
         invitedBy: currentUser?.userId || currentUser?.id || 'admin',

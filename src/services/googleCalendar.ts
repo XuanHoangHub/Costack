@@ -101,7 +101,7 @@ async function requestCalendar(
 ): Promise<CalendarApiResponse> {
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
   if (sessionError || !session) {
-    throw new GoogleCalendarError('Vui lòng đăng nhập lại Apexa.', 401, 'APEXA_SESSION_REQUIRED', true);
+    throw new GoogleCalendarError('Vui lòng đăng nhập lại Upgen.', 401, 'APEXA_SESSION_REQUIRED', true);
   }
 
   if (typeof window !== 'undefined' && localStorage.getItem(GOOGLE_DISCONNECTED_KEY) === '1') {

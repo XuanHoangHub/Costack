@@ -56,7 +56,7 @@ export default function DocumentAiPanel({ document, onClose, onInsert }: Documen
     try {
       const history = messages.slice(-8).map(message => ({ role: message.role, parts: [{ text: message.content }] }));
       const response = await callAiApi('/api/ai/chat', {
-        message: `Bạn là Apexa AI đang hỗ trợ soạn thảo tài liệu. Trả lời bằng tiếng Việt, ngắn gọn, có cấu trúc và có thể chèn thẳng vào tài liệu.\n\nTên tài liệu: ${document?.title || 'Không tiêu đề'}\nNội dung hiện tại:\n${documentText || '(Tài liệu đang trống)'}\n\nYêu cầu: ${value}`,
+        message: `Bạn là Upgen AI đang hỗ trợ soạn thảo tài liệu. Trả lời bằng tiếng Việt, ngắn gọn, có cấu trúc và có thể chèn thẳng vào tài liệu.\n\nTên tài liệu: ${document?.title || 'Không tiêu đề'}\nNội dung hiện tại:\n${documentText || '(Tài liệu đang trống)'}\n\nYêu cầu: ${value}`,
         history,
       });
       if (!response.ok) throw new Error('Dịch vụ AI chưa sẵn sàng.');
@@ -64,7 +64,7 @@ export default function DocumentAiPanel({ document, onClose, onInsert }: Documen
       const reply = data.reply || data.message || data.text || 'Mình chưa tạo được câu trả lời. Bạn thử diễn đạt lại yêu cầu nhé.';
       setMessages(previous => [...previous, { id: `assistant-${Date.now()}`, role: 'assistant', content: reply }]);
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : 'Không thể kết nối Apexa AI lúc này.';
+      const message = cause instanceof Error ? cause.message : 'Không thể kết nối Upgen AI lúc này.';
       setMessages(previous => [...previous, { id: `error-${Date.now()}`, role: 'assistant', content: message }]);
     } finally {
       setLoading(false);
@@ -74,8 +74,8 @@ export default function DocumentAiPanel({ document, onClose, onInsert }: Documen
   return (
     <motion.aside initial={{ x: 32, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 32, opacity: 0 }} className="absolute inset-y-0 right-0 z-[70] flex w-full max-w-[390px] flex-col border-l border-slate-200/80 bg-white/95 shadow-[-24px_0_70px_-40px_rgba(15,23,42,.45)] backdrop-blur-2xl sm:relative sm:z-20 dark:border-slate-800 dark:bg-[#111318]/95">
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200/80 px-4 dark:border-slate-800">
-        <div className="flex items-center gap-2.5"><span className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-indigo-600 to-fuchsia-500 shadow-md shadow-indigo-500/20"><ApexaAiIcon className="h-4 w-4" variant="white" /></span><div><h3 className="text-sm font-extrabold text-slate-950 dark:text-white">Apexa AI</h3><p className="text-[10px] font-medium text-emerald-600">Đang đọc tài liệu hiện tại</p></div></div>
-        <button onClick={onClose} aria-label="Đóng Apexa AI" className="grid h-8 w-8 place-items-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"><X className="h-4 w-4" /></button>
+        <div className="flex items-center gap-2.5"><span className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-indigo-600 to-fuchsia-500 shadow-md shadow-indigo-500/20"><ApexaAiIcon className="h-4 w-4" variant="white" /></span><div><h3 className="text-sm font-extrabold text-slate-950 dark:text-white">Upgen AI</h3><p className="text-[10px] font-medium text-emerald-600">Đang đọc tài liệu hiện tại</p></div></div>
+        <button onClick={onClose} aria-label="Đóng Upgen AI" className="grid h-8 w-8 place-items-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"><X className="h-4 w-4" /></button>
       </header>
 
       <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-5">
@@ -93,7 +93,7 @@ export default function DocumentAiPanel({ document, onClose, onInsert }: Documen
             </div>
           </div>
         ))}
-        {loading && <div className="flex items-center gap-2 text-xs font-medium text-slate-400"><span className="flex h-7 w-7 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/40"><Wand2 className="h-3.5 w-3.5 animate-pulse text-indigo-500" /></span>Apexa AI đang suy nghĩ<span className="animate-pulse">…</span></div>}
+        {loading && <div className="flex items-center gap-2 text-xs font-medium text-slate-400"><span className="flex h-7 w-7 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/40"><Wand2 className="h-3.5 w-3.5 animate-pulse text-indigo-500" /></span>Upgen AI đang suy nghĩ<span className="animate-pulse">…</span></div>}
       </div>
 
       <div className="shrink-0 border-t border-slate-200/80 bg-white/80 p-3 dark:border-slate-800 dark:bg-[#111318]/80">

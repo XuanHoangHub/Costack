@@ -423,7 +423,7 @@ export default function DocumentEditor({
   const getCommentAuthor = (userId: string) => {
     const member = members.find(m => m.id === `user-${userId}` || m.id === userId || (m as any).user_id === userId);
     return {
-      name: member?.name || 'Thành viên Apexa',
+      name: member?.name || 'Thành viên Upgen',
       avatar: member?.avatar || null
     };
   };
@@ -1463,7 +1463,7 @@ export default function DocumentEditor({
                     >
                       <div className="px-2 py-1.5 border-b border-slate-100 dark:border-slate-800/80 mb-1 flex items-center gap-2">
                         <ApexaAiIcon className="w-4 h-4" variant="gradient" />
-                        <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Apexa AI Writer</span>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Upgen AI Writer</span>
                       </div>
                       <button 
                         onClick={() => handleAiAction('expand')}

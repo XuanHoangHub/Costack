@@ -202,7 +202,7 @@ export async function POST(request: Request) {
       buyerName: user.user_metadata?.full_name || user.user_metadata?.name,
       buyerEmail: user.email,
       items: [{
-        name: `Apexa ${plan} - ${cycle === 'yearly' ? '12 thang' : '1 thang'}`,
+        name: `Upgen ${plan} - ${cycle === 'yearly' ? '12 thang' : '1 thang'}`,
         quantity: 1,
         price: amount,
       }],
@@ -379,7 +379,7 @@ export async function DELETE(request: Request) {
       return Response.json({ status: 'paid' }, { headers: { 'Cache-Control': 'private, no-store' } });
     }
     if (current.status === 'PENDING' || current.status === 'PROCESSING') {
-      const cancelled = await cancelPayOSPaymentLink(orderCode, 'Khách hàng hủy tại Apexa');
+      const cancelled = await cancelPayOSPaymentLink(orderCode, 'Khách hàng hủy tại Upgen');
       if (cancelled.status === 'PAID') {
         return Response.json({ status: 'paid' }, { headers: { 'Cache-Control': 'private, no-store' } });
       }

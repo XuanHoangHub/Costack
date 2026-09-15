@@ -229,7 +229,7 @@ export const ALL_AVAILABLE_VIEWS = [
   },
   {
     id: 'ai',
-    label: 'Trợ lý Apexa AI',
+    label: 'Trợ lý Upgen AI',
     desc: 'Phân tích tự động, đề xuất ưu tiên và trợ giúp',
     icon: Bot,
     color: '#8b5cf6',

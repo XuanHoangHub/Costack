@@ -1,7 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
 import { Compass, Home, Sparkles, ArrowRight, Layers, CreditCard } from 'lucide-react';
-import { ApexaLogoIcon } from '@/components/ApexaLogo';
 
 export default function NotFound() {
   return (
@@ -52,7 +51,7 @@ export default function NotFound() {
 
           {/* Subtitle */}
           <p className="mt-3.5 text-sm sm:text-[15px] leading-relaxed text-slate-300 max-w-md mx-auto">
-            Liên kết có thể đã thay đổi, hết hạn hoặc nội dung đã được chuyển đến không gian làm việc mới trên Apexa.
+            Liên kết có thể đã thay đổi, hết hạn hoặc nội dung đã được chuyển đến không gian làm việc mới trên Upgen.
           </p>
 
           {/* Quick Nav Shortcut Cards */}
@@ -86,15 +85,14 @@ export default function NotFound() {
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 px-7 py-3.5 text-sm font-black text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
             >
               <Home className="w-4 h-4 text-white" />
-              <span>Quay về Trang chủ Apexa</span>
+              <span>Quay về Trang chủ Upgen</span>
             </Link>
           </div>
         </div>
 
         {/* Brand Watermark Footer */}
         <div className="mt-6 flex items-center justify-center gap-2 text-xs font-semibold text-slate-400 select-none">
-          <ApexaLogoIcon variant="white" className="w-4 h-4 opacity-50" />
-          <span>Apexa High-Velocity Workspace</span>
+          <span>Upgen High-Velocity Workspace</span>
         </div>
       </div>
     </main>

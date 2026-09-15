@@ -73,7 +73,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
             members: members,
           };
           const jsonStr = JSON.stringify(exportData, null, 2);
-          downloadFile(`apexa_workspace_export_${timestamp}.json`, jsonStr, 'application/json');
+          downloadFile(`upgen_workspace_export_${timestamp}.json`, jsonStr, 'application/json');
         } else if (exportFormat === 'csv') {
           // Convert tasks to CSV
           const headers = ['ID', 'Title', 'Status', 'Priority', 'Description', 'DueDate', 'AssigneeId', 'WorkspaceId'];
@@ -88,7 +88,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
             `"${(t as any).workspaceId || activeWorkspaceId}"`,
           ]);
           const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-          downloadFile(`apexa_tasks_${timestamp}.csv`, csvContent, 'text/csv;charset=utf-8;');
+          downloadFile(`upgen_tasks_${timestamp}.csv`, csvContent, 'text/csv;charset=utf-8;');
         } else if (exportFormat === 'report') {
           // Formatted HTML Executive Report
           const reportHtml = `
@@ -96,7 +96,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
 <html lang="${locale === 'vi' ? 'vi-VN' : 'en-US'}">
 <head>
   <meta charset="utf-8">
-  <title>${l('Báo cáo tổng quan Apexa', 'Apexa Executive Report')} - ${timestamp}</title>
+  <title>${l('Báo cáo tổng quan Upgen', 'Upgen Executive Report')} - ${timestamp}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; color: #1e293b; background: #fff; }
     h1 { color: #4f46e5; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
@@ -111,7 +111,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
   </style>
 </head>
 <body>
-  <h1>${l('Báo cáo tổng quan không gian Apexa', 'Apexa Workspace Executive Report')}</h1>
+  <h1>${l('Báo cáo tổng quan không gian Upgen', 'Upgen Workspace Executive Report')}</h1>
   <p><strong>${l('Ngày tạo', 'Generated')}:</strong> ${new Date().toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-US')}</p>
   <p><strong>${l('Mã không gian', 'Workspace ID')}:</strong> ${activeWorkspaceId}</p>
   <p><strong>${l('Công việc', 'Tasks')}:</strong> ${tasks.length} | <strong>${l('Tài liệu', 'Documents')}:</strong> ${docs.length} | <strong>${l('Thành viên', 'Members')}:</strong> ${members.length}</p>
@@ -170,7 +170,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
 </body>
 </html>
           `;
-          downloadFile(`apexa_executive_report_${timestamp}.html`, reportHtml, 'text/html');
+          downloadFile(`upgen_executive_report_${timestamp}.html`, reportHtml, 'text/html');
         }
 
         addSyncLog?.(l(`Đã xuất dữ liệu không gian ở định dạng ${exportFormat.toUpperCase()}`, `Exported workspace data as ${exportFormat.toUpperCase()}`));

@@ -30,8 +30,8 @@ export async function POST(request: Request) {
       contents: prompt,
       config: {
         systemInstruction: locale === 'vi'
-          ? 'Bạn là Apexa Brain, trợ lý điều phối công việc. Trả lời tiếng Việt, ngắn gọn, thực tế và không dùng Markdown.'
-          : 'You are Apexa Brain, a task operations assistant. Respond in concise, practical English without Markdown.',
+          ? 'Bạn là Upgen Brain, trợ lý điều phối công việc. Trả lời tiếng Việt, ngắn gọn, thực tế và không dùng Markdown.'
+          : 'You are Upgen Brain, a task operations assistant. Respond in concise, practical English without Markdown.',
         temperature: 0.2,
       },
     });

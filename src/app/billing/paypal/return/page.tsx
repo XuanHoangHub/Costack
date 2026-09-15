@@ -26,7 +26,7 @@ export default function PayPalReturnPage() {
       const orderId = new URL(window.location.href).searchParams.get('order');
       if (!orderId) throw new Error(vi ? 'Thiếu mã đơn PayPal. Vui lòng mở lại liên kết thanh toán.' : 'Missing PayPal order. Please reopen your checkout link.');
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error(vi ? 'Vui lòng đăng nhập đúng tài khoản Apexa đã mua gói, sau đó quay lại trang này để kiểm tra.' : 'Sign in to the Apexa account used for this purchase, then return here to check your payment.');
+      if (!session?.access_token) throw new Error(vi ? 'Vui lòng đăng nhập đúng tài khoản Upgen đã mua gói, sau đó quay lại trang này để kiểm tra.' : 'Sign in to the Upgen account used for this purchase, then return here to check your payment.');
       const response = await fetch('/api/billing/paypal-checkout', {
         method: 'PUT', cache: 'no-store', signal: AbortSignal.timeout(60_000),
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
@@ -60,7 +60,7 @@ export default function PayPalReturnPage() {
 
   return <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4 dark:bg-slate-950">
     <section className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-7 shadow-xl dark:border-slate-800 dark:bg-slate-900" aria-labelledby="paypal-result-title">
-      <div className="mb-6 flex items-center gap-2 text-xl font-black text-blue-800 dark:text-blue-300"><Wallet /> Apexa · PayPal</div>
+      <div className="mb-6 flex items-center gap-2 text-xl font-black text-blue-800 dark:text-blue-300"><Wallet /> Upgen · PayPal</div>
       <div aria-live="polite" aria-busy={state === 'checking'}>
         {state === 'checking' && <Loader2 className="mb-4 h-10 w-10 animate-spin text-blue-600" />}
         {state === 'paid' && <CheckCircle2 className="mb-4 h-10 w-10 text-emerald-500" />}
@@ -77,7 +77,7 @@ export default function PayPalReturnPage() {
         </dl>}
       </div>
       {state !== 'checking' && state !== 'paid' && <button type="button" onClick={() => void checkPayment()} className="mt-5 w-full rounded-xl bg-blue-700 px-4 py-3 font-bold text-white hover:bg-blue-800">{vi ? 'Kiểm tra thanh toán' : 'Check payment'}</button>}
-      <Link href="/" className="mt-4 block rounded-xl border border-slate-200 px-4 py-3 text-center text-sm font-bold text-slate-700 dark:border-slate-700 dark:text-slate-200">{state === 'paid' ? (vi ? 'Vào không gian làm việc' : 'Open workspace') : (vi ? 'Về Apexa' : 'Back to Apexa')}</Link>
+      <Link href="/" className="mt-4 block rounded-xl border border-slate-200 px-4 py-3 text-center text-sm font-bold text-slate-700 dark:border-slate-700 dark:text-slate-200">{state === 'paid' ? (vi ? 'Vào không gian làm việc' : 'Open workspace') : (vi ? 'Về Upgen' : 'Back to Upgen')}</Link>
       <p className="mt-5 flex items-center gap-2 text-xs text-slate-500"><ShieldCheck className="h-4 w-4 shrink-0" />{vi ? 'Gói trả trước, không tự động gia hạn.' : 'Prepaid plan. No automatic renewal.'}</p>
     </section>
   </main>;

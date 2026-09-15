@@ -34,7 +34,7 @@ function mapUser(
   return {
     id: user.id,
     email: user.email || String(member?.email || ''),
-    name: String(member?.name || metadata.full_name || metadata.name || user.email?.split('@')[0] || 'Apexa user'),
+    name: String(member?.name || metadata.full_name || metadata.name || user.email?.split('@')[0] || 'Upgen user'),
     avatar: String(member?.avatar || metadata.avatar_url || metadata.picture || ''),
     createdAt: user.created_at,
     lastSignInAt: user.last_sign_in_at || null,

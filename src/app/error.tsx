@@ -114,7 +114,7 @@ export default function ErrorPage({
 
           {/* Main Headline */}
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white leading-snug font-display text-balance">
-            {isVi ? 'Apexa đang khôi phục phiên làm việc' : 'Apexa is Recovering Your Session'}
+            {isVi ? 'Upgen đang khôi phục phiên làm việc' : 'Upgen is Recovering Your Session'}
           </h1>
 
           {/* Subtitle / Description */}

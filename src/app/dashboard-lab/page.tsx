@@ -67,7 +67,7 @@ export default function DashboardLabPage() {
         syncLogs={[]}
         isOffline={false}
         isSynced
-        workspaceName="Apexa Product"
+        workspaceName="Upgen Product"
         onNavigate={() => {}}
         onOpenTask={() => {}}
         onToggleOffline={() => {}}

@@ -74,7 +74,7 @@ export default function AcceptInviteModal({
             setInvitation({
               id: `direct_${wsId}`,
               workspace_id: wsId,
-              workspace_name: wsData.name || (isVietnamese ? 'Không gian Apexa' : 'Apexa Workspace'),
+              workspace_name: wsData.name || (isVietnamese ? 'Không gian Upgen' : 'Upgen Workspace'),
               workspace_logo: wsData.icon || undefined,
               email: userEmail,
               role: role,
@@ -115,7 +115,7 @@ export default function AcceptInviteModal({
               inviteRecord = {
                 id: data.id,
                 workspace_id: data.workspace_id,
-                workspace_name: data.workspace_name || 'Apexa Workspace',
+                workspace_name: data.workspace_name || 'Upgen Workspace',
                 email: data.email,
                 role: data.role,
                 invited_by_name: data.invited_by_name || 'Admin',
@@ -138,7 +138,7 @@ export default function AcceptInviteModal({
                 inviteRecord = {
                   id: found.id,
                   workspace_id: found.workspaceId,
-                  workspace_name: found.workspaceName || 'Apexa Workspace',
+                  workspace_name: found.workspaceName || 'Upgen Workspace',
                   email: found.email,
                   role: found.role,
                   invited_by_name: found.invitedByName || 'Admin',

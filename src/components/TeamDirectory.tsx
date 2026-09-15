@@ -116,7 +116,7 @@ export default function TeamDirectory({
   const me = members.find(m => m.id === currentUser?.id || m.userId === currentUser?.id || m.email === currentUser?.email)
     || members.find(m => m.id === 'user');
   const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId);
-  const currentWorkspaceName = activeWorkspace?.name || 'Apexa Workspace';
+  const currentWorkspaceName = activeWorkspace?.name || 'Upgen Workspace';
 
   const [workspaceRole, setWorkspaceRole] = useState<WorkspaceRole | null>(activeWorkspace?.membershipRole || null);
   const isOwner = workspaceRole === 'owner'

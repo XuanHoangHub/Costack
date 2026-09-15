@@ -240,8 +240,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     {
       id: 'open-ai',
       name: '/ai',
-      label: isVietnamese ? 'Trợ lý AI Apexa Brain' : 'Launch Apexa Brain AI Assistant',
-      shortLabel: isVietnamese ? 'Trợ lý Apexa AI' : 'Apexa AI Brain',
+      label: isVietnamese ? 'Trợ lý AI Upgen Brain' : 'Launch Upgen Brain AI Assistant',
+      shortLabel: isVietnamese ? 'Trợ lý Upgen AI' : 'Upgen AI Brain',
       description: isVietnamese ? 'Hỏi AI, tóm tắt không gian, tạo PRD hoặc lập kế hoạch' : 'Ask AI, summarize workspace, generate tasks or PRDs',
       icon: Sparkles,
       badge: 'AI',
@@ -250,7 +250,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           const aiBtn = document.getElementById('btn_apexa_ai_float');
           if (aiBtn) aiBtn.click();
         }
-        addSyncLog(isVietnamese ? 'Lệnh: Kích hoạt Trợ lý AI Apexa Brain' : 'Command: Launched Apexa Brain AI Assistant');
+        addSyncLog(isVietnamese ? 'Lệnh: Kích hoạt Trợ lý AI Upgen Brain' : 'Command: Launched Upgen Brain AI Assistant');
       },
     },
     {
@@ -619,7 +619,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           className="relative bg-white dark:bg-[#111218] border border-slate-200/90 dark:border-white/10 rounded-2xl w-[min(95vw,680px)] max-sm:w-full max-sm:mx-2 overflow-hidden shadow-[0_24px_64px_rgba(15,23,42,0.18)] dark:shadow-[0_28px_72px_rgba(0,0,0,0.85)] flex flex-col max-h-[88dvh] z-10"
         >
           <h2 id="global-search-title" className="sr-only">
-            {isVietnamese ? 'Tìm kiếm toàn cục Apexa' : 'Apexa Global Search'}
+            {isVietnamese ? 'Tìm kiếm toàn cục Upgen' : 'Upgen Global Search'}
           </h2>
 
           {/* Search Input Bar */}
@@ -884,7 +884,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                       {
                         id: 'ai',
                         query: '/ai',
-                        title: isVietnamese ? 'Trợ lý AI Apexa Brain' : 'Apexa Brain AI Assistant',
+                        title: isVietnamese ? 'Trợ lý AI Upgen Brain' : 'Upgen Brain AI Assistant',
                         desc: isVietnamese ? 'Hỏi đáp & hỗ trợ thông minh' : 'Smart insights & assistance',
                         icon: Sparkles,
                         color: 'bg-purple-50 text-purple-600 dark:bg-purple-950/70 dark:text-purple-400 border border-purple-200/50 dark:border-purple-900/40',
@@ -895,7 +895,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                             const aiBtn = document.getElementById('btn_apexa_ai_float');
                             if (aiBtn) aiBtn.click();
                           }
-                          addSyncLog(isVietnamese ? 'Lệnh: Kích hoạt Trợ lý AI Apexa Brain' : 'Command: Launched Apexa Brain AI Assistant');
+                          addSyncLog(isVietnamese ? 'Lệnh: Kích hoạt Trợ lý AI Upgen Brain' : 'Command: Launched Upgen Brain AI Assistant');
                         }
                       },
                     ].map(card => {

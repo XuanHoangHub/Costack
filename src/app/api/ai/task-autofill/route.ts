@@ -12,7 +12,7 @@ export async function POST(request: Request) {
 
     const client = await getAuthorizedGeminiClient(request);
 
-    const systemInstruction = `Bạn là Trợ lý Giám đốc Dự án và Quản lý Tác vụ Thông minh của Apexa OS.
+    const systemInstruction = `Bạn là Trợ lý Giám đốc Dự án và Quản lý Tác vụ Thông minh của Upgen OS.
 Nhiệm vụ của bạn là phân tích tiêu đề công việc và mô tả ban đầu (nếu có) để tự động cấu hình và tối ưu hóa các thông số công việc giúp người dùng:
 1. Độ ưu tiên (suggestedPriority): 'low' | 'medium' | 'high' | 'urgent' kèm lý do giải thích ngắn gọn (priorityReason).
 2. Thời gian ước tính (suggestedHoursEstimate): số giờ thực tế hợp lý (ví dụ: 1, 2, 4, 8, 12, 16...).

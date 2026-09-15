@@ -22,8 +22,8 @@ export function formatAuthError(error: unknown, isVietnamese: boolean = true): F
     return {
       title: isVietnamese ? 'Mã xác thực đã hết hạn' : 'Verification Code Expired',
       description: isVietnamese
-        ? 'Phiên xác thực trước đã hết hiệu lực. Apexa đã tự động tạo phiên mới, bạn vui lòng nhập mã 6 số mới nhất từ ứng dụng Authenticator.'
-        : 'The verification challenge has timed out. Apexa has refreshed the session—please enter the latest 6-digit code from your Authenticator app.',
+        ? 'Phiên xác thực trước đã hết hiệu lực. Upgen đã tự động tạo phiên mới, bạn vui lòng nhập mã 6 số mới nhất từ ứng dụng Authenticator.'
+        : 'The verification challenge has timed out. Upgen has refreshed the session—please enter the latest 6-digit code from your Authenticator app.',
       type: 'expired',
     };
   }

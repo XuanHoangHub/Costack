@@ -964,7 +964,7 @@ export default function SettingsPanel({
                               </button>
                             )}
                           </div>
-                          <div className="flex items-center gap-2.5">
+                          <div className="flex items-center gap-3">
                             <input
                               ref={logoInputRef}
                               type="file"
@@ -972,22 +972,35 @@ export default function SettingsPanel({
                               onChange={handleLogoUpload}
                               className="hidden"
                             />
-                            <button
-                              type="button"
-                              onClick={() => logoInputRef.current?.click()}
-                              disabled={isUploadingLogo}
-                              className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors shadow-3xs cursor-pointer"
-                            >
-                              {isUploadingLogo ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                              <span>{isUploadingLogo ? (isVietnamese ? 'Tải...' : '...') : (t('uploadLogo') || (isVietnamese ? 'Tải logo' : 'Upload'))}</span>
-                            </button>
-                            <input
-                              type="url"
-                              value={workspaceLogo}
-                              onChange={event => setWorkspaceLogo(event.target.value)}
-                              placeholder={isVietnamese ? 'Hoặc dán URL logo...' : 'Or paste URL...'}
-                              className={inputClass}
-                            />
+                            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-black text-xs text-slate-700 dark:text-slate-200 shadow-2xs">
+                              {workspaceLogo ? (
+                                <img src={workspaceLogo} alt="Logo" className="h-full w-full object-cover" />
+                              ) : (
+                                <span>{(workspaceName || activeWorkspace.name || 'A').charAt(0).toUpperCase()}</span>
+                              )}
+                            </div>
+                            <div className="flex flex-1 items-center gap-2.5 min-w-0">
+                              <button
+                                type="button"
+                                onClick={() => logoInputRef.current?.click()}
+                                disabled={isUploadingLogo}
+                                className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors shadow-3xs cursor-pointer disabled:opacity-50"
+                              >
+                                {isUploadingLogo ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                                <span>
+                                  {isUploadingLogo
+                                    ? (isVietnamese ? 'Đang tải lên...' : 'Uploading...')
+                                    : (workspaceLogo
+                                        ? (isVietnamese ? 'Thay đổi logo' : 'Change logo')
+                                        : (t('uploadLogo') || (isVietnamese ? 'Tải logo lên' : 'Upload logo')))}
+                                </span>
+                              </button>
+                              <span className="text-[11px] text-slate-400 dark:text-slate-500 truncate">
+                                {workspaceLogo 
+                                  ? (isVietnamese ? 'Đã tải lên logo' : 'Logo uploaded')
+                                  : (isVietnamese ? 'Hỗ trợ PNG, JPG, WebP' : 'Supports PNG, JPG, WebP')}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>

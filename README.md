@@ -1,7 +1,6 @@
-# Apexa
+# Upgen
 
-
-Apexa là workspace năng suất Việt–Anh xây dựng trên Next.js 16, React 19, Supabase và PayOS. Ứng dụng hợp nhất quản lý task, docs, chat realtime, calendar, CRM, ERP, finance, goals, whiteboard, automation và trợ lý Gemini AI.
+Upgen là workspace năng suất Việt–Anh xây dựng trên Next.js 16, React 19, Supabase và PayOS. Ứng dụng hợp nhất quản lý task, docs, chat realtime, calendar, CRM, ERP, finance, goals, whiteboard, automation và trợ lý Gemini AI.
 
 ## Yêu cầu
 

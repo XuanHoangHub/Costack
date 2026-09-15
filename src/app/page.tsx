@@ -136,6 +136,7 @@ import {
   BarChart3, Target, Menu, Keyboard, Boxes, Palette, CalendarClock,
   ListTodo, CheckSquare, Folder,
   ChevronsLeft, ChevronsRight,
+  PanelLeftClose, Pin,
   CalendarDays,
   ShieldCheck, Power, FolderPlus,
   CheckCheck, BellOff, Settings2, Inbox
@@ -438,7 +439,7 @@ export default function App() {
       try { cachedUser = cachedRaw ? JSON.parse(cachedRaw)?.user : null; } catch {}
 
       const isSuper = isApexaSuperAdmin(u.id);
-      const displayName = u.user_metadata?.full_name || u.user_metadata?.name || cachedUser?.name || u.email?.split('@')[0] || 'Apexa Champion';
+      const displayName = u.user_metadata?.full_name || u.user_metadata?.name || cachedUser?.name || u.email?.split('@')[0] || 'Upgen Champion';
       const displayAvatar = u.user_metadata?.avatar_url || u.user_metadata?.avatar || cachedUser?.avatar || '';
       const userObj = {
         id: u.id,
@@ -726,7 +727,7 @@ export default function App() {
         }
       } catch (err) {
         console.error('Error syncing spaces/lists with Supabase:', err);
-        triggerToast('info', 'Đã lưu trên thiết bị', 'Không thể đồng bộ thay đổi Space lên máy chủ. Apexa sẽ giữ bản cục bộ để bạn không mất dữ liệu.');
+        triggerToast('info', 'Đã lưu trên thiết bị', 'Không thể đồng bộ thay đổi Space lên máy chủ. Upgen sẽ giữ bản cục bộ để bạn không mất dữ liệu.');
       }
     }
   };
@@ -1426,6 +1427,33 @@ export default function App() {
   const [dragOverSide, setDragOverSide] = useState<'top' | 'bottom' | null>(null);
   const [showSidebarOrderModal, setShowSidebarOrderModal] = useState(false);
 
+  // Desktop Sidebar Auto-Hover & Auto-Collapse handlers
+  const [isSidebarHovered, setIsSidebarHovered] = useState(false);
+  const sidebarHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSidebarMouseEnter = useCallback(() => {
+    if (!isMainSidebarCollapsed) return;
+    if (sidebarHoverTimeoutRef.current) {
+      clearTimeout(sidebarHoverTimeoutRef.current);
+      sidebarHoverTimeoutRef.current = null;
+    }
+    sidebarHoverTimeoutRef.current = setTimeout(() => {
+      setIsSidebarHovered(true);
+    }, 70);
+  }, [isMainSidebarCollapsed]);
+
+  const handleSidebarMouseLeave = useCallback(() => {
+    if (!isMainSidebarCollapsed) return;
+    if (showWorkspaceMenu || showZoneModal || Boolean(draggedItemId)) return;
+    if (sidebarHoverTimeoutRef.current) {
+      clearTimeout(sidebarHoverTimeoutRef.current);
+      sidebarHoverTimeoutRef.current = null;
+    }
+    sidebarHoverTimeoutRef.current = setTimeout(() => {
+      setIsSidebarHovered(false);
+    }, 220);
+  }, [isMainSidebarCollapsed, showWorkspaceMenu, showZoneModal, draggedItemId]);
+
   const handleDragStart = (e: React.DragEvent, id: string) => {
     setDraggedItemId(id);
     e.dataTransfer.effectAllowed = 'move';
@@ -1571,7 +1599,7 @@ export default function App() {
     const workspaceChannels = [
       { id: `${activeWorkspaceId}:general`, name: 'general', description: 'General discussion for the department', type: 'public' },
       { id: `${activeWorkspaceId}:project-planning`, name: 'project-planning', description: 'Project planning & KPI tracking', type: 'public' },
-      { id: `${activeWorkspaceId}:apexa-ai`, name: 'apexa-ai', description: 'Apexa AI support assistant online', type: 'public' },
+      { id: `${activeWorkspaceId}:apexa-ai`, name: 'upgen-ai', description: 'Upgen AI support assistant online', type: 'public' },
       { id: `${activeWorkspaceId}:design-review`, name: 'design-review', description: 'Design whiteboard reviews', type: 'public' }
     ];
     return workspaceChannels.filter(c => 
@@ -2141,8 +2169,11 @@ export default function App() {
       setActiveListId(null);
     }
     setIsMobileSidebarOpen(false);
+    if (isMainSidebarCollapsed) {
+      setIsSidebarHovered(false);
+    }
     addSyncLog(`Switched to: ${label}`);
-  }, [setActiveTab, setActiveSpaceId, setActiveListId, setIsMobileSidebarOpen, addSyncLog, triggerToast, locale]);
+  }, [setActiveTab, setActiveSpaceId, setActiveListId, setIsMobileSidebarOpen, isMainSidebarCollapsed, addSyncLog, triggerToast, locale]);
 
   const handleMoveZone = useCallback((zoneId: string, direction: 'up' | 'down') => {
     const index = sidebarZones.findIndex(z => z.id === zoneId);
@@ -2613,7 +2644,7 @@ export default function App() {
         // A. Load Team Members first to find user profile (or handle placeholder)
         const myMemberId = `user-${userId}`;
         const googleName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
-        const myName = googleName || currentUser?.name || session.user.email?.split('@')[0] || 'Apexa Champion';
+        const myName = googleName || currentUser?.name || session.user.email?.split('@')[0] || 'Upgen Champion';
         const myEmail = currentUser?.email || session.user.email || '';
         const googleAvatar = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || session.user.user_metadata?.avatar || '';
         const cachedAvatar = currentUser?.avatar && !currentUser.avatar.includes('api.dicebear.com') ? currentUser.avatar : '';
@@ -4751,7 +4782,7 @@ export default function App() {
             <Settings className="h-6 w-6 animate-[spin_8s_linear_infinite]" />
           </span>
           <p className="mt-6 text-[10px] font-black uppercase tracking-[0.25em] text-indigo-300">Scheduled maintenance</p>
-          <h1 className="mt-2 text-2xl font-black">Apexa đang được bảo trì</h1>
+          <h1 className="mt-2 text-2xl font-black">Upgen đang được bảo trì</h1>
           <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-300">{runtimeConfig.maintenance.message}</p>
           <div className="mt-6 flex items-center justify-center gap-2 text-[10px] font-bold text-slate-500">
             <span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />
@@ -4780,7 +4811,7 @@ export default function App() {
           <div className="text-center space-y-2">
             <h2 className="text-2xl font-black text-slate-850 dark:text-slate-100 flex items-center justify-center gap-2">
               <Sparkles className="w-6 h-6 text-indigo-500" />
-              <span>Chào mừng bạn đến với Apexa!</span>
+              <span>Chào mừng bạn đến với Upgen!</span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Hãy thiết lập không gian làm việc cá nhân để bắt đầu.
@@ -4863,6 +4894,363 @@ export default function App() {
     );
   }
 
+  const renderSidebarContent = (collapsed: boolean, isHoverDrawer = false) => (
+    <>
+      {/* Row 1: Workspace Switcher Header (Height h-14, matching the top header on the right) */}
+      <div className={`flex h-14 shrink-0 items-center transition-all ${
+        collapsed ? 'justify-center px-2' : 'justify-between px-2.5 gap-1.5'
+      }`}>
+        {collapsed ? (
+          <button
+            type="button" 
+            onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
+            aria-expanded={showWorkspaceMenu}
+            aria-label={currentWorkspace?.name || 'Upgen'}
+            title={`${currentWorkspace?.name || 'Upgen'} — ${locale === 'vi' ? 'Nhấp để đổi không gian làm việc' : 'Click to switch workspace'}`}
+            className="group relative flex h-10 w-10 items-center justify-center rounded-[14px] border border-slate-200/90 dark:border-white/[0.08] bg-white dark:bg-white/[0.04] text-white font-black text-xs shadow-xs hover:scale-105 hover:border-blue-400 dark:hover:border-sky-400 active:scale-95 transition-all cursor-pointer overflow-hidden select-none"
+          >
+            <div 
+              className="w-full h-full flex items-center justify-center rounded-[13px] overflow-hidden"
+              style={!currentWorkspace?.logoUrl ? {
+                background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #38bdf8, #0284c7)' :
+                            currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #34d399, #059669)' :
+                            currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #f43f5e, #be123c)' :
+                            'linear-gradient(135deg, #2563eb, #0284c7)',
+              } : undefined}
+            >
+              {currentWorkspace?.logoUrl ? (
+                <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
+              ) : (
+                <span>{(currentWorkspace?.name || 'U').charAt(0).toUpperCase()}</span>
+              )}
+            </div>
+          </button>
+        ) : (
+          <>
+            {/* Compact Switcher Pill Button */}
+            <button
+              type="button" 
+              className="apexa-workspace-trigger group flex min-w-0 flex-1 cursor-pointer select-none items-center justify-between rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50 dark:border-white/[0.08] dark:bg-white/[0.03] dark:hover:border-white/[0.16] dark:hover:bg-white/[0.07] px-2.5 py-1.5 text-left shadow-2xs transition-all duration-200 active:scale-[0.99]"
+              onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
+              aria-expanded={showWorkspaceMenu}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <div 
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-black text-[10px] shadow-xs shrink-0 select-none overflow-hidden border border-black/5 dark:border-white/10"
+                  style={!currentWorkspace?.logoUrl ? {
+                    background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #38bdf8, #0284c7)' :
+                                currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #34d399, #059669)' :
+                                currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #f43f5e, #be123c)' :
+                                'linear-gradient(135deg, #2563eb, #0284c7)',
+                  } : undefined}
+                >
+                  {currentWorkspace?.logoUrl ? (
+                    <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
+                  ) : (
+                    <span>{(currentWorkspace?.name || 'U').charAt(0).toUpperCase()}</span>
+                  )}
+                </div>
+                <span className="font-sans font-extrabold text-slate-800 dark:text-white text-[12.5px] tracking-tight truncate flex-1">
+                  {currentWorkspace?.name || 'Upgen'}
+                </span>
+              </div>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 group-hover:text-slate-700 dark:group-hover:text-white transition-transform duration-200 group-hover:translate-y-0.5 ml-1" />
+            </button>
+
+            {/* Modern Sleek Collapse / Pin Button */}
+            {isHoverDrawer ? (
+              <button 
+                type="button"
+                onClick={() => {
+                  setIsMainSidebarCollapsed(false);
+                  setIsSidebarHovered(false);
+                  (window as any).playSystemSound?.('click');
+                }} 
+                className="group relative flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:text-zinc-400 dark:hover:text-sky-300 dark:hover:bg-sky-500/15 active:scale-90 transition-all duration-150 cursor-pointer"
+                title={locale === 'vi' ? 'Ghim thanh bên (Giữ luôn mở)' : 'Pin sidebar (Keep open)'}
+                aria-label={locale === 'vi' ? 'Ghim thanh bên' : 'Pin sidebar'}
+              >
+                <Pin className="w-3.5 h-3.5 rotate-45 transition-transform duration-150 group-hover:scale-110 text-slate-500 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-sky-300" />
+              </button>
+            ) : (
+              <button 
+                type="button"
+                onClick={() => {
+                  setIsMainSidebarCollapsed(true);
+                  setIsSidebarHovered(false);
+                  (window as any).playSystemSound?.('click');
+                }} 
+                className="group relative flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/[0.08] active:scale-90 transition-all duration-150 cursor-pointer"
+                title={locale === 'vi' ? 'Thu gọn thanh bên (Tự động mở khi rê chuột • Ctrl+\\)' : 'Collapse sidebar (Hover to expand • Ctrl+\\)'}
+                aria-label={locale === 'vi' ? 'Thu gọn thanh bên' : 'Collapse sidebar'}
+              >
+                <PanelLeftClose className="w-4 h-4 transition-transform duration-150 group-hover:-translate-x-0.5 text-slate-500 dark:text-zinc-400 group-hover:text-slate-800 dark:group-hover:text-white" />
+              </button>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Row 2: Super Admin Control Center */}
+      {isApexaSuperAdmin(currentUser?.id) && (
+        <div className="shrink-0 px-2 pt-0.5 pb-1">
+          <a
+            href="/admin"
+            className={`group flex items-center rounded-xl border transition-all ${
+              collapsed 
+                ? 'h-10 w-10 mx-auto justify-center p-0 rounded-[14px] border-sky-300/80 dark:border-sky-500/25 bg-sky-50/90 dark:bg-sky-500/10 text-sky-600 dark:text-sky-300 hover:scale-105 hover:bg-sky-100 dark:hover:bg-sky-500/20 shadow-xs' 
+                : 'h-[34px] w-full gap-2 px-2.5 py-1 border-sky-500/20 bg-sky-500/[0.05] text-sky-700 dark:text-sky-300 hover:border-sky-500/35 hover:bg-sky-500/[0.10] hover:text-sky-900 dark:hover:text-white shadow-2xs'
+            }`}
+            title="Upgen Control Center (Admin)"
+          >
+            <div className={`relative flex shrink-0 items-center justify-center rounded-lg transition-all ${
+              collapsed ? '' : 'h-5 w-5 text-sky-600 dark:text-sky-400'
+            }`}>
+              <ShieldCheck className={collapsed ? "h-5 w-5" : "h-3.5 w-3.5"} />
+              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-[#0c0d12] animate-pulse shadow-sm" />
+            </div>
+            {!collapsed && (
+              <div className="flex min-w-0 flex-1 items-center justify-between">
+                <span className="truncate text-xs font-semibold text-slate-800 dark:text-zinc-200 group-hover:text-slate-950 dark:group-hover:text-white">
+                  {locale === 'vi' ? 'Trung tâm điều khiển' : 'Control Center'}
+                </span>
+                <span className="shrink-0 rounded px-1.5 py-0.2 text-[8px] font-extrabold uppercase text-sky-700 bg-sky-50 dark:text-sky-300 dark:bg-sky-500/20 border border-sky-200 dark:border-sky-500/30">Admin</span>
+              </div>
+            )}
+          </a>
+        </div>
+      )}
+
+      {/* Row 3: Subtle Divider */}
+      <div className={`h-px bg-slate-200/80 dark:bg-white/[0.08] my-1 shrink-0 ${collapsed ? 'w-8 mx-auto' : 'mx-2.5'}`} />
+
+      {/* Row 4: Scrollable Navigation List */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar space-y-0.5 px-2 w-full">
+        {/* Root Modules */}
+        {rootOrderedItems.map((item) => {
+          const isActive = item.id === 'tasks'
+            ? (activeTab === 'tasks' && activeSpaceId === null && activeListId === null)
+            : (activeTab === item.id);
+
+          return (
+            <NavItem
+              key={item.id}
+              icon={item.icon}
+              label={item.label}
+              shortLabel={getShortLabel(item.label)}
+              shortcut={item.shortcut}
+              description={item.description}
+              isActive={isActive}
+              count={item.count}
+              badge={item.badge}
+              disabled={item.disabled}
+              disabledTooltip={item.disabledTooltip}
+              collapsed={collapsed}
+              isDragging={draggedItemId === item.id}
+              onDragStart={(e) => handleDragStart(e, item.id)}
+              onDragOver={(e) => handleDragOver(e, item.id)}
+              onDragLeave={handleDragLeave}
+              onDragEnd={handleDragEnd}
+              onDrop={(e) => handleDrop(e, item.id)}
+              onClick={() => {
+                handleNavItemClick(item.id, item.label, item.disabled);
+                if (isHoverDrawer) setIsSidebarHovered(false);
+              }}
+              dragIndicator={dragOverItemId === item.id ? (
+                <div className={`absolute left-0 right-0 h-0.5 bg-blue-500 z-50 rounded-full ${dragOverSide === 'top' ? '-top-0.5' : '-bottom-0.5'}`} />
+              ) : undefined}
+            />
+          );
+        })}
+
+        {/* Custom Workspace Zones */}
+        {sidebarZones.map((zone, zIdx) => (
+          <SidebarZoneGroup
+            key={zone.id}
+            zone={zone}
+            collapsed={collapsed}
+            activeTab={activeTab}
+            activeSpaceId={activeSpaceId}
+            activeListId={activeListId}
+            sidebarItemsMeta={sidebarItemsMeta}
+            draggedItemId={draggedItemId}
+            dragOverItemId={dragOverItemId}
+            dragOverSide={dragOverSide}
+            onDragStart={handleDragStart}
+            onDragOverItem={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDragEnd={handleDragEnd}
+            onDropOnItem={handleDrop}
+            onDropOnZone={handleDropOnZone}
+            onItemClick={(id: string, lbl: string) => {
+              handleNavItemClick(id, lbl);
+              if (isHoverDrawer) setIsSidebarHovered(false);
+            }}
+            onEditZone={(z) => {
+              setEditingZone(z);
+              setShowZoneModal(true);
+            }}
+            onDeleteZone={(zId) => {
+              deleteSidebarZone(zId);
+              triggerToast('info', locale === 'vi' ? 'Đã xóa Vùng' : 'Zone Deleted', locale === 'vi' ? 'Các module đã quay lại thanh bên' : 'Modules moved back to root');
+            }}
+            onMoveZone={handleMoveZone}
+            isFirstZone={zIdx === 0}
+            isLastZone={zIdx === sidebarZones.length - 1}
+            getShortLabel={getShortLabel}
+          />
+        ))}
+
+        {/* Create New Zone Button */}
+        <div className="pt-1 pb-1">
+          {collapsed ? (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingZone(null);
+                setShowZoneModal(true);
+              }}
+              title={locale === 'vi' ? 'Tạo Vùng mới' : 'Create New Zone'}
+              className="flex h-10 w-10 mx-auto items-center justify-center rounded-[14px] border border-dashed border-slate-300/90 dark:border-white/15 bg-slate-50/70 dark:bg-white/[0.02] text-slate-500 dark:text-zinc-400 hover:border-blue-400/80 hover:bg-blue-50/60 hover:text-blue-600 dark:hover:border-sky-400/50 dark:hover:bg-sky-500/15 dark:hover:text-sky-300 active:scale-92 transition-all cursor-pointer group shadow-3xs"
+            >
+              <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              title={locale === 'vi' ? 'Tạo Vùng mới' : 'Create New Zone'}
+              onClick={() => {
+                setEditingZone(null);
+                setShowZoneModal(true);
+              }}
+              className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-xl border border-dashed border-slate-300/80 bg-slate-50/50 text-slate-500 hover:border-blue-400 hover:bg-blue-50/50 hover:text-blue-600 dark:border-white/12 dark:bg-white/[0.02] dark:text-zinc-400 dark:hover:border-sky-500/40 dark:hover:bg-sky-500/10 dark:hover:text-sky-300 transition-all cursor-pointer text-left group"
+            >
+              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-slate-200/60 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 dark:bg-white/[0.06] dark:text-zinc-400 dark:group-hover:bg-sky-500/20 dark:group-hover:text-sky-300 transition-colors">
+                <Plus className="h-3 w-3" />
+              </div>
+              <span className="text-xs font-semibold tracking-tight truncate">
+                {locale === 'vi' ? 'Tạo Vùng mới' : 'New Zone'}
+              </span>
+            </button>
+          )}
+        </div>
+
+        {/* Spaces & Project Lists Section */}
+        {collapsed ? (
+          spaces.length > 0 && (
+            <div className="pt-2 pb-1 border-t border-slate-200/80 dark:border-white/[0.06] mt-2 flex flex-col items-center space-y-1">
+              {spaces.map((sp) => {
+                const isSpaceActive = activeTab === 'tasks' && activeSpaceId === sp.id;
+                return (
+                  <button
+                    key={sp.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('tasks');
+                      setActiveSpaceId(sp.id);
+                      setActiveListId(sp.lists?.[0]?.id || null);
+                      if (isHoverDrawer) setIsSidebarHovered(false);
+                    }}
+                    title={`${sp.name}${sp.lists?.length ? ` (${sp.lists.length} lists)` : ''}`}
+                    className={`relative flex h-9 w-9 select-none items-center justify-center rounded-xl transition-all duration-150 active:scale-95 cursor-pointer ${
+                      isSpaceActive
+                        ? 'border border-blue-200 bg-blue-50/90 text-blue-600 shadow-xs dark:border-sky-500/30 dark:bg-blue-500/15 dark:text-sky-300 ring-1 ring-blue-500/20'
+                        : 'border border-transparent text-slate-500 hover:bg-slate-100/80 hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white'
+                    }`}
+                  >
+                    <span className="text-sm select-none flex items-center justify-center">{renderSpaceIcon(sp.emoji || 'Folder', "w-4 h-4 shrink-0", undefined, { preserveEmoji: true })}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )
+        ) : (
+          <div className="pt-2.5 pb-1 border-t border-slate-200/80 dark:border-white/[0.06] mt-2">
+            <div className="flex items-center justify-between px-2.5 py-1 text-[11px] font-bold tracking-wider text-slate-400 dark:text-zinc-500 uppercase">
+              <button
+                type="button"
+                onClick={() => setIsSpacesExpanded((prev) => !prev)}
+                className="flex items-center gap-1.5 hover:text-slate-700 dark:hover:text-zinc-300 transition-colors cursor-pointer group"
+              >
+                <ChevronDown className={`w-3 h-3 text-slate-400 dark:text-zinc-500 transition-transform duration-150 ${isSpacesExpanded ? '' : '-rotate-90'}`} />
+                <span>{locale === 'vi' ? 'Không gian' : 'Spaces'}</span>
+                {spaces.length > 0 && (
+                  <span className="text-[9px] font-mono font-semibold px-1 py-0.2 rounded bg-slate-100 dark:bg-white/[0.06] text-slate-400 dark:text-zinc-400">
+                    {spaces.length}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAddSpaceModal(true)}
+                title={locale === 'vi' ? 'Tạo Không gian mới (+ Space)' : 'Create New Space'}
+                className="p-1 rounded-md text-slate-400 hover:text-slate-800 hover:bg-slate-100 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-white/[0.08] transition-all cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {isSpacesExpanded && (
+              <div className="space-y-0.5 mt-0.5">
+                {spaces.length === 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddSpaceModal(true)}
+                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300 hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors group cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 group-hover:scale-110 transition-transform" />
+                    <span>{locale === 'vi' ? 'Thêm Không gian đầu tiên...' : 'Add your first Space...'}</span>
+                  </button>
+                ) : (
+                  spaces.map((sp) => {
+                    const isSpaceActive = activeTab === 'tasks' && activeSpaceId === sp.id;
+                    return (
+                      <button
+                        key={sp.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveTab('tasks');
+                          setActiveSpaceId(sp.id);
+                          setActiveListId(sp.lists?.[0]?.id || null);
+                          if (isHoverDrawer) setIsSidebarHovered(false);
+                        }}
+                        className={`group relative flex h-8 min-h-[32px] w-full select-none items-center gap-2 rounded-lg px-2 text-left transition-colors duration-150 cursor-pointer ${
+                          isSpaceActive
+                            ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300 font-semibold shadow-2xs'
+                            : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100/70 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-zinc-100 font-medium'
+                        }`}
+                      >
+                        {isSpaceActive && (
+                          <div className="absolute left-0 top-1.5 bottom-1.5 w-0.75 rounded-r-full bg-blue-600 dark:bg-blue-400 shadow-xs" />
+                        )}
+                        {sp.emoji && sp.emoji !== '📦' ? (
+                          <span className="text-sm shrink-0 select-none flex items-center justify-center">{renderSpaceIcon(sp.emoji, "w-4 h-4 shrink-0", undefined, { preserveEmoji: true })}</span>
+                        ) : (
+                          <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded text-[9.5px] font-bold text-white bg-blue-600 dark:bg-blue-500 shadow-2xs">
+                            {sp.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <span className="truncate text-[12px] flex-1">
+                          {sp.name}
+                        </span>
+                        {sp.lists && sp.lists.length > 0 && (
+                          <span className="text-[10px] font-mono text-slate-400 dark:text-zinc-500 shrink-0 ml-auto tabular-nums">
+                            {sp.lists.length}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+    </>
+  );
+
   return (
     <div
       className="apexa-app-shell apexa-design-system fixed inset-0 flex h-full w-full select-none flex-col md:flex-row overflow-hidden font-sans text-[var(--cu-text-primary)] bg-white dark:bg-[var(--cu-bg)]"
@@ -4879,364 +5267,37 @@ export default function App() {
       {/* Modern Unified Desktop Sidebar Navigation */}
       <aside 
         data-collapsed={isMainSidebarCollapsed}
+        data-hovered={isSidebarHovered}
+        onMouseEnter={handleSidebarMouseEnter}
+        onMouseLeave={handleSidebarMouseLeave}
         className={`apexa-desktop-sidebar cu-sidebar relative z-30 hidden shrink-0 cursor-default flex-col transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:flex h-full border-r border-slate-200/90 dark:border-white/[0.08] bg-slate-50/60 dark:bg-[var(--sidebar-bg)] ${
           isMainSidebarCollapsed 
             ? 'w-[68px]' 
             : 'w-[var(--cu-sidebar-width)]'
         }`}
       >
-        {/* Row 1: Workspace Switcher Header (Height h-14, matching the top header on the right) */}
-        <div className={`flex h-14 shrink-0 items-center transition-all ${
-          isMainSidebarCollapsed ? 'justify-center px-2' : 'justify-between px-2.5 gap-1.5'
-        }`}>
-          {isMainSidebarCollapsed ? (
-            <button
-              type="button" 
-              onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
-              aria-expanded={showWorkspaceMenu}
-              aria-label={currentWorkspace?.name || 'Apexa'}
-              title={`${currentWorkspace?.name || 'Apexa'} — ${locale === 'vi' ? 'Nhấp để đổi không gian làm việc' : 'Click to switch workspace'}`}
-              className="group relative flex h-10 w-10 items-center justify-center rounded-[14px] border border-slate-200/90 dark:border-white/[0.08] bg-white dark:bg-white/[0.04] text-white font-black text-xs shadow-xs hover:scale-105 hover:border-blue-400 dark:hover:border-sky-400 active:scale-95 transition-all cursor-pointer overflow-hidden select-none"
-            >
-              <div 
-                className="w-full h-full flex items-center justify-center rounded-[13px] overflow-hidden"
-                style={!currentWorkspace?.logoUrl ? {
-                  background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #38bdf8, #0284c7)' :
-                              currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #34d399, #059669)' :
-                              currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #f43f5e, #be123c)' :
-                              'linear-gradient(135deg, #2563eb, #0284c7)',
-                } : undefined}
-              >
-                {currentWorkspace?.logoUrl ? (
-                  <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
-                ) : (
-                  <ApexaAiIcon className="w-5 h-5" variant="white" />
-                )}
-              </div>
-            </button>
-          ) : (
-            <>
-              {/* Compact Switcher Pill Button */}
-              <button
-                type="button" 
-                className="apexa-workspace-trigger group flex min-w-0 flex-1 cursor-pointer select-none items-center justify-between rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50 dark:border-white/[0.08] dark:bg-white/[0.03] dark:hover:border-white/[0.16] dark:hover:bg-white/[0.07] px-2.5 py-1.5 text-left shadow-2xs transition-all duration-200 active:scale-[0.99]"
-                onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
-                aria-expanded={showWorkspaceMenu}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div 
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-black text-[10px] shadow-xs shrink-0 select-none overflow-hidden border border-black/5 dark:border-white/10"
-                    style={!currentWorkspace?.logoUrl ? {
-                      background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #38bdf8, #0284c7)' :
-                                  currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #34d399, #059669)' :
-                                  currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #f43f5e, #be123c)' :
-                                  'linear-gradient(135deg, #2563eb, #0284c7)',
-                    } : undefined}
-                  >
-                    {currentWorkspace?.logoUrl ? (
-                      <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
-                    ) : (
-                      <ApexaAiIcon className="w-4 h-4" variant="white" />
-                    )}
-                  </div>
-                  <span className="font-sans font-extrabold text-slate-800 dark:text-white text-[12.5px] tracking-tight truncate flex-1">
-                    {(currentWorkspace?.name && currentWorkspace.name.trim().toLowerCase() !== 'avaxa') ? currentWorkspace.name : 'Apexa'}
-                  </span>
-                </div>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 group-hover:text-slate-700 dark:group-hover:text-white transition-transform duration-200 group-hover:translate-y-0.5 ml-1" />
-              </button>
-
-              {/* Modern Sidebar Collapse Button */}
-              <button 
-                type="button"
-                onClick={() => {
-                  setIsMainSidebarCollapsed(true);
-                  (window as any).playSystemSound?.('click');
-                }} 
-                className="group relative flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-xl border border-slate-200/90 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-slate-400 dark:hover:border-white/20 dark:hover:bg-white/[0.08] dark:hover:text-white active:scale-90 transition-all duration-200 cursor-pointer shadow-xs"
-                title={locale === 'vi' ? 'Thu gọn thanh bên (Ctrl+\\)' : 'Collapse sidebar (Ctrl+\\)'}
-                aria-label={locale === 'vi' ? 'Thu gọn thanh bên' : 'Collapse sidebar'}
-              >
-                <ChevronsLeft className="w-4 h-4 transition-transform duration-200 ease-out group-hover:-translate-x-0.5 text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white" />
-              </button>
-            </>
-          )}
+        {/* Base Sidebar Layer (Always in flow) */}
+        <div className="relative w-full h-full flex flex-col min-h-0">
+          {renderSidebarContent(isMainSidebarCollapsed, false)}
         </div>
 
-        {/* Row 2: Super Admin Control Center */}
-        {isApexaSuperAdmin(currentUser?.id) && (
-          <div className="shrink-0 px-2 pt-0.5 pb-1">
-            <a
-              href="/admin"
-              className={`group flex items-center rounded-xl border transition-all ${
-                isMainSidebarCollapsed 
-                  ? 'h-10 w-10 mx-auto justify-center p-0 rounded-[14px] border-sky-300/80 dark:border-sky-500/25 bg-sky-50/90 dark:bg-sky-500/10 text-sky-600 dark:text-sky-300 hover:scale-105 hover:bg-sky-100 dark:hover:bg-sky-500/20 shadow-xs' 
-                  : 'h-[34px] w-full gap-2 px-2.5 py-1 border-sky-500/20 bg-sky-500/[0.05] text-sky-700 dark:text-sky-300 hover:border-sky-500/35 hover:bg-sky-500/[0.10] hover:text-sky-900 dark:hover:text-white shadow-2xs'
-              }`}
-              title="Apexa Control Center (Admin)"
+        {/* Ultra-smooth Hover Drawer Layer (when collapsed & hovered) */}
+        <AnimatePresence>
+          {isMainSidebarCollapsed && isSidebarHovered && (
+            <motion.div
+              key="apexa-hover-sidebar-drawer"
+              initial={{ opacity: 0, x: -14, filter: 'blur(4px)' }}
+              animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, x: -10, filter: 'blur(3px)' }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              onMouseEnter={handleSidebarMouseEnter}
+              onMouseLeave={handleSidebarMouseLeave}
+              className="absolute top-0 left-0 bottom-0 z-40 w-[var(--cu-sidebar-width)] flex flex-col border-r border-slate-200/90 dark:border-white/[0.08] bg-white/98 dark:bg-[#0c0e14]/98 shadow-[0_16px_48px_-8px_rgba(15,23,42,0.18)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.75)] backdrop-blur-2xl select-none"
             >
-              <div className={`relative flex shrink-0 items-center justify-center rounded-lg transition-all ${
-                isMainSidebarCollapsed ? '' : 'h-5 w-5 text-sky-600 dark:text-sky-400'
-              }`}>
-                <ShieldCheck className={isMainSidebarCollapsed ? "h-5 w-5" : "h-3.5 w-3.5"} />
-                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-[#0c0d12] animate-pulse shadow-sm" />
-              </div>
-              {!isMainSidebarCollapsed && (
-                <div className="flex min-w-0 flex-1 items-center justify-between">
-                  <span className="truncate text-xs font-semibold text-slate-800 dark:text-zinc-200 group-hover:text-slate-950 dark:group-hover:text-white">
-                    {locale === 'vi' ? 'Trung tâm điều khiển' : 'Control Center'}
-                  </span>
-                  <span className="shrink-0 rounded px-1.5 py-0.2 text-[8px] font-extrabold uppercase text-sky-700 bg-sky-50 dark:text-sky-300 dark:bg-sky-500/20 border border-sky-200 dark:border-sky-500/30">Admin</span>
-                </div>
-              )}
-            </a>
-          </div>
-        )}
-
-        {/* Row 3: Subtle Divider */}
-        <div className={`h-px bg-slate-200/80 dark:bg-white/[0.08] my-1 shrink-0 ${isMainSidebarCollapsed ? 'w-8 mx-auto' : 'mx-2.5'}`} />
-
-        {/* Row 4: Scrollable Navigation List */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar space-y-0.5 px-2 w-full">
-          {/* Root Modules */}
-          {rootOrderedItems.map((item) => {
-            const isActive = item.id === 'tasks'
-              ? (activeTab === 'tasks' && activeSpaceId === null && activeListId === null)
-              : (activeTab === item.id);
-
-            return (
-              <NavItem
-                key={item.id}
-                icon={item.icon}
-                label={item.label}
-                shortLabel={getShortLabel(item.label)}
-                shortcut={item.shortcut}
-                description={item.description}
-                isActive={isActive}
-                count={item.count}
-                badge={item.badge}
-                disabled={item.disabled}
-                disabledTooltip={item.disabledTooltip}
-                collapsed={isMainSidebarCollapsed}
-                isDragging={draggedItemId === item.id}
-                onDragStart={(e) => handleDragStart(e, item.id)}
-                onDragOver={(e) => handleDragOver(e, item.id)}
-                onDragLeave={handleDragLeave}
-                onDragEnd={handleDragEnd}
-                onDrop={(e) => handleDrop(e, item.id)}
-                onClick={() => handleNavItemClick(item.id, item.label, item.disabled)}
-                dragIndicator={dragOverItemId === item.id && dragOverSide ? (
-                  <div
-                    className={`absolute left-1 right-1 h-1 z-30 pointer-events-none rounded-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 shadow-[0_0_12px_rgba(56,189,248,0.9)] transition-all ${
-                      dragOverSide === 'top' 
-                        ? '-top-0.5' 
-                        : '-bottom-0.5'
-                    }`}
-                  >
-                    <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-sky-300 ring-2 ring-blue-500 shadow-[0_0_8px_rgba(56,189,248,1)]" />
-                  </div>
-                ) : undefined}
-              />
-            );
-          })}
-
-          {/* Custom Workspace Zones */}
-          {sidebarZones.map((zone, zIdx) => (
-            <SidebarZoneGroup
-              key={zone.id}
-              zone={zone}
-              collapsed={isMainSidebarCollapsed}
-              activeTab={activeTab}
-              activeSpaceId={activeSpaceId}
-              activeListId={activeListId}
-              sidebarItemsMeta={sidebarItemsMeta}
-              draggedItemId={draggedItemId}
-              dragOverItemId={dragOverItemId}
-              dragOverSide={dragOverSide}
-              onDragStart={handleDragStart}
-              onDragOverItem={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDragEnd={handleDragEnd}
-              onDropOnItem={handleDrop}
-              onDropOnZone={handleDropOnZone}
-              onItemClick={handleNavItemClick}
-              onEditZone={(z) => {
-                setEditingZone(z);
-                setShowZoneModal(true);
-              }}
-              onDeleteZone={(zId) => {
-                deleteSidebarZone(zId);
-                triggerToast('info', locale === 'vi' ? 'Đã xóa Vùng' : 'Zone Deleted', locale === 'vi' ? 'Các module đã quay lại thanh bên' : 'Modules moved back to root');
-              }}
-              onMoveZone={handleMoveZone}
-              isFirstZone={zIdx === 0}
-              isLastZone={zIdx === sidebarZones.length - 1}
-              getShortLabel={getShortLabel}
-            />
-          ))}
-
-          {/* Create New Zone Button */}
-          <div className="pt-1 pb-1">
-            {isMainSidebarCollapsed ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingZone(null);
-                  setShowZoneModal(true);
-                }}
-                title={locale === 'vi' ? 'Tạo Vùng mới' : 'Create New Zone'}
-                className="flex h-10 w-10 mx-auto items-center justify-center rounded-[14px] border border-dashed border-slate-300/90 dark:border-white/15 bg-slate-50/70 dark:bg-white/[0.02] text-slate-500 dark:text-zinc-400 hover:border-blue-400/80 hover:bg-blue-50/60 hover:text-blue-600 dark:hover:border-sky-400/50 dark:hover:bg-sky-500/15 dark:hover:text-sky-300 active:scale-92 transition-all cursor-pointer group shadow-3xs"
-              >
-                <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                title={locale === 'vi' ? 'Tạo Vùng mới' : 'Create New Zone'}
-                onClick={() => {
-                  setEditingZone(null);
-                  setShowZoneModal(true);
-                }}
-                className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-xl border border-dashed border-slate-300/80 bg-slate-50/50 text-slate-500 hover:border-blue-400 hover:bg-blue-50/50 hover:text-blue-600 dark:border-white/12 dark:bg-white/[0.02] dark:text-zinc-400 dark:hover:border-sky-500/40 dark:hover:bg-sky-500/10 dark:hover:text-sky-300 transition-all cursor-pointer text-left group"
-              >
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-slate-200/60 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 dark:bg-white/[0.06] dark:text-zinc-400 dark:group-hover:bg-sky-500/20 dark:group-hover:text-sky-300 transition-colors">
-                  <Plus className="h-3 w-3" />
-                </div>
-                <span className="text-xs font-semibold tracking-tight truncate">
-                  {locale === 'vi' ? 'Tạo Vùng mới' : 'New Zone'}
-                </span>
-              </button>
-            )}
-          </div>
-
-          {/* Spaces & Project Lists Section - Eliminates the empty void */}
-          {isMainSidebarCollapsed ? (
-            spaces.length > 0 && (
-              <div className="pt-2 pb-1 border-t border-slate-200/80 dark:border-white/[0.06] mt-2 flex flex-col items-center space-y-1">
-                {spaces.map((sp) => {
-                  const isSpaceActive = activeTab === 'tasks' && activeSpaceId === sp.id;
-                  return (
-                    <button
-                      key={sp.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveTab('tasks');
-                        setActiveSpaceId(sp.id);
-                        setActiveListId(sp.lists?.[0]?.id || null);
-                      }}
-                      title={`${sp.name}${sp.lists?.length ? ` (${sp.lists.length} lists)` : ''}`}
-                      className={`relative flex h-9 w-9 select-none items-center justify-center rounded-xl transition-all duration-150 active:scale-95 cursor-pointer ${
-                        isSpaceActive
-                          ? 'border border-blue-200 bg-blue-50/90 text-blue-600 shadow-xs dark:border-sky-500/30 dark:bg-blue-500/15 dark:text-sky-300 ring-1 ring-blue-500/20'
-                          : 'border border-transparent text-slate-500 hover:bg-slate-100/80 hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white'
-                      }`}
-                    >
-                      <span className="text-sm select-none flex items-center justify-center">{renderSpaceIcon(sp.emoji || 'Folder', "w-4 h-4 shrink-0", undefined, { preserveEmoji: true })}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )
-          ) : (
-            <div className="pt-2.5 pb-1 border-t border-slate-200/80 dark:border-white/[0.06] mt-2">
-              <div className="flex items-center justify-between px-2.5 py-1 text-[11px] font-bold tracking-wider text-slate-400 dark:text-zinc-500 uppercase">
-                <button
-                  type="button"
-                  onClick={() => setIsSpacesExpanded((prev) => !prev)}
-                  className="flex items-center gap-1.5 hover:text-slate-700 dark:hover:text-zinc-300 transition-colors cursor-pointer group"
-                >
-                  <ChevronDown className={`w-3 h-3 text-slate-400 dark:text-zinc-500 transition-transform duration-150 ${isSpacesExpanded ? '' : '-rotate-90'}`} />
-                  <span>{locale === 'vi' ? 'Không gian' : 'Spaces'}</span>
-                  {spaces.length > 0 && (
-                    <span className="text-[9px] font-mono font-semibold px-1 py-0.2 rounded bg-slate-100 dark:bg-white/[0.06] text-slate-400 dark:text-zinc-400">
-                      {spaces.length}
-                    </span>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddSpaceModal(true)}
-                  title={locale === 'vi' ? 'Tạo Không gian mới (+ Space)' : 'Create New Space'}
-                  className="p-1 rounded-md text-slate-400 hover:text-slate-800 hover:bg-slate-100 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-white/[0.08] transition-all cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {isSpacesExpanded && (
-                <div className="space-y-0.5 mt-0.5">
-                  {spaces.length === 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowAddSpaceModal(true)}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300 hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors group cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 group-hover:scale-110 transition-transform" />
-                      <span>{locale === 'vi' ? 'Thêm Không gian đầu tiên...' : 'Add your first Space...'}</span>
-                    </button>
-                  ) : (
-                    spaces.map((sp) => {
-                      const isSpaceActive = activeTab === 'tasks' && activeSpaceId === sp.id;
-                      return (
-                        <button
-                          key={sp.id}
-                          type="button"
-                          onClick={() => {
-                            setActiveTab('tasks');
-                            setActiveSpaceId(sp.id);
-                            setActiveListId(sp.lists?.[0]?.id || null);
-                          }}
-                          className={`group relative flex h-8 min-h-[32px] w-full select-none items-center gap-2 rounded-lg px-2 text-left transition-colors duration-150 cursor-pointer ${
-                            isSpaceActive
-                              ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300 font-semibold shadow-2xs'
-                              : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100/70 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-zinc-100 font-medium'
-                          }`}
-                        >
-                          {isSpaceActive && (
-                            <div className="absolute left-0 top-1.5 bottom-1.5 w-0.75 rounded-r-full bg-blue-600 dark:bg-blue-400 shadow-xs" />
-                          )}
-                          {sp.emoji && sp.emoji !== '📦' ? (
-                            <span className="text-sm shrink-0 select-none flex items-center justify-center">{renderSpaceIcon(sp.emoji, "w-4 h-4 shrink-0", undefined, { preserveEmoji: true })}</span>
-                          ) : (
-                            <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded text-[9.5px] font-bold text-white bg-blue-600 dark:bg-blue-500 shadow-2xs">
-                              {sp.name.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                          <span className="truncate text-[12px] flex-1">
-                            {sp.name}
-                          </span>
-                          {sp.lists && sp.lists.length > 0 && (
-                            <span className="text-[10px] font-mono text-slate-400 dark:text-zinc-500 shrink-0 ml-auto tabular-nums">
-                              {sp.lists.length}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              )}
-            </div>
+              {renderSidebarContent(false, true)}
+            </motion.div>
           )}
-        </div>
-
-        {/* Row 5: Sidebar Bottom Collapse/Expand Controls */}
-        {isMainSidebarCollapsed && (
-          <div className="shrink-0 py-2.5 flex items-center justify-center w-full border-t border-slate-200/80 dark:border-white/[0.08]">
-            <button
-              type="button"
-              onClick={() => {
-                setIsMainSidebarCollapsed(false);
-                (window as any).playSystemSound?.('click');
-              }}
-              title={locale === 'vi' ? 'Mở rộng thanh bên (Ctrl+\\)' : 'Expand sidebar (Ctrl+\\)'}
-              className="group relative flex h-8 w-8 items-center justify-center rounded-xl border border-transparent text-slate-400 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-sky-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] active:scale-92 transition-all cursor-pointer"
-              aria-label={locale === 'vi' ? 'Mở rộng thanh bên' : 'Expand sidebar'}
-            >
-              <ChevronsRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
-            </button>
-          </div>
-        )}
+        </AnimatePresence>
 
         {/* Workspace Dropdown Menu */}
         <AnimatePresence>
@@ -5249,7 +5310,7 @@ export default function App() {
                 exit={{ opacity: 0, y: -8, scale: 0.96 }}
                 transition={{ duration: 0.16, ease: "easeOut" }}
                 className={`fixed top-14 mt-1 w-[280px] p-3.5 bg-white dark:bg-[var(--cu-surface)] border border-slate-200 dark:border-[var(--cu-border)] rounded-3xl shadow-[0_20px_50px_rgba(15,23,42,0.14)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.6)] z-[150] space-y-3 text-left origin-top-left ${
-                  isMainSidebarCollapsed ? 'left-[74px]' : 'left-3'
+                  isMainSidebarCollapsed && !isSidebarHovered ? 'left-[74px]' : 'left-3'
                 }`}
               >
                 {/* Active Workspace Hero Card */}
@@ -5269,14 +5330,14 @@ export default function App() {
                       {currentWorkspace?.logoUrl ? (
                         <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
                       ) : (
-                        <ApexaAiIcon className="w-6 h-6" variant="white" />
+                        <span>{(currentWorkspace?.name || 'U').charAt(0).toUpperCase()}</span>
                       )}
                     </div>
 
                     <div className="leading-tight min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="font-bold text-slate-900 dark:text-white text-[14px] truncate tracking-tight">
-                          {(currentWorkspace?.name && currentWorkspace.name.trim().toLowerCase() !== 'avaxa') ? currentWorkspace.name : 'Apexa'}
+                          {currentWorkspace?.name || 'Upgen'}
                         </span>
                         <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0" title="Không gian đang hoạt động">
                           <Check className="w-2.5 h-2.5 stroke-[3]" />
@@ -5426,11 +5487,11 @@ export default function App() {
                 {currentWorkspace?.logoUrl ? (
                   <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
                 ) : (
-                  <span>{currentWorkspace?.initial || 'A'}</span>
+                  <span>{currentWorkspace?.initial || 'U'}</span>
                 )}
               </div>
               <span className="font-extrabold text-slate-800 dark:text-slate-100 text-[11px] truncate">
-                {currentWorkspace?.name && currentWorkspace.name.trim().toLowerCase() !== 'avaxa' ? currentWorkspace.name : 'Apexa'}
+                {currentWorkspace?.name || 'Upgen'}
               </span>
             </button>
           </div>
@@ -5447,7 +5508,7 @@ export default function App() {
                 : undefined;
 
               const rawWsName = currentWorkspace?.name?.trim();
-              const wsName = (!rawWsName || rawWsName.toLowerCase() === 'avaxa') ? 'Apexa' : rawWsName;
+              const wsName = rawWsName || 'Upgen';
 
               const getTabMeta = (tabId: string) => {
                 if (tabId === 'dashboard') {
@@ -6074,7 +6135,7 @@ export default function App() {
                           className="text-[10.5px] font-bold text-blue-600 hover:text-blue-700 dark:text-sky-400 hover:underline cursor-pointer inline-flex items-center gap-1.5"
                         >
                           <Inbox className="w-3.5 h-3.5" />
-                          <span>{locale === 'vi' ? 'Mở Hộp thư Apexa' : 'Open Inbox Hub'}</span>
+                          <span>{locale === 'vi' ? 'Mở Hộp thư Upgen' : 'Open Inbox Hub'}</span>
                         </button>
                         <button
                           onClick={() => {
@@ -6210,7 +6271,7 @@ export default function App() {
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
                                 <span className="font-extrabold text-[12px] text-amber-950 dark:text-amber-100 truncate">
-                                  {locale === 'vi' ? 'Gói Apexa Pro' : 'Apexa Pro'}
+                                  {locale === 'vi' ? 'Gói Upgen Pro' : 'Upgen Pro'}
                                 </span>
                                 <span className="relative overflow-hidden inline-flex items-center gap-0.5 text-[7.5px] font-black uppercase bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 px-1.5 py-0.5 rounded-md shadow-xs border border-amber-300/80">
                                   <Sparkles className="w-2 h-2 text-amber-950" />
@@ -6411,12 +6472,12 @@ export default function App() {
                     {currentWorkspace?.logoUrl ? (
                       <img src={currentWorkspace.logoUrl} className="h-full w-full object-cover" alt="" />
                     ) : (
-                      currentWorkspace?.initial || 'A'
+                      currentWorkspace?.initial || 'U'
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-extrabold text-white">{currentWorkspace?.name || 'Apexa'}</p>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">Apexa workspace</p>
+                    <p className="truncate text-sm font-extrabold text-white">{currentWorkspace?.name || 'Upgen'}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">Upgen workspace</p>
                   </div>
                 </button>
                 <button
@@ -6833,7 +6894,7 @@ export default function App() {
                         await disconnectUserPresence();
                         await supabase.auth.signOut({ scope: 'local' });
                         updateCurrentUser(null);
-                        if (triggerToast) triggerToast('info', 'Signed Out', 'You have been signed out of Apexa OS.');
+                        if (triggerToast) triggerToast('info', 'Signed Out', 'You have been signed out of Upgen OS.');
                       }}
                       triggerToast={triggerToast}
                       onSendWorkspaceInvites={handleSendWorkspaceInvites}

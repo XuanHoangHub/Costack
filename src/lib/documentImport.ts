@@ -204,9 +204,9 @@ export function createConnectedDocument(provider: string, url: string): Imported
     sourceLabel: selected.label,
     content: documentJson([
       { type: 'heading', attrs: { level: 1 }, content: [textNode(`Tài liệu từ ${selected.label}`)] },
-      { type: 'blockquote', content: [paragraph('🔗 Nguồn này được lưu trong Apexa để cả đội truy cập từ một nơi.')] },
+      { type: 'blockquote', content: [paragraph('🔗 Nguồn này được lưu trong Upgen để cả đội truy cập từ một nơi.')] },
       paragraph(url),
-      { type: 'heading', attrs: { level: 2 }, content: [textNode('Ghi chú trong Apexa')] },
+      { type: 'heading', attrs: { level: 2 }, content: [textNode('Ghi chú trong Upgen')] },
       paragraph('Bắt đầu thêm tóm tắt, quyết định hoặc công việc liên quan tại đây…'),
     ]),
   };

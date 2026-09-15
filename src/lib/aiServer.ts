@@ -61,7 +61,7 @@ export async function getAuthorizedGeminiClient(
   const authorization = request.headers.get('authorization');
   const accessToken = authorization?.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
   if (!accessToken) {
-    throw new Error('AI_UNAUTHORIZED: Vui lòng đăng nhập để sử dụng Apexa AI.');
+    throw new Error('AI_UNAUTHORIZED: Vui lòng đăng nhập để sử dụng Upgen AI.');
   }
 
   if (!supabaseUrl || !supabasePublicKey) {
@@ -92,10 +92,10 @@ export async function getAuthorizedGeminiClient(
   );
   const plan = subscriptionIsLive && isBillingPlan(subscription?.plan) ? subscription.plan : 'free';
   if (!isPaidBillingPlan(plan)) {
-    throw new Error('AI_PLAN_REQUIRED: Apexa AI chỉ dành cho tài khoản trả phí. Vui lòng nâng cấp gói để tiếp tục.');
+    throw new Error('AI_PLAN_REQUIRED: Upgen AI chỉ dành cho tài khoản trả phí. Vui lòng nâng cấp gói để tiếp tục.');
   }
   if (!envKey || envKey === 'your-gemini-api-key') {
-    throw new Error('AI_UNAVAILABLE: Apexa Brain chưa được cấu hình API Key trên máy chủ.');
+    throw new Error('AI_UNAVAILABLE: Upgen Brain chưa được cấu hình API Key trên máy chủ.');
   }
 
   const { data: usageData, error: usageError } = await admin.rpc('consume_ai_billing_usage', {

@@ -405,7 +405,7 @@ export default function CalendarView({
     const icsLines = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
-      'PRODID:-//Apexa Productivity Hub//Calendar//VI',
+      'PRODID:-//Upgen Productivity Hub//Calendar//VI',
       'CALSCALE:GREGORIAN',
       'METHOD:PUBLISH'
     ];
@@ -659,7 +659,7 @@ export default function CalendarView({
           const end = new Date(localDateTime(clickedDate, quickEndTime));
           const createdGcal = await googleCalendarService.createEvent({
             summary: quickTitle.trim(),
-            description: quickDesc ? `${quickDesc}\n\n[Đồng bộ từ Apexa Task]` : '[Đồng bộ từ Apexa Task]',
+            description: quickDesc ? `${quickDesc}\n\n[Đồng bộ từ Upgen Task]` : '[Đồng bộ từ Upgen Task]',
             start: { dateTime: start.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
             end: { dateTime: end.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
           });
@@ -1920,7 +1920,7 @@ export default function CalendarView({
                     ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800/40'
                     : 'bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                 }`}>
-                  {(selectedTask as any).isGoogleEvent ? 'Google Event' : 'Apexa Task'}
+                  {(selectedTask as any).isGoogleEvent ? 'Google Event' : 'Upgen Task'}
                 </span>
                 <button
                   type="button"

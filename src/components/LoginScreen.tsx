@@ -17,7 +17,6 @@ import {
 import { supabase } from '../lib/supabaseClient';
 import { resolveAppRole } from '../lib/authRole';
 import { useTranslation } from '../contexts/TranslationContext';
-import { ApexaLogoIcon } from './ApexaLogo';
 import LanguageSwitch from './LanguageSwitch';
 import LandingPage from './landing/LandingPage';
 import AuthErrorAlert from './auth/AuthErrorAlert';
@@ -144,10 +143,10 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     remember: 'Ghi nhớ đăng nhập trên thiết bị này',
     rememberSubtitle: 'Duy trì phiên làm việc an toàn trong 30 ngày',
     submitSignin: 'Đăng nhập', submitSignup: 'Tạo tài khoản', processing: 'Đang xử lý…',
-    terms: 'Tôi đồng ý với Điều khoản sử dụng và Chính sách quyền riêng tư của Apexa.',
+    terms: 'Tôi đồng ý với Điều khoản sử dụng và Chính sách quyền riêng tư của Upgen.',
     continueWith: 'Hoặc tiếp tục với', resetSubmit: 'Gửi liên kết đặt lại mật khẩu',
     backToSignin: 'Quay lại đăng nhập', securePortal: 'Cổng truy cập bảo mật',
-    forgotTitle: 'Khôi phục mật khẩu', signupTitle: 'Tạo tài khoản Apexa', signinTitle: 'Chào mừng trở lại!',
+    forgotTitle: 'Khôi phục mật khẩu', signupTitle: 'Tạo tài khoản Upgen', signinTitle: 'Chào mừng trở lại!',
     forgotDescription: 'Nhập địa chỉ email đã đăng ký để nhận liên kết đặt lại mật khẩu.',
     signupDescription: 'Tạo tài khoản miễn phí để bắt đầu sắp xếp công việc của bạn.',
     signinDescription: 'Đăng nhập để tiếp tục làm việc trong không gian của bạn.',
@@ -161,10 +160,10 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     remember: 'Stay signed in on this device',
     rememberSubtitle: 'Keep session securely active for 30 days',
     submitSignin: 'Sign in', submitSignup: 'Create account', processing: 'Processing…',
-    terms: 'I agree to Apexa’s Terms of Use and Privacy Policy.',
+    terms: 'I agree to Upgen’s Terms of Use and Privacy Policy.',
     continueWith: 'Or continue with', resetSubmit: 'Send reset link',
     backToSignin: 'Back to sign in', securePortal: 'Secure access portal',
-    forgotTitle: 'Reset your password', signupTitle: 'Create your Apexa account', signinTitle: 'Welcome back!',
+    forgotTitle: 'Reset your password', signupTitle: 'Create your Upgen account', signinTitle: 'Welcome back!',
     forgotDescription: 'Enter your registered email address to receive a password reset link.',
     signupDescription: 'Create a free account and start organizing your work.',
     signinDescription: 'Sign in to continue working in your workspace.',
@@ -244,7 +243,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
         return;
       }
 
-      const displayName = metadata.full_name || metadata.name || metadata.display_name || userEmail.split('@')[0] || 'Apexa Champion';
+      const displayName = metadata.full_name || metadata.name || metadata.display_name || userEmail.split('@')[0] || 'Upgen Champion';
       const shouldRemember = sessionStorage.getItem('apexa_oauth_remember_me') !== 'false';
       const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (assurance?.nextLevel === 'aal2' && assurance.currentLevel !== 'aal2') {
@@ -493,7 +492,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
         }
 
         const sessionUser = signUpData.user;
-        const displayName = sessionUser?.user_metadata?.name || name || sessionUser?.email?.split('@')[0] || 'Apexa Champion';
+        const displayName = sessionUser?.user_metadata?.name || name || sessionUser?.email?.split('@')[0] || 'Upgen Champion';
         onLoginSuccess({
           id: sessionUser.id,
           name: displayName,
@@ -522,7 +521,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
           setMfaRememberMe(rememberMe);
           return;
         }
-        const displayName = sessionUser?.user_metadata?.name || sessionUser?.email?.split('@')[0] || 'Apexa Champion';
+        const displayName = sessionUser?.user_metadata?.name || sessionUser?.email?.split('@')[0] || 'Upgen Champion';
 
         onLoginSuccess({
           id: sessionUser.id,
@@ -571,7 +570,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     try {
       const { error: verifyError } = await supabase.auth.mfa.verify({ factorId: mfaFactorId, challengeId: mfaChallengeId, code });
       if (verifyError) throw verifyError;
-      const displayName = mfaPendingUser.user_metadata?.name || mfaPendingUser.email?.split('@')[0] || 'Apexa Champion';
+      const displayName = mfaPendingUser.user_metadata?.name || mfaPendingUser.email?.split('@')[0] || 'Upgen Champion';
       onLoginSuccess({
         id: mfaPendingUser.id,
         name: displayName,
@@ -691,9 +690,8 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
 
                 {/* Top Branding Header */}
                 <div className="relative z-10 flex items-center gap-3">
-                  <ApexaLogoIcon className="h-9 w-9" variant="white" />
                   <div>
-                    <div className="text-base font-black tracking-tight text-white font-display">Apexa</div>
+                    <div className="text-xl font-black tracking-tight text-white font-display">Upgen.</div>
                     <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-sky-300/80">
                       {isVietnamese ? 'Không gian cho công việc & Đội ngũ' : 'A space for work & Teams'}
                     </div>
@@ -758,7 +756,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
 
                 {/* Reassurance Footer */}
                 <div className="relative z-10 flex items-center justify-between text-[10px] font-normal text-slate-400 pt-2 border-t border-white/10">
-                  <span>© {new Date().getFullYear()} Apexa.</span>
+                  <span>© {new Date().getFullYear()} Upgen.</span>
                   <span className="flex items-center gap-1.5 text-slate-300">
                     <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
                     <Link href="/legal/privacy">{isVietnamese ? 'Chính sách bảo mật' : 'Privacy Policy'}</Link>
@@ -1146,7 +1144,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                           className="mt-0.5 h-4 w-4 shrink-0 rounded-md cursor-pointer"
                         />
                         <span>
-                          {isVietnamese ? 'Tôi đồng ý với ' : 'I agree to Apexa’s '}
+                          {isVietnamese ? 'Tôi đồng ý với ' : 'I agree to Upgen’s '}
                           <Link href="/legal/terms" target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()} className="font-black text-indigo-600 hover:underline dark:text-indigo-400">
                             {isVietnamese ? 'Điều khoản sử dụng' : 'Terms of Use'}
                           </Link>

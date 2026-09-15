@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Apexa — AI Productivity Workspace',
-    short_name: 'Apexa',
+    name: 'Upgen — AI Productivity Workspace',
+    short_name: 'Upgen',
     description: 'Không gian làm việc hợp nhất cho tasks, docs, chat, CRM, ERP, finance và AI.',
     start_url: '/',
     display: 'standalone',

@@ -339,8 +339,8 @@ export default function ApexaBrainAssistant({
       setTimeout(() => {
         setLoading(false);
         const offlineText = locale === 'vi' 
-          ? "⚠️ **Ngoại tuyến**: Apexa AI không thể kết nối tới máy chủ Gemini do không có kết nối mạng. Vui lòng bật lại mạng hoặc đồng bộ để tiếp tục truy vấn trực tuyến!"
-          : "⚠️ **Offline**: Apexa AI cannot connect to Gemini AI servers at this time. Please enable network connection to resume online queries!";
+          ? "⚠️ **Ngoại tuyến**: Upgen AI không thể kết nối tới máy chủ Gemini do không có kết nối mạng. Vui lòng bật lại mạng hoặc đồng bộ để tiếp tục truy vấn trực tuyến!"
+          : "⚠️ **Offline**: Upgen AI cannot connect to Gemini AI servers at this time. Please enable network connection to resume online queries!";
         const offlineMsg: AiChatMessage = {
           id: `ai-${Date.now()}`,
           sender: 'assistant',
@@ -367,7 +367,7 @@ export default function ApexaBrainAssistant({
       const data = await res.json();
       if (data.success && data.text) {
         setIsAiFallbackActive(false);
-        onAddSyncLog(`Asked Apexa AI: "${finalQuery.slice(0, 20)}..."`);
+        onAddSyncLog(`Asked Upgen AI: "${finalQuery.slice(0, 20)}..."`);
         
         const urgentCount = tasks.filter(t => t.priority === 'urgent' || t.priority === 'high').length;
         const followUps = locale === 'vi' ? [
@@ -409,14 +409,14 @@ Dựa trên dữ liệu hiện tại trong không gian làm việc của bạn:
 - ⚠️ **Ưu tiên khẩn cấp/cao**: **${urgentTasks.length}** việc (${urgentTasks.slice(0, 2).map(t => `"${t.title}"`).join(', ')}${urgentTasks.length > 2 ? '...' : ''}).
 - 👥 **Nhân sự tham gia**: **${members.length}** thành viên trong dự án.
 
-*Gợi ý: Apexa AI hỗ trợ Gemini trực tuyến khi kết nối mạng và tài khoản hoạt động ổn định.*` : `### Task Progress Analysis (Local Fallback)
+*Gợi ý: Upgen AI hỗ trợ Gemini trực tuyến khi kết nối mạng và tài khoản hoạt động ổn định.*` : `### Task Progress Analysis (Local Fallback)
 Based on current workspace data:
 - 📊 **Completion Rate**: **${completedCount}/${tasks.length}** tasks (${tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0}%).
 - ⏳ **In Progress**: **${inProgressCount}** tasks.
 - ⚠️ **High / Urgent Priority**: **${urgentTasks.length}** tasks.
 - 👥 **Assigned Members**: **${members.length}** active contributors.
 
-*Hint: Apexa AI works best with active network and paid tier.*`;
+*Hint: Upgen AI works best with active network and paid tier.*`;
 
       const aiFallbackMessage: AiChatMessage = {
         id: `ai-${Date.now()}`,
@@ -465,7 +465,7 @@ Based on current workspace data:
       if (data.success && data.text) {
         setDocSummary(data.text);
         setIsAiFallbackActive(false);
-        onAddSyncLog(`Apexa AI analyzed document: "${doc.title}"`);
+        onAddSyncLog(`Upgen AI analyzed document: "${doc.title}"`);
       } else {
         throw new Error(data.error);
       }
@@ -523,7 +523,7 @@ Based on current workspace data:
       if (data.subtasks && data.subtasks.length > 0) {
         setSuggestedSubtasks(data.subtasks);
         setIsAiFallbackActive(false);
-        onAddSyncLog(`Apexa AI suggested ${data.subtasks.length} subtasks for: "${task.title}"`);
+        onAddSyncLog(`Upgen AI suggested ${data.subtasks.length} subtasks for: "${task.title}"`);
       } else {
         throw new Error("Zero list");
       }
@@ -620,7 +620,7 @@ Based on current workspace data:
             subtasks: locale === 'vi' ? ["Viết unit tests", "Sửa lỗi giao diện", "Triển khai bản cập nhật"] : ["Write unit tests", "Fix CSS/JS bugs", "Deploy live update"]
           }
         ]);
-        onAddSyncLog(`Apexa AI planned 3 tasks (Offline Fallback)`);
+        onAddSyncLog(`Upgen AI planned 3 tasks (Offline Fallback)`);
       }, 700);
       return;
     }
@@ -632,7 +632,7 @@ Based on current workspace data:
       if (data.tasks) {
         setGeneratedTasks(data.tasks);
         setIsAiFallbackActive(false);
-        onAddSyncLog(`Apexa AI planned ${data.tasks.length} tasks for: "${finalPrompt.slice(0, 20)}..."`);
+        onAddSyncLog(`Upgen AI planned ${data.tasks.length} tasks for: "${finalPrompt.slice(0, 20)}..."`);
       } else {
         throw new Error("Response error");
       }
@@ -696,7 +696,7 @@ Based on current workspace data:
     });
 
     setTasksCreated(true);
-    onAddSyncLog(`Successfully added ${generatedTasks.length} tasks from Apexa AI to Task Manager`);
+    onAddSyncLog(`Successfully added ${generatedTasks.length} tasks from Upgen AI to Task Manager`);
   };
 
   // Helper function to render text to custom clean markup beautifully
@@ -823,7 +823,7 @@ Based on current workspace data:
           whileHover={{ scale: 1.08 }}
           whileTap={{ scale: 0.94 }}
           className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-950 border border-sky-400/40 flex items-center justify-center text-white shadow-[0_8px_32px_rgba(59,130,246,0.35)] hover:shadow-[0_8px_36px_rgba(56,189,248,0.55)] cursor-pointer relative z-10 overflow-hidden group"
-          title="Trợ lý AI Apexa"
+          title="Trợ lý AI Upgen"
         >
           {/* Ambient specular highlight */}
           <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
@@ -876,7 +876,7 @@ Based on current workspace data:
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-sm font-black tracking-tight text-white font-display">
-                        Apexa AI
+                        Upgen AI
                       </h2>
                       {/* Interactive Model Dropdown */}
                       <div className="relative">
@@ -973,7 +973,7 @@ Based on current workspace data:
               {isOffline && (
                 <div className="bg-amber-500/10 dark:bg-amber-500/15 border-b border-amber-500/20 px-4 py-2 flex items-center gap-2 text-[10px] font-bold text-amber-700 dark:text-amber-400 shrink-0">
                   <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  <span>{locale === 'vi' ? 'Mạng đang ngoại tuyến. AI đang chạy ở chế độ dự phòng dữ liệu cục bộ.' : 'Network is offline. Apexa AI is currently operating in local fallback mode.'}</span>
+                  <span>{locale === 'vi' ? 'Mạng đang ngoại tuyến. AI đang chạy ở chế độ dự phòng dữ liệu cục bộ.' : 'Network is offline. Upgen AI is currently operating in local fallback mode.'}</span>
                 </div>
               )}
 
@@ -1014,7 +1014,7 @@ Based on current workspace data:
                   <div className="p-3 mb-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[10px] text-amber-700 dark:text-amber-300 flex items-start gap-2 shadow-2xs leading-normal shrink-0">
                     <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                     <div>
-                      <strong>{locale === 'vi' ? 'Chế độ dự phòng:' : 'Fallback mode:'}</strong> {locale === 'vi' ? 'Apexa AI cần kết nối mạng để sử dụng mô hình Gemini trực tuyến. Dữ liệu hiện được lấy trực tiếp từ máy tính của bạn.' : 'Apexa AI needs network to connect to Gemini servers. Currently operating using local workspace data.'}
+                      <strong>{locale === 'vi' ? 'Chế độ dự phòng:' : 'Fallback mode:'}</strong> {locale === 'vi' ? 'Upgen AI cần kết nối mạng để sử dụng mô hình Gemini trực tuyến. Dữ liệu hiện được lấy trực tiếp từ máy tính của bạn.' : 'Upgen AI needs network to connect to Gemini servers. Currently operating using local workspace data.'}
                     </div>
                   </div>
                 )}
@@ -1126,7 +1126,7 @@ Based on current workspace data:
                                       {/* Message top action bar */}
                                       <div className="flex items-center justify-between pb-1 border-b border-slate-200/40 dark:border-slate-700/30">
                                         <div className="flex items-center gap-1.5">
-                                          <span className="text-[9px] font-black text-indigo-600 dark:text-sky-400 uppercase tracking-wider">Apexa AI</span>
+                                          <span className="text-[9px] font-black text-indigo-600 dark:text-sky-400 uppercase tracking-wider">Upgen AI</span>
                                           {msg.isFallback && (
                                             <span className="text-[8px] bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold px-1.5 py-0.2 rounded border border-amber-500/20">
                                               {locale === 'vi' ? 'Dự phòng' : 'Fallback'}
@@ -1196,7 +1196,7 @@ Based on current workspace data:
                           <div className="space-y-3 py-3 px-2">
                             <div className="flex items-center gap-2 text-indigo-500 font-black text-[10px] uppercase tracking-wider animate-pulse justify-center">
                               <ApexaAiIcon className="w-4 h-4 animate-bounce" variant="gradient" />
-                              <span>{locale === 'vi' ? 'AI Apexa đang phân tích dữ liệu...' : 'Apexa AI is analyzing workspace...'}</span>
+                              <span>{locale === 'vi' ? 'AI Upgen đang phân tích dữ liệu...' : 'Upgen AI is analyzing workspace...'}</span>
                             </div>
                             <div className="space-y-2.5 max-w-sm mx-auto">
                               <div className="h-3 animate-shimmer-fast rounded-lg w-3/4 mx-auto" />
@@ -1279,7 +1279,7 @@ Based on current workspace data:
 
                       <input
                         type="text"
-                        placeholder={isListening ? (locale === 'vi' ? "Đang nghe giọng nói của bạn..." : "Listening...") : (locale === 'vi' ? "Hỏi Apexa AI về tiến độ, rủi ro, phân bổ..." : "Ask about progress, risks, tasks...")}
+                        placeholder={isListening ? (locale === 'vi' ? "Đang nghe giọng nói của bạn..." : "Listening...") : (locale === 'vi' ? "Hỏi Upgen AI về tiến độ, rủi ro, phân bổ..." : "Ask about progress, risks, tasks...")}
                         value={queryInput}
                         onChange={(e) => setQueryInput(e.target.value)}
                         onKeyDown={(e) => {
@@ -1403,7 +1403,7 @@ Based on current workspace data:
                           <div className="m-auto w-full space-y-3 py-4 px-2">
                             <div className="flex items-center gap-2 text-indigo-500 font-bold text-[10px] uppercase tracking-wider animate-pulse justify-center">
                               <ApexaAiIcon className="w-4 h-4 animate-bounce" variant="gradient" />
-                              <span>{locale === 'vi' ? 'AI Apexa đang phân tích tài liệu...' : 'Apexa AI is analyzing doc...'}</span>
+                              <span>{locale === 'vi' ? 'AI Upgen đang phân tích tài liệu...' : 'Upgen AI is analyzing doc...'}</span>
                             </div>
                             <div className="space-y-2.5">
                               <div className="h-3.5 animate-shimmer-fast rounded-lg w-3/4 mx-auto" />
@@ -1505,7 +1505,7 @@ Based on current workspace data:
                       {loading ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin text-white" />
-                          <span>{locale === 'vi' ? 'AI Apexa đang bóc tách nhiệm vụ...' : 'Decomposing task into subtasks...'}</span>
+                          <span>{locale === 'vi' ? 'AI Upgen đang bóc tách nhiệm vụ...' : 'Decomposing task into subtasks...'}</span>
                         </>
                       ) : (
                         <>
@@ -1682,7 +1682,7 @@ Based on current workspace data:
                           <div className="m-auto w-full space-y-3 py-4 px-2">
                             <div className="flex items-center gap-2 text-indigo-500 font-bold text-[10px] uppercase tracking-wider animate-pulse justify-center">
                               <ApexaAiIcon className="w-4 h-4 animate-bounce" variant="gradient" />
-                              <span>{locale === 'vi' ? 'AI Apexa đang lập kế hoạch chi tiết...' : 'Apexa AI is planning tasks...'}</span>
+                              <span>{locale === 'vi' ? 'AI Upgen đang lập kế hoạch chi tiết...' : 'Upgen AI is planning tasks...'}</span>
                             </div>
                             <div className="space-y-2.5 max-w-sm mx-auto">
                               <div className="h-3.5 animate-shimmer-fast rounded-lg w-3/4 mx-auto" />
@@ -1770,7 +1770,7 @@ Based on current workspace data:
                             <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
                               {locale === 'vi'
                                 ? 'Nhập mục tiêu dự án (ví dụ: "Ra mắt chiến dịch Tết 2026") và AI sẽ tự động phân rã thành các công việc chi tiết kèm thời gian ước tính.'
-                                : 'Describe any objective and Apexa AI will generate a complete set of tasks with time estimates and subtasks.'}
+                                : 'Describe any objective and Upgen AI will generate a complete set of tasks with time estimates and subtasks.'}
                             </p>
                           </div>
                         )}
@@ -1786,7 +1786,7 @@ Based on current workspace data:
               <div className="p-3 sm:p-4 border-t border-slate-200/80 dark:border-slate-800/60 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
                 <span className="flex items-center gap-1.5">
                   <ApexaAiIcon className="w-3.5 h-3.5 animate-pulse" variant="gradient" />
-                  <span className="font-semibold">{locale === 'vi' ? 'Trợ lý thông minh Apexa AI' : 'Apexa AI Intelligent Copilot'}</span>
+                  <span className="font-semibold">{locale === 'vi' ? 'Trợ lý thông minh Upgen AI' : 'Upgen AI Intelligent Copilot'}</span>
                 </span>
                 <span className="flex items-center gap-1 text-[9px]">
                   <span>Vận hành bởi</span>

@@ -89,7 +89,7 @@ export function useAiDailyBriefing({
       summary.slice(0, 420),
     );
     localStorage.setItem(storageKey, localDateKey(now));
-    onAddSyncLog?.(locale === 'vi' ? 'Apexa AI đã gửi bản tin công việc hằng ngày' : 'Apexa AI delivered the daily task briefing');
+    onAddSyncLog?.(locale === 'vi' ? 'Upgen AI đã gửi bản tin công việc hằng ngày' : 'Upgen AI delivered the daily task briefing');
     runningRef.current = false;
   }, [currentUserId, isOffline, isPremium, locale, members, onAddSyncLog, tasks, triggerToast, workspaceId]);
 

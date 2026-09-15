@@ -690,7 +690,7 @@ export default function InboxView({
     try {
       const activeUnread = notificationsList.filter(n => !n.cleared && !n.read).slice(0, 10);
       const res = await callAiApi('/api/ai/inbox-digest', {
-        userName: currentUser?.name || (isVietnamese ? 'Thành viên Apexa' : 'Apexa Member'),
+        userName: currentUser?.name || (isVietnamese ? 'Thành viên Upgen' : 'Upgen Member'),
         notifications: activeUnread,
         tasksCount: tasks.length
       });
@@ -707,8 +707,8 @@ export default function InboxView({
     } catch (error) {
       if (isAiAccessError(error)) return;
       setAiDigestText(isVietnamese
-        ? `Chào ${currentUser?.name || 'bạn'}! Bạn đang có ${inboxStats.unread} thông báo chưa đọc trong Hộp thư Apexa. Hãy kiểm tra các thông báo được giao và cập nhật tiến độ công việc để duy trì hiệu suất cao nhất.`
-        : `Hello ${currentUser?.name || 'there'}! You have ${inboxStats.unread} unread notifications in Apexa Inbox. Review your assigned tasks and update progress to maintain peak productivity.`
+        ? `Chào ${currentUser?.name || 'bạn'}! Bạn đang có ${inboxStats.unread} thông báo chưa đọc trong Hộp thư Upgen. Hãy kiểm tra các thông báo được giao và cập nhật tiến độ công việc để duy trì hiệu suất cao nhất.`
+        : `Hello ${currentUser?.name || 'there'}! You have ${inboxStats.unread} unread notifications in Upgen Inbox. Review your assigned tasks and update progress to maintain peak productivity.`
       );
     } finally {
       setAiDigestLoading(false);
@@ -1803,7 +1803,7 @@ export default function InboxView({
               const isDeadline = catMeta.key === 'deadline';
               const IconComp = catMeta.icon;
               const notifWorkspace = workspaces.find(w => w.id === selectedNotif.workspaceId);
-              const workspaceName = notifWorkspace?.name || (selectedNotif.workspaceId && selectedNotif.workspaceId !== 'all' ? selectedNotif.workspaceId : (isVietnamese ? 'Apexa Cloud' : 'Apexa Cloud'));
+              const workspaceName = notifWorkspace?.name || (selectedNotif.workspaceId && selectedNotif.workspaceId !== 'all' ? selectedNotif.workspaceId : (isVietnamese ? 'Upgen Cloud' : 'Upgen Cloud'));
               const refId = `#PAY-${selectedNotif.id.slice(-6).toUpperCase()}`;
 
               return (
@@ -2430,7 +2430,7 @@ export default function InboxView({
                   </div>
                   <div>
                     <h3 className="text-xs font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5">
-                      <span>Apexa AI Daily Briefing</span>
+                      <span>Upgen AI Daily Briefing</span>
                       <span className="px-1.5 py-0.2 rounded-md bg-blue-500/10 text-blue-600 dark:text-sky-400 text-[9px] font-black uppercase">
                         Gemini 2.5 Flash
                       </span>

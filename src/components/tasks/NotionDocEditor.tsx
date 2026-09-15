@@ -367,12 +367,12 @@ export default function NotionDocEditor({
               {isAiLoading ? (
                 <>
                   <RefreshCw className="w-3 h-3 animate-spin text-indigo-600" />
-                  <span>Apexa AI đang soạn...</span>
+                  <span>Upgen AI đang soạn...</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
-                  <span>Apexa AI</span>
+                  <span>Upgen AI</span>
                   <ChevronDown className="w-3 h-3 opacity-70" />
                 </>
               )}
@@ -390,7 +390,7 @@ export default function NotionDocEditor({
                     className="absolute right-0 mt-1.5 z-50 w-64 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl space-y-0.5 font-sans"
                   >
                     <div className="px-2 py-1 text-[9px] font-black uppercase tracking-wider text-slate-400">
-                      Trợ lý văn bản Apexa AI
+                      Trợ lý văn bản Upgen AI
                     </div>
                     
                     <button

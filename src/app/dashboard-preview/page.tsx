@@ -142,7 +142,7 @@ const mockTasks: Task[] = [
 ];
 
 const mockDocs: Document[] = [
-  { id: 'doc-1', title: 'Tài liệu Kiến trúc Apexa v2', content: '', category: 'Architecture', updatedAt: formatIso(-1), updatedBy: 'u1' },
+  { id: 'doc-1', title: 'Tài liệu Kiến trúc Upgen v2', content: '', category: 'Architecture', updatedAt: formatIso(-1), updatedBy: 'u1' },
   { id: 'doc-2', title: 'Quy chuẩn Viết Code & Review PR', content: '', category: 'Guidelines', updatedAt: formatIso(-3), updatedBy: 'u2' },
   { id: 'doc-3', title: 'Kế hoạch Phát hành Q3/2026', content: '', category: 'Roadmap', updatedAt: formatIso(-5), updatedBy: 'u1' },
 ];
@@ -164,10 +164,10 @@ export default function DashboardPreviewPage() {
         <header className="sticky top-0 z-50 flex items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 py-2.5 backdrop-blur-xl dark:border-slate-800 dark:bg-[#10121a]/80">
           <div className="flex items-center gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white font-black text-xs">
-              A
+              U
             </span>
             <span className="text-sm font-black text-slate-900 dark:text-white">
-              Apexa Dashboard NextGen
+              Upgen Dashboard NextGen
             </span>
             <span className="hidden sm:inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
               Live Preview
@@ -206,7 +206,7 @@ export default function DashboardPreviewPage() {
             syncLogs={mockSyncLogs}
             isOffline={false}
             isSynced={true}
-            workspaceName="Apexa Engineering"
+            workspaceName="Upgen Engineering"
             currentUser={{ ...mockMembers[0], isPremium }}
             onNavigate={(tab) => console.log('Navigate to:', tab)}
             onOpenTask={(taskId) => console.log('Open task:', taskId)}

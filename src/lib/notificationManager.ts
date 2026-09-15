@@ -133,7 +133,7 @@ export async function sendTestNotification(): Promise<boolean> {
   }
   if (perm === 'granted') {
     sendSystemNotification({
-      title: '🔔 Apexa: Kiểm tra thông báo trình duyệt',
+      title: '🔔 Upgen: Kiểm tra thông báo trình duyệt',
       message: 'Thông báo trên màn hình máy tính đã hoạt động hoàn hảo! Bạn sẽ nhận được cảnh báo khi đến hạn công việc.',
       type: 'success',
       playSound: true,

@@ -597,7 +597,7 @@ export default function ChatRoom({
       }
     }
     if (enabled && (!('Notification' in window) || Notification.permission === 'denied')) {
-      triggerToast?.('info', 'Không thể bật thông báo', 'Hãy cấp quyền thông báo cho Apexa trong cài đặt trình duyệt.');
+      triggerToast?.('info', 'Không thể bật thông báo', 'Hãy cấp quyền thông báo cho Upgen trong cài đặt trình duyệt.');
       setChatSettings(previous => ({ ...previous, desktopNotifications: false }));
       return;
     }
@@ -1363,7 +1363,7 @@ ${channelMessagesText}`;
 
     const seedMessages: Record<string, ChatMessage[]> = {
       'apexa-brain-ai': [
-        { id: 'mai1', senderId: 'ai-brain', senderName: 'Apexa Brain AI', senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ApexaBrain', content: 'Xin chào! Tôi là trợ lý Apexa Brain của workspace hiện tại. Tại kênh truyền này, bạn có thể hỏi tôi bất kỳ điều gì: từ cách lập kế hoạch dự án, phân chia KPI, soạn thảo tài liệu, cho đến viết mã tối ưu. Hãy thử gửi tin nhắn ngay nhé! 💡', timestamp: '09:00', isAi: true }
+        { id: 'mai1', senderId: 'ai-brain', senderName: 'Upgen Brain AI', senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ApexaBrain', content: 'Xin chào! Tôi là trợ lý Upgen Brain của workspace hiện tại. Tại kênh truyền này, bạn có thể hỏi tôi bất kỳ điều gì: từ cách lập kế hoạch dự án, phân chia KPI, soạn thảo tài liệu, cho đến viết mã tối ưu. Hãy thử gửi tin nhắn ngay nhé! 💡', timestamp: '09:00', isAi: true }
       ]
     };
 
@@ -2289,7 +2289,7 @@ ${channelMessagesText}`;
   };
 
   const COMMANDS = [
-    { name: '/ai', desc: 'Hỏi Apexa Brain AI câu bất kỳ (VD: /ai gợi ý ý tưởng dự án)', action: 'ai' },
+    { name: '/ai', desc: 'Hỏi Upgen Brain AI câu bất kỳ (VD: /ai gợi ý ý tưởng dự án)', action: 'ai' },
     { name: '/summary', desc: 'Tóm tắt các công việc hiện tại bằng AI', action: 'summary' },
     { name: '/addtask', desc: 'Tạo nhanh công việc (VD: /addtask Họp báo cáo)', action: 'addtask' },
     { name: '/poll', desc: 'Tạo nhanh cuộc thăm dò ý kiến trong kênh', action: 'poll' },
@@ -2393,9 +2393,9 @@ ${channelMessagesText}`;
           const aiResponseMsg: ChatMessage = {
             id: aiMsgId,
             senderId: 'apexa-ai',
-            senderName: 'Apexa Brain AI',
+            senderName: 'Upgen Brain AI',
             senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ApexaBrain',
-            content: `🤖 **Apexa Brain AI:**\n\n${data.text}`,
+            content: `🤖 **Upgen Brain AI:**\n\n${data.text}`,
             timestamp: aiMsgTime,
             channelId: activeChannelId,
             isAi: true,
@@ -2408,7 +2408,7 @@ ${channelMessagesText}`;
               await supabase.from('chat_messages').insert({
                 id: aiMsgId,
                 sender_id: 'apexa-ai',
-                sender_name: 'Apexa Brain AI',
+                sender_name: 'Upgen Brain AI',
                 sender_avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ApexaBrain',
                 content: aiResponseMsg.content,
                 timestamp: aiMsgTime,
@@ -2423,7 +2423,7 @@ ${channelMessagesText}`;
         }
       } catch (err) {
         console.error('Error executing /ai command:', err);
-        triggerToast?.('error', 'Lỗi AI', 'Không thể kết nối với Apexa Brain AI.');
+        triggerToast?.('error', 'Lỗi AI', 'Không thể kết nối với Upgen Brain AI.');
       } finally {
         setIsAiTyping(false);
         scrollToBottom();
@@ -2462,7 +2462,7 @@ ${channelMessagesText}`;
           const aiResponseMsg: ChatMessage = {
             id: aiMsgId,
             senderId: 'apexa-ai',
-            senderName: 'Apexa Brain AI',
+            senderName: 'Upgen Brain AI',
             senderAvatar: '',
             content: data.text,
             timestamp: aiMsgTime,
@@ -2474,7 +2474,7 @@ ${channelMessagesText}`;
             await supabase.from('chat_messages').insert({
               id: aiMsgId,
               sender_id: 'apexa-ai',
-              sender_name: 'Apexa Brain AI',
+              sender_name: 'Upgen Brain AI',
               sender_avatar: '',
               content: data.text,
               timestamp: aiMsgTime,
@@ -2683,7 +2683,7 @@ ${channelMessagesText}`;
             const aiResponseMsg: ChatMessage = {
               id: `ai-msg-${crypto.randomUUID()}`,
               senderId: 'apexa-ai',
-              senderName: 'Apexa Brain AI',
+              senderName: 'Upgen Brain AI',
               senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S',
               content: data.text,
               timestamp: new Date(aiCreatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
@@ -4440,7 +4440,7 @@ ${channelMessagesText}`;
                 <Bot className="w-4.5 h-4.5 animate-spin" />
               </div>
               <div className="space-y-1 text-left">
-                <span className="text-[10px] font-black text-amber-600 uppercase tracking-wider">AI Apexa Brain</span>
+                <span className="text-[10px] font-black text-amber-600 uppercase tracking-wider">AI Upgen Brain</span>
                 <div className="flex gap-1.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 max-w-sm">
                   <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                   <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -4861,7 +4861,7 @@ ${channelMessagesText}`;
                       isSelfDm
                         ? `Nhắn tin cho chính bạn... (Space cho AI, / lệnh)`
                         : activeChannel?.name.includes('ai')
-                          ? "Hỏi Apexa Brain AI bất cứ điều gì..."
+                          ? "Hỏi Upgen Brain AI bất cứ điều gì..."
                           : `Nhắn tin đến ${isDm && dmMember ? dmMember.name : (activeChannel?.name || 'chat')}...`
                     }
                     rows={1}
@@ -4986,7 +4986,7 @@ ${channelMessagesText}`;
                         <div className="absolute right-0 bottom-11 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-50 min-w-[210px] text-left animate-fadeIn">
                           <div className="px-2.5 py-1 mb-1 border-b border-slate-100 dark:border-slate-800 flex items-center gap-1.5">
                             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Trợ lý viết AI Apexa</span>
+                            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Trợ lý viết AI Upgen</span>
                           </div>
                           <button type="button" onClick={() => handleAiEnhanceInput('expand')} className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600 rounded-xl transition-colors cursor-pointer flex items-center gap-2">
                             🪄 Viết tiếp & Mở rộng ý
@@ -5766,7 +5766,7 @@ ${channelMessagesText}`;
                         const summaryMsg: ChatMessage = {
                           id: msgId,
                           senderId: 'apexa-ai',
-                          senderName: 'Apexa Brain AI',
+                          senderName: 'Upgen Brain AI',
                           senderAvatar: '',
                           content: `✨ **Bản tóm tắt kênh từ AI:**\n${aiSummaryText}`,
                           timestamp: timeStr,

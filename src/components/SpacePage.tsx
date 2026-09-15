@@ -903,12 +903,12 @@ export default function SpacePage({
       });
       
       onAddSyncLog(`AI generated ${generatedItems.length} tasks from prompt: "${aiPromptInput.trim()}"`);
-      triggerToast?.('success', 'Apexa AI', `Đã tạo ${generatedItems.length} công việc vào danh sách.`);
+      triggerToast?.('success', 'Upgen AI', `Đã tạo ${generatedItems.length} công việc vào danh sách.`);
       setAiPromptInput('');
       setActiveView('list');
     } catch (err) {
       console.error('Error generating tasks with AI:', err);
-      triggerToast?.('error', 'Apexa AI', 'Không thể tạo công việc tự động. Vui lòng thử lại.');
+      triggerToast?.('error', 'Upgen AI', 'Không thể tạo công việc tự động. Vui lòng thử lại.');
     } finally {
       setIsAiGeneratingTasks(false);
     }
@@ -4344,10 +4344,10 @@ export default function SpacePage({
               </div>
               <div>
                 <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  Trình tạo quy trình & công việc bằng Apexa AI
+                  Trình tạo quy trình & công việc bằng Upgen AI
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Mô tả mục tiêu của bạn, Apexa AI sẽ tự động phân tích và sinh danh sách các công việc cụ thể vào Space.
+                  Mô tả mục tiêu của bạn, Upgen AI sẽ tự động phân tích và sinh danh sách các công việc cụ thể vào Space.
                 </p>
               </div>
             </div>
@@ -4393,7 +4393,7 @@ export default function SpacePage({
                   className="px-6 py-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-black text-xs rounded-xl shadow-md shadow-indigo-500/25 transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Sparkles className="w-4 h-4 animate-spin" style={{ animationDuration: isAiGeneratingTasks ? '1s' : '0s' }} />
-                  <span>{isAiGeneratingTasks ? 'Apexa AI đang tạo công việc...' : 'Tạo công việc ngay'}</span>
+                  <span>{isAiGeneratingTasks ? 'Upgen AI đang tạo công việc...' : 'Tạo công việc ngay'}</span>
                 </button>
               </div>
             </div>
@@ -4707,7 +4707,7 @@ export default function SpacePage({
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-                    <span>Apexa AI Triage</span>
+                    <span>Upgen AI Triage</span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/40">
                       Gemini 2.5
                     </span>
@@ -4729,7 +4729,7 @@ export default function SpacePage({
             {loadingAiPriority ? (
               <div className="text-center py-14 space-y-3 my-auto">
                 <RefreshCw className="w-9 h-9 text-indigo-500 animate-spin mx-auto" />
-                <p className="text-xs text-slate-700 dark:text-slate-200 font-bold">Apexa AI đang phân tích toàn bộ công việc...</p>
+                <p className="text-xs text-slate-700 dark:text-slate-200 font-bold">Upgen AI đang phân tích toàn bộ công việc...</p>
                 <p className="text-[11px] text-slate-400">Đối chiếu hạn chót, mô tả, độ phức tạp và tính phụ thuộc</p>
               </div>
             ) : (

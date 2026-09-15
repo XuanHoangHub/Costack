@@ -2048,7 +2048,7 @@ export default function TaskDetailsPanel({
               <Sparkles className="w-3 h-3" />
             </div>
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-xs font-black text-slate-900 dark:text-white shrink-0 tracking-tight">Apexa Brain AI</span>
+              <span className="text-xs font-black text-slate-900 dark:text-white shrink-0 tracking-tight">Upgen Brain AI</span>
               <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate hidden sm:inline">• {isVietnamese ? 'Trợ lý phân tích & copilot công việc' : 'Smart task copilot'}</span>
             </div>
           </div>
@@ -2137,14 +2137,14 @@ export default function TaskDetailsPanel({
                         handleAiQuery();
                       }
                     }}
-                    placeholder="Đặt câu hỏi hoặc yêu cầu Apexa Brain hỗ trợ công việc này…"
+                    placeholder="Đặt câu hỏi hoặc yêu cầu Upgen Brain hỗ trợ công việc này…"
                     className="flex-1 bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-none px-2 text-xs font-medium text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
                   />
                   <button
                     type="button"
                     onClick={() => handleAiQuery()}
                     disabled={!aiPrompt.trim() || aiGeneratingResponse}
-                    aria-label="Gửi câu hỏi đến Apexa Brain"
+                    aria-label="Gửi câu hỏi đến Upgen Brain"
                     className="h-7 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shrink-0 shadow-2xs"
                   >
                     {aiGeneratingResponse ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}

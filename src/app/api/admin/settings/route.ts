@@ -28,7 +28,7 @@ function validateSetting(key: string, rawValue: unknown) {
   if (key === 'maintenance') {
     return {
       enabled: Boolean(value.enabled),
-      message: asTrimmedString(value.message, 300) || 'Apexa đang được bảo trì. Vui lòng quay lại sau.',
+      message: asTrimmedString(value.message, 300) || 'Upgen đang được bảo trì. Vui lòng quay lại sau.',
     };
   }
   if (key === 'registration') return { enabled: Boolean(value.enabled) };

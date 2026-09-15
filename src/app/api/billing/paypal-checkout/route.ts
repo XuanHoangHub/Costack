@@ -50,11 +50,11 @@ export async function POST(request: Request) {
       intent: 'CAPTURE',
       purchase_units: [{
         reference_id: local.id, custom_id: local.id, invoice_id: local.id,
-        description: `Apexa ${plan} - ${cycle} prepaid`, payee: { email_address: merchantEmail },
+        description: `Upgen ${plan} - ${cycle} prepaid`, payee: { email_address: merchantEmail },
         amount: { currency_code: 'USD', value: (amount / 100).toFixed(2) },
       }],
       payment_source: { paypal: { experience_context: {
-        brand_name: 'Apexa', user_action: 'PAY_NOW', shipping_preference: 'NO_SHIPPING',
+        brand_name: 'Upgen', user_action: 'PAY_NOW', shipping_preference: 'NO_SHIPPING',
         return_url: returnUrl.toString(), cancel_url: cancelUrl.toString(),
       } } },
     }, local.id);
