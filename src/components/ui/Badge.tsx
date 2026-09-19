@@ -51,7 +51,7 @@ const variantStyles: Record<BadgeVariant, string> = {
   info:
     "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20",
   gradient:
-    "bg-gradient-to-r from-[#2563EB] to-[#06B6D4] text-white border-transparent font-bold",
+    "bg-[var(--cu-primary)] text-white border-transparent font-bold",
   glass:
     "bg-white/40 dark:bg-white/10 backdrop-blur-md text-[var(--cu-text-primary)] border-white/30 dark:border-white/10",
   outline:

@@ -6,7 +6,6 @@ import { DocsScreen } from '../screens/docs/DocsScreen';
 import { DocDetailScreen } from '../screens/docs/DocDetailScreen';
 import { FinanceScreen } from '../screens/finance/FinanceScreen';
 import { AiBrainScreen } from '../screens/ai/AiBrainScreen';
-import { PomodoroScreen } from '../screens/pomodoro/PomodoroScreen';
 import { TeamScreen } from '../screens/team/TeamScreen';
 import { SpacesScreen } from '../screens/spaces/SpacesScreen';
 
@@ -24,7 +23,6 @@ export const MoreStackNavigator: React.FC = () => {
       <Stack.Screen name="DocDetail" component={DocDetailScreen} />
       <Stack.Screen name="Finance" component={FinanceScreen} />
       <Stack.Screen name="AiBrain" component={AiBrainScreen} />
-      <Stack.Screen name="Pomodoro" component={PomodoroScreen} />
       <Stack.Screen name="Team" component={TeamScreen} />
       <Stack.Screen name="Spaces" component={SpacesScreen} />
     </Stack.Navigator>

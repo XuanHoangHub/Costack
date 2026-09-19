@@ -7,12 +7,16 @@ import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, D
 import { 
   ChevronDown, Plus, Paperclip, X, MessageSquare, Check, Pin, Edit2, Tag, 
   MoreHorizontal, Play, Clock, AlertTriangle, Hourglass, Trash2, 
-  CheckCircle2, ListChecks, Copy, ChevronsUpDown, Sparkles, Layers, Users, Calendar, Flag, Repeat, GripVertical, FolderInput, CircleDot
+  CheckCircle2, ListChecks, Copy, ChevronsUpDown, Sparkles, Layers, Users, Calendar, Flag, Repeat, GripVertical, FolderInput, CircleDot,
+  Share2, Link2, Lock
 } from 'lucide-react';
 import { Task, TaskStatus, Priority, User, Workspace, Space } from '../../types';
-import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker } from './TaskSelects';
+import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker, DropdownFieldSelect } from './TaskSelects';
+import { getTaskTeamIds } from '@/lib/teamStore';
 import { Select } from '../ui/Select';
 import { getStoredStatuses, getStoredPriorities, OptionConfig, getLocalizedOptionLabel, getColorOption } from '../../utils/fieldConfig';
+import { fireTaskCompleteConfetti } from '@/lib/confetti';
+import { playSuccessSound, playToggleSound } from '@/lib/soundEffects';
 
 const DraggableCast = Draggable as typeof Draggable;
 
@@ -60,6 +64,8 @@ interface TaskListViewProps {
   onReorderTasks?: (orderedIds: string[]) => void;
   openPromptModal?: (config: any) => void;
   openDialog?: (config: any) => void;
+  wrapText?: boolean;
+  showEmptyStatuses?: boolean;
 }
 
 const TaskListView = React.memo(function TaskListView({
@@ -67,7 +73,8 @@ const TaskListView = React.memo(function TaskListView({
   onUpdateTask, onDeleteTask, onAddSyncLog, triggerToast, filterTag, setFilterTag, isSmartSort, isUrgentNearDueTask,
   isMultiSelectMode, onAddTask, setViewType, statuses,
   activeTimerTaskId = null, onStartGlobalTimer, onStopGlobalTimer, onReorderTasks,
-  openPromptModal, openDialog
+  openPromptModal, openDialog,
+  wrapText = false, showEmptyStatuses = false
 }: TaskListViewProps) {
   const { t, locale } = useTranslation();
   const isVietnamese = locale === 'vi';
@@ -517,6 +524,12 @@ const TaskListView = React.memo(function TaskListView({
               <span>{isVietnamese ? 'Ưu tiên' : 'Priority'}</span>
             </div>
 
+            {/* Column: Kênh (Platform / Channel - Hình 4) */}
+            <div className="hidden sm:flex items-center justify-center gap-1 w-28 shrink-0 text-center text-slate-400">
+              <Share2 className="w-3 h-3" />
+              <span>{isVietnamese ? 'Kênh' : 'Channel'}</span>
+            </div>
+
             {/* Row Actions spacer: exactly matches w-8 */}
             <div className="w-8 shrink-0" />
           </div>
@@ -536,6 +549,8 @@ const TaskListView = React.memo(function TaskListView({
               colorStyle: { backgroundColor: statusItem.color }
             };
             const groupTasks = filteredTasks.filter(t => t.status === statusItem.id || t.status === statusItem.type);
+            const isFirstStatus = currentStatuses[0]?.id === statusItem.id;
+            if (!showEmptyStatuses && groupTasks.length === 0 && (filteredTasks.length > 0 || !isFirstStatus)) return null;
             const isExpanded = expandedGroups[statusItem.id];
 
             // Completion statistics for group
@@ -699,8 +714,16 @@ const TaskListView = React.memo(function TaskListView({
                                                 const newStatus = task.status === 'completed' ? 'todo' : 'completed';
                                                 onUpdateTask({ ...task, status: newStatus as TaskStatus });
                                                 onAddSyncLog(`Toggled completion of task "${task.title}" to: ${newStatus}`);
-                                                if (typeof window !== 'undefined') {
-                                                  (window as any).playSystemSound?.('toggle');
+                                                if (newStatus === 'completed') {
+                                                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                                  const origin = {
+                                                    x: (rect.left + rect.width / 2) / window.innerWidth,
+                                                    y: (rect.top + rect.height / 2) / window.innerHeight,
+                                                  };
+                                                  fireTaskCompleteConfetti(origin);
+                                                  playSuccessSound();
+                                                } else {
+                                                  playToggleSound();
                                                 }
                                               }}
                                               className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all ${
@@ -733,7 +756,9 @@ const TaskListView = React.memo(function TaskListView({
                                                       setInlineEditTaskId(task.id);
                                                       setInlineEditTitle(task.title);
                                                     }}
-                                                    className={`text-xs font-semibold truncate cursor-pointer hover:text-blue-600 dark:hover:text-sky-400 transition-colors ${
+                                                    className={`text-xs font-semibold cursor-pointer hover:text-blue-600 dark:hover:text-sky-400 transition-colors ${
+                                                      wrapText ? 'whitespace-normal break-words' : 'truncate'
+                                                    } ${
                                                       task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500 font-normal' : 'text-slate-800 dark:text-slate-100'
                                                     }`}
                                                     title={isVietnamese ? "Nhấp để đổi tên nhanh" : "Click to rename"}
@@ -837,6 +862,19 @@ const TaskListView = React.memo(function TaskListView({
                                                     title={isVietnamese ? "Thêm Tag" : "Add Tag"}
                                                   >
                                                     <Tag className="w-3.5 h-3.5" />
+                                                  </button>
+
+                                                  {/* Quick Link / Relations (Hình 4) */}
+                                                  <button 
+                                                    type="button"
+                                                    onClick={e => {
+                                                      e.stopPropagation();
+                                                      setSelectedTask(task);
+                                                    }}
+                                                    className="p-1 rounded-md text-slate-400 hover:text-blue-600 dark:hover:text-sky-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all cursor-pointer"
+                                                    title={isVietnamese ? "Liên kết & Phụ thuộc" : "Relations & dependencies"}
+                                                  >
+                                                    <Link2 className="w-3.5 h-3.5" />
                                                   </button>
 
                                                   {/* Rename */}
@@ -993,6 +1031,20 @@ const TaskListView = React.memo(function TaskListView({
                                             <AssigneePillSelect 
                                               value={task.assigneeIds && task.assigneeIds.length > 0 ? task.assigneeIds : (task.assigneeId ? [task.assigneeId] : [])} 
                                               members={members} 
+                                              teamIds={getTaskTeamIds(task)}
+                                              onTeamChange={newTeams => {
+                                                const nextTeams = newTeams || [];
+                                                onUpdateTask({
+                                                  ...task,
+                                                  teamIds: nextTeams,
+                                                  teamId: nextTeams[0] || undefined,
+                                                  custom_fields: {
+                                                    ...(task.custom_fields || {}),
+                                                    teamIds: nextTeams
+                                                  }
+                                                });
+                                              }}
+                                              workspaceId={task.workspaceId}
                                               onChange={newIds => {
                                                 const nextIds = newIds || [];
                                                 onUpdateTask({ 
@@ -1065,9 +1117,23 @@ const TaskListView = React.memo(function TaskListView({
                                           {/* Priority Column */}
                                           <div className="hidden md:flex w-24 shrink-0 justify-center" onClick={e => e.stopPropagation()}>
                                             <PriorityPillSelect value={task.priority} onChange={newP => {
-                                              onUpdateTask({ ...task, priority: newP || 'medium' });
-                                              onAddSyncLog(`Priority "${task.title}" → ${newP || 'medium'}`);
+                                              onUpdateTask({ ...task, priority: newP });
+                                              onAddSyncLog(`Priority "${task.title}" → ${newP || 'none'}`);
                                             }} />
+                                          </div>
+
+                                          {/* Kênh Column (Hình 4: solid brand color badge with chevron) */}
+                                          <div className="hidden sm:flex w-28 shrink-0 justify-center" onClick={e => e.stopPropagation()}>
+                                            <DropdownFieldSelect
+                                              value={(task.custom_fields?.['Kênh'] || task.custom_fields?.['Platform'] || '') as string}
+                                              options={['Facebook', 'YouTube', 'TikTok', 'Instagram', 'Threads', 'Zalo', 'Website', 'Twitter', 'LinkedIn']}
+                                              onChange={(val) => {
+                                                const updated = { ...(task.custom_fields || {}), 'Kênh': val };
+                                                onUpdateTask({ ...task, custom_fields: updated });
+                                                onAddSyncLog?.(`Kênh "${task.title}" → ${val || 'None'}`);
+                                              }}
+                                              placeholder="—"
+                                            />
                                           </div>
 
                                           {/* Far Right Settings */}

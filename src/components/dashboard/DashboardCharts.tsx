@@ -71,7 +71,7 @@ function CustomChartTooltip({ active, payload, label }: any) {
   if (!active || !payload || !payload.length) return null;
 
   return (
-    <div className="rounded-xl border border-black/[0.08] bg-white/95 p-3 text-left shadow-xl backdrop-blur-xl dark:border-white/[0.1] dark:bg-[#151824]/95 dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
+    <div className="rounded-xl border border-black/[0.08] bg-white/95 p-3 text-left shadow-xl backdrop-blur-xl dark:border-white/[0.1] dark:bg-[#0d0f15]/95 dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
       <p className="mb-2 text-[11px] font-black text-slate-900 dark:text-white">
         {payload[0]?.payload?.fullDate || label}
       </p>
@@ -129,7 +129,7 @@ export default function DashboardCharts({
           initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          className="apexa-inset-group flex flex-col justify-between rounded-2xl bg-white dark:bg-[#121318] border border-black/[0.06] dark:border-white/[0.08] p-4 sm:p-5 shadow-xs dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] lg:col-span-8 text-left"
+          className="apexa-inset-group flex flex-col justify-between rounded-2xl bg-white dark:bg-[#0a0b10] border border-black/[0.06] dark:border-white/[0.08] p-4 sm:p-5 shadow-xs dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] lg:col-span-8 text-left"
         >
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-black/[0.05] dark:border-white/[0.06] pb-3.5">
@@ -307,7 +307,7 @@ export default function DashboardCharts({
           initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          className="apexa-inset-group flex flex-col justify-between rounded-2xl bg-white dark:bg-[#121318] border border-black/[0.06] dark:border-white/[0.08] p-4 sm:p-5 shadow-xs dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] lg:col-span-4 text-left"
+          className="apexa-inset-group flex flex-col justify-between rounded-2xl bg-white dark:bg-[#0a0b10] border border-black/[0.06] dark:border-white/[0.08] p-4 sm:p-5 shadow-xs dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] lg:col-span-4 text-left"
         >
           <div className="flex items-center justify-between border-b border-black/[0.05] dark:border-white/[0.06] pb-3.5">
             <h3 className="text-base font-semibold tracking-tight text-neutral-900 dark:text-white flex items-center gap-2">
@@ -390,7 +390,7 @@ export default function DashboardCharts({
           initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121318] border border-black/[0.06] dark:border-white/[0.08] p-4 sm:p-5 shadow-xs dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] text-left"
+          className="apexa-inset-group rounded-2xl bg-white dark:bg-[#0a0b10] border border-black/[0.06] dark:border-white/[0.08] p-4 sm:p-5 shadow-xs dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] text-left"
         >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-black/[0.05] dark:border-white/[0.06] pb-3.5">
             <div>

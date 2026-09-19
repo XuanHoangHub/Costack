@@ -22,7 +22,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { Space, Task, TaskAttachment, TaskStatus, User, Workspace } from '../../types';
+import { Priority, Space, Task, TaskAttachment, TaskStatus, User, Workspace } from '../../types';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { generateSubtasksWithAi } from '@/lib/aiClient';
 import TaskBoardView from './TaskBoardView';
@@ -32,7 +32,7 @@ import TaskListView from './TaskListView';
 import TaskModal from './TaskModal';
 import TaskTableView from './TaskTableView';
 
-type TaskView = 'list' | 'table' | 'board' | 'gantt';
+type TaskView = 'list' | 'board' | 'table' | 'gantt';
 type ScopeFilter = 'all' | 'mine' | 'overdue';
 type SortMode = 'priority' | 'dueDate' | 'recent';
 
@@ -82,7 +82,7 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
   completed: 'Hoàn thành',
 };
 
-const PRIORITY_WEIGHT: Record<Task['priority'], number> = {
+const PRIORITY_WEIGHT: Record<Priority, number> = {
   urgent: 0,
   high: 1,
   medium: 2,
@@ -130,7 +130,7 @@ export default function TaskCommandCenter({
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<ScopeFilter>('all');
   const [status, setStatus] = useState<'all' | TaskStatus>('all');
-  const [priority, setPriority] = useState<'all' | Task['priority']>('all');
+  const [priority, setPriority] = useState<'all' | Priority>('all');
   const [assigneeId, setAssigneeId] = useState('all');
   const [sortMode, setSortMode] = useState<SortMode>('priority');
   const [filterOpen, setFilterOpen] = useState(false);
@@ -193,7 +193,11 @@ export default function TaskCommandCenter({
         return true;
       })
       .sort((a, b) => {
-        if (sortMode === 'priority') return PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority] || toDateValue(a.dueDate) - toDateValue(b.dueDate);
+        if (sortMode === 'priority') {
+          const aW = a.priority ? PRIORITY_WEIGHT[a.priority] : 99;
+          const bW = b.priority ? PRIORITY_WEIGHT[b.priority] : 99;
+          return aW - bW || toDateValue(a.dueDate) - toDateValue(b.dueDate);
+        }
         if (sortMode === 'dueDate') return toDateValue(a.dueDate) - toDateValue(b.dueDate);
         return toDateValue(b.createdAt) - toDateValue(a.createdAt);
       });
@@ -555,7 +559,7 @@ export default function TaskCommandCenter({
                       <div className="grid gap-2 sm:grid-cols-2">
                         <FilterSelect label="Phạm vi" value={scope} onChange={(value) => setScope(value as ScopeFilter)} options={[['all', 'Tất cả'], ['mine', 'Của tôi'], ['overdue', 'Quá hạn']]} />
                         <FilterSelect label="Trạng thái" value={status} onChange={(value) => setStatus(value as 'all' | TaskStatus)} options={[['all', 'Tất cả'], ...Object.entries(STATUS_LABELS)]} />
-                        <FilterSelect label="Ưu tiên" value={priority} onChange={(value) => setPriority(value as typeof priority)} options={[['all', 'Tất cả'], ['urgent', 'Khẩn cấp'], ['high', 'Cao'], ['medium', 'Trung bình'], ['low', 'Thấp']]} />
+                        <FilterSelect label="Ưu tiên" value={priority} onChange={(value) => setPriority(value as 'all' | Priority)} options={[['all', 'Tất cả'], ['urgent', 'Khẩn cấp'], ['high', 'Cao'], ['medium', 'Trung bình'], ['low', 'Thấp']]} />
                         <FilterSelect label="Người phụ trách" value={assigneeId} onChange={setAssigneeId} options={[['all', 'Tất cả'], ...members.map((member) => [member.id, member.name])]} />
                       </div>
                     </motion.div>
@@ -747,7 +751,7 @@ export default function TaskCommandCenter({
           onAddSyncLog={onAddSyncLog}
           triggerToast={viewToast as any}
           onAttachmentUpload={handleAttachmentUpload}
-          onAttachmentDelete={(task, attachment) => onUpdateTask({ ...task, attachments: (task.attachments || []).filter((item) => item.id !== attachment.id) })}
+          onAttachmentDelete={(task, attachment) => onUpdateTask({ ...task, attachments: (task.attachments || []).filter((item: any) => item.id !== attachment.id) })}
           onAiSubtasks={handleAiSubtasks}
           aiGenerating={aiGenerating}
           onAiSummary={handleAiSummary}

@@ -179,7 +179,7 @@ export default function DashboardUpcomingAgenda({
       </div>
 
       {totalUpcomingCount === 0 ? (
-        <div className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121318] border border-black/[0.06] dark:border-white/[0.08] p-8 text-center shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
+        <div className="apexa-inset-group rounded-2xl bg-white dark:bg-[#0a0b10] border border-black/[0.06] dark:border-white/[0.08] p-8 text-center shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
           <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mb-2">
             <CheckCircle2 className="h-5 w-5" />
           </div>
@@ -191,7 +191,7 @@ export default function DashboardUpcomingAgenda({
           </p>
         </div>
       ) : (
-        <div className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121318] border border-black/[0.06] dark:border-white/[0.08] shadow-xs dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] overflow-hidden">
+        <div className="apexa-inset-group rounded-2xl bg-white dark:bg-[#0a0b10] border border-black/[0.06] dark:border-white/[0.08] shadow-xs dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-black/[0.05] dark:divide-white/[0.06]">
           
           {/* 1. Overdue Group (if any) */}
@@ -422,7 +422,7 @@ function AgendaTaskItem({
           {isRescheduleOpen && (
             <div
               onClick={(e) => e.stopPropagation()}
-              className="absolute right-0 top-full mt-1 z-30 w-36 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-white/[0.08] dark:bg-[#151824] dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] text-left"
+              className="absolute right-0 top-full mt-1 z-30 w-36 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-white/[0.08] dark:bg-[#0d0f15] dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] text-left"
             >
               <div className="px-2 py-1 text-[9.5px] font-black uppercase text-slate-400 tracking-wider">
                 {locale === 'vi' ? 'Dời hạn chót' : 'Reschedule'}

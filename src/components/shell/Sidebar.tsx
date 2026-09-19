@@ -98,11 +98,11 @@ export function Sidebar({
             onClick={onWorkspaceClick}
             className={[
               "flex items-center gap-2.5 w-full rounded-[var(--ax-radius-lg)] px-2.5 py-2",
-              "hover:bg-white/[0.08] active:bg-white/[0.12] transition-colors cursor-pointer",
+              "bg-white/[0.03] hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.05] transition-all cursor-pointer shadow-xs",
               collapsed ? "justify-center" : "",
             ].join(" ")}
           >
-            <span className="flex items-center justify-center w-8 h-8 rounded-[var(--ax-radius-md)] bg-gradient-to-br from-blue-500 to-cyan-500 text-white text-sm font-bold shrink-0">
+            <span className="relative flex items-center justify-center w-8 h-8 rounded-[var(--ax-radius-md)] bg-gradient-to-br from-blue-500 via-indigo-500 to-cyan-500 text-white text-sm font-bold shrink-0 shadow-sm shadow-blue-500/25">
               {workspaceEmoji}
             </span>
             {!collapsed && (
@@ -204,8 +204,8 @@ export function Sidebar({
                       isActive
                         ? (collapsed
                             ? "bg-blue-500/20 text-sky-300 border border-sky-400/30 font-semibold shadow-xs"
-                            : "bg-white/[0.12] text-white")
-                        : "text-white/60 hover:text-white/90 hover:bg-white/[0.06]",
+                            : "bg-white/[0.12] text-white font-semibold shadow-xs")
+                        : "text-white/65 hover:text-white hover:bg-white/[0.06]",
                     ].join(" ")}
                     aria-current={isActive ? "page" : undefined}
                   >
@@ -213,7 +213,7 @@ export function Sidebar({
                     {isActive && (
                       <motion.div
                         layoutId={reducedMotion ? undefined : "sidebar-active-pill"}
-                        className="absolute inset-0 rounded-[var(--ax-radius-md)] bg-white/[0.12]"
+                        className={`absolute inset-0 rounded-[var(--ax-radius-md)] bg-white/[0.12] ${!collapsed ? "border-l-2 border-l-blue-400" : ""}`}
                         transition={{ type: "spring", stiffness: 350, damping: 30 }}
                       />
                     )}
@@ -268,7 +268,7 @@ export function Sidebar({
             <button
               type="button"
               onClick={onUpgradeClick}
-              className="flex items-center justify-center gap-2 w-full h-9 mb-2 rounded-[var(--ax-radius-md)] bg-gradient-to-r from-blue-600 to-cyan-600 text-white text-xs font-bold hover:brightness-110 transition-all cursor-pointer"
+              className="flex items-center justify-center gap-2 w-full h-9 mb-2 rounded-[var(--ax-radius-md)] bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
             >
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z" />

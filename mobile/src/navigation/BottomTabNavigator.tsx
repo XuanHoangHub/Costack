@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { BlurView } from 'expo-blur';
 import {
   Home,
   CheckSquare,
@@ -25,6 +26,7 @@ export const BottomTabNavigator: React.FC = () => {
   useRealtimeSync();
 
   const colors = useUiStore((s) => s.colors);
+  const isDarkMode = useUiStore((s) => s.isDarkMode);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const { t } = useTranslation();
 
@@ -32,23 +34,40 @@ export const BottomTabNavigator: React.FC = () => {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
+        tabBarBackground: () => (
+          <BlurView
+            tint={isDarkMode ? 'dark' : 'light'}
+            intensity={Platform.OS === 'ios' ? 85 : 45}
+            style={StyleSheet.absoluteFill}
+          />
+        ),
         tabBarStyle: {
-          backgroundColor: colors.tabBar,
-          borderTopColor: colors.tabBarBorder,
-          borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 84 : 66,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 8,
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: isDarkMode
+            ? 'rgba(12, 14, 20, 0.82)'
+            : 'rgba(255, 255, 255, 0.85)',
+          borderTopColor: isDarkMode
+            ? 'rgba(255, 255, 255, 0.08)'
+            : 'rgba(0, 0, 0, 0.06)',
+          borderTopWidth: StyleSheet.hairlineWidth,
+          height: Platform.OS === 'ios' ? 88 : 68,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 10,
           paddingTop: 8,
-          elevation: 10,
+          elevation: 12,
+          shadowColor: '#000000',
           shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
+          shadowOpacity: isDarkMode ? 0.4 : 0.08,
+          shadowRadius: 16,
         },
-        tabBarActiveTintColor: colors.tabBarActive,
+        tabBarActiveTintColor: colors.primaryLight || colors.primary,
         tabBarInactiveTintColor: colors.tabBarInactive,
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '600',
+          fontWeight: '700',
+          letterSpacing: -0.2,
           marginTop: 2,
         },
       }}
@@ -66,8 +85,23 @@ export const BottomTabNavigator: React.FC = () => {
         options={{
           tabBarLabel: t.tabs.home,
           tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconWrap, focused && { backgroundColor: `${colors.primary}18` }]}>
-              <Home size={21} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <View
+              style={[
+                styles.iconWrap,
+                focused && [
+                  styles.activeIconWrap,
+                  {
+                    backgroundColor: isDarkMode
+                      ? 'rgba(59, 130, 246, 0.16)'
+                      : 'rgba(37, 99, 235, 0.12)',
+                    borderColor: isDarkMode
+                      ? 'rgba(59, 130, 246, 0.35)'
+                      : 'rgba(37, 99, 235, 0.25)',
+                  },
+                ],
+              ]}
+            >
+              <Home size={20} color={focused ? colors.primaryLight || colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
             </View>
           ),
         }}
@@ -79,8 +113,23 @@ export const BottomTabNavigator: React.FC = () => {
         options={{
           tabBarLabel: t.tabs.tasks,
           tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconWrap, focused && { backgroundColor: `${colors.primary}18` }]}>
-              <CheckSquare size={21} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <View
+              style={[
+                styles.iconWrap,
+                focused && [
+                  styles.activeIconWrap,
+                  {
+                    backgroundColor: isDarkMode
+                      ? 'rgba(59, 130, 246, 0.16)'
+                      : 'rgba(37, 99, 235, 0.12)',
+                    borderColor: isDarkMode
+                      ? 'rgba(59, 130, 246, 0.35)'
+                      : 'rgba(37, 99, 235, 0.25)',
+                  },
+                ],
+              ]}
+            >
+              <CheckSquare size={20} color={focused ? colors.primaryLight || colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
             </View>
           ),
         }}
@@ -96,7 +145,15 @@ export const BottomTabNavigator: React.FC = () => {
               style={[
                 styles.iconWrap,
                 styles.spacesCenterWrap,
-                focused && { backgroundColor: `${colors.primary}25`, borderColor: colors.primary },
+                focused && [
+                  styles.activeIconWrap,
+                  {
+                    backgroundColor: isDarkMode
+                      ? 'rgba(59, 130, 246, 0.24)'
+                      : 'rgba(37, 99, 235, 0.16)',
+                    borderColor: colors.primary,
+                  },
+                ],
               ]}
             >
               <Layers size={21} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
@@ -111,8 +168,23 @@ export const BottomTabNavigator: React.FC = () => {
         options={{
           tabBarLabel: t.tabs.chat,
           tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconWrap, focused && { backgroundColor: `${colors.primary}18` }]}>
-              <MessageSquare size={21} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <View
+              style={[
+                styles.iconWrap,
+                focused && [
+                  styles.activeIconWrap,
+                  {
+                    backgroundColor: isDarkMode
+                      ? 'rgba(59, 130, 246, 0.16)'
+                      : 'rgba(37, 99, 235, 0.12)',
+                    borderColor: isDarkMode
+                      ? 'rgba(59, 130, 246, 0.35)'
+                      : 'rgba(37, 99, 235, 0.25)',
+                  },
+                ],
+              ]}
+            >
+              <MessageSquare size={20} color={focused ? colors.primaryLight || colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
             </View>
           ),
         }}
@@ -134,8 +206,23 @@ export const BottomTabNavigator: React.FC = () => {
             lineHeight: 14,
           },
           tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconWrap, focused && { backgroundColor: `${colors.primary}18` }]}>
-              <Menu size={21} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <View
+              style={[
+                styles.iconWrap,
+                focused && [
+                  styles.activeIconWrap,
+                  {
+                    backgroundColor: isDarkMode
+                      ? 'rgba(59, 130, 246, 0.16)'
+                      : 'rgba(37, 99, 235, 0.12)',
+                    borderColor: isDarkMode
+                      ? 'rgba(59, 130, 246, 0.35)'
+                      : 'rgba(37, 99, 235, 0.25)',
+                  },
+                ],
+              ]}
+            >
+              <Menu size={20} color={focused ? colors.primaryLight || colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
             </View>
           ),
         }}
@@ -146,15 +233,23 @@ export const BottomTabNavigator: React.FC = () => {
 
 const styles = StyleSheet.create({
   iconWrap: {
-    width: 38,
+    width: 44,
     height: 30,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  activeIconWrap: {
+    borderWidth: 1,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 2,
+  },
   spacesCenterWrap: {
-    width: 42,
+    width: 44,
     height: 32,
-    borderRadius: 12,
+    borderRadius: 14,
   },
 });

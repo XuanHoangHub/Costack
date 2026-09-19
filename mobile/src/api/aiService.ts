@@ -64,7 +64,7 @@ function generateAiFallback(prompt: string, context?: AiTaskContext): string {
         briefing += `${idx + 1}. ${title}\n`;
       });
     }
-    briefing += `\n💡 *Mẹo: Hãy dành 25 phút Pomodoro để dứt điểm việc quan trọng nhất trước!*`;
+    briefing += `\n💡 *Mẹo: Tập trung xử lý các đầu việc ưu tiên cao để tối ưu hiệu suất công việc hôm nay!*`;
     return briefing;
   }
 

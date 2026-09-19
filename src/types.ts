@@ -61,10 +61,39 @@ export interface TaskAttachment {
   mimeType?: string;
 }
 
+export type CustomFieldType = 
+  | 'dropdown' 
+  | 'text' 
+  | 'date' 
+  | 'textarea' 
+  | 'number' 
+  | 'labels' 
+  | 'checkbox' 
+  | 'email' 
+  | 'phone' 
+  | 'money' 
+  | 'rating' 
+  | 'progress' 
+  | 'progress_auto' 
+  | 'progress_manual' 
+  | 'url' 
+  | 'website' 
+  | 'member' 
+  | 'people' 
+  | 'button' 
+  | 'files' 
+  | 'formula' 
+  | 'location' 
+  | 'relationship' 
+  | 'rollup' 
+  | 'signature' 
+  | 'tasks' 
+  | 'voting';
+
 export interface CustomFieldDefinition {
   id: string;
   name: string;
-  type: 'dropdown' | 'text' | 'date' | 'textarea' | 'number' | 'labels' | 'checkbox' | 'email' | 'phone' | 'money' | 'rating' | 'progress' | 'url' | 'member';
+  type: CustomFieldType;
   options?: Array<string | { id: string; label: string; color: string; icon?: string }>;
   placeholder?: string;
   description?: string;
@@ -86,6 +115,13 @@ export interface CustomFieldDefinition {
   progressMax?: number;
   allowMultiple?: boolean;
   defaultValue?: unknown;
+  buttonText?: string;
+  buttonColor?: string;
+  buttonAction?: string;
+  formulaExpression?: string;
+  rollupTargetField?: string;
+  relationshipTargetSpace?: string;
+  votingMax?: number;
 }
 
 export type ShareRole = 'view' | 'comment' | 'edit';
@@ -142,10 +178,12 @@ export interface Task {
   id: string;
   title: string;
   description: string;
-  priority: Priority;
+  priority?: Priority;
   status: TaskStatus;
   assigneeId?: string;
   assigneeIds?: string[]; // Multiple assignees
+  teamId?: string; // Assigned primary team
+  teamIds?: string[]; // Multiple assigned teams
   startDate?: string;
   dueDate?: string;
   subtasks: SubTask[];

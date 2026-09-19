@@ -1,6 +1,7 @@
 "use client";
 
 import CustomFieldsManagerModal from "./tasks/CustomFieldsManagerModal";
+import CustomizeViewModal from "./tasks/CustomizeViewModal";
 import { matchesCustomFieldFilter } from "@/lib/customFields";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -25,8 +26,8 @@ function Portal({ children }: { children: React.ReactNode }) {
 
 import {
   List, Kanban, Plus, Bot, Calendar, Trash2, Search, Filter, ArrowUpDown,
-  SlidersHorizontal, Table, X, CheckSquare, Clock, Play, Pause, RotateCcw,
-  Volume2, VolumeX, Timer, Sparkles, Pin, Tag, Hash, MoreHorizontal, ChevronDown,
+  SlidersHorizontal, Sliders, Table, X, CheckSquare, Clock, Play, Pause, RotateCcw,
+  Volume2, VolumeX, Timer, Sparkles, Pin, Tag, Hash, MoreHorizontal, ChevronDown, ChevronUp, LayoutGrid,
   Folder, FolderOpen, FolderInput, Share2, ChevronRight, Star, Eye, ChevronsLeft, FileText, GanttChart, HelpCircle, EyeOff, Check, Cog, User as UserIcon, RefreshCw,
   Activity, Users, Brain, Map as MapIcon, Pencil, Link as LinkIcon, Droplet, Zap, Copy, Archive, Phone,
   Flag, Lock, Shield, Rocket, BarChart3, Bookmark, ArrowDownAZ, ArrowUpAZ, ArrowUpNarrowWide, ArrowDownWideNarrow, GripVertical, CheckCircle2,
@@ -42,6 +43,7 @@ import TaskTableView from './tasks/TaskTableView';
 import SpaceOverviewTab from './SpaceOverviewTab';
 import ConfirmModal from './ConfirmModal';
 import TaskModal from './tasks/TaskModal';
+import ManageSpacesModal from './spaces/ManageSpacesModal';
 import FieldSettingsModal, { ALL_FIELD_TYPES } from './tasks/FieldSettingsModal';
 import { ApexaAiIcon } from './ApexaAiIcon';
 import PromptModal, { PromptModalConfig } from './PromptModal';
@@ -101,7 +103,6 @@ const getDefaultViewTabs = (hasActiveList: boolean): SpaceViewTab[] => hasActive
       createViewTab('tab-overview', 'Tổng quan', 'overview', { default: true }),
       createViewTab('tab-list', 'Danh sách', 'list'),
       createViewTab('tab-board', 'Bảng', 'board'),
-      createViewTab('tab-doc', 'Tài liệu', 'doc'),
       createViewTab('tab-calendar', 'Lịch', 'calendar'),
       createViewTab('tab-table', 'Bảng dữ liệu', 'table'),
     ];
@@ -688,6 +689,32 @@ export default function SpacePage({
   const [showHiddenSpaces, setShowHiddenSpaces] = useState(false);
   const [showArchivedToggle, setShowArchivedToggle] = useState(false);
   const [expandedSpaceIds, setExpandedSpaceIds] = useState<Record<string, boolean>>({});
+  const [showManageSpacesModal, setShowManageSpacesModal] = useState(false);
+
+  const handleExpandAllFolders = () => {
+    const nextFolders: Record<string, boolean> = {};
+    const nextSpaces: Record<string, boolean> = {};
+    spaces.forEach(s => {
+      nextSpaces[s.id] = true;
+      (s.folders || []).forEach(f => {
+        nextFolders[f.id] = true;
+      });
+    });
+    setExpandedSpaceIds(prev => ({ ...prev, ...nextSpaces }));
+    setExpandedFolders(nextFolders);
+    setShowSpaceOptionsDropdown(false);
+  };
+
+  const handleCloseAllFolders = () => {
+    const nextFolders: Record<string, boolean> = {};
+    spaces.forEach(s => {
+      (s.folders || []).forEach(f => {
+        nextFolders[f.id] = false;
+      });
+    });
+    setExpandedFolders(nextFolders);
+    setShowSpaceOptionsDropdown(false);
+  };
 
   // Real Features: AI Generation, Form builder, Data Import & Export
   const [aiPromptInput, setAiPromptInput] = useState('');
@@ -1203,7 +1230,7 @@ export default function SpacePage({
         const parsed = JSON.parse(stored) as { tabs?: Array<Omit<SpaceViewTab, 'icon'>>; activeTabId?: string };
         const restoredTabs = Array.isArray(parsed.tabs)
           ? parsed.tabs
-              .filter(tab => tab?.id && tab?.label && tab?.viewId && tab.viewId !== 'channel' && tab.id !== 'tab-channel' && VIEW_ICON_MAP[tab.viewId])
+              .filter(tab => tab?.id && tab?.label && tab?.viewId && tab.viewId !== 'channel' && tab.id !== 'tab-channel' && tab.viewId !== 'doc' && tab.id !== 'tab-doc' && VIEW_ICON_MAP[tab.viewId])
               .map(tab => createViewTab(tab.id, tab.label, tab.viewId, tab.settings))
           : [];
         if (restoredTabs.length > 0) {
@@ -1361,7 +1388,7 @@ export default function SpacePage({
     selectedTaskIds.forEach(id => {
       const task = tasks.find(t => t.id === id);
       if (task) {
-        guardedUpdateTask({ ...task, priority: newPriority || 'low' });
+        guardedUpdateTask({ ...task, priority: newPriority });
       }
     });
     if (triggerToast) {
@@ -1468,6 +1495,78 @@ export default function SpacePage({
   const skipNextViewOptionsPersistenceRef = useRef(true);
   const viewOptionsStorageKey = `${viewContextStorageKey}_${activeView}_options`;
 
+  // Customize View states
+  const [showCustomizeViewModal, setShowCustomizeViewModal] = useState(false);
+  const [showClosedTasks, setShowClosedTasks] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    const item = localStorage.getItem('apexa_view_show_closed_tasks');
+    return item !== null ? item === 'true' : true;
+  });
+  const [wrapText, setWrapText] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('apexa_view_wrap_text') === 'true';
+  });
+  const [showEmptyStatuses, setShowEmptyStatuses] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const item = localStorage.getItem('apexa_view_show_empty_statuses_v2');
+    return item !== null ? item === 'true' : false;
+  });
+  const [showTaskLocations, setShowTaskLocations] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('apexa_view_show_locations') === 'true';
+  });
+  const [showSubtaskParentNames, setShowSubtaskParentNames] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    const item = localStorage.getItem('apexa_view_show_parent_names');
+    return item !== null ? item === 'true' : true;
+  });
+  const [subtasksMode, setSubtasksMode] = useState<'collapsed' | 'expanded' | 'separate'>(() => {
+    if (typeof window === 'undefined') return 'collapsed';
+    const item = localStorage.getItem('apexa_view_subtasks_mode') as any;
+    return ['collapsed', 'expanded', 'separate'].includes(item) ? item : 'collapsed';
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('apexa_view_show_closed_tasks', String(showClosedTasks));
+      localStorage.setItem('apexa_view_wrap_text', String(wrapText));
+      localStorage.setItem('apexa_view_show_empty_statuses_v2', String(showEmptyStatuses));
+      localStorage.setItem('apexa_view_show_locations', String(showTaskLocations));
+      localStorage.setItem('apexa_view_show_parent_names', String(showSubtaskParentNames));
+      localStorage.setItem('apexa_view_subtasks_mode', subtasksMode);
+    } catch (e) {}
+  }, [showClosedTasks, wrapText, showEmptyStatuses, showTaskLocations, showSubtaskParentNames, subtasksMode]);
+
+  const currentActiveTab = staticTabs.find(tab => tab.id === activeTabId) || staticTabs.find(tab => tab.viewId === activeView);
+  const activeViewSettings = useMemo(() => ({
+    autosave: currentActiveTab?.settings?.autosave ?? true,
+    pin: currentActiveTab?.settings?.pin ?? false,
+    private: currentActiveTab?.settings?.private ?? false,
+    protect: currentActiveTab?.settings?.protect ?? false,
+    default: currentActiveTab?.settings?.default ?? false,
+  }), [currentActiveTab]);
+
+  const handleUpdateActiveViewSetting = (key: 'autosave' | 'pin' | 'private' | 'protect' | 'default', val: boolean) => {
+    const targetTabId = currentActiveTab?.id || activeTabId;
+    if (!targetTabId) return;
+    setStaticTabs(prev => prev.map(tab => {
+      if (key === 'default') {
+        return { ...tab, settings: { ...tab.settings, default: tab.id === targetTabId ? val : false } };
+      }
+      return tab.id === targetTabId ? { ...tab, settings: { ...tab.settings, [key]: val } } : tab;
+    }));
+    triggerToast?.('success', locale === 'vi' ? 'Cài đặt chế độ xem' : 'View settings', val ? (locale === 'vi' ? 'Đã bật tùy chọn.' : 'Option enabled.') : (locale === 'vi' ? 'Đã tắt tùy chọn.' : 'Option disabled.'));
+  };
+
+  const handleCopyViewLink = () => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', activeView);
+    if (activeTabId) url.searchParams.set('tab', activeTabId);
+    navigator.clipboard.writeText(url.toString());
+    triggerToast?.('success', locale === 'vi' ? 'Sao chép liên kết' : 'Link copied', locale === 'vi' ? 'Đã sao chép liên kết trực tiếp tới chế độ xem này.' : 'Copied link to this view.');
+  };
+
   useEffect(() => {
     skipNextViewOptionsPersistenceRef.current = true;
     setFilterPriority('all');
@@ -1502,6 +1601,12 @@ export default function SpacePage({
       setCardSize(['small', 'medium', 'large'].includes(options.cardSize) ? options.cardSize : 'medium');
       setCardCover(options.cardCover !== false);
       setStackFields(Boolean(options.stackFields));
+      if (typeof options.showClosedTasks === 'boolean') setShowClosedTasks(options.showClosedTasks);
+      if (typeof options.wrapText === 'boolean') setWrapText(options.wrapText);
+      if (typeof options.showEmptyStatuses === 'boolean') setShowEmptyStatuses(options.showEmptyStatuses);
+      if (typeof options.showTaskLocations === 'boolean') setShowTaskLocations(options.showTaskLocations);
+      if (typeof options.showSubtaskParentNames === 'boolean') setShowSubtaskParentNames(options.showSubtaskParentNames);
+      if (options.subtasksMode && ['collapsed', 'expanded', 'separate'].includes(options.subtasksMode)) setSubtasksMode(options.subtasksMode);
       if (Array.isArray(options.visibleFields) && options.visibleFields.includes('title')) setVisibleFields(options.visibleFields);
     } catch (error) {
       console.warn('Could not restore view options:', error);
@@ -1532,11 +1637,17 @@ export default function SpacePage({
         cardCover,
         stackFields,
         visibleFields,
+        showClosedTasks,
+        wrapText,
+        showEmptyStatuses,
+        showTaskLocations,
+        showSubtaskParentNames,
+        subtasksMode,
       }));
     } catch (error) {
       console.warn('Could not persist view options:', error);
     }
-  }, [activeTabId, boardGroupBy, boardSwimlaneBy, cardCover, cardSize, filterAssignee, filterConditions, filterConjunction, filterPresets, filterPriority, filterTag, isSmartSort, sortBy, sortDirection, stackFields, staticTabs, viewOptionsStorageKey, visibleFields]);
+  }, [activeTabId, boardGroupBy, boardSwimlaneBy, cardCover, cardSize, filterAssignee, filterConditions, filterConjunction, filterPresets, filterPriority, filterTag, isSmartSort, sortBy, sortDirection, stackFields, staticTabs, viewOptionsStorageKey, visibleFields, showClosedTasks, wrapText, showEmptyStatuses, showTaskLocations, showSubtaskParentNames, subtasksMode]);
 
   const isUrgentNearDueTask = (t: Task) => {
     if (t.status === 'completed') return false;
@@ -1733,6 +1844,11 @@ export default function SpacePage({
   const filteredTasks = useMemo(() => {
     let result = scopedTasks.filter(task => matchesSpaceFocus(task, taskFocus, currentUser?.id));
 
+    // Closed tasks filter
+    if (!showClosedTasks) {
+      result = result.filter(t => t.status !== 'completed');
+    }
+
     // Search query filter
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase();
@@ -1740,6 +1856,8 @@ export default function SpacePage({
         t.title.toLowerCase().includes(q) || 
         (t.description || '').toLowerCase().includes(q) ||
         (t.tags && t.tags.some(tag => tag.toLowerCase().includes(q))) ||
+        (t.assigneeId && members.find(m => m.id === t.assigneeId)?.name.toLowerCase().includes(q)) ||
+        (t.assigneeIds && t.assigneeIds.some(id => members.find(m => m.id === id)?.name.toLowerCase().includes(q))) ||
         customFields.some(field => String(t.custom_fields?.[field.name] ?? '').toLowerCase().includes(q))
       );
     }
@@ -1766,7 +1884,7 @@ export default function SpacePage({
           if (cond.field.startsWith('custom:')) return matchesCustomFieldFilter(t.custom_fields?.[cond.field.slice(7)], cond.operator, cond.value);
           let fieldVal = '';
           if (cond.field === 'status') fieldVal = t.status;
-          else if (cond.field === 'priority') fieldVal = t.priority;
+          else if (cond.field === 'priority') fieldVal = t.priority || '';
           else if (cond.field === 'assignee') fieldVal = t.assigneeId || '';
           else if (cond.field === 'title') fieldVal = t.title;
 
@@ -1792,7 +1910,9 @@ export default function SpacePage({
     if (sortBy === 'priority') {
       const weight = { urgent: 4, high: 3, medium: 2, low: 1 };
       result = [...result].sort((a, b) => {
-        const diff = (weight[b.priority] || 0) - (weight[a.priority] || 0);
+        const aW = a.priority ? (weight[a.priority] || 0) : 0;
+        const bW = b.priority ? (weight[b.priority] || 0) : 0;
+        const diff = bW - aW;
         return sortDirection === 'desc' ? diff : -diff;
       });
     } else if (sortBy === 'dueDate') {
@@ -1831,7 +1951,7 @@ export default function SpacePage({
     }
 
     return result;
-  }, [scopedTasks, taskFocus, currentUser?.id, searchQuery, filterPriority, filterAssignee, filterTag, sortBy, sortDirection, taskOrder, filterConjunction, filterConditions, customFields]);
+  }, [scopedTasks, taskFocus, currentUser?.id, searchQuery, filterPriority, filterAssignee, filterTag, sortBy, sortDirection, taskOrder, filterConjunction, filterConditions, customFields, showClosedTasks, members]);
 
   useEffect(() => {
     const visible = new Set(filteredTasks.map(task => task.id));
@@ -2082,7 +2202,7 @@ export default function SpacePage({
   const isTaskWorkspaceView = TASK_WORKSPACE_VIEWS.has(activeView);
 
   return (
-    <div className="apexa-space-shell flex-grow flex h-full bg-white dark:bg-[#0c0e14] font-sans overflow-hidden relative">
+    <div className="apexa-space-shell flex-grow flex h-full bg-white dark:bg-[#000000] font-sans overflow-hidden relative">
       
       {/* Backdrop overlay for mobile Spaces sidebar */}
       <AnimatePresence>
@@ -2107,7 +2227,7 @@ export default function SpacePage({
               opacity: 1 
             }}
             exit={{ width: 0, opacity: 0 }}
-            transition={isResizing ? { duration: 0 } : { duration: 0.2, ease: 'easeInOut' }}
+            transition={isResizing ? { duration: 0 } : { duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
             data-testid="space-sidebar"
             ref={sidebarRef}
             className={`apexa-space-sidebar h-full border-r border-slate-100 dark:border-white/[0.08] bg-white dark:bg-[var(--sidebar-bg)] flex flex-col overflow-hidden shrink-0 ${
@@ -2116,39 +2236,30 @@ export default function SpacePage({
                 : 'hidden md:flex'
             }`}
           >
-            {/* Header: Spaces */}
-            <div className="relative shrink-0 px-3.5 py-3 border-b border-slate-100 dark:border-white/[0.08] bg-white dark:bg-[var(--sidebar-bg)]">
+            {/* Inner fixed-width wrapper prevents content crushing during width collapse */}
+            <div 
+              className="h-full flex flex-col shrink-0 overflow-hidden" 
+              style={{ width: typeof window !== 'undefined' && window.innerWidth < 768 ? 280 : sidebarWidth }}
+            >
+              {/* Header: Spaces (Matches Hình 5) */}
+              <div className="relative shrink-0 px-3.5 py-2.5 border-b border-slate-100 dark:border-white/[0.08] bg-white dark:bg-[var(--sidebar-bg)]">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-[13px] font-bold tracking-tight text-slate-900 dark:text-zinc-100">
+                  <span className="text-[14px] font-bold tracking-tight text-slate-900 dark:text-zinc-100">
                     {locale === 'vi' ? 'Không gian' : 'Spaces'}
-                  </span>
-                  <span className="inline-flex min-w-5 h-5 items-center justify-center rounded-md bg-slate-100 dark:bg-white/[0.08] px-1.5 text-[10px] font-bold font-mono text-slate-500 dark:text-zinc-300">
-                    {spaces.filter(space => !space.isArchived).length}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-1">
-                  {/* Create New Space button */}
-                  <button 
-                    type="button" 
-                    onClick={() => onAddSpace?.()}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 hover:bg-blue-500 dark:bg-blue-600 dark:hover:bg-blue-500 text-white shadow-xs transition-all cursor-pointer"
-                    title={locale === 'vi' ? 'Tạo không gian mới' : 'Create new space'}
-                    aria-label={locale === 'vi' ? 'Tạo không gian mới' : 'Create new space'}
-                  >
-                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                  </button>
-
-                  {/* Space Filters / Options Popover Trigger */}
+                  {/* 1. More options (...) */}
                   <div className="relative">
                     <button
                       type="button"
                       onClick={() => setShowSpaceOptionsDropdown(prev => !prev)}
-                      className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all cursor-pointer ${
+                      className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors cursor-pointer ${
                         showSpaceOptionsDropdown || showHiddenSpaces || showArchivedToggle
-                          ? 'border-blue-500/40 bg-blue-50 text-blue-600 dark:border-blue-500/40 dark:bg-blue-500/15 dark:text-blue-300'
-                          : 'border-transparent text-slate-400 hover:border-slate-200 hover:bg-slate-100 dark:hover:border-white/10 dark:hover:bg-white/[0.06] dark:hover:text-white'
+                          ? 'bg-slate-100 text-slate-800 dark:bg-white/10 dark:text-white'
+                          : 'text-slate-400 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06]'
                       }`}
                       title={locale === 'vi' ? 'Tùy chọn không gian' : 'Space options'}
                       aria-label={locale === 'vi' ? 'Tùy chọn không gian' : 'Space options'}
@@ -2165,69 +2276,215 @@ export default function SpacePage({
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 4, scale: 0.95 }}
                             transition={{ duration: 0.12 }}
-                            className="absolute right-0 mt-1.5 w-48 rounded-xl bg-white dark:bg-[#111218] border border-slate-200 dark:border-white/10 p-1.5 shadow-xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-50 divide-y divide-slate-100 dark:divide-white/[0.06]"
+                            className="absolute right-0 mt-1.5 w-56 rounded-xl bg-white dark:bg-[#18191c] border border-slate-200 dark:border-white/10 p-1.5 shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-50 text-slate-700 dark:text-zinc-300"
                           >
-                            <div className="space-y-0.5 pb-1">
+                            <div className="space-y-0.5">
+                              {/* + Create Space */}
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setShowHiddenSpaces(prev => !prev);
                                   setShowSpaceOptionsDropdown(false);
+                                  onAddSpace?.();
                                 }}
-                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                                  showHiddenSpaces 
-                                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300' 
-                                    : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-white/[0.06] dark:hover:text-white'
-                                }`}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer text-left"
                               >
-                                <div className="flex items-center gap-2">
-                                  <EyeOff className="w-3.5 h-3.5" />
-                                  <span>Không gian đã ẩn</span>
-                                </div>
-                                <span className="text-[10px] font-mono opacity-70">
-                                  {spaces.filter(s => s.isHidden).length}
-                                </span>
+                                <Plus className="w-4 h-4 text-slate-500 dark:text-zinc-400" />
+                                <span>{locale === 'vi' ? 'Tạo Không gian' : 'Create Space'}</span>
                               </button>
 
+                              {/* ⊞ Manage Spaces */}
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setShowArchivedToggle(prev => !prev);
                                   setShowSpaceOptionsDropdown(false);
+                                  setShowManageSpacesModal(true);
                                 }}
-                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                                  showArchivedToggle 
-                                    ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300' 
-                                    : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-white/[0.06] dark:hover:text-white'
-                                }`}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer text-left"
                               >
-                                <div className="flex items-center gap-2">
-                                  <Archive className="w-3.5 h-3.5" />
-                                  <span>Kho lưu trữ</span>
-                                </div>
-                                <span className="text-[10px] font-mono opacity-70">
-                                  {totalArchivedCount}
-                                </span>
+                                <LayoutGrid className="w-4 h-4 text-slate-500 dark:text-zinc-400" />
+                                <span>{locale === 'vi' ? 'Quản lý Không gian' : 'Manage Spaces'}</span>
                               </button>
 
+                              {/* Divider */}
+                              <div className="my-1 border-t border-slate-100 dark:border-white/[0.08]" />
+
+                              {/* ⌵ Expand all Folders */}
+                              <button
+                                type="button"
+                                onClick={handleExpandAllFolders}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer text-left"
+                              >
+                                <ChevronDown className="w-4 h-4 text-slate-500 dark:text-zinc-400" />
+                                <span>{locale === 'vi' ? 'Mở rộng tất cả Thư mục' : 'Expand all Folders'}</span>
+                              </button>
+
+                              {/* ^ Close all Folders */}
+                              <button
+                                type="button"
+                                onClick={handleCloseAllFolders}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer text-left"
+                              >
+                                <ChevronUp className="w-4 h-4 text-slate-500 dark:text-zinc-400" />
+                                <span>{locale === 'vi' ? 'Đóng tất cả Thư mục' : 'Close all Folders'}</span>
+                              </button>
+
+                              {/* Divider */}
+                              <div className="my-1 border-t border-slate-100 dark:border-white/[0.08]" />
+
+                              {/* 👁 Show all Spaces */}
+                              <div
+                                onClick={() => setShowHiddenSpaces(prev => !prev)}
+                                className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[13px] font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer select-none"
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <Eye className="w-4 h-4 text-slate-500 dark:text-zinc-400" />
+                                  <span>{locale === 'vi' ? 'Hiện tất cả Không gian' : 'Show all Spaces'}</span>
+                                </div>
+                                <div className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                                  showHiddenSpaces ? 'bg-blue-600' : 'bg-slate-300 dark:bg-zinc-600'
+                                }`}>
+                                  <span
+                                    className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                                      showHiddenSpaces ? 'translate-x-3.5' : 'translate-x-0'
+                                    }`}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* 🗃 Show archived */}
+                              <div
+                                onClick={() => setShowArchivedToggle(prev => !prev)}
+                                className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[13px] font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer select-none"
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <Archive className="w-4 h-4 text-slate-500 dark:text-zinc-400" />
+                                  <span>{locale === 'vi' ? 'Hiện lưu trữ' : 'Show archived'}</span>
+                                </div>
+                                <div className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                                  showArchivedToggle ? 'bg-blue-600' : 'bg-slate-300 dark:bg-zinc-600'
+                                }`}>
+                                  <span
+                                    className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                                      showArchivedToggle ? 'translate-x-3.5' : 'translate-x-0'
+                                    }`}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* 2. Search (🔍) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSpacesSearch(prev => !prev);
+                      if (showSpacesSearch) setSpacesSearchQuery('');
+                    }}
+                    className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors cursor-pointer ${
+                      showSpacesSearch || spacesSearchQuery
+                        ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300'
+                        : 'text-slate-400 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06]'
+                    }`}
+                    title={locale === 'vi' ? 'Tìm kiếm' : 'Search'}
+                    aria-label={locale === 'vi' ? 'Tìm kiếm' : 'Search'}
+                  >
+                    <Search className="w-4 h-4" />
+                  </button>
+
+                  {/* 3. Collapse sidebar (<<) */}
+                  <button
+                    type="button"
+                    onClick={() => setIsSubSidebarCollapsed(true)}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
+                    title={locale === 'vi' ? 'Thu gọn thanh bên (Ctrl + \\)' : 'Collapse sidebar (Ctrl + \\)'}
+                    aria-label={locale === 'vi' ? 'Thu gọn thanh bên' : 'Collapse sidebar'}
+                  >
+                    <ChevronsLeft className="w-4 h-4" />
+                  </button>
+
+                  {/* 4. Unified Add button (+ ⌵) */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setSpacesAddDropdownOpen(prev => !prev)}
+                      className="flex h-7 items-center gap-0.5 rounded-lg bg-slate-100 hover:bg-slate-200/80 dark:bg-white/[0.08] dark:hover:bg-white/[0.14] text-slate-700 dark:text-zinc-200 px-2 text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+                      title={locale === 'vi' ? 'Tạo mới' : 'Create new'}
+                      aria-label={locale === 'vi' ? 'Tạo mới' : 'Create new'}
+                    >
+                      <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <ChevronDown className="w-3 h-3 stroke-[2] opacity-70" />
+                    </button>
+
+                    <AnimatePresence>
+                      {spacesAddDropdownOpen && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setSpacesAddDropdownOpen(false)} />
+                          <motion.div
+                            initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                            transition={{ duration: 0.12 }}
+                            className="absolute right-0 mt-1.5 w-44 rounded-xl bg-white dark:bg-[#18191c] border border-slate-200 dark:border-white/10 p-1 shadow-xl z-50 divide-y divide-slate-100 dark:divide-white/[0.06]"
+                          >
+                            <div className="space-y-0.5">
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setShowTrashModal(true);
-                                  setShowSpaceOptionsDropdown(false);
+                                  setSpacesAddDropdownOpen(false);
+                                  onAddSpace?.();
                                 }}
-                                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer text-left"
                               >
-                                <div className="flex items-center gap-2">
-                                  <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                                  <span>{locale === 'vi' ? 'Thùng rác' : 'Task Trash'}</span>
-                                </div>
-                                {deletedTasks && deletedTasks.length > 0 && (
-                                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
-                                    {deletedTasks.length}
-                                  </span>
-                                )}
+                                <Plus className="w-3.5 h-3.5 text-blue-500" />
+                                <span>{locale === 'vi' ? 'Không gian mới' : 'New Space'}</span>
                               </button>
+                              {activeSpace && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSpacesAddDropdownOpen(false);
+                                      const folderName = prompt(locale === 'vi' ? 'Tên thư mục mới:' : 'New Folder name:');
+                                      if (folderName?.trim()) {
+                                        onAddFolderToSpace?.(activeSpace.id, folderName.trim());
+                                      }
+                                    }}
+                                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer text-left"
+                                  >
+                                    <Folder className="w-3.5 h-3.5 text-amber-500" />
+                                    <span>{locale === 'vi' ? 'Thư mục mới' : 'New Folder'}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSpacesAddDropdownOpen(false);
+                                      onAddListSpace?.(activeSpace.id);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer text-left"
+                                  >
+                                    <List className="w-3.5 h-3.5 text-emerald-500" />
+                                    <span>{locale === 'vi' ? 'Danh sách mới' : 'New List'}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSpacesAddDropdownOpen(false);
+                                      const docTitle = prompt(locale === 'vi' ? 'Tiêu đề tài liệu mới:' : 'New Doc title:');
+                                      if (docTitle?.trim()) {
+                                        onAddDocToSpace?.(activeSpace.id, docTitle.trim());
+                                      }
+                                    }}
+                                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer text-left"
+                                  >
+                                    <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                                    <span>{locale === 'vi' ? 'Tài liệu mới' : 'New Doc'}</span>
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </motion.div>
                         </>
@@ -2250,6 +2507,42 @@ export default function SpacePage({
                 </div>
               </div>
             </div>
+
+            {/* Quick Filter Search Bar if toggled via 🔍 */}
+            {showSpacesSearch && (
+              <div className="px-3 py-2 border-b border-slate-100 dark:border-white/[0.08] bg-slate-50/70 dark:bg-white/[0.02] flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500" />
+                  <input
+                    type="text"
+                    value={spacesSearchQuery}
+                    onChange={(e) => setSpacesSearchQuery(e.target.value)}
+                    placeholder={locale === 'vi' ? 'Tìm không gian, thư mục...' : 'Search spaces, folders...'}
+                    className="w-full bg-white dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-lg pl-8 pr-7 py-1 text-xs text-slate-800 dark:text-zinc-200 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    autoFocus
+                  />
+                  {spacesSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSpacesSearchQuery('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300 cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSpacesSearch(false);
+                    setSpacesSearchQuery('');
+                  }}
+                  className="text-xs text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-white cursor-pointer"
+                >
+                  {locale === 'vi' ? 'Đóng' : 'Close'}
+                </button>
+              </div>
+            )}
 
             {/* Spaces navigation list */}
             <div className="flex-1 overflow-y-auto px-2.5 py-3 scrollbar-none">
@@ -2327,14 +2620,14 @@ export default function SpacePage({
                         data-space-active={isSpaceActive || undefined}
                         className={`group/space relative flex h-[32px] items-center justify-between rounded-md px-1.5 text-xs transition-colors duration-150 select-none ${
                           isSpaceActive 
-                            ? 'bg-blue-50/80 text-blue-900 dark:bg-blue-500/15 dark:text-blue-200 font-semibold shadow-2xs' 
+                            ? 'bg-blue-50/70 text-blue-900 dark:bg-sky-500/10 dark:text-sky-200 font-semibold' 
                             : isAnyChildActive
                               ? 'text-slate-900 dark:text-zinc-100 font-semibold hover:bg-slate-100/60 dark:hover:bg-white/[0.04]'
                               : 'text-slate-700 dark:text-zinc-400 hover:bg-slate-100/60 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white font-medium'
                         }`}
                       >
                         {isSpaceActive && (
-                          <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-blue-600 dark:bg-blue-400 shadow-xs shadow-blue-500/40" />
+                          <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-blue-600 dark:bg-sky-400 shadow-xs shadow-blue-500/40" />
                         )}
 
                         {/* Accordion Chevron Toggle + Space Icon + Space Name */}
@@ -2441,8 +2734,15 @@ export default function SpacePage({
                       </div>
 
                       {/* Lists & items nested under Space */}
-                      {isExpanded && (
-                        <div className="relative ml-3 mt-0.5 space-y-0.5 border-l border-slate-200/80 dark:border-white/[0.08] pl-2">
+                      <AnimatePresence initial={false}>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                            className="relative ml-3 mt-0.5 space-y-0.5 border-l border-slate-200/80 dark:border-white/[0.08] pl-2 overflow-hidden"
+                          >
                           {/* Render Folders */}
                           {space.folders?.filter(folder => showArchivedToggle ? (folder.isArchived || (space.lists || []).some(l => l.folderId === folder.id && l.isArchived)) : !folder.isArchived).sort((a, b) => Number(!!b.isFavorite) - Number(!!a.isFavorite)).map(folder => {
                             const isFolderOpen = expandedFolders[folder.id] !== undefined ? expandedFolders[folder.id] : (showArchivedToggle || activeFolderId === folder.id);
@@ -2531,8 +2831,15 @@ export default function SpacePage({
                                   </div>
                                 </div>
 
-                                {isFolderOpen && (
-                                  <div className="pl-2 space-y-0.5 ml-1 mt-0.5 border-l border-slate-200/80 dark:border-white/[0.08]">
+                                <AnimatePresence initial={false}>
+                                  {isFolderOpen && (
+                                    <motion.div
+                                      initial={{ opacity: 0, height: 0 }}
+                                      animate={{ opacity: 1, height: 'auto' }}
+                                      exit={{ opacity: 0, height: 0 }}
+                                      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                                      className="pl-2 space-y-0.5 ml-1 mt-0.5 border-l border-slate-200/80 dark:border-white/[0.08] overflow-hidden"
+                                    >
                                     {folderLists.map(list => {
                                       const isListActive = activeSpaceId === space.id && activeListId === list.id;
                                       const taskCount = tasks.filter(t => t.listId === list.id).length;
@@ -2541,12 +2848,12 @@ export default function SpacePage({
                                           key={list.id}
                                           className={`group/list relative flex h-[30px] w-full items-center justify-between rounded-md px-2 text-left text-xs transition-colors duration-150 select-none ${
                                             isListActive
-                                              ? 'bg-blue-50/80 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300 font-semibold shadow-2xs'
+                                              ? 'bg-blue-50/70 text-blue-700 dark:bg-sky-500/10 dark:text-sky-300 font-semibold'
                                               : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100/70 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-zinc-100 font-medium'
                                           }`}
                                         >
                                           {isListActive && (
-                                            <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-blue-600 dark:bg-blue-400 shadow-xs shadow-blue-500/40" />
+                                            <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-blue-600 dark:bg-sky-400 shadow-xs shadow-blue-500/40" />
                                           )}
 
                                           {/* List name click area */}
@@ -2680,9 +2987,10 @@ export default function SpacePage({
                                     {folderLists.length === 0 && folderDocs.length === 0 && folderWhiteboards.length === 0 && (
                                       <div className="text-[10px] text-slate-400 italic pl-3 py-1">Thư mục trống.</div>
                                     )}
-                                  </div>
+                                  </motion.div>
                                 )}
-                              </div>
+                              </AnimatePresence>
+                            </div>
                             );
                           })}
 
@@ -2695,12 +3003,12 @@ export default function SpacePage({
                                 key={list.id}
                                 className={`group/list relative flex h-[30px] w-full items-center justify-between rounded-md px-2 text-left text-xs transition-colors duration-150 select-none ${
                                   isListActive
-                                    ? 'bg-blue-50/80 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300 font-semibold shadow-2xs'
+                                    ? 'bg-blue-50/70 text-blue-700 dark:bg-sky-500/10 dark:text-sky-300 font-semibold'
                                     : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100/70 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-zinc-100 font-medium'
                                 }`}
                               >
                                 {isListActive && (
-                                  <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-blue-600 dark:bg-blue-400 shadow-xs shadow-blue-500/40" />
+                                  <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-blue-600 dark:bg-sky-400 shadow-xs shadow-blue-500/40" />
                                 )}
 
                                 {/* List name click area */}
@@ -2857,9 +3165,10 @@ export default function SpacePage({
                               </button>
                             </div>
                           )}
-                        </div>
+                        </motion.div>
                       )}
-                    </div>
+                    </AnimatePresence>
+                  </div>
                   );
                 })}
                 {!sidebarSpaces.length && (
@@ -2927,6 +3236,7 @@ export default function SpacePage({
                 )}
               </button>
             </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -2942,16 +3252,22 @@ export default function SpacePage({
         />
       )}
 
-{/* Restore sub-sidebar trigger if collapsed */}
-      {isSubSidebarCollapsed && (
-        <button
-          onClick={() => setIsSubSidebarCollapsed(false)}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-40 bg-white dark:bg-[var(--cu-surface)] border border-l-0 border-slate-200/80 dark:border-white/[0.08] rounded-r-xl shadow-md p-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all cursor-pointer shrink-0 hidden md:block"
-          title="Mở rộng thanh khu vực"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      )}
+      {/* Restore sub-sidebar trigger if collapsed (Smooth Slide Animation) */}
+      <AnimatePresence>
+        {isSubSidebarCollapsed && (
+          <motion.button
+            initial={{ opacity: 0, x: -16, scale: 0.9 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: -16, scale: 0.9 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            onClick={() => setIsSubSidebarCollapsed(false)}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-40 bg-white dark:bg-[var(--cu-surface)] border border-l-0 border-slate-200/80 dark:border-white/[0.08] rounded-r-xl shadow-md hover:shadow-lg px-1.5 py-3 hover:bg-slate-50 dark:hover:bg-white/[0.08] text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer shrink-0 hidden md:flex items-center justify-center group"
+            title={locale === 'vi' ? 'Mở rộng thanh khu vực' : 'Expand sidebar'}
+          >
+            <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* Main Page Workspace Content Container (Right) */}
       <div className="apexa-space-workspace flex-grow flex-1 flex flex-col h-full overflow-hidden relative bg-white dark:bg-transparent">
@@ -3059,7 +3375,7 @@ export default function SpacePage({
                                     top: breadcrumbCoords.top,
                                     left: breadcrumbCoords.left,
                                   }}
-                                  className="w-[310px] bg-white dark:bg-[#111218] border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-3 z-[150] text-left font-sans select-none"
+                                  className="w-[310px] bg-white dark:bg-[#0a0b10] border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-3 z-[150] text-left font-sans select-none"
                                 >
                                   {/* Header Box: Rename list input & options */}
                                   <div className="flex items-center gap-2 p-1.5 border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/60 dark:bg-white/[0.04] rounded-xl mb-3 shadow-3xs">
@@ -3208,6 +3524,7 @@ export default function SpacePage({
                   setSharingModalOpen(true);
                 }}
                 onAddSyncLog={onAddSyncLog}
+                onOpenCustomizeView={() => setShowCustomizeViewModal(true)}
               />
               </div>
 
@@ -3246,11 +3563,11 @@ export default function SpacePage({
                 )}
               </button>
 
-              {/* Gradient "+ Task" button */}
+              {/* Solid "+ Task" button */}
               <button
                 type="button"
                 onClick={() => activeViewProtectedRef.current ? notifyProtectedView() : setShowAddModal(true)}
-                className="h-8 px-3 rounded-lg bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm shadow-blue-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
+                className="h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs active:scale-95 transition-all cursor-pointer shrink-0"
               >
                 <Plus className="w-3.5 h-3.5 stroke-[2.5px]" />
                 <span>{locale === 'vi' ? 'Công việc' : 'Task'}</span>
@@ -3259,19 +3576,15 @@ export default function SpacePage({
             </div>
           </div>
         </header>
-        {TASK_WORKSPACE_VIEWS.has(activeView) && (
-          <SpaceFocusBar tasks={scopedTasks} focus={taskFocus} onFocusChange={setTaskFocus}
-            userId={currentUser?.id} locale={locale} resultCount={filteredTasks.length} />
-        )}
 
       {/* ── Filter / Sorter Bar (Seamless & Gentle Workspace Toolbar) ── */}
       {isTaskWorkspaceView && (
-        <div className="apexa-space-filterbar shrink-0 border-b border-slate-200/60 dark:border-white/[0.06] px-3 sm:px-6 py-1.5 flex items-center justify-between gap-2.5 bg-white/80 dark:bg-[var(--cu-surface)]/60 backdrop-blur-xs min-h-[42px] overflow-x-auto no-scrollbar" role="search" aria-label={locale === 'vi' ? 'Tìm kiếm và lọc công việc' : 'Search and filter tasks'}>
+        <div className="apexa-space-filterbar shrink-0 border-b border-slate-200/60 dark:border-white/[0.06] px-3 sm:px-6 py-1.5 flex items-center justify-between gap-2.5 bg-white/80 dark:bg-[#050508]/90 backdrop-blur-md min-h-[42px] overflow-x-auto no-scrollbar" role="search" aria-label={locale === 'vi' ? 'Tìm kiếm và lọc công việc' : 'Search and filter tasks'}>
           
           {/* Left section: Search + (if Board view) Group & Swimlane */}
           <div className="flex items-center gap-2 shrink-0">
             {/* Search task input */}
-            <div className="group flex items-center gap-2 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 focus-within:border-indigo-500 dark:focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500/20 shadow-3xs rounded-xl px-2.5 py-1 w-36 sm:w-44 lg:w-52 transition-all h-8">
+            <div className="group flex items-center gap-2 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 focus-within:border-blue-500 dark:focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-500/20 shadow-3xs rounded-xl px-2.5 py-1 w-36 sm:w-44 lg:w-52 transition-all h-8">
               <Search className="w-3.5 h-3.5 text-slate-400 group-focus-within:text-indigo-500 dark:group-focus-within:text-indigo-400 transition-colors shrink-0" />
               <input 
                 type="text" 
@@ -3346,21 +3659,52 @@ export default function SpacePage({
             )}
           </div>
 
+          {/* Middle section: Focus Pills (Integrated cleanly on the same row) */}
+          {TASK_WORKSPACE_VIEWS.has(activeView) && (
+            <>
+              <div className="h-4 w-px bg-slate-200 dark:bg-white/10 shrink-0 mx-1 hidden md:block" />
+              <SpaceFocusBar 
+                variant="inline"
+                tasks={scopedTasks} 
+                focus={taskFocus} 
+                onFocusChange={setTaskFocus}
+                userId={currentUser?.id} 
+                locale={locale} 
+                resultCount={filteredTasks.length} 
+              />
+            </>
+          )}
+
           {/* Right section: Filters, Sorter, Card Size/Covers, AI, Add Board */}
           <div className="flex items-center gap-1.5 shrink-0">
+            {/* Customize View Button (ClickUp style) */}
+            <button 
+              type="button"
+              onClick={() => setShowCustomizeViewModal(true)}
+              className={`h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                showCustomizeViewModal
+                  ? 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200/60 dark:border-indigo-500/30 shadow-2xs'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-white/5'
+              }`}
+              title={locale === 'vi' ? 'Tùy chỉnh chế độ xem (Bảng, Danh sách, Kanban, Gantt)' : 'Customize view'}
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span>{locale === 'vi' ? 'Tùy chỉnh' : 'Customize'}</span>
+            </button>
+
             {/* Filter Drawer Toggle */}
             <button 
               onClick={() => setShowFilters(!showFilters)}
               className={`h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                 showFilters || activeFilterCount > 0
-                  ? 'bg-indigo-50 dark:bg-blue-500/15 text-indigo-600 dark:text-blue-300 font-bold'
+                  ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-300 font-bold border border-blue-200/60 dark:border-blue-500/30 shadow-2xs'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-white/5'
               }`}
             >
               <Filter className="w-3.5 h-3.5" />
               <span>{locale === 'vi' ? 'Bộ lọc' : (t('filter') || 'Filter')}</span>
               {activeFilterCount > 0 && (
-                <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[8.5px] font-black flex items-center justify-center">
+                <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[8.5px] font-black flex items-center justify-center">
                   {activeFilterCount}
                 </span>
               )}
@@ -3374,7 +3718,7 @@ export default function SpacePage({
                   onClick={() => setIsSortMenuOpen(!isSortMenuOpen)}
                   className={`h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                     sortBy !== 'manual'
-                      ? 'bg-indigo-50 dark:bg-blue-500/15 text-indigo-700 dark:text-blue-300 font-bold'
+                      ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 font-bold border border-blue-200/60 dark:border-blue-500/30 shadow-2xs'
                       : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-white/5'
                   }`}
                 >
@@ -3391,7 +3735,7 @@ export default function SpacePage({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 4, scale: 0.96 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute right-0 top-full mt-1.5 z-50 w-72 p-2 bg-white/98 dark:bg-[#111218]/98 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] space-y-1 font-sans text-xs"
+                    className="absolute right-0 top-full mt-1.5 z-50 w-72 p-2 bg-white/98 dark:bg-[#0a0b10]/98 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] space-y-1 font-sans text-xs"
                   >
                     <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-slate-100 dark:border-white/[0.08] mb-1">
                       <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
@@ -3513,7 +3857,7 @@ export default function SpacePage({
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 4, scale: 0.96 }}
                         transition={{ duration: 0.15, ease: 'easeOut' }}
-                        className="absolute right-0 top-full mt-1.5 z-50 w-60 p-3 bg-white/98 dark:bg-[#111218]/98 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] space-y-3 font-sans text-xs"
+                        className="absolute right-0 top-full mt-1.5 z-50 w-60 p-3 bg-white/98 dark:bg-[#0a0b10]/98 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] space-y-3 font-sans text-xs"
                       >
                         <div>
                           <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1.5">
@@ -3585,7 +3929,7 @@ export default function SpacePage({
                 fetchAiPriority();
               }}
               title={locale === 'vi' ? 'Ưu tiên do AI đề xuất' : 'AI Priority Suggestions'}
-              className="h-8 px-2.5 rounded-lg text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50/80 dark:hover:bg-indigo-950/40 cursor-pointer flex items-center gap-1.5 transition-colors"
+              className="h-8 px-2.5 rounded-lg text-xs font-semibold text-blue-600 dark:text-sky-300 hover:bg-blue-50/80 dark:hover:bg-sky-500/15 cursor-pointer flex items-center gap-1.5 transition-colors border border-transparent hover:border-blue-200/50 dark:hover:border-sky-500/30"
             >
               <Bot className="w-3.5 h-3.5" />
               <span>{locale === 'vi' ? 'Gợi ý AI' : 'AI Priority'}</span>
@@ -3920,6 +4264,8 @@ export default function SpacePage({
             openPromptModal={openPromptModal}
             openDialog={triggerConfirm}
             spaces={spaces}
+            wrapText={wrapText}
+            showEmptyStatuses={showEmptyStatuses}
             onReorderTasks={(orderedIds) => {
               if (onUpdateTaskOrder && activeWorkspaceId) {
                 onUpdateTaskOrder(activeWorkspaceId, orderedIds);
@@ -3964,6 +4310,7 @@ export default function SpacePage({
             setCardCover={setCardCover}
             onAddTask={guardedAddTask}
             hideHeaderControls={true}
+            showEmptyStatuses={showEmptyStatuses}
           />
         )}
 
@@ -3989,6 +4336,8 @@ export default function SpacePage({
             setCustomFields={persistCustomFields}
             openDialog={triggerConfirm}
             openPromptModal={openPromptModal}
+            wrapText={wrapText}
+            showEmptyStatuses={showEmptyStatuses}
           />
         )}
 
@@ -4277,7 +4626,7 @@ export default function SpacePage({
                 <button
                   type="submit"
                   disabled={formSubmitting}
-                  className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Gửi biểu mẫu & Tạo công việc</span>
@@ -4339,7 +4688,7 @@ export default function SpacePage({
         {activeView === 'ai' && (
           <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-sm space-y-5 text-left max-w-2xl">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/25 shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-xs shrink-0">
                 <Bot className="w-5 h-5" />
               </div>
               <div>
@@ -4390,7 +4739,7 @@ export default function SpacePage({
                   type="button"
                   disabled={!aiPromptInput.trim() || isAiGeneratingTasks}
                   onClick={handleAiGenerateTasks}
-                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-black text-xs rounded-xl shadow-md shadow-indigo-500/25 transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Sparkles className="w-4 h-4 animate-spin" style={{ animationDuration: isAiGeneratingTasks ? '1s' : '0s' }} />
                   <span>{isAiGeneratingTasks ? 'Upgen AI đang tạo công việc...' : 'Tạo công việc ngay'}</span>
@@ -4456,7 +4805,7 @@ export default function SpacePage({
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 50, opacity: 0, scale: 0.97 }}
             transition={{ type: 'spring', damping: 28, stiffness: 340 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/95 dark:bg-[#151824]/95 backdrop-blur-md border border-slate-200/90 dark:border-white/12 shadow-[0_12px_36px_-6px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_48px_-8px_rgba(0,0,0,0.6)] max-w-[95vw] overflow-x-auto scrollbar-none select-none text-xs"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/95 dark:bg-[#08090d]/95 backdrop-blur-md border border-slate-200/90 dark:border-white/12 shadow-[0_12px_36px_-6px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_48px_-8px_rgba(0,0,0,0.6)] max-w-[95vw] overflow-x-auto scrollbar-none select-none text-xs"
           >
             {/* Selection Count */}
             <div className="flex items-center gap-1.5 pl-0.5 pr-1.5 shrink-0">
@@ -4702,13 +5051,13 @@ export default function SpacePage({
             {/* Modal Header */}
             <div className="flex items-center justify-between shrink-0 pb-2 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 text-white flex items-center justify-center shadow-2xs">
+                <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
                   <Sparkles className="w-4 h-4" />
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-1.5">
                     <span>Upgen AI Triage</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/40">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/40">
                       Gemini 2.5
                     </span>
                   </h3>
@@ -4736,9 +5085,9 @@ export default function SpacePage({
               <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-1 text-xs">
                 {/* Strategic General Summary Banner */}
                 {aiSuggestions?.generalSummary && (
-                  <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-50/90 via-purple-50/50 to-pink-50/40 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-pink-950/20 border border-indigo-200/80 dark:border-indigo-800/60 space-y-1.5 shadow-3xs">
-                    <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-300 font-black text-xs">
-                      <Brain className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 space-y-1.5 shadow-2xs">
+                    <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-black text-xs">
+                      <Brain className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                       <span>Chiến lược hành động đề xuất</span>
                     </div>
                     <p className="text-slate-700 dark:text-slate-300 font-medium leading-relaxed">
@@ -6201,19 +6550,28 @@ export default function SpacePage({
 
 
             {/* ── Portal for Folder Settings Dropdown Menu ── */}
-      {activeFolderSettings && (() => {
-        const space = spaces.find(s => s.id === activeFolderSettings.spaceId);
-        const folder = space?.folders?.find(f => f.id === activeFolderSettings.id);
-        if (!space || !folder) return null;
-        const folderListsCount = space.lists.filter(l => l.folderId === folder.id).length;
-        return (
-          <Portal>
-            <div className="fixed inset-0 z-40" onClick={() => { setActiveFolderSettings(null); setFolderColorMenuOpen(null); }} />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.94, y: -6 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.94, y: -6 }}
-              transition={{ duration: 0.16, type: 'spring', stiffness: 420, damping: 28 }}
+      <Portal>
+        <AnimatePresence>
+          {activeFolderSettings && (() => {
+            const space = spaces.find(s => s.id === activeFolderSettings.spaceId);
+            const folder = space?.folders?.find(f => f.id === activeFolderSettings.id);
+            if (!space || !folder) return null;
+            const folderListsCount = space.lists.filter(l => l.folderId === folder.id).length;
+            return (
+              <motion.div
+                key="folder-settings-wrapper"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                <div className="fixed inset-0 z-40" onClick={() => { setActiveFolderSettings(null); setFolderColorMenuOpen(null); }} />
+                <motion.div 
+                  key="folder-settings-dropdown"
+                  initial={{ opacity: 0, scale: 0.94, y: -6 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.94, y: -6 }}
+                  transition={{ duration: 0.16, type: 'spring', stiffness: 420, damping: 28 }}
               style={{ 
                 position: 'fixed', 
                 top: Math.max(16, Math.min(activeFolderSettings.y, typeof window !== 'undefined' ? window.innerHeight - 560 : activeFolderSettings.y)), 
@@ -6633,10 +6991,52 @@ export default function SpacePage({
                   <span>Chia sẻ và phân quyền</span>
                 </button>
               </div>
-            </motion.div>
-          </Portal>
-        );
-      })()}
+                </motion.div>
+              </motion.div>
+            );
+          })()}
+        </AnimatePresence>
+      </Portal>
+
+      <CustomizeViewModal
+        isOpen={showCustomizeViewModal}
+        onClose={() => setShowCustomizeViewModal(false)}
+        activeView={activeView}
+        viewTitle={activeViewLabel}
+        showEmptyStatuses={showEmptyStatuses}
+        onToggleShowEmptyStatuses={setShowEmptyStatuses}
+        wrapText={wrapText}
+        onToggleWrapText={setWrapText}
+        showTaskLocations={showTaskLocations}
+        onToggleShowTaskLocations={setShowTaskLocations}
+        showSubtaskParentNames={showSubtaskParentNames}
+        onToggleShowSubtaskParentNames={setShowSubtaskParentNames}
+        showClosedTasks={showClosedTasks}
+        onToggleShowClosedTasks={setShowClosedTasks}
+        visibleFieldsCount={visibleFields.length}
+        onOpenFields={() => openFieldsPanel()}
+        activeFilterCount={activeFilterCount}
+        onOpenFilter={() => setShowFilters(true)}
+        groupBy={boardGroupBy}
+        onChangeGroupBy={(group) => setBoardGroupBy(group as any)}
+        subtasksMode={subtasksMode}
+        onChangeSubtasksMode={setSubtasksMode}
+        onOpenTemplates={() => setTemplatesModalOpen(true)}
+        viewSettings={activeViewSettings}
+        onUpdateViewSetting={handleUpdateActiveViewSetting}
+        onCopyLink={handleCopyViewLink}
+        isFavorite={Boolean(activeSpace.isFavorite)}
+        onToggleFavorite={() => toggleSpaceFavorite(activeSpace)}
+        onExport={() => handleExportViewData('csv')}
+        onOpenShare={() => {
+          setSharingTargetType('space');
+          setSharingTargetId(activeSpace.id);
+          setSharingTargetName(activeSpace.name);
+          setSharingTargetIsPrivate(!!activeSpace.isPrivate);
+          setSharingTargetShareSettings(activeSpace.shareSettings || {});
+          setSharingModalOpen(true);
+        }}
+      />
 
       <CustomFieldsManagerModal
         isOpen={showFieldsPanel}
@@ -6679,31 +7079,40 @@ export default function SpacePage({
         spaces={spaces}
       />
 
+      <ManageSpacesModal
+        isOpen={showManageSpacesModal}
+        onClose={() => setShowManageSpacesModal(false)}
+        spaces={spaces}
+        onSaveSpaces={onSaveSpaces}
+        onOpenSpaceSettings={onOpenSpaceSettings}
+        onAddSpace={onAddSpace}
+        onDeleteSpace={onDeleteSpace}
+        triggerToast={triggerToast}
+      />
+
       {/* Modern UI/UX Prompt Modal */}
       {promptConfig && (
         <PromptModal {...promptConfig} />
       )}
 
-      {sharingModalOpen && (
-        <ShareSettingsModal
-          isOpen={sharingModalOpen}
-          onClose={() => setSharingModalOpen(false)}
-          targetType={sharingTargetType}
-          targetId={sharingTargetId}
-          targetName={sharingTargetName}
-          isPrivate={sharingTargetIsPrivate}
-          shareSettings={sharingTargetShareSettings}
-          members={members}
-          currentUser={currentUser}
-          onSave={handleSaveSharingSettings}
-          spaceId={activeSpace?.id}
-          canEdit={sharingTargetType === 'space' 
-            ? canEditSpace(spaces.find(s => s.id === sharingTargetId) || activeSpace) 
-            : sharingTargetType === 'folder'
-            ? canEditSpace(activeSpace)
-            : canEditList(activeSpace, activeSpace.lists?.find(l => l.id === sharingTargetId))}
-        />
-      )}
+      <ShareSettingsModal
+        isOpen={sharingModalOpen}
+        onClose={() => setSharingModalOpen(false)}
+        targetType={sharingTargetType}
+        targetId={sharingTargetId}
+        targetName={sharingTargetName}
+        isPrivate={sharingTargetIsPrivate}
+        shareSettings={sharingTargetShareSettings}
+        members={members}
+        currentUser={currentUser}
+        onSave={handleSaveSharingSettings}
+        spaceId={activeSpace?.id}
+        canEdit={sharingTargetType === 'space' 
+          ? canEditSpace(spaces.find(s => s.id === sharingTargetId) || activeSpace) 
+          : sharingTargetType === 'folder'
+          ? canEditSpace(activeSpace)
+          : canEditList(activeSpace, activeSpace.lists?.find(l => l.id === sharingTargetId))}
+      />
 
       {/* ── ADD / EDIT FOLDER MODAL ── */}
       <AddFolderModal
@@ -6727,15 +7136,26 @@ export default function SpacePage({
       />
 
       {/* Templates Selection Modal */}
-      {templatesModalOpen && (
-        <Portal>
-          <div className="fixed inset-0 z-[120] bg-slate-950/60 flex items-center justify-center p-4">
-            <div className="absolute inset-0 cursor-pointer" onClick={() => setTemplatesModalOpen(false)} />
+      <Portal>
+        <AnimatePresence>
+          {templatesModalOpen && (
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="relative z-10 w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5 text-left"
+              key="templates-modal-wrapper"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="fixed inset-0 z-[120] flex items-center justify-center p-4"
             >
+              <div className="absolute inset-0 bg-slate-950/60 modal-backdrop-blur cursor-pointer" onClick={() => setTemplatesModalOpen(false)} />
+              <motion.div
+                key="templates-modal-card"
+                initial={{ scale: 0.94, y: 16, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.94, y: 16, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                className="relative z-10 w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5 text-left"
+              >
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
@@ -6805,7 +7225,7 @@ export default function SpacePage({
                       <button
                         type="button"
                         onClick={() => handleApplyTemplatePreset(tmpl.key)}
-                        className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
                       >
                         <Zap className="w-3.5 h-3.5" />
                         <span>Áp dụng mẫu này</span>
@@ -6815,9 +7235,10 @@ export default function SpacePage({
                 ))}
               </div>
             </motion.div>
-          </div>
-        </Portal>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Portal>
 
       </div> {/* Closing tag for Main Page Workspace Content Container */}
     </div>

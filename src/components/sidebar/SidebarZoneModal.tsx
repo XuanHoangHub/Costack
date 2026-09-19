@@ -139,8 +139,6 @@ export function SidebarZoneModal({
     return DEFAULT_SIDEBAR_ORDER;
   }, []);
 
-  if (!isOpen) return null;
-
   const handleToggleItem = (itemId: string) => {
     setSelectedItemIds((prev) => {
       if (prev.includes(itemId)) {
@@ -232,29 +230,38 @@ export function SidebarZoneModal({
 
   const activeColorConfig = COLOR_PRESETS.find(c => c.id === color) || COLOR_PRESETS[0];
 
-  if (!isOpen) return null;
-
   return (
     <Portal>
-      <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
-          onClick={onClose}
-          className="fixed inset-0 modal-backdrop bg-black/25 dark:bg-black/60 cursor-pointer"
-        />
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            key="sidebar-zone-modal-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto"
+          >
+            {/* Backdrop */}
+            <motion.div
+              key="sidebar-zone-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              onClick={onClose}
+              className="fixed inset-0 modal-backdrop bg-black/25 dark:bg-black/60 modal-backdrop-blur cursor-pointer"
+            />
 
-      {/* Modal Dialog */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 10 }}
-        transition={{ duration: 0.18, ease: "easeOut" }}
-        className="relative w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl border border-slate-200/90 dark:border-white/12 bg-white dark:bg-[#0c0d12] text-slate-900 dark:text-white shadow-[0_25px_60px_-15px_rgba(15,23,42,0.18)] dark:shadow-[0_25px_70px_rgba(0,0,0,0.9)] overflow-hidden z-10 my-auto"
-      >
+            {/* Modal Dialog */}
+            <motion.div
+              key="sidebar-zone-modal-card"
+              initial={{ opacity: 0, scale: 0.94, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 16 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              className="relative w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl border border-slate-200/90 dark:border-white/12 bg-white dark:bg-[#0c0d12] text-slate-900 dark:text-white shadow-[0_25px_60px_-15px_rgba(15,23,42,0.18)] dark:shadow-[0_25px_70px_rgba(0,0,0,0.9)] overflow-hidden z-10 my-auto"
+            >
         {/* Modal Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200/80 dark:border-white/[0.08] bg-slate-50/60 dark:bg-white/[0.02]">
           <div className="flex items-center gap-3">
@@ -502,8 +509,10 @@ export function SidebarZoneModal({
             </div>
           </div>
         </form>
-      </motion.div>
-    </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Portal>
   );
 }

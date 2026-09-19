@@ -7,10 +7,7 @@
     "icon": "./assets/icon.png",
     "scheme": "upgen",
     "userInterfaceStyle": "automatic",
-    "primaryColor": "#4f46e5",
-    "splash": {
-      "backgroundColor": "#0c0e14"
-    },
+    "primaryColor": "#2563eb",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.upgen.mobile"
@@ -27,6 +24,9 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-image"
+    ]
   }
 }

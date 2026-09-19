@@ -274,7 +274,7 @@ export default function PageTreeSidebar({
   };
 
   return (
-    <div className="flex h-full w-full shrink-0 select-none flex-col border-r border-slate-200/70 bg-[#f7f8fa] font-sans dark:border-slate-800/70 dark:bg-[#111318]">
+    <div className="flex h-full w-full shrink-0 select-none flex-col border-r border-slate-200/70 bg-[#f7f8fa] font-sans dark:border-slate-800/70 dark:bg-[#050508]">
       
       {/* Header & Primary CTA */}
       <div className="shrink-0 space-y-3 border-b border-slate-200/60 p-3.5 pb-3 dark:border-slate-800/60">

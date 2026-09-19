@@ -1489,7 +1489,7 @@ Based on current workspace data:
                         ) : (
                           tasks.map(t => (
                             <option key={t.id} value={t.id}>
-                              [{t.priority.toUpperCase()}] {t.title}
+                              [{(t.priority || 'none').toUpperCase()}] {t.title}
                             </option>
                           ))
                         )}

@@ -1,5 +1,4 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import {
   Check,
@@ -13,6 +12,8 @@ import { Task } from '../../types';
 import { useUiStore } from '../../store/uiStore';
 import { useTaskStore } from '../../store/taskStore';
 import { useMemberStore } from '../../store/memberStore';
+import { PressableScale } from '../common/PressableScale';
+import { Avatar } from '../common/Avatar';
 
 interface TaskCardProps {
   task: Task;
@@ -79,8 +80,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress }) => {
       : task.progress || 0;
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.8}
+    <PressableScale
+      activeScale={0.98}
       onPress={onPress}
       style={[
         styles.card,
@@ -95,9 +96,10 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress }) => {
       ]}
     >
       <View style={styles.headerRow}>
-        {/* Custom Animated-style Checkbox */}
-        <TouchableOpacity
-          activeOpacity={0.7}
+        {/* Custom Animated-style Checkbox with Spring & Haptics */}
+        <PressableScale
+          activeScale={0.82}
+          hapticFeedback="none"
           onPress={handleToggleCheck}
           style={[
             styles.checkbox,
@@ -108,7 +110,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress }) => {
           ]}
         >
           {isCompleted && <Check size={14} color="#ffffff" strokeWidth={3} />}
-        </TouchableOpacity>
+        </PressableScale>
 
         {/* Title & Priority Row */}
         <View style={styles.titleWrap}>
@@ -243,15 +245,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress }) => {
 
           {assignedMember && (
             <View style={styles.cardAvatar}>
-              {assignedMember.avatar ? (
-                <Image source={{ uri: assignedMember.avatar }} style={styles.cardAvatarImg} />
-              ) : (
-                <View style={[styles.cardAvatarFallback, { backgroundColor: colors.primary }]}>
-                  <Text style={styles.cardAvatarText}>
-                    {assignedMember.name.charAt(0)}
-                  </Text>
-                </View>
-              )}
+              <Avatar
+                name={assignedMember.name}
+                url={assignedMember.avatar}
+                size={22}
+              />
             </View>
           )}
         </View>
@@ -271,7 +269,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress }) => {
           />
         </View>
       )}
-    </TouchableOpacity>
+    </PressableScale>
   );
 };
 

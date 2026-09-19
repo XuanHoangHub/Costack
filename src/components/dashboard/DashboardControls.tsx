@@ -77,7 +77,7 @@ export default function DashboardControls({
   ];
 
   return (
-    <div className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121318] border border-black/[0.06] dark:border-white/[0.08] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] p-2.5 shadow-xs flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 text-left">
+    <div className="apexa-inset-group rounded-2xl bg-white dark:bg-[#0a0b10] border border-black/[0.06] dark:border-white/[0.08] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] p-2.5 shadow-xs flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 text-left">
       
       {/* Left controls: Range & Trend comparison */}
       <div className="flex min-w-0 flex-wrap items-center gap-2.5">
@@ -196,7 +196,7 @@ export default function DashboardControls({
           </button>
 
           {showSettings && (
-            <div className="absolute right-0 top-11 z-50 w-[300px] rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xl backdrop-blur-xl dark:border-white/[0.12] dark:bg-[#151824] dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
+            <div className="absolute right-0 top-11 z-50 w-[300px] rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xl backdrop-blur-xl dark:border-white/[0.12] dark:bg-[#0d0f15] dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
               <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2.5 dark:border-slate-800">
                 <div>
                   <h4 className="text-xs font-black text-slate-900 dark:text-white">

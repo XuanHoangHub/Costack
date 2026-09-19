@@ -14,6 +14,7 @@ import { Header } from '../../components/common/Header';
 import { Avatar } from '../../components/common/Avatar';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
+import Toast from 'react-native-toast-message';
 
 interface ProfileScreenProps {
   navigation: any;
@@ -39,6 +40,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       statusMessage: statusMessage.trim(),
       department: department.trim(),
       phone: phone.trim(),
+    });
+    Toast.show({
+      type: 'success',
+      text1: 'Thành công',
+      text2: 'Hồ sơ cá nhân đã được cập nhật thành công.',
     });
     navigation.goBack();
   };

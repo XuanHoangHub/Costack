@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Shield, Globe, Lock, UserPlus, Trash2, X, Check, 
   ShieldAlert, Link2, Copy, Search, CheckCircle2,
@@ -321,15 +322,38 @@ export default function ShareSettingsModal({
     return member.name?.toLowerCase().includes(q) || member.email?.toLowerCase().includes(q);
   });
 
-  if (!isOpen) return null;
-
   return (
     <Portal>
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 animate-fade-in font-sans">
-        {/* Backdrop */}
-        <div className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 cursor-pointer" onClick={onClose} />
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            key="share-settings-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 font-sans"
+          >
+            {/* Backdrop */}
+            <motion.div
+              key="share-settings-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="absolute inset-0 modal-backdrop bg-black/40 dark:bg-black/75 backdrop-blur-xs cursor-pointer"
+              onClick={onClose}
+            />
 
-      <div className="relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xl z-10 flex flex-col text-left select-none max-h-[92vh]">
+            {/* Modal Card */}
+            <motion.div
+              key="share-settings-card"
+              initial={{ scale: 0.94, opacity: 0, y: 16 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.94, opacity: 0, y: 16 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              className="relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xl z-10 flex flex-col text-left select-none max-h-[92vh]"
+            >
         
         {/* Top Header */}
         <div className="p-5 pb-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
@@ -910,8 +934,10 @@ export default function ShareSettingsModal({
           </div>
         </div>
 
-      </div>
-    </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Portal>
   );
 }

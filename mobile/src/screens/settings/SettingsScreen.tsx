@@ -15,7 +15,6 @@ import {
   Wallet,
   Users,
   Sparkles,
-  Clock,
   Layers,
   ChevronRight,
   LogOut,
@@ -208,22 +207,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
             <ChevronRight size={18} color={colors.textMuted} />
           </TouchableOpacity>
 
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Pomodoro')}
-            style={styles.menuItem}
-          >
-            <View style={styles.menuLeft}>
-              <View style={[styles.menuIconBox, { backgroundColor: `${colors.warning}20` }]}>
-                <Clock size={18} color={colors.warning} />
-              </View>
-              <Text style={[styles.menuLabel, { color: colors.textPrimary }]}>
-                {t.settings.pomodoroTimer}
-              </Text>
-            </View>
-            <ChevronRight size={18} color={colors.textMuted} />
-          </TouchableOpacity>
 
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
 

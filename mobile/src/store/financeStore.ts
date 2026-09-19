@@ -77,7 +77,7 @@ export const useFinanceStore = create<FinanceState>()(
               })),
               categories: (categoriesResult.data || []).length
                 ? (categoriesResult.data || []).map((category: any) => ({
-                    id: category.id, name: category.name, icon: category.icon || 'tag', color: category.color || '#6366f1',
+                    id: category.id, name: category.name, icon: category.icon || 'tag', color: category.color || '#2563eb',
                     type: category.type === 'income' ? 'income' : category.type === 'expense' ? 'expense' : 'expense',
                   }))
                 : defaultCategories,

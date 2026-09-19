@@ -4,10 +4,12 @@ import CustomFieldInput from "./CustomFieldInput";
 import { compareCustomFieldValues, applyCustomFieldDefaults, validateTaskCustomFields } from "@/lib/customFields";
 
 import React, { useState } from 'react';
-import { ArrowUpDown, Pin, MessageSquare, Paperclip, Plus, Check, X, Circle, CheckCircle2, Trophy, Flag, Timer, Pencil, ShieldAlert, ArrowLeft, ArrowRight, Zap, EyeOff, Copy, Trash2, Bot, Sparkles, SlidersHorizontal, Play, Clock, ChevronDown, AlertTriangle, Hourglass, Tag, Mail, Phone, ExternalLink } from 'lucide-react';
+import { ArrowUpDown, Pin, MessageSquare, Paperclip, Plus, Check, X, Circle, CheckCircle2, Trophy, Flag, Timer, Pencil, ShieldAlert, ArrowLeft, ArrowRight, Zap, EyeOff, Copy, Trash2, Bot, Sparkles, SlidersHorizontal, Play, Clock, ChevronDown, AlertTriangle, Hourglass, Tag, Mail, Phone, ExternalLink, Maximize2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { motion, AnimatePresence } from 'motion/react';
+import { fireTaskCompleteConfetti } from '@/lib/confetti';
+import { playSuccessSound, playToggleSound } from '@/lib/soundEffects';
 
 function Portal({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = React.useState(false);
@@ -17,8 +19,9 @@ function Portal({ children }: { children: React.ReactNode }) {
   if (!mounted) return null;
   return createPortal(children, document.body);
 }
-import { Task, User, Workspace, TaskStatus } from '../../types';
-import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker, DropdownFieldSelect, LabelsFieldSelect } from './TaskSelects';
+import { Task, User, Workspace, TaskStatus, Priority } from '../../types';
+import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, TeamPillSelect, PremiumDatePicker, DropdownFieldSelect, LabelsFieldSelect } from './TaskSelects';
+import { getTaskTeamIds } from '@/lib/teamStore';
 import FieldSettingsModal from './FieldSettingsModal';
 import SignedImage from '../SignedImage';
 import {
@@ -59,7 +62,7 @@ const CustomizableHeader = ({
 }) => (
   <th 
     onClick={() => isSortable && onToggleSort(col)}
-    className={`h-10 px-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 cursor-pointer hover:bg-slate-100/70 dark:hover:bg-white/[0.04] border-b border-slate-200/70 dark:border-white/[0.06] bg-white/95 dark:bg-[#0c0e14]/95 backdrop-blur-md group/h select-none sticky top-0 z-10 transition-colors ${className}`}
+    className={`h-10 px-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 cursor-pointer hover:bg-slate-100/70 dark:hover:bg-white/[0.04] border-b border-slate-200/70 dark:border-white/[0.08] bg-slate-50/90 dark:bg-[#08090d]/95 backdrop-blur-md group/h select-none sticky top-0 z-10 transition-colors ${className}`}
   >
     <div className="flex items-center justify-between gap-1 w-full">
       <div className="flex items-center gap-1.5">
@@ -112,6 +115,8 @@ interface TaskTableViewProps {
   onStopGlobalTimer?: () => void;
   totalTaskCount?: number;
   isSearchingOrFiltering?: boolean;
+  wrapText?: boolean;
+  showEmptyStatuses?: boolean;
 }
 
 export default function TaskTableView({
@@ -120,12 +125,14 @@ export default function TaskTableView({
   visibleFields, customFields = [], onOpenFieldsPanel, onStartFocus,
   setVisibleFields, setCustomFields, openDialog, openPromptModal, triggerToast,
   activeTimerTaskId = null, onStartGlobalTimer, onStopGlobalTimer,
-  totalTaskCount, isSearchingOrFiltering = false
+  totalTaskCount, isSearchingOrFiltering = false,
+  wrapText = false, showEmptyStatuses = true
 }: TaskTableViewProps) {
   const { t, locale } = useTranslation();
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
   const [inlineEditTaskId, setInlineEditTaskId] = useState<string | null>(null);
   const [inlineEditTitle, setInlineEditTitle] = useState('');
+  const [activeCellKey, setActiveCellKey] = useState<string | null>(null);
 
   const submitInlineEdit = (task: Task) => {
     if (inlineEditTitle.trim() && inlineEditTitle.trim() !== task.title) {
@@ -219,7 +226,7 @@ export default function TaskTableView({
   const [isCreatingInline, setIsCreatingInline] = useState(false);
   const [draftTitle, setDraftTitle] = useState('');
   const [draftStatus, setDraftStatus] = useState<TaskStatus>('todo');
-  const [draftPriority, setDraftPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium');
+  const [draftPriority, setDraftPriority] = useState<Priority | undefined>('medium');
   const [draftAssigneeIds, setDraftAssigneeIds] = useState<string[]>([]);
   const [draftStartDate, setDraftStartDate] = useState<string>('');
   const [draftDueDate, setDraftDueDate] = useState<string>('');
@@ -252,7 +259,7 @@ export default function TaskTableView({
       if (sortCol === 'title') return a.title.localeCompare(b.title) * dir;
       if (sortCol === 'priority') {
         const w: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
-        return ((w[a.priority] || 0) - (w[b.priority] || 0)) * dir;
+        return ((w[a.priority || ''] || 0) - (w[b.priority || ''] || 0)) * dir;
       }
       if (sortCol === 'startDate') return (a.startDate || '').localeCompare(b.startDate || '') * dir;
       if (sortCol === 'dueDate') return (a.dueDate || '').localeCompare(b.dueDate || '') * dir;
@@ -470,22 +477,33 @@ export default function TaskTableView({
       <div className="overflow-x-auto custom-touch-scroll flex-1">
       <table className="apexa-task-table w-full min-w-[900px] border-separate border-spacing-0 text-left">
         <thead>
-          <tr className="bg-white dark:bg-[#0c0e14]/95">
-            <th className="sticky left-0 top-0 z-20 w-11 h-10 px-3 border-b border-slate-200/70 dark:border-white/[0.06] bg-white dark:bg-[#0c0e14]/95 backdrop-blur-md text-center">
-              <input 
-                type="checkbox" 
-                ref={el => { if (el) el.indeterminate = selectedTaskIds.length > 0 && !allSelected; }}
-                checked={allSelected}
-                aria-label="Chọn tất cả công việc"
-                onChange={e => { if (e.target.checked) setSelectedTaskIds(sortedTasks.map(t => t.id)); else setSelectedTaskIds([]); }}
-                className="w-4 h-4 rounded-md cursor-pointer accent-indigo-600 transition-all" 
-              />
+          <tr className="bg-slate-50/90 dark:bg-[#08090d]/95">
+            {/* Merged Checkbox & Index # Column (Hình 3) */}
+            <th className="sticky left-0 top-0 z-20 w-10 h-10 px-2 border-b border-slate-200/70 dark:border-white/[0.08] bg-slate-50/90 dark:bg-[#08090d]/95 backdrop-blur-md text-center group/th select-none">
+              <div className="relative flex items-center justify-center w-full h-full">
+                {/* Checkbox visible on hover or when any tasks are selected */}
+                <div className={`transition-opacity ${selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-0 group-hover/th:opacity-100'}`}>
+                  <input 
+                    type="checkbox" 
+                    ref={el => { if (el) el.indeterminate = selectedTaskIds.length > 0 && !allSelected; }}
+                    checked={allSelected}
+                    aria-label="Chọn tất cả công việc"
+                    onChange={e => { if (e.target.checked) setSelectedTaskIds(sortedTasks.map(t => t.id)); else setSelectedTaskIds([]); }}
+                    className="w-4 h-4 rounded-md cursor-pointer accent-indigo-600 transition-all" 
+                  />
+                </div>
+                {/* # symbol visible when not hovering and no tasks selected */}
+                <span className={`absolute text-[11px] font-bold text-slate-400 dark:text-slate-500 pointer-events-none transition-opacity ${selectedTaskIds.length > 0 ? 'opacity-0' : 'opacity-100 group-hover/th:opacity-0'}`}>
+                  #
+                </span>
+              </div>
             </th>
+
             {/* Task Name is always visible and first */}
             <CustomizableHeader 
               col="title" 
               label={getColumnLabel('title', 'Task', 'Công việc')}
-              className="min-w-[260px] sticky left-11 z-20 bg-white dark:bg-[#0c0e14]/95 backdrop-blur-md" 
+              className="min-w-[260px] sticky left-10 z-20 bg-slate-50/90 dark:bg-[#08090d]/95 backdrop-blur-md" 
               sortCol={sortCol} 
               sortDir={sortDir} 
               onToggleSort={toggleSort}
@@ -591,7 +609,7 @@ export default function TaskTableView({
             ))}
 
             {/* Plus button at the end to add field */}
-            <th className="sticky top-0 z-10 w-11 h-10 px-2 text-center border-b border-slate-200/70 dark:border-white/[0.06] bg-white/95 dark:bg-[#0c0e14]/95 backdrop-blur-md">
+            <th className="sticky top-0 z-10 w-11 h-10 px-2 text-center border-b border-slate-200/70 dark:border-white/[0.08] bg-slate-50/90 dark:bg-[#08090d]/95 backdrop-blur-md">
               <button 
                 type="button" 
                 onClick={(e) => {
@@ -619,33 +637,53 @@ export default function TaskTableView({
                 onClick={() => setSelectedTask(task)}
                 className={`cursor-pointer transition-colors duration-150 group/row border-b border-slate-200/50 dark:border-white/[0.04] ${
                   isSelected 
-                    ? 'bg-indigo-50/70 dark:bg-indigo-950/30' 
-                    : 'bg-white dark:bg-[#0c0e14]'
-                } hover:bg-slate-50/90 dark:hover:bg-[#121520]`}
+                    ? 'bg-indigo-50/70 dark:bg-blue-950/40' 
+                    : 'bg-white dark:bg-[#000000]'
+                } hover:bg-slate-50/90 dark:hover:bg-[#090b10]`}
               >
-                {/* Sticky Checkbox Column */}
+                {/* Merged Sticky Index & Checkbox Column (Hình 3) */}
                 <td 
-                  className={`sticky left-0 z-[5] h-11 px-3 border-b border-slate-200/50 dark:border-white/[0.04] text-center w-11 ${
-                    isSelected ? 'bg-indigo-50/90 dark:bg-[#0c1220]' : 'bg-white/95 dark:bg-[#0c0e14]/95'
-                  } group-hover/row:bg-slate-50 dark:group-hover/row:bg-[#121520] transition-colors`} 
-                  onClick={e => e.stopPropagation()}
+                  className={`sticky left-0 z-[5] h-11 px-2 border-b border-slate-200/50 dark:border-white/[0.04] text-center w-10 ${
+                    isSelected ? 'bg-indigo-50/90 dark:bg-[#091122]' : 'bg-white/95 dark:bg-[#000000]'
+                  } group-hover/row:bg-slate-50 dark:group-hover/row:bg-[#090b10] transition-colors`} 
+                  onClick={e => {
+                    e.stopPropagation();
+                    setActiveCellKey(`${task.id}-index`);
+                  }}
                 >
-                  <div className="relative flex items-center justify-center w-4 h-4 mx-auto">
-                    <input 
-                      type="checkbox" 
-                      checked={isSelected}
-                      aria-label={`Select ${task.title}`}
-                      onChange={e => setSelectedTaskIds(prev => e.target.checked ? [...prev, task.id] : prev.filter(id => id !== task.id))}
-                      className={`w-4 h-4 rounded-md cursor-pointer accent-indigo-600 transition-opacity ${isSelected ? 'opacity-100' : 'opacity-40 group-hover/row:opacity-100'}`} 
-                    />
+                  <div className="relative flex items-center justify-center w-full h-full mx-auto">
+                    {/* Checkbox visible on row hover or if selected */}
+                    <div className={`transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100'}`}>
+                      <input 
+                        type="checkbox" 
+                        checked={isSelected}
+                        aria-label={`Select ${task.title}`}
+                        onClick={e => e.stopPropagation()}
+                        onChange={e => {
+                          e.stopPropagation();
+                          setSelectedTaskIds(prev => e.target.checked ? [...prev, task.id] : prev.filter(id => id !== task.id));
+                        }}
+                        className="w-4 h-4 rounded-md cursor-pointer accent-indigo-600 transition-opacity" 
+                      />
+                    </div>
+                    {/* Task index number visible when not hovering and not selected */}
+                    <span className={`absolute text-xs font-mono font-bold text-slate-400 dark:text-zinc-500 select-none pointer-events-none transition-opacity ${isSelected ? 'opacity-0' : 'opacity-100 group-hover/row:opacity-0'}`}>
+                      {index + 1}
+                    </span>
                   </div>
                 </td>
 
                 {/* Sticky Task Title Column */}
                 <td 
-                  className={`sticky left-11 z-[5] h-11 px-3.5 border-b border-slate-200/50 dark:border-white/[0.04] min-w-[260px] ${
-                    isSelected ? 'bg-indigo-50/90 dark:bg-[#0c1220]' : 'bg-white/95 dark:bg-[#0c0e14]/95'
-                  } group-hover/row:bg-slate-50 dark:group-hover/row:bg-[#121520] transition-colors`}
+                  className={`sticky left-10 z-[5] h-11 px-3.5 border-b border-slate-200/50 dark:border-white/[0.04] min-w-[260px] ${
+                    isSelected ? 'bg-indigo-50/90 dark:bg-[#091122]' : 'bg-white/95 dark:bg-[#000000]'
+                  } group-hover/row:bg-slate-50 dark:group-hover/row:bg-[#090b10] transition-colors ${
+                    activeCellKey === `${task.id}-title` ? 'ring-2 ring-blue-500 ring-inset bg-blue-50/20 dark:bg-blue-950/20' : ''
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveCellKey(`${task.id}-title`);
+                  }}
                 >
                   <div className="flex items-center gap-2">
                     {/* Render visual indentation and connector lines */}
@@ -689,8 +727,16 @@ export default function TaskTableView({
                         const newStatus = task.status === 'completed' ? 'todo' : 'completed';
                         onUpdateTask({ ...task, status: newStatus as TaskStatus });
                         if (onAddSyncLog) onAddSyncLog(`Toggled completion of task "${task.title}" to: ${newStatus}`);
-                        if (typeof window !== 'undefined') {
-                          (window as any).playSystemSound?.('toggle');
+                        if (newStatus === 'completed') {
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          const origin = {
+                            x: (rect.left + rect.width / 2) / window.innerWidth,
+                            y: (rect.top + rect.height / 2) / window.innerHeight,
+                          };
+                          fireTaskCompleteConfetti(origin);
+                          playSuccessSound();
+                        } else {
+                          playToggleSound();
                         }
                       }}
                       aria-label={task.status === 'completed' ? `Đánh dấu ${task.title} chưa hoàn thành` : `Đánh dấu ${task.title} hoàn thành`}
@@ -723,7 +769,7 @@ export default function TaskTableView({
                           setInlineEditTaskId(task.id);
                           setInlineEditTitle(task.title);
                         }}
-                        className={`text-[13px] font-semibold truncate max-w-[320px] cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors ${task.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-100'}`}
+                        className={`text-[13px] font-semibold cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors ${wrapText ? 'whitespace-normal break-words max-w-[420px]' : 'truncate max-w-[320px]'} ${task.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-100'}`}
                         title="Nhấp đúp để đổi tên công việc"
                       >
                         {task.title}
@@ -745,6 +791,18 @@ export default function TaskTableView({
                     )}
 
                     <div className="flex items-center gap-1 shrink-0 text-slate-400">
+                      {/* Hover expand modal button [⤢] (Hình 3) */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedTask(task);
+                        }}
+                        className="opacity-0 group-hover/row:opacity-100 p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-all cursor-pointer shrink-0"
+                        title={locale === 'vi' ? "Mở chi tiết (Task Modal)" : "Open task details"}
+                      >
+                        <Maximize2 className="w-3 h-3" />
+                      </button>
                       {(task.comments?.length || 0) > 0 && <span className="flex items-center gap-0.5 text-[9px] font-bold"><MessageSquare className="w-2.5 h-2.5" />{task.comments?.length}</span>}
                       {(task.attachments?.length || 0) > 0 && <Paperclip className="w-2.5 h-2.5" />}
                       {onAddTask && (
@@ -761,7 +819,7 @@ export default function TaskTableView({
                             triggerToast?.('success', 'Đã nhân bản', `Đã tạo bản sao cho "${task.title}"`);
                             if (onAddSyncLog) onAddSyncLog(`Duplicated task "${task.title}"`);
                           }}
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-sky-600 transition-all cursor-pointer"
+                          className="opacity-0 group-hover/row:opacity-100 p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-sky-600 transition-all cursor-pointer"
                           title="Nhân bản công việc"
                         >
                           <Copy className="w-3 h-3" />
@@ -772,7 +830,15 @@ export default function TaskTableView({
                 </td>
 
                 {activeFields.includes('status') && (
-                  <td className="h-11 px-3.5 border-b border-slate-200/50 dark:border-white/[0.04]" onClick={e => e.stopPropagation()}>
+                  <td
+                    className={`h-11 px-3.5 border-b border-slate-200/50 dark:border-white/[0.04] ${
+                      activeCellKey === `${task.id}-status` ? 'ring-2 ring-blue-500 ring-inset bg-blue-50/20 dark:bg-blue-950/20' : ''
+                    }`}
+                    onClick={e => {
+                      e.stopPropagation();
+                      setActiveCellKey(`${task.id}-status`);
+                    }}
+                  >
                     <StatusPillSelect value={task.status} onChange={newS => {
                       onUpdateTask({ ...task, status: newS });
                       onAddSyncLog?.(`Status "${task.title}" → ${newS}`);
@@ -783,8 +849,8 @@ export default function TaskTableView({
                 {activeFields.includes('priority') && (
                   <td className="h-11 px-3.5 border-b border-slate-200/50 dark:border-white/[0.04]" onClick={e => e.stopPropagation()}>
                     <PriorityPillSelect value={task.priority} onChange={newP => {
-                      onUpdateTask({ ...task, priority: newP || 'medium' });
-                      onAddSyncLog?.(`Priority "${task.title}" → ${newP || 'medium'}`);
+                      onUpdateTask({ ...task, priority: newP });
+                      onAddSyncLog?.(`Priority "${task.title}" → ${newP || 'none'}`);
                     }} />
                   </td>
                 )}
@@ -794,6 +860,20 @@ export default function TaskTableView({
                     <AssigneePillSelect
                       value={task.assigneeIds && task.assigneeIds.length > 0 ? task.assigneeIds : (task.assigneeId ? [task.assigneeId] : [])}
                       members={members}
+                      teamIds={getTaskTeamIds(task)}
+                      onTeamChange={newTeams => {
+                        const nextTeams = newTeams || [];
+                        onUpdateTask({
+                          ...task,
+                          teamIds: nextTeams,
+                          teamId: nextTeams[0] || undefined,
+                          custom_fields: {
+                            ...(task.custom_fields || {}),
+                            teamIds: nextTeams
+                          }
+                        });
+                      }}
+                      workspaceId={task.workspaceId}
                       onChange={newIds => {
                         const nextIds = newIds || [];
                         onUpdateTask({
@@ -929,16 +1009,16 @@ export default function TaskTableView({
             );
           })}
           {isCreatingInline ? (
-            <tr className="h-11 border-b border-indigo-200/70 dark:border-indigo-900/40 bg-indigo-50/25 dark:bg-indigo-950/20 transition-colors">
-              <td className="sticky left-0 z-[5] w-11 h-11 px-3 text-center border-b border-indigo-200/60 dark:border-indigo-900/40 bg-indigo-50/80 dark:bg-[#0c1220]">
+            <tr className="h-11 border-b border-indigo-200/70 dark:border-indigo-500/30 bg-indigo-50/25 dark:bg-indigo-950/30 transition-colors">
+              <td className="sticky left-0 z-[5] w-10 h-11 px-2 text-center border-b border-indigo-200/60 dark:border-indigo-500/30 bg-indigo-50/80 dark:bg-[#060810]">
                 <div
-                  className="w-4.5 h-4.5 rounded-full border-2 border-dashed border-indigo-400 dark:border-indigo-500 text-indigo-500 dark:text-indigo-400 flex items-center justify-center mx-auto transition-colors"
+                  className="w-4.5 h-4.5 rounded-full border-2 border-dashed border-indigo-400 dark:border-indigo-400 text-indigo-500 dark:text-indigo-300 flex items-center justify-center mx-auto transition-colors"
                   title={locale === 'vi' ? 'Tạo công việc mới' : 'Create new task'}
                 >
                   <Plus className="w-2.5 h-2.5 stroke-[2.5]" />
                 </div>
               </td>
-              <td className="sticky left-11 z-[5] h-11 px-3.5 border-b border-indigo-200/60 dark:border-indigo-900/40 min-w-[260px] bg-indigo-50/80 dark:bg-[#0c1220]">
+              <td className="sticky left-10 z-[5] h-11 px-3.5 border-b border-indigo-200/60 dark:border-indigo-500/30 min-w-[260px] bg-indigo-50/80 dark:bg-[#060810]">
                 <div className="flex items-center w-full">
                   <input
                     ref={inlineTitleInputRef}
@@ -962,7 +1042,7 @@ export default function TaskTableView({
                     }}
                     placeholder={t('inlineAddTitlePlaceholder') || (locale === 'vi' ? "Nhập tên công việc mới..." : "Enter task title...")}
                     title={locale === 'vi' ? "Enter: Lưu & tiếp tục • Shift+Enter: Lưu & đóng • Esc: Hủy" : "Enter: Save & next • Shift+Enter: Save & close • Esc: Cancel"}
-                    className="w-full h-8 px-2.5 text-xs font-medium border border-indigo-300/80 dark:border-indigo-600/70 rounded-md bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-3xs transition-all"
+                    className="w-full h-8 px-2.5 text-xs font-medium border border-indigo-300/80 dark:border-indigo-500/50 rounded-md bg-white dark:bg-[#060812] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-3xs transition-all"
                   />
                 </div>
               </td>
@@ -975,7 +1055,7 @@ export default function TaskTableView({
 
               {activeFields.includes('priority') && (
                 <td className="h-11 px-3.5 border-b border-indigo-200/60 dark:border-indigo-900/40 align-middle">
-                  <PriorityPillSelect value={draftPriority} onChange={newP => setDraftPriority(newP || 'medium')} />
+                  <PriorityPillSelect value={draftPriority} onChange={newP => setDraftPriority(newP)} />
                 </td>
               )}
 
@@ -1079,22 +1159,29 @@ export default function TaskTableView({
           ) : sortedTasks.length > 0 ? (
             <tr
               onClick={() => setIsCreatingInline(true)}
-              className="bg-white dark:bg-[#0c0e14] hover:bg-slate-50/80 dark:hover:bg-[#121520] transition-colors duration-150 group cursor-pointer border-b border-slate-200/40 dark:border-white/[0.03]"
+              className="bg-white dark:bg-[#000000] hover:bg-slate-50/80 dark:hover:bg-[#090b10] transition-colors duration-150 group cursor-pointer border-b border-slate-200/40 dark:border-white/[0.04]"
             >
-              {/* Sticky Column 0: Checkbox column alignment */}
-              <td className="sticky left-0 z-[5] w-11 h-11 px-3 text-center border-b border-slate-200/40 dark:border-white/[0.03] bg-white/95 dark:bg-[#0c0e14]/95 group-hover:bg-slate-50 dark:group-hover:bg-[#121520] transition-colors">
-                <div className="w-5 h-5 rounded-lg border border-dashed border-slate-300 dark:border-slate-700/80 group-hover:border-indigo-500 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/50 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 flex items-center justify-center transition-all duration-150 shadow-3xs mx-auto">
-                  <Plus className="w-3.5 h-3.5 stroke-[2.2]" />
+              {/* Merged Column 0: Index & Add button alignment */}
+              <td className="sticky left-0 z-[5] w-10 h-11 px-2 text-center border-b border-slate-200/40 dark:border-white/[0.04] bg-white/95 dark:bg-[#000000] group-hover:bg-slate-50 dark:group-hover:bg-[#090b10] transition-colors">
+                <div className="relative flex items-center justify-center w-full h-full mx-auto">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="w-4 h-4 rounded-md border border-dashed border-slate-300 dark:border-white/20 group-hover:border-indigo-500 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/50 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 flex items-center justify-center transition-all duration-150 mx-auto">
+                      <Plus className="w-2.5 h-2.5 stroke-[2.2]" />
+                    </div>
+                  </div>
+                  <span className="absolute text-xs font-mono font-bold text-slate-400 dark:text-zinc-500 select-none pointer-events-none opacity-100 group-hover:opacity-0 transition-opacity">
+                    +
+                  </span>
                 </div>
               </td>
 
               {/* Sticky Column 1: Task Title column alignment */}
-              <td className="sticky left-11 z-[5] h-11 px-3.5 border-b border-slate-200/40 dark:border-white/[0.03] min-w-[260px] bg-white/95 dark:bg-[#0c0e14]/95 group-hover:bg-slate-50 dark:group-hover:bg-[#121520] transition-colors">
+              <td className="sticky left-10 z-[5] h-11 px-3.5 border-b border-slate-200/40 dark:border-white/[0.04] min-w-[260px] bg-white/95 dark:bg-[#000000] group-hover:bg-slate-50 dark:group-hover:bg-[#090b10] transition-colors">
                 <div className="flex items-center gap-2.5">
-                  <span className="text-xs font-semibold text-slate-500 group-hover:text-indigo-600 dark:text-slate-400 dark:group-hover:text-indigo-400 transition-colors">
+                  <span className="text-xs font-semibold text-slate-500 group-hover:text-indigo-600 dark:text-slate-400 dark:group-hover:text-indigo-300 transition-colors">
                     {t('addNewTask') || (locale === 'vi' ? 'Thêm công việc mới...' : 'Add a new task...')}
                   </span>
-                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-100 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/70">
+                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium text-slate-400 dark:text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-100 dark:bg-white/[0.06] border border-slate-200/70 dark:border-white/10">
                     <Plus className="w-2.5 h-2.5" />
                     <span>{t('clickToAdd') || (locale === 'vi' ? 'Nhấp để thêm' : 'Click to add')}</span>
                   </span>
@@ -1102,7 +1189,7 @@ export default function TaskTableView({
               </td>
 
               {/* Remaining columns */}
-              <td colSpan={columnCount - 2} className="h-11 px-3.5 border-b border-slate-200/40 dark:border-white/[0.03] bg-white/95 dark:bg-[#0c0e14]/95 group-hover:bg-slate-50 dark:group-hover:bg-[#121520] transition-colors">
+              <td colSpan={columnCount - 2} className="h-11 px-3.5 border-b border-slate-200/40 dark:border-white/[0.04] bg-white/95 dark:bg-[#000000] group-hover:bg-slate-50 dark:group-hover:bg-[#090b10] transition-colors">
                 <div className="w-full" />
               </td>
             </tr>
@@ -1144,7 +1231,7 @@ export default function TaskTableView({
                       <button
                         type="button"
                         onClick={() => setIsCreatingInline(true)}
-                        className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-sm shadow-blue-500/20 cursor-pointer transition-all active:scale-95"
+                        className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs cursor-pointer transition-all active:scale-95"
                       >
                         <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                         <span>{t('createFirstTask') || (locale === 'vi' ? 'Tạo công việc đầu tiên' : 'Create First Task')}</span>
@@ -1160,7 +1247,7 @@ export default function TaskTableView({
       </div>
 
       {sortedTasks.length > 0 && (
-        <div className="sticky bottom-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-2 bg-white dark:bg-[#0c0e14]/95 backdrop-blur-md text-[11px] font-medium border-t border-slate-200/60 dark:border-white/[0.06] text-slate-500 dark:text-slate-400 select-none">
+        <div className="sticky bottom-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-2 bg-slate-50/90 dark:bg-[#050609]/95 backdrop-blur-md text-[11px] font-medium border-t border-slate-200/70 dark:border-white/[0.07] text-slate-500 dark:text-slate-400 select-none">
           <div className="flex items-center gap-3">
             <span className="font-semibold text-slate-700 dark:text-slate-300">{sortedTasks.length} {locale === 'vi' ? 'công việc' : sortedTasks.length === 1 ? 'task' : 'tasks'}</span>
             <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
@@ -1184,7 +1271,7 @@ export default function TaskTableView({
         <Portal>
           <div className="fixed inset-0 z-[190] cursor-default" onClick={() => setActiveMenu(null)} />
           <div 
-            className="fixed z-[200] w-[230px] bg-white dark:bg-[#111218] border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-2xl p-1.5 font-sans text-xs select-none backdrop-blur-xl ring-1 ring-black/5 dark:ring-white/5 animate-fadeIn"
+            className="fixed z-[200] w-[230px] bg-white dark:bg-[#0a0b10] border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-2xl p-1.5 font-sans text-xs select-none backdrop-blur-xl ring-1 ring-black/5 dark:ring-white/5 animate-fadeIn"
             style={{ top: activeMenu.y, left: activeMenu.x }}
           >
             {/* Sort options (where applicable) */}

@@ -12,6 +12,7 @@ interface GsapScrollCascadeProps {
   duration?: number;
   startTrigger?: string;
   once?: boolean;
+  scroller?: string | HTMLElement;
 }
 
 export function GsapScrollCascade({
@@ -23,6 +24,7 @@ export function GsapScrollCascade({
   duration = 0.7,
   startTrigger = "top 88%",
   once = true,
+  scroller,
 }: GsapScrollCascadeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -44,8 +46,11 @@ export function GsapScrollCascade({
         scale: 0.96,
       });
 
+      const scrollerEl = scroller || containerRef.current.closest(".apexa-auth-shell") || undefined;
+
       ScrollTrigger.create({
         trigger: containerRef.current,
+        scroller: scrollerEl,
         start: startTrigger,
         once: once,
         onEnter: () => {

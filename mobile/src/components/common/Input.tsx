@@ -36,12 +36,18 @@ export const Input: React.FC<InputProps> = ({
         style={[
           styles.inputContainer,
           {
-            backgroundColor: colors.surface,
+            backgroundColor: isFocused ? colors.surfaceHover : colors.surface,
             borderColor: error
               ? colors.danger
               : isFocused
               ? colors.primary
               : colors.border,
+            borderWidth: isFocused || error ? 1.5 : 1,
+            shadowColor: isFocused ? colors.primary : '#000',
+            shadowOffset: { width: 0, height: isFocused ? 2 : 1 },
+            shadowOpacity: isFocused ? 0.15 : 0.04,
+            shadowRadius: isFocused ? 6 : 2,
+            elevation: isFocused ? 3 : 1,
           },
         ]}
       >
@@ -68,25 +74,26 @@ export const Input: React.FC<InputProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 12,
+    marginBottom: 14,
   },
   label: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: 6,
+    letterSpacing: -0.1,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    minHeight: 44,
+    paddingHorizontal: 14,
+    minHeight: 48,
   },
   input: {
     flex: 1,
-    fontSize: 14,
-    paddingVertical: 10,
+    fontSize: 14.5,
+    paddingVertical: 12,
   },
   leftIcon: {
     marginRight: 8,

@@ -9,7 +9,7 @@ import InlineHeadScript from "@/components/InlineHeadScript";
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
 
-const INITIAL_THEME_SCRIPT = `(function(){try{var mode=localStorage.getItem('apexa_theme_mode');if(mode!=='light'&&mode!=='dark'&&mode!=='system'){var legacy=localStorage.getItem('apexa_dark_mode');mode=legacy===null?'light':legacy==='true'?'dark':'light'}var dark=mode==='dark'||(mode==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);var root=document.documentElement;root.classList.toggle('dark',dark);root.dataset.theme=dark?'dark':'light';root.dataset.themeMode=mode;root.style.colorScheme=dark?'dark':'light';}catch(e){}})();`;
+const INITIAL_THEME_SCRIPT = `(function(){try{var mode=localStorage.getItem('apexa_theme_mode');if(mode!=='light'&&mode!=='dark'&&mode!=='system'){var legacy=localStorage.getItem('apexa_dark_mode');mode=legacy===null?'dark':legacy==='false'?'light':'dark'}var dark=mode==='dark'||mode===null||mode===undefined||(mode==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);var root=document.documentElement;root.classList.toggle('dark',dark);root.dataset.theme=dark?'dark':'light';root.dataset.themeMode=mode||'dark';root.style.colorScheme=dark?'dark':'light';}catch(e){}})();`;
 
 const INITIAL_LOCALE_SCRIPT = `(function(){try{var stored=localStorage.getItem('apexa_locale_mode')||localStorage.getItem('apexa_locale')||'vi';var mode=stored==='system'?'system':stored==='en'?'en':'vi';var languages=(navigator.languages&&navigator.languages.length?navigator.languages:[navigator.language||'en']);var system=languages.some(function(value){return String(value).toLowerCase().indexOf('vi')===0})?'vi':'en';var locale=mode==='system'?system:mode;var root=document.documentElement;root.lang=locale==='vi'?'vi-VN':'en-US';root.dir='ltr';root.dataset.locale=locale;root.dataset.localeMode=mode;}catch(e){}})();`;
 
@@ -104,7 +104,7 @@ export default function RootLayout({
     <html
       lang="vi"
       suppressHydrationWarning
-      className={`${inter.variable} ${plusJakarta.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${plusJakarta.variable} ${geistMono.variable} h-full antialiased dark`}
     >
       <head>
         <InlineHeadScript id="initial-theme" html={INITIAL_THEME_SCRIPT} />
@@ -117,7 +117,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.className} min-h-full flex flex-col font-sans bg-white dark:bg-[var(--cu-bg)] text-[var(--cu-text-primary)] antialiased`}>
+      <body className={`${inter.className} min-h-full flex flex-col font-sans bg-[var(--cu-bg,#000000)] text-[var(--cu-text-primary,#f4f4f6)] antialiased`}>
         <TranslationProvider>
           {children}
         </TranslationProvider>

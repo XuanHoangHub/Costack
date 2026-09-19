@@ -7,6 +7,7 @@ import { useDocStore } from '../store/docStore';
 import { useChatStore } from '../store/chatStore';
 import { useFinanceStore } from '../store/financeStore';
 import { useAuthStore } from '../store/authStore';
+import { useMemberStore } from '../store/memberStore';
 import { supabase } from '../api/supabase';
 
 export const useRealtimeSync = () => {
@@ -33,6 +34,9 @@ export const useRealtimeSync = () => {
   const fetchTransactions = useFinanceStore((s) => s.fetchTransactionsFromSupabase);
   const subscribeToFinance = useFinanceStore((s) => s.subscribeToFinance);
 
+  const fetchMembers = useMemberStore((s) => s.fetchMembers);
+  const subscribeToMembers = useMemberStore((s) => s.subscribeToMembers);
+
   const refreshAllData = useCallback(async () => {
     if (isHydratingRef.current) return;
     isHydratingRef.current = true;
@@ -43,6 +47,7 @@ export const useRealtimeSync = () => {
         fetchTasks(),
         fetchDocs(),
         fetchChannels(),
+        fetchMembers(),
       ]);
       const currentWsId = useWorkspaceStore.getState().activeWorkspaceId;
       if (currentWsId) {
@@ -115,6 +120,7 @@ export const useRealtimeSync = () => {
     const unsubDocs = subscribeToDocs();
     const unsubChannels = subscribeToChannels();
     const unsubFinance = subscribeToFinance();
+    const unsubMembers = subscribeToMembers();
 
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
@@ -132,10 +138,11 @@ export const useRealtimeSync = () => {
         unsubDocs();
         unsubChannels();
         unsubFinance();
+        unsubMembers();
       } catch {}
       appStateSub.remove();
     };
-  }, [userId, realtimeReady, subscribeToTasks, subscribeToSpaces, subscribeToWorkspaces, subscribeToDocs, subscribeToChannels, subscribeToFinance, refreshAllData]);
+  }, [userId, realtimeReady, subscribeToTasks, subscribeToSpaces, subscribeToWorkspaces, subscribeToDocs, subscribeToChannels, subscribeToFinance, subscribeToMembers, refreshAllData]);
 
   // 3. Workspace switch listener: lightweight data refetch without destroying subscriptions
   useEffect(() => {

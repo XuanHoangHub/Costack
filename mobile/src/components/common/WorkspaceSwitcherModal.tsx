@@ -25,7 +25,7 @@ interface WorkspaceSwitcherModalProps {
 }
 
 const THEMES = [
-  { key: 'indigo', label: 'Indigo', color: '#6366f1' },
+  { key: 'indigo', label: 'Electric Blue', color: '#2563eb' },
   { key: 'ocean', label: 'Ocean', color: '#0ea5e9' },
   { key: 'sunset', label: 'Sunset', color: '#f59e0b' },
   { key: 'emerald', label: 'Emerald', color: '#10b981' },

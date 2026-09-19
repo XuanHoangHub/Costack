@@ -228,24 +228,34 @@ export default function PromptModal({
     <Portal>
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <motion.div
+            key="prompt-modal-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          >
             {/* Backdrop with Apple-standard Blur */}
             <motion.div
+              key="prompt-modal-backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
               onClick={onCancel}
-              className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 transition-opacity cursor-pointer"
+              className="absolute inset-0 modal-backdrop bg-black/40 dark:bg-black/75 backdrop-blur-xs cursor-pointer"
             />
 
-          {/* Modal Container */}
-          <motion.div
-            initial={{ scale: 0.95, y: 10, opacity: 0 }}
-            animate={{ scale: 1, y: 0, opacity: 1 }}
-            exit={{ scale: 0.95, y: 10, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 420, damping: 30 }}
-            className="relative w-full max-w-[440px] rounded-xl bg-white dark:bg-[#12141e] border border-slate-200/90 dark:border-white/10 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.3)] p-5 sm:p-6 z-10 text-left font-sans select-none"
-          >
+            {/* Modal Container */}
+            <motion.div
+              key="prompt-modal-card"
+              initial={{ scale: 0.94, y: 14, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.94, y: 14, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              className="relative w-full max-w-[440px] rounded-xl bg-white dark:bg-[#0a0b10] border border-slate-200/90 dark:border-white/10 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.3)] p-5 sm:p-6 z-10 text-left font-sans select-none"
+            >
             {/* Header */}
             <div className="flex items-start justify-between pb-3 mb-3.5 border-b border-slate-100 dark:border-white/10">
               <div className="flex items-center gap-2.5">
@@ -291,8 +301,8 @@ export default function PromptModal({
                     className={`w-full px-3 py-2 text-xs font-semibold rounded-lg border ${
                       error 
                         ? 'border-rose-500 dark:border-rose-500 bg-rose-50/50 dark:bg-rose-950/20 text-rose-900 dark:text-rose-200' 
-                        : 'border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-[#181a26] text-slate-900 dark:text-slate-100'
-                    } placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all duration-200 focus:bg-white dark:focus:bg-[#12141e] focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs`}
+                        : 'border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-[#0d0f15] text-slate-900 dark:text-slate-100'
+                    } placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all duration-200 focus:bg-white dark:focus:bg-[#0a0b10] focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs`}
                   />
                   {value && (
                     <button
@@ -333,7 +343,7 @@ export default function PromptModal({
                     value={secondaryValue}
                     onChange={(e) => setSecondaryValue(e.target.value)}
                     placeholder={secondaryPlaceholder || 'Nhập các tùy chọn, phân cách bởi dấu phẩy...'}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-[#181a26] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all duration-200 focus:bg-white dark:focus:bg-[#12141e] focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs"
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-[#0d0f15] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all duration-200 focus:bg-white dark:focus:bg-[#0a0b10] focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs"
                   />
                 </div>
               )}
@@ -358,7 +368,7 @@ export default function PromptModal({
               </div>
             </form>
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
     </Portal>

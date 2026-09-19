@@ -1,7 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
 import { 
   Upload, Trash2, Loader2, AlertTriangle, 
   Briefcase, Sliders, ShieldCheck,
@@ -593,21 +601,37 @@ export default function WorkspaceSettingsModal({
     return { ...group, links: matchedLinks };
   }).filter((group: NavGroup) => group.links.length > 0);
 
-  if (!isOpen || !workspace) return null;
-
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 modal-backdrop-blur flex items-center justify-center p-4">
-        {/* Overlay dismiss */}
-        <div className="absolute inset-0" onClick={onClose} />
+    <Portal>
+      <AnimatePresence>
+        {isOpen && workspace && (
+          <motion.div
+            key="workspace-settings-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          >
+            {/* Overlay dismiss */}
+            <motion.div
+              key="workspace-settings-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="absolute inset-0 bg-black/40 dark:bg-black/75 backdrop-blur-xs cursor-pointer"
+              onClick={onClose}
+            />
 
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95, y: 15 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 15 }}
-          transition={{ type: 'spring', duration: 0.4, bounce: 0.15 }}
-          className="relative w-[min(95vw,896px)] max-sm:w-full max-sm:mx-2 h-[85vh] max-h-[90dvh] bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col z-10 select-none"
-        >
+            <motion.div 
+              key="workspace-settings-card"
+              initial={{ opacity: 0, scale: 0.94, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 16 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+              className="relative w-[min(95vw,896px)] max-sm:w-full max-sm:mx-2 h-[85vh] max-h-[90dvh] bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col z-10 select-none"
+            >
           {/* Header */}
           <div className="px-4 sm:px-5 md:px-6 py-3 sm:py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-905/50 shrink-0">
             <div className="flex items-center gap-3">
@@ -1320,7 +1344,9 @@ export default function WorkspaceSettingsModal({
             onCancel={() => setMemberToRemove(null)}
           />
         </motion.div>
-      </div>
-    </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Portal>
   );
 }

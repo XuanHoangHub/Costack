@@ -958,21 +958,25 @@ export default function CalendarView({
     return set;
   }, [tasks, gcalEvents]);
 
-  const getPriorityStyle = (priority: Priority) => {
+  const getPriorityStyle = (priority?: Priority) => {
     switch (priority) {
       case 'urgent': return { bg: 'bg-rose-50 dark:bg-rose-950/40', text: 'text-rose-600 dark:text-rose-400', dot: 'bg-rose-500', border: 'border-rose-200 dark:border-rose-800/60' };
       case 'high': return { bg: 'bg-orange-50 dark:bg-orange-950/40', text: 'text-orange-600 dark:text-orange-400', dot: 'bg-orange-500', border: 'border-orange-200 dark:border-orange-800/60' };
       case 'medium': return { bg: 'bg-blue-50 dark:bg-blue-950/40', text: 'text-blue-600 dark:text-blue-400', dot: 'bg-blue-500', border: 'border-blue-200 dark:border-blue-800/60' };
-      default: return { bg: 'bg-slate-50 dark:bg-slate-800/50', text: 'text-slate-600 dark:text-slate-400', dot: 'bg-slate-400', border: 'border-slate-200 dark:border-slate-800' };
+      case 'low': return { bg: 'bg-slate-50 dark:bg-slate-800/50', text: 'text-slate-600 dark:text-slate-400', dot: 'bg-slate-400', border: 'border-slate-200 dark:border-slate-800' };
+      default: return { bg: 'bg-slate-50 dark:bg-slate-800/50', text: 'text-slate-500 dark:text-slate-400', dot: 'bg-slate-300 dark:bg-slate-600', border: 'border-slate-200 dark:border-slate-800' };
     }
   };
 
-  const getPriorityLabel = (priority: Priority) => ({
-    urgent: 'Khẩn cấp',
-    high: 'Cao',
-    medium: 'Trung bình',
-    low: 'Thấp',
-  }[priority]);
+  const getPriorityLabel = (priority?: Priority) => {
+    if (!priority) return 'Không có';
+    return ({
+      urgent: 'Khẩn cấp',
+      high: 'Cao',
+      medium: 'Trung bình',
+      low: 'Thấp',
+    }[priority] || 'Không có');
+  };
 
   return (
     <div className="relative flex h-full w-full flex-row select-none overflow-hidden bg-slate-100/70 font-sans text-slate-800 dark:bg-[var(--cu-bg)] dark:text-slate-100">
@@ -1341,7 +1345,7 @@ export default function CalendarView({
               <button
                 onClick={handleAiAutoSchedule}
                 disabled={isAiScheduling}
-                className="flex h-8 items-center gap-1.5 rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-indigo-50 px-2.5 text-xs font-bold text-violet-700 transition hover:border-violet-300 hover:from-violet-100 hover:to-indigo-100 disabled:cursor-wait disabled:opacity-60 dark:border-violet-900/60 dark:from-violet-950/40 dark:to-indigo-950/30 dark:text-violet-300 cursor-pointer"
+                className="flex h-8 items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-2.5 text-xs font-bold text-blue-700 transition hover:bg-blue-100 hover:border-blue-300 disabled:cursor-wait disabled:opacity-60 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300 cursor-pointer"
                 title="Tự động xếp lịch công việc bằng AI"
               >
                 <Sparkles className={`h-3.5 w-3.5 ${isAiScheduling ? 'animate-spin' : ''}`} />
@@ -1805,7 +1809,7 @@ export default function CalendarView({
         whileHover={{ scale: 1.1, rotate: 6 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setShowAiModal(true)}
-        className="fixed bottom-5 right-5 z-40 flex h-11 w-11 items-center justify-center rounded-2xl border border-white/30 bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-500/25 cursor-pointer"
+        className="fixed bottom-5 right-5 z-40 flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/25 cursor-pointer"
         title="Trợ lý Xếp lịch AI"
       >
         <Brain className="h-5 w-5 text-white" />
@@ -1832,11 +1836,9 @@ export default function CalendarView({
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
               className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200/80 dark:border-[var(--cu-border)] bg-white/95 dark:bg-[var(--cu-surface)]/95 shadow-[0_32px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl p-6 sm:p-7 text-left"
             >
-              <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-gradient-to-bl from-indigo-500/20 via-blue-500/10 to-transparent blur-2xl pointer-events-none" />
-
               <div className="flex justify-between items-start mb-5">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-xs shrink-0">
                     <Sparkles className="w-5 h-5" />
                   </div>
                   <div>
@@ -1853,12 +1855,12 @@ export default function CalendarView({
               </div>
 
               <div className="space-y-4 text-xs">
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/80 to-blue-50/40 dark:from-indigo-950/40 dark:to-blue-950/20 border border-indigo-100 dark:border-indigo-900/60 space-y-2.5">
-                  <p className="font-extrabold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/60 space-y-2.5">
+                  <p className="font-extrabold text-blue-950 dark:text-blue-200 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-600" />
                     <span>Gợi ý phân bổ lịch biểu thông minh:</span>
                   </p>
-                  <ul className="space-y-2 text-[11px] text-indigo-900/80 dark:text-indigo-300 font-medium">
+                  <ul className="space-y-2 text-[11px] text-blue-900/80 dark:text-blue-300 font-medium">
                     <li className="flex items-start gap-2">
                       <span className="shrink-0">⚡</span>
                       <span>Tự động sắp xếp <b>{unscheduledTasks.length} công việc chưa có lịch</b> vào các khung giờ trống phù hợp.</span>
@@ -1881,7 +1883,7 @@ export default function CalendarView({
                   <button
                     type="button"
                     onClick={() => { setShowAiModal(false); handleAiAutoSchedule(); }}
-                    className="py-2.5 px-6 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-500 text-white font-black text-xs shadow-lg shadow-indigo-500/25 flex items-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
+                    className="py-2.5 px-6 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
                   >
                     <Sparkles className="w-4 h-4" />
                     <span>Xếp lịch ngay</span>
@@ -1912,8 +1914,6 @@ export default function CalendarView({
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
               className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200/80 dark:border-[var(--cu-border)] bg-white/95 dark:bg-[var(--cu-surface)]/95 shadow-[0_32px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl p-6 sm:p-7 text-left"
             >
-              <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-gradient-to-bl from-indigo-500/20 via-blue-500/10 to-transparent blur-2xl pointer-events-none" />
-              
               <div className="flex justify-between items-start mb-4">
                 <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${
                   (selectedTask as any).isGoogleEvent
@@ -2087,7 +2087,7 @@ export default function CalendarView({
                     type="button"
                     onClick={handleSaveGoogleEvent}
                     disabled={savingGcal}
-                    className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-500 text-xs font-black text-white shadow-lg shadow-indigo-500/25 transition-all cursor-pointer text-center disabled:opacity-50"
+                    className="flex-1 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white shadow-xs transition-all cursor-pointer text-center disabled:opacity-50"
                   >
                     {savingGcal ? 'Đang lưu...' : 'Lưu vào Google Calendar'}
                   </button>
@@ -2097,7 +2097,7 @@ export default function CalendarView({
                   <button
                     type="button"
                     onClick={() => setSelectedTask(null)}
-                    className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-500 text-xs font-black text-white shadow-lg shadow-indigo-500/25 transition-all cursor-pointer text-center"
+                    className="flex-1 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white shadow-xs transition-all cursor-pointer text-center"
                   >
                     Hoàn tất
                   </button>
@@ -2129,13 +2129,10 @@ export default function CalendarView({
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
               className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200/80 dark:border-[var(--cu-border)] bg-white/95 dark:bg-[var(--cu-surface)]/95 shadow-[0_32px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl p-6 sm:p-7 text-left"
             >
-              {/* Radiant Glow Behind Header */}
-              <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-gradient-to-bl from-indigo-500/20 via-blue-500/10 to-transparent blur-2xl pointer-events-none" />
-
               {/* Modal Header */}
               <div className="flex items-center justify-between gap-4 mb-5">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 shrink-0">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-xs shrink-0">
                     <Plus className="w-5 h-5 stroke-[2.5]" />
                   </div>
                   <div className="min-w-0">
@@ -2438,7 +2435,7 @@ export default function CalendarView({
                   <button
                     type="submit"
                     disabled={savingGcal}
-                    className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-500 text-xs font-black text-white shadow-lg shadow-indigo-500/25 active:scale-[0.98] transition-all cursor-pointer text-center disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    className="flex-1 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white shadow-xs active:scale-[0.98] transition-all cursor-pointer text-center disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
                     <Sparkles className="w-4 h-4" />
                     <span>{savingGcal ? 'Đang lưu...' : 'Xếp lịch'}</span>

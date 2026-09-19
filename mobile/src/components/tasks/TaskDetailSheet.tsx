@@ -7,8 +7,8 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Image,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import {
   X,
   Check,
@@ -31,6 +31,7 @@ import { useSpaceStore } from '../../store/spaceStore';
 import { useMemberStore } from '../../store/memberStore';
 import { useAuthStore } from '../../store/authStore';
 import { useTranslation } from '../../locales';
+import { Avatar } from '../common/Avatar';
 
 interface TaskDetailSheetProps {
   task: Task | null;
@@ -170,6 +171,11 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     } catch {}
     await softDeleteTask(task.id);
+    Toast.show({
+      type: 'info',
+      text1: 'Đã xóa công việc',
+      text2: `Công việc "${task.title}" đã được xóa.`,
+    });
     onClose();
   };
 
@@ -281,11 +287,7 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
 
               {assignedMember && (
                 <View style={[styles.metaPill, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
-                  {assignedMember.avatar ? (
-                    <Image source={{ uri: assignedMember.avatar }} style={styles.memberAvatarSmall} />
-                  ) : (
-                    <User size={12} color={colors.primary} />
-                  )}
+                  <Avatar name={assignedMember.name} url={assignedMember.avatar} size={18} />
                   <Text style={[styles.metaPillText, { color: colors.textPrimary }]}>
                     {assignedMember.name}
                   </Text>
@@ -365,15 +367,7 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
                       },
                     ]}
                   >
-                    {m.avatar ? (
-                      <Image source={{ uri: m.avatar }} style={styles.avatarMiniImg} />
-                    ) : (
-                      <View style={[styles.avatarMiniPlaceholder, { backgroundColor: colors.primary }]}>
-                        <Text style={{ fontSize: 10, color: '#fff', fontWeight: '700' }}>
-                          {m.name.charAt(0)}
-                        </Text>
-                      </View>
-                    )}
+                    <Avatar name={m.name} url={m.avatar} size={18} />
                     <Text
                       style={[
                         styles.assigneeOptionText,
@@ -469,16 +463,16 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
                     style={[
                       styles.tagChip,
                       {
-                        backgroundColor: isSelected ? '#6366f125' : colors.surfaceSubtle,
-                        borderColor: isSelected ? '#6366f1' : colors.border,
+                        backgroundColor: isSelected ? `${colors.primary}25` : colors.surfaceSubtle,
+                        borderColor: isSelected ? colors.primary : colors.border,
                       },
                     ]}
                   >
-                    {isSelected && <Check size={11} color="#6366f1" strokeWidth={3} />}
+                    {isSelected && <Check size={11} color={colors.primary} strokeWidth={3} />}
                     <Text
                       style={[
                         styles.tagChipText,
-                        { color: isSelected ? '#a5b4fc' : colors.textSecondary },
+                        { color: isSelected ? colors.primaryText : colors.textSecondary },
                       ]}
                     >
                       #{tag}

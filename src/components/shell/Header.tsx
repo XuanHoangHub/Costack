@@ -155,23 +155,43 @@ export function Header({
         <div className="flex items-center gap-1 shrink-0">
           {rightContent}
 
-          {/* Search Button */}
-          <Tooltip content="Tìm kiếm" shortcut="⌘K" side="bottom">
-            <button
-              type="button"
-              onClick={onSearchClick}
-              className="flex items-center justify-center w-8 h-8 rounded-[var(--ax-radius-md)] text-[var(--cu-text-muted)] hover:text-[var(--cu-text-secondary)] hover:bg-[var(--cu-surface-2)] transition-colors cursor-pointer"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <circle cx="11" cy="11" r="8" />
-                <path strokeLinecap="round" d="m21 21-4.35-4.35" />
-              </svg>
-            </button>
+          {/* Search Omnibar Button */}
+          <Tooltip content="Tìm kiếm nhanh (⌘K)" shortcut="⌘K" side="bottom">
+            <div>
+              {/* Desktop Omnibar Input Simulation */}
+              <button
+                type="button"
+                onClick={onSearchClick}
+                className="hidden sm:flex items-center gap-2 h-8 px-2.5 rounded-[var(--ax-radius-lg)] bg-[var(--cu-surface-2)] hover:bg-[var(--cu-surface-3)] text-[var(--cu-text-muted)] hover:text-[var(--cu-text-secondary)] border border-[var(--cu-border)]/70 hover:border-[var(--cu-border)] transition-all cursor-pointer group text-xs shadow-xs"
+              >
+                <svg className="w-3.5 h-3.5 text-[var(--cu-text-muted)] group-hover:text-[var(--cu-primary)] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <circle cx="11" cy="11" r="8" />
+                  <path strokeLinecap="round" d="m21 21-4.35-4.35" />
+                </svg>
+                <span className="hidden md:inline font-medium text-[12px]">Tìm kiếm hoặc lệnh...</span>
+                <kbd className="ml-1 text-[10px] font-mono text-[var(--cu-text-muted)] bg-[var(--cu-surface-1)] px-1.5 py-0.5 rounded border border-[var(--cu-border)] shadow-xs">
+                  ⌘K
+                </kbd>
+              </button>
+
+              {/* Mobile Icon Button */}
+              <button
+                type="button"
+                onClick={onSearchClick}
+                className="sm:hidden flex items-center justify-center w-8 h-8 rounded-[var(--ax-radius-md)] text-[var(--cu-text-muted)] hover:text-[var(--cu-text-secondary)] hover:bg-[var(--cu-surface-2)] transition-colors cursor-pointer"
+                aria-label="Tìm kiếm"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <circle cx="11" cy="11" r="8" />
+                  <path strokeLinecap="round" d="m21 21-4.35-4.35" />
+                </svg>
+              </button>
+            </div>
           </Tooltip>
 
           {/* Clock */}
           {currentTime && (
-            <div className="hidden lg:flex items-center px-2 text-[11px] font-mono text-[var(--cu-text-muted)] tabular-nums">
+            <div className="hidden lg:flex items-center px-2 py-1 rounded-[var(--ax-radius-md)] bg-[var(--cu-surface-2)]/60 border border-[var(--cu-border)]/40 text-[11px] font-mono text-[var(--cu-text-muted)] tabular-nums shadow-xs">
               {currentTime}
             </div>
           )}
@@ -199,7 +219,7 @@ export function Header({
             <button
               type="button"
               onClick={onUpgradeClick}
-              className="hidden md:flex items-center gap-1.5 h-7 px-3 rounded-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white text-[11px] font-bold hover:brightness-110 transition-all cursor-pointer shadow-sm"
+              className="hidden md:flex items-center gap-1.5 h-7 px-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold active:scale-95 transition-all cursor-pointer shadow-xs"
             >
               <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z" />
@@ -223,7 +243,7 @@ export function Header({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
               </svg>
               {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-4 px-1 text-[9px] font-bold bg-[var(--cu-danger)] text-white rounded-full">
+                <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-4 px-1 text-[9px] font-bold bg-[var(--cu-danger)] text-white rounded-full shadow-xs ring-2 ring-[var(--cu-bg)] animate-pulse">
                   {unreadCount > 99 ? "99+" : unreadCount}
                 </span>
               )}

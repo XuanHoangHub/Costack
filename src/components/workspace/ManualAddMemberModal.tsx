@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
   X, UserPlus, Users, Shield, ShieldCheck, User,
@@ -9,6 +10,16 @@ import {
 import { User as MemberUser, WorkspaceRole } from "@/types";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { supabase } from "@/lib/supabaseClient";
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
 
 interface ManualAddMemberModalProps {
   isOpen: boolean;
@@ -173,26 +184,31 @@ export default function ManualAddMemberModal({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[160] flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="absolute inset-0 modal-backdrop-blur"
-        />
+    <Portal>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            key="manual-add-member-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[160] flex items-center justify-center p-4"
+          >
+            <div
+              onClick={onClose}
+              className="absolute inset-0 modal-backdrop-blur cursor-pointer"
+            />
 
-        <motion.div
-          initial={{ scale: 0.94, y: 15, opacity: 0 }}
-          animate={{ scale: 1, y: 0, opacity: 1 }}
-          exit={{ scale: 0.94, y: 15, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 360, damping: 28 }}
-          className="relative w-[min(95vw,520px)] max-h-[90dvh] overflow-y-auto bg-white dark:bg-slate-900 rounded-[28px] shadow-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 z-10 select-none custom-scrollbar text-left"
-        >
+            <motion.div
+              key="manual-add-member-card"
+              initial={{ scale: 0.94, y: 15, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.94, y: 15, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              className="relative w-[min(95vw,520px)] max-h-[90dvh] overflow-y-auto bg-white dark:bg-slate-900 rounded-[28px] shadow-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 z-10 select-none custom-scrollbar text-left"
+            >
           {/* Close button */}
           <button
             type="button"
@@ -477,8 +493,10 @@ export default function ManualAddMemberModal({
               </div>
             </div>
           )}
-        </motion.div>
-      </div>
-    </AnimatePresence>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Portal>
   );
 }

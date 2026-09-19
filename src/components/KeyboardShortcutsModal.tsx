@@ -75,22 +75,34 @@ export default function KeyboardShortcutsModal({ isOpen, onClose, locale = 'en' 
     <Portal>
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <motion.div
+            key="keyboard-shortcuts-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center p-4"
+          >
             <motion.button
+              key="keyboard-shortcuts-backdrop"
               type="button"
               aria-label={vi ? 'Đóng bảng phím tắt' : 'Close shortcuts'}
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
               onClick={onClose}
-              className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 cursor-pointer"
+              className="absolute inset-0 modal-backdrop bg-black/40 dark:bg-black/75 backdrop-blur-xs cursor-pointer"
             />
           <motion.div
+            key="keyboard-shortcuts-card"
             role="dialog"
             aria-modal="true"
             aria-labelledby="keyboard-shortcuts-title"
-            initial={{ opacity: 0, scale: 0.96, y: 12 }}
+            initial={{ opacity: 0, scale: 0.95, y: 14 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 12 }}
-            transition={{ duration: 0.16 }}
+            exit={{ opacity: 0, scale: 0.95, y: 14 }}
+            transition={{ type: "spring", stiffness: 400, damping: 28 }}
             className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900"
           >
             <div className="flex items-center justify-between border-b border-slate-200/70 px-5 py-4 dark:border-slate-800">
@@ -125,7 +137,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose, locale = 'en' 
               <span>{vi ? 'Mẹo: nhập / trong Command Center để xem mọi hành động.' : 'Tip: type / in Command Center to browse every action.'}</span>
             </div>
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
     </Portal>

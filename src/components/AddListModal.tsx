@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, ListPlus, Folder, Plus, Check, Palette
 } from 'lucide-react';
@@ -76,11 +76,9 @@ export default function AddListModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen || !spaceId) return null;
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!listName.trim()) return;
+    if (!listName.trim() || !spaceId) return;
     const folderIdParam = selectedFolderId === 'root' ? undefined : selectedFolderId;
     onAddList(spaceId, listName.trim(), folderIdParam, selectedColor);
     onClose();
@@ -88,23 +86,35 @@ export default function AddListModal({
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
-        {/* Backdrop */}
-        <motion.div 
-          initial={{ opacity: 0 }} 
-          animate={{ opacity: 1 }} 
-          exit={{ opacity: 0 }} 
-          onClick={onClose} 
-          className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs transition-opacity cursor-pointer" 
-        />
+      <AnimatePresence>
+        {isOpen && spaceId && (
+          <motion.div
+            key="add-list-modal-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[999] flex items-center justify-center p-4"
+          >
+            {/* Backdrop */}
+            <motion.div 
+              key="add-list-backdrop"
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              transition={{ duration: 0.18 }}
+              onClick={onClose} 
+              className="absolute inset-0 modal-backdrop bg-black/35 dark:bg-black/65 backdrop-blur-xs cursor-pointer" 
+            />
 
-      <motion.div 
-        initial={{ scale: 0.95, y: 10, opacity: 0 }} 
-        animate={{ scale: 1, y: 0, opacity: 1 }} 
-        exit={{ scale: 0.95, y: 10, opacity: 0 }} 
-        transition={{ type: "spring", stiffness: 380, damping: 28 }}
-        className="relative w-[min(95vw,460px)] max-sm:w-full max-sm:mx-2 max-h-[90dvh] overflow-y-auto rounded-xl bg-white dark:bg-[#12141e] border border-slate-200/90 dark:border-white/10 shadow-xl p-4 sm:p-5 md:p-6 z-10 text-left font-sans select-none"
-      >
+            <motion.div 
+              key="add-list-card"
+              initial={{ scale: 0.94, y: 14, opacity: 0 }} 
+              animate={{ scale: 1, y: 0, opacity: 1 }} 
+              exit={{ scale: 0.94, y: 14, opacity: 0 }} 
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              className="relative w-[min(95vw,460px)] max-sm:w-full max-sm:mx-2 max-h-[90dvh] overflow-y-auto rounded-xl bg-white dark:bg-[#0a0b10] border border-slate-200/90 dark:border-white/10 shadow-xl p-4 sm:p-5 md:p-6 z-10 text-left font-sans select-none"
+            >
         {/* ── Header ── */}
         <div className="flex items-start justify-between pb-3.5 mb-3.5 border-b border-slate-100 dark:border-white/10">
           <div className="flex items-center gap-2.5">
@@ -157,7 +167,7 @@ export default function AddListModal({
                 value={listName} 
                 onChange={e => setListName(e.target.value)} 
                 placeholder={locale === 'vi' ? 'Nhập tên danh sách...' : 'Enter list name...'} 
-                className="w-full pl-8 pr-9 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-[#181a26] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all duration-200 focus:border-blue-500 focus:bg-white dark:focus:bg-[#12141e] focus:ring-2 focus:ring-blue-500/20 shadow-2xs" 
+                className="w-full pl-8 pr-9 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-[#0d0f15] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all duration-200 focus:border-blue-500 focus:bg-white dark:focus:bg-[#0a0b10] focus:ring-2 focus:ring-blue-500/20 shadow-2xs" 
               />
               {listName && (
                 <button 
@@ -180,7 +190,7 @@ export default function AddListModal({
               </span>
               <span className="text-[10px] font-bold text-slate-400 capitalize">{activeColorObj.name}</span>
             </div>
-            <div className="flex items-center gap-2 p-2 bg-slate-50/80 dark:bg-[#181a26] rounded-lg border border-slate-200/60 dark:border-white/10 overflow-x-auto">
+            <div className="flex items-center gap-2 p-2 bg-slate-50/80 dark:bg-[#0d0f15] rounded-lg border border-slate-200/60 dark:border-white/10 overflow-x-auto">
               {LIST_COLORS.map(c => {
                 const isSelected = selectedColor === c.id;
                 return (
@@ -241,8 +251,10 @@ export default function AddListModal({
             </button>
           </div>
         </form>
-      </motion.div>
-    </div>
+        </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Portal>
   );
 }

@@ -46,17 +46,17 @@ export function GsapAmbientGlow({ className = "", glowCount = 3 }: GsapAmbientGl
       className={`pointer-events-none absolute inset-0 overflow-hidden select-none will-change-transform ${className}`}
       aria-hidden="true"
     >
-      {/* Orb 1: Electric Blue / Indigo primary glow */}
-      <div className="gsap-ambient-orb absolute left-1/2 top-[-160px] h-[540px] w-[800px] -translate-x-1/2 rounded-full bg-gradient-to-tr from-blue-600/25 via-sky-500/20 to-indigo-600/20 blur-[130px] opacity-75 dark:opacity-60 transform-gpu" />
+      {/* Orb 1: Blue / Sky primary glow */}
+      <div className="gsap-ambient-orb absolute left-1/2 top-[-160px] h-[540px] w-[800px] -translate-x-1/2 rounded-full bg-gradient-to-tr from-blue-600/15 via-sky-500/15 to-blue-500/10 blur-[130px] opacity-70 dark:opacity-50 transform-gpu" />
 
-      {/* Orb 2: Vibrant Cyan / Sky accent glow */}
+      {/* Orb 2: Subtle Cyan / Sky accent glow */}
       {glowCount >= 2 && (
-        <div className="gsap-ambient-orb absolute -left-20 top-1/4 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-sky-400/20 to-blue-600/15 blur-[120px] opacity-60 dark:opacity-45 transform-gpu" />
+        <div className="gsap-ambient-orb absolute -left-20 top-1/4 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-sky-400/15 to-blue-600/10 blur-[120px] opacity-50 dark:opacity-35 transform-gpu" />
       )}
 
-      {/* Orb 3: Purple / Sapphire deep ambient glow */}
+      {/* Orb 3: Subtle Sky ambient glow */}
       {glowCount >= 3 && (
-        <div className="gsap-ambient-orb absolute -right-20 top-1/3 h-[480px] w-[480px] rounded-full bg-gradient-to-bl from-indigo-500/20 to-fuchsia-500/10 blur-[140px] opacity-50 dark:opacity-40 transform-gpu" />
+        <div className="gsap-ambient-orb absolute -right-20 top-1/3 h-[480px] w-[480px] rounded-full bg-gradient-to-bl from-blue-500/15 to-sky-500/10 blur-[140px] opacity-40 dark:opacity-30 transform-gpu" />
       )}
     </div>
   );

@@ -109,7 +109,7 @@ export default function DashboardHeader({
               {greetingInfo.icon}
             </span>
             <span>{greetingInfo.greeting}, </span>
-            <span className="bg-gradient-to-r from-blue-600 via-sky-500 to-indigo-600 dark:from-sky-300 dark:via-blue-300 dark:to-indigo-300 bg-clip-text text-transparent font-extrabold">
+            <span className="text-blue-600 dark:text-blue-400 font-extrabold">
               {userName}
             </span>
           </h1>
@@ -159,7 +159,7 @@ export default function DashboardHeader({
             <button
               type="button"
               onClick={() => onNavigate('tasks')}
-              className="flex-1 sm:flex-initial inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 px-4 text-xs font-bold text-white shadow-md shadow-blue-500/25 active:scale-[0.98] transition-all cursor-pointer group"
+              className="flex-1 sm:flex-initial inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 text-xs font-bold text-white shadow-xs active:scale-[0.98] transition-all cursor-pointer group"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
               <span>{locale === 'vi' ? 'Quản lý nhiệm vụ' : 'Manage Tasks'}</span>

@@ -4876,7 +4876,7 @@ export default function App() {
               <button 
                 type="submit"
                 disabled={onboardingSubmitting}
-                className="w-full py-3 bg-gradient-to-r from-indigo-650 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 disabled:from-slate-400 disabled:to-slate-500 text-white font-black rounded-2xl shadow-lg shadow-blue-500/20 cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white font-black rounded-2xl shadow-sm cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
               >
                 {onboardingSubmitting ? (
                   <span>Đang tạo không gian...</span>
@@ -4912,10 +4912,10 @@ export default function App() {
             <div 
               className="w-full h-full flex items-center justify-center rounded-[13px] overflow-hidden"
               style={!currentWorkspace?.logoUrl ? {
-                background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #38bdf8, #0284c7)' :
-                            currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #34d399, #059669)' :
-                            currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #f43f5e, #be123c)' :
-                            'linear-gradient(135deg, #2563eb, #0284c7)',
+                background: currentWorkspace?.theme === 'ocean' ? '#0284c7' :
+                            currentWorkspace?.theme === 'forest' ? '#10b981' :
+                            currentWorkspace?.theme === 'sunset' ? '#f43f5e' :
+                            '#2563eb',
               } : undefined}
             >
               {currentWorkspace?.logoUrl ? (
@@ -4938,10 +4938,10 @@ export default function App() {
                 <div 
                   className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-black text-[10px] shadow-xs shrink-0 select-none overflow-hidden border border-black/5 dark:border-white/10"
                   style={!currentWorkspace?.logoUrl ? {
-                    background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #38bdf8, #0284c7)' :
-                                currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #34d399, #059669)' :
-                                currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #f43f5e, #be123c)' :
-                                'linear-gradient(135deg, #2563eb, #0284c7)',
+                    background: currentWorkspace?.theme === 'ocean' ? '#0284c7' :
+                                currentWorkspace?.theme === 'forest' ? '#10b981' :
+                                currentWorkspace?.theme === 'sunset' ? '#f43f5e' :
+                                '#2563eb',
                   } : undefined}
                 >
                   {currentWorkspace?.logoUrl ? (
@@ -5216,12 +5216,12 @@ export default function App() {
                         }}
                         className={`group relative flex h-8 min-h-[32px] w-full select-none items-center gap-2 rounded-lg px-2 text-left transition-colors duration-150 cursor-pointer ${
                           isSpaceActive
-                            ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300 font-semibold shadow-2xs'
+                            ? 'bg-blue-50/70 text-blue-700 dark:bg-sky-500/10 dark:text-sky-300 font-semibold'
                             : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100/70 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-zinc-100 font-medium'
                         }`}
                       >
                         {isSpaceActive && (
-                          <div className="absolute left-0 top-1.5 bottom-1.5 w-0.75 rounded-r-full bg-blue-600 dark:bg-blue-400 shadow-xs" />
+                          <div className="absolute left-0 top-1.5 bottom-1.5 w-0.75 rounded-r-full bg-blue-600 dark:bg-sky-400 shadow-xs shadow-blue-500/40" />
                         )}
                         {sp.emoji && sp.emoji !== '📦' ? (
                           <span className="text-sm shrink-0 select-none flex items-center justify-center">{renderSpaceIcon(sp.emoji, "w-4 h-4 shrink-0", undefined, { preserveEmoji: true })}</span>
@@ -5270,14 +5270,14 @@ export default function App() {
         data-hovered={isSidebarHovered}
         onMouseEnter={handleSidebarMouseEnter}
         onMouseLeave={handleSidebarMouseLeave}
-        className={`apexa-desktop-sidebar cu-sidebar relative z-30 hidden shrink-0 cursor-default flex-col transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:flex h-full border-r border-slate-200/90 dark:border-white/[0.08] bg-slate-50/60 dark:bg-[var(--sidebar-bg)] ${
+        className={`apexa-desktop-sidebar cu-sidebar relative z-30 hidden shrink-0 cursor-default flex-col transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:flex h-full border-r border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[var(--sidebar-bg)] ${
           isMainSidebarCollapsed 
             ? 'w-[68px]' 
             : 'w-[var(--cu-sidebar-width)]'
         }`}
       >
         {/* Base Sidebar Layer (Always in flow) */}
-        <div className="relative w-full h-full flex flex-col min-h-0">
+        <div className="relative w-full h-full flex flex-col min-h-0 overflow-hidden">
           {renderSidebarContent(isMainSidebarCollapsed, false)}
         </div>
 
@@ -5292,7 +5292,7 @@ export default function App() {
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               onMouseEnter={handleSidebarMouseEnter}
               onMouseLeave={handleSidebarMouseLeave}
-              className="absolute top-0 left-0 bottom-0 z-40 w-[var(--cu-sidebar-width)] flex flex-col border-r border-slate-200/90 dark:border-white/[0.08] bg-white/98 dark:bg-[#0c0e14]/98 shadow-[0_16px_48px_-8px_rgba(15,23,42,0.18)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.75)] backdrop-blur-2xl select-none"
+              className="absolute top-0 left-0 bottom-0 z-40 w-[var(--cu-sidebar-width)] flex flex-col border-r border-slate-200/90 dark:border-white/[0.08] bg-white/98 dark:bg-[#050508]/98 shadow-[0_16px_48px_-8px_rgba(15,23,42,0.18)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.75)] backdrop-blur-2xl select-none"
             >
               {renderSidebarContent(false, true)}
             </motion.div>
@@ -5314,17 +5314,15 @@ export default function App() {
                 }`}
               >
                 {/* Active Workspace Hero Card */}
-                <div className="relative p-3 rounded-2xl bg-gradient-to-br from-blue-50/80 via-slate-50 to-indigo-50/60 border border-blue-200/60 dark:from-blue-950/60 dark:via-slate-900 dark:to-slate-900/90 dark:border-blue-500/35 shadow-xs group overflow-hidden">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 dark:bg-blue-500/15 rounded-full blur-xl pointer-events-none" />
-                  
+                <div className="relative p-3 rounded-2xl bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] shadow-xs group overflow-hidden">
                   <div className="flex items-center gap-3">
                     <div 
-                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black text-base shadow-md shadow-blue-500/25 shrink-0 select-none overflow-hidden ring-2 ring-white/60 dark:ring-white/20 transition-transform duration-300 group-hover:scale-[1.03]"
+                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black text-base shadow-sm shrink-0 select-none overflow-hidden ring-1 ring-black/5 dark:ring-white/20 transition-transform duration-300 group-hover:scale-[1.03]"
                       style={!currentWorkspace?.logoUrl ? {
-                        background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #38bdf8, #0284c7)' :
-                                    currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #34d399, #059669)' :
-                                    currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #f43f5e, #be123c)' :
-                                    'linear-gradient(135deg, #2563eb, #0284c7)',
+                        background: currentWorkspace?.theme === 'ocean' ? '#0284c7' :
+                                    currentWorkspace?.theme === 'forest' ? '#10b981' :
+                                    currentWorkspace?.theme === 'sunset' ? '#f43f5e' :
+                                    '#2563eb',
                       } : undefined}
                     >
                       {currentWorkspace?.logoUrl ? (
@@ -5407,10 +5405,10 @@ export default function App() {
                             <div 
                               className="w-7 h-7 rounded-xl flex items-center justify-center text-white font-black text-[11px] shrink-0 overflow-hidden shadow-xs ring-1 ring-black/5 dark:ring-white/10 group-hover/ws:scale-105 transition-transform"
                               style={!w.logoUrl ? {
-                                background: w.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
-                                            w.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
-                                            w.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
-                                            'linear-gradient(135deg, #2563EB, #0284c7)',
+                                background: w.theme === 'ocean' ? '#0284c7' :
+                                            w.theme === 'forest' ? '#10b981' :
+                                            w.theme === 'sunset' ? '#f43f5e' :
+                                            '#2563EB',
                               } : undefined}
                             >
                               {w.logoUrl ? (
@@ -5478,10 +5476,10 @@ export default function App() {
               <div 
                 className="w-4.5 h-4.5 rounded-md flex items-center justify-center text-white font-black text-[9px] shrink-0 overflow-hidden shadow-3xs"
                 style={!currentWorkspace?.logoUrl ? {
-                  background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
-                              currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
-                              currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
-                              'linear-gradient(135deg, #2563EB, #0284C7)',
+                  background: currentWorkspace?.theme === 'ocean' ? '#0284c7' :
+                              currentWorkspace?.theme === 'forest' ? '#10b981' :
+                              currentWorkspace?.theme === 'sunset' ? '#f43f5e' :
+                              '#2563eb',
                 } : undefined}
               >
                 {currentWorkspace?.logoUrl ? (
@@ -6048,7 +6046,7 @@ export default function App() {
 
                         {displayedNotifications.length === 0 && (!workspaceInvitations || workspaceInvitations.length === 0 || notificationFilter === 'unread') ? (
                           <div className="py-8 px-4 text-center space-y-2.5">
-                            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 dark:from-blue-500/20 dark:to-indigo-500/20 border border-blue-200/60 dark:border-blue-500/20 flex items-center justify-center mx-auto text-blue-600 dark:text-blue-400 shadow-3xs">
+                            <div className="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/40 flex items-center justify-center mx-auto text-blue-600 dark:text-blue-400 shadow-3xs">
                               <BellOff className="w-5 h-5 stroke-[1.8]" />
                             </div>
                             <div className="space-y-0.5">
@@ -6293,7 +6291,7 @@ export default function App() {
                             setShowStatusMenu(false);
                             (window as any).playSystemSound?.('click');
                           }}
-                          className="w-full flex items-center justify-between p-2 rounded-xl text-xs bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-xs transition-all cursor-pointer group"
+                          className="w-full flex items-center justify-between p-2 rounded-xl text-xs bg-amber-500 hover:bg-amber-600 text-white shadow-xs transition-all cursor-pointer group"
                         >
                           <div className="flex items-center gap-2 min-w-0 text-left">
                             <Sparkles className="w-4 h-4 text-white shrink-0 animate-pulse group-hover:rotate-12 transition-transform" />

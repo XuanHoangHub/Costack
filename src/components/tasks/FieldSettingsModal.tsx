@@ -6,6 +6,7 @@ import type { CustomFieldDefinition } from "@/types";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'motion/react';
 import { 
   X, 
   Plus, 
@@ -32,7 +33,18 @@ import {
   Bookmark,
   Heart,
   ThumbsUp,
-  Flame
+  Flame,
+  MousePointerClick,
+  MapPin,
+  Calculator,
+  Users,
+  Activity,
+  GitFork,
+  Layers,
+  PenTool,
+  CheckCircle2,
+  Globe,
+  Paperclip
 } from 'lucide-react';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { 
@@ -58,20 +70,30 @@ function Portal({ children }: { children: React.ReactNode }) {
 }
 
 export const ALL_FIELD_TYPES = [
-  { id: 'text', label: 'Văn bản (Text)', labelEn: 'Text', icon: AlignLeft, color: 'from-blue-500 to-indigo-500', desc: 'Chuỗi ký tự ngắn, tiêu đề, mã hiệu' },
-  { id: 'number', label: 'Con số (Number)', labelEn: 'Number', icon: Hash, color: 'from-indigo-500 to-purple-500', desc: 'Số nguyên, số thập phân, số lượng' },
+  { id: 'button', label: 'Nút bấm (Button)', labelEn: 'Button', icon: MousePointerClick, color: 'from-blue-600 to-indigo-600', desc: 'Thực thi hành động hoặc mở link tùy chỉnh' },
+  { id: 'checkbox', label: 'Hộp kiểm (Checkbox)', labelEn: 'Checkbox', icon: CheckSquare, color: 'from-emerald-500 to-teal-500', desc: 'Đánh dấu hoàn tất, có/không' },
   { id: 'date', label: 'Ngày tháng (Date)', labelEn: 'Date', icon: Calendar, color: 'from-purple-500 to-pink-500', desc: 'Ngày hạn, mốc thời gian, lịch trình' },
-  { id: 'textarea', label: 'Văn bản dài (Long Text)', labelEn: 'Long Text', icon: FileText, color: 'from-emerald-500 to-teal-500', desc: 'Mô tả chi tiết, ghi chú nhiều dòng' },
-  { id: 'dropdown', label: 'Menu lựa chọn (Dropdown)', labelEn: 'Dropdown', icon: Tag, color: 'from-amber-500 to-orange-500', desc: 'Chọn 1 giá trị từ danh sách màu sắc' },
-  { id: 'labels', label: 'Nhãn phân loại (Labels)', labelEn: 'Labels', icon: Bookmark, color: 'from-rose-500 to-red-500', desc: 'Gắn nhiều nhãn/thẻ màu trực quan' },
-  { id: 'checkbox', label: 'Hộp kiểm (Checkbox)', labelEn: 'Checkbox', icon: CheckSquare, color: 'from-violet-500 to-purple-500', desc: 'Đánh dấu hoàn tất, có/không' },
-  { id: 'money', label: 'Tiền tệ (Money)', labelEn: 'Money', icon: DollarSign, color: 'from-emerald-500 to-green-600', desc: 'Ngân sách, chi phí (VNĐ, USD, EUR)' },
-  { id: 'rating', label: 'Đánh giá (Rating)', labelEn: 'Rating', icon: Star, color: 'from-amber-400 to-yellow-500', desc: 'Xếp hạng độ ưu tiên, sao/tim' },
-  { id: 'progress', label: 'Tiến độ (Progress)', labelEn: 'Progress', icon: BarChart3, color: 'from-cyan-500 to-blue-500', desc: 'Thanh trượt % hoàn thành (0 - 100%)' },
+  { id: 'dropdown', label: 'Menu lựa chọn (Dropdown)', labelEn: 'Dropdown', icon: ChevronDown, color: 'from-amber-500 to-orange-500', desc: 'Chọn 1 giá trị từ danh sách màu sắc' },
   { id: 'email', label: 'Email', labelEn: 'Email', icon: Mail, color: 'from-sky-500 to-blue-600', desc: 'Hòm thư điện tử kèm nút gửi mail' },
+  { id: 'files', label: 'Tệp đính kèm (Files)', labelEn: 'Files', icon: Paperclip, color: 'from-indigo-500 to-violet-500', desc: 'Tải lên tài liệu, hình ảnh hoặc hợp đồng' },
+  { id: 'formula', label: 'Công thức (Formula)', labelEn: 'Formula', icon: Calculator, color: 'from-violet-500 to-purple-600', desc: 'Tính toán giá trị tự động từ các trường' },
+  { id: 'labels', label: 'Nhãn phân loại (Labels)', labelEn: 'Labels', icon: Tag, color: 'from-rose-500 to-red-500', desc: 'Gắn nhiều nhãn/thẻ màu trực quan' },
+  { id: 'location', label: 'Địa điểm (Location)', labelEn: 'Location', icon: MapPin, color: 'from-red-500 to-rose-600', desc: 'Địa chỉ cụ thể, định vị chi nhánh' },
+  { id: 'money', label: 'Tiền tệ (Money)', labelEn: 'Money', icon: DollarSign, color: 'from-emerald-500 to-green-600', desc: 'Ngân sách, chi phí (VNĐ, USD, EUR)' },
+  { id: 'number', label: 'Con số (Number)', labelEn: 'Number', icon: Hash, color: 'from-indigo-500 to-purple-500', desc: 'Số nguyên, số thập phân, số lượng' },
+  { id: 'people', label: 'Người phụ trách (People)', labelEn: 'People', icon: Users, color: 'from-blue-500 to-cyan-500', desc: 'Gán một hoặc nhiều thành viên phụ trách' },
   { id: 'phone', label: 'Số điện thoại (Phone)', labelEn: 'Phone', icon: Phone, color: 'from-teal-500 to-emerald-600', desc: 'Số liên hệ kèm nút gọi nhanh' },
-  { id: 'url', label: 'Đường dẫn (URL / Link)', labelEn: 'URL', icon: Link, color: 'from-blue-500 to-cyan-500', desc: 'Liên kết web, tài liệu Figma/GitHub' },
-  { id: 'member', label: 'Thành viên (Member)', labelEn: 'Member', icon: User, color: 'from-indigo-600 to-violet-600', desc: 'Gán người phụ trách từ nhóm làm việc' }
+  { id: 'progress_auto', label: 'Tiến độ tự động (Progress Auto)', labelEn: 'Progress (Auto)', icon: Activity, color: 'from-cyan-500 to-blue-500', desc: 'Tự động tính % hoàn thành dựa trên subtask' },
+  { id: 'progress_manual', label: 'Tiến độ thủ công (Progress Manual)', labelEn: 'Progress (Manual)', icon: BarChart3, color: 'from-blue-500 to-indigo-500', desc: 'Thanh trượt % do người dùng nhập (0 - 100%)' },
+  { id: 'rating', label: 'Đánh giá (Rating)', labelEn: 'Rating', icon: Star, color: 'from-amber-400 to-yellow-500', desc: 'Xếp hạng độ ưu tiên, sao/tim/lửa' },
+  { id: 'relationship', label: 'Mối quan hệ (Relationship)', labelEn: 'Relationship', icon: GitFork, color: 'from-fuchsia-500 to-pink-600', desc: 'Liên kết tới các task trong Space khác' },
+  { id: 'rollup', label: 'Tổng hợp dữ liệu (Rollup)', labelEn: 'Rollup', icon: Layers, color: 'from-purple-600 to-indigo-600', desc: 'Tính tổng, trung bình từ các task liên kết' },
+  { id: 'signature', label: 'Chữ ký (Signature)', labelEn: 'Signature', icon: PenTool, color: 'from-slate-600 to-slate-800', desc: 'Xác nhận phê duyệt bằng chữ ký số' },
+  { id: 'tasks', label: 'Công việc liên kết (Tasks)', labelEn: 'Tasks', icon: CheckCircle2, color: 'from-green-500 to-emerald-600', desc: 'Liên kết chéo tới một hoặc nhiều task' },
+  { id: 'text', label: 'Văn bản ngắn (Text)', labelEn: 'Text', icon: AlignLeft, color: 'from-blue-500 to-indigo-500', desc: 'Chuỗi ký tự ngắn, tiêu đề, mã hiệu' },
+  { id: 'textarea', label: 'Văn bản dài (Text area)', labelEn: 'Text area', icon: FileText, color: 'from-emerald-500 to-teal-500', desc: 'Mô tả chi tiết, ghi chú nhiều dòng' },
+  { id: 'voting', label: 'Bình chọn (Voting)', labelEn: 'Voting', icon: ThumbsUp, color: 'from-pink-500 to-rose-500', desc: 'Bình chọn, biểu quyết ý kiến nhóm' },
+  { id: 'website', label: 'Trang web (Website)', labelEn: 'Website', icon: Globe, color: 'from-sky-500 to-indigo-500', desc: 'Địa chỉ URL website hoặc tài liệu trực tuyến' }
 ];
 
 export interface FieldSettingsModalProps {
@@ -102,6 +124,13 @@ export interface FieldSettingsModalProps {
     progressMax?: number;
     allowMultiple?: boolean;
     defaultValue?: any;
+    buttonText?: string;
+    buttonColor?: string;
+    buttonAction?: string;
+    formulaExpression?: string;
+    rollupTargetField?: string;
+    relationshipTargetSpace?: string;
+    votingMax?: number;
   } | null;
   onClose: () => void;
   onSave: (updated: { 
@@ -127,6 +156,13 @@ export interface FieldSettingsModalProps {
     progressMax?: number;
     allowMultiple?: boolean;
     defaultValue?: any;
+    buttonText?: string;
+    buttonColor?: string;
+    buttonAction?: string;
+    formulaExpression?: string;
+    rollupTargetField?: string;
+    relationshipTargetSpace?: string;
+    votingMax?: number;
   }) => void | boolean;
 }
 
@@ -141,6 +177,13 @@ export default function FieldSettingsModal({
 
   const [name, setName] = useState('');
   const [type, setType] = useState('text');
+  const [buttonText, setButtonText] = useState('Thực hiện');
+  const [buttonColor, setButtonColor] = useState('indigo');
+  const [buttonAction, setButtonAction] = useState('open_url');
+  const [formulaExpression, setFormulaExpression] = useState('');
+  const [rollupTargetField, setRollupTargetField] = useState('');
+  const [relationshipTargetSpace, setRelationshipTargetSpace] = useState('');
+  const [votingMax, setVotingMax] = useState<number>(100);
   const [placeholder, setPlaceholder] = useState('');
   const [description, setDescription] = useState('');
   const [isRequired, setIsRequired] = useState(false);
@@ -191,6 +234,13 @@ export default function FieldSettingsModal({
       setDefaultValue(config.defaultValue ?? '');
       setProgressMax(config.progressMax || 100);
       setAllowMultiple(!!config.allowMultiple);
+      setButtonText(config.buttonText || (isVietnamese ? 'Thực hiện' : 'Action'));
+      setButtonColor(config.buttonColor || 'indigo');
+      setButtonAction(config.buttonAction || 'open_url');
+      setFormulaExpression(config.formulaExpression || '');
+      setRollupTargetField(config.rollupTargetField || '');
+      setRelationshipTargetSpace(config.relationshipTargetSpace || '');
+      setVotingMax(config.votingMax || 100);
 
       if (config.options && config.options.length > 0) {
         setOptions(config.options.map((option, index) => typeof option === 'string' ? { id: `option-${index}`, label: option, color: 'indigo' } : option));
@@ -209,7 +259,7 @@ export default function FieldSettingsModal({
       }
 
       if (config.type === 'rating') setPreviewValue(3);
-      else if (config.type === 'progress') setPreviewValue(65);
+      else if (config.type === 'progress' || config.type === 'progress_auto' || config.type === 'progress_manual') setPreviewValue(65);
       else if (config.type === 'checkbox') setPreviewValue(config.defaultValue || false);
       else if (config.type === 'money') setPreviewValue('250000');
       else if (config.type === 'number') setPreviewValue('42');
@@ -304,7 +354,14 @@ export default function FieldSettingsModal({
       checkboxLabel: checkboxLabel.trim(),
       progressMax,
       allowMultiple,
-      defaultValue: type === 'checkbox' ? checkboxDefault : defaultValue
+      defaultValue: type === 'checkbox' ? checkboxDefault : defaultValue,
+      buttonText: buttonText.trim(),
+      buttonColor,
+      buttonAction,
+      formulaExpression: formulaExpression.trim(),
+      rollupTargetField: rollupTargetField.trim(),
+      relationshipTargetSpace,
+      votingMax
     };
     if (!config.isStandard) {
       const message = validateFieldDefinition({ ...updated, id: config.id } as CustomFieldDefinition, existingFields, locale);
@@ -318,18 +375,29 @@ export default function FieldSettingsModal({
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-[400] flex items-center justify-center p-3 sm:p-4 font-sans select-none">
+      <motion.div 
+        key="field-settings-modal-wrapper"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+        className="fixed inset-0 z-[400] flex items-center justify-center p-3 sm:p-4 font-sans select-none"
+      >
         <div 
-          className="absolute inset-0 bg-black/40 dark:bg-black/65 transition-opacity cursor-pointer" 
+          className="absolute inset-0 bg-black/40 dark:bg-black/65 modal-backdrop-blur cursor-pointer" 
           onClick={onClose} 
         />
         
-        <form 
+        <motion.form 
           role="dialog"
           aria-modal="true"
           aria-label={isVietnamese ? 'Cài đặt trường dữ liệu' : 'Field settings'}
           onSubmit={handleSave} 
-          className="relative w-full max-w-[620px] max-h-[92vh] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl flex flex-col z-10 text-xs overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+          initial={{ scale: 0.94, y: 16, opacity: 0 }}
+          animate={{ scale: 1, y: 0, opacity: 1 }}
+          exit={{ scale: 0.94, y: 16, opacity: 0 }}
+          transition={{ type: "spring", stiffness: 400, damping: 28 }}
+          className="relative w-full max-w-[620px] max-h-[92vh] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl flex flex-col z-10 text-xs overflow-hidden"
         >
           <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-850 shrink-0">
             <div className="flex items-center gap-3">
@@ -836,7 +904,7 @@ export default function FieldSettingsModal({
                 </div>
               )}
 
-              {type === 'progress' && (
+              {(type === 'progress' || type === 'progress_auto' || type === 'progress_manual') && (
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
                     {isVietnamese ? 'Thang đo tối đa' : 'Max Progress Scale'}
@@ -858,7 +926,7 @@ export default function FieldSettingsModal({
                 </div>
               )}
 
-              {type === 'member' && (
+              {(type === 'member' || type === 'people') && (
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -870,6 +938,94 @@ export default function FieldSettingsModal({
                   <label htmlFor="allowMult" className="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
                     {isVietnamese ? 'Cho phép gán nhiều thành viên cùng lúc' : 'Allow multiple assignees'}
                   </label>
+                </div>
+              )}
+
+              {type === 'button' && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                        {isVietnamese ? 'Chữ trên nút (Button Text)' : 'Button Label'}
+                      </label>
+                      <input
+                        type="text"
+                        value={buttonText}
+                        onChange={e => setButtonText(e.target.value)}
+                        placeholder={isVietnamese ? 'VD: Thực hiện / Mở link' : 'e.g. Action / Open Link'}
+                        className="w-full px-3 py-1.5 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                        {isVietnamese ? 'Hành động khi nhấn' : 'Action on Click'}
+                      </label>
+                      <Select
+                        value={buttonAction}
+                        onChange={v => setButtonAction(v)}
+                        className="w-full"
+                        size="sm"
+                        ariaLabel="Button Action"
+                        options={[
+                          { value: 'open_url', label: isVietnamese ? 'Mở đường dẫn web (URL)' : 'Open Web URL' },
+                          { value: 'trigger_toast', label: isVietnamese ? 'Hiện thông báo hoàn thành' : 'Show notification' },
+                          { value: 'complete_task', label: isVietnamese ? 'Đổi trạng thái hoàn tất' : 'Mark task complete' }
+                        ]}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {type === 'voting' && (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                      {isVietnamese ? 'Giới hạn số phiếu bầu / người' : 'Max Votes Per Person'}
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={votingMax}
+                      onChange={e => setVotingMax(Number(e.target.value) || 1)}
+                      className="w-full px-3 py-1.5 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {type === 'formula' && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                    {isVietnamese ? 'Biểu thức công thức (Formula Expression)' : 'Formula Expression'}
+                  </label>
+                  <textarea
+                    value={formulaExpression}
+                    onChange={e => setFormulaExpression(e.target.value)}
+                    rows={2}
+                    placeholder="VD: field('Budget') * 0.1 hoặc field('Price') * field('Qty')"
+                    className="w-full px-3 py-1.5 text-xs font-mono border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 outline-none"
+                  />
+                  <p className="text-[10px] text-slate-400">
+                    {isVietnamese ? 'Hỗ trợ các toán tử +, -, *, / và tên các trường số.' : 'Supports standard +, -, *, / operators and numeric fields.'}
+                  </p>
+                </div>
+              )}
+
+              {type === 'rollup' && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                    {isVietnamese ? 'Tên trường cần tổng hợp' : 'Rollup Target Field'}
+                  </label>
+                  <input
+                    type="text"
+                    value={rollupTargetField}
+                    onChange={e => setRollupTargetField(e.target.value)}
+                    placeholder={isVietnamese ? 'VD: Chi phí, Tiến độ, Số lượng...' : 'e.g. Budget, Progress, Quantity...'}
+                    className="w-full px-3 py-1.5 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 outline-none"
+                  />
                 </div>
               )}
             </div>
@@ -1021,8 +1177,8 @@ export default function FieldSettingsModal({
               <span>{config.isNew ? (isVietnamese ? 'Tạo trường dữ liệu' : 'Create Field') : (isVietnamese ? 'Lưu thay đổi' : 'Save Changes')}</span>
             </button>
           </div>
-        </form>
-      </div>
+        </motion.form>
+      </motion.div>
     </Portal>
   );
 }

@@ -223,7 +223,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ size?: number; color?: stri
 };
 
 const COLOR_MAP: Record<string, string> = {
-  indigo: '#6366F1',
+  indigo: '#2563EB',
   blue: '#3B82F6',
   cyan: '#06B6D4',
   emerald: '#10B981',
@@ -277,7 +277,7 @@ export const parseSpaceIconValue = (
   raw: string
 ): { iconName: string; colorHex: string; isNativeEmoji: boolean } => {
   if (!raw || typeof raw !== 'string') {
-    return { iconName: 'Package', colorHex: '#6366F1', isNativeEmoji: false };
+    return { iconName: 'Package', colorHex: '#2563EB', isNativeEmoji: false };
   }
 
   const trimmed = raw.trim();
@@ -293,7 +293,7 @@ export const parseSpaceIconValue = (
 
   const isEmoji = /\p{Extended_Pictographic}/u.test(iconPart);
 
-  let resolvedColor = '#6366F1';
+  let resolvedColor = '#2563EB';
   if (colorPart) {
     if (colorPart.startsWith('#')) {
       resolvedColor = colorPart;
@@ -323,7 +323,7 @@ export const RenderSpaceIcon: React.FC<RenderSpaceIconProps> = ({
   preserveEmoji = true,
 }) => {
   if (!icon) {
-    return <Folder size={size} color={color || '#6366F1'} strokeWidth={2} />;
+    return <Folder size={size} color={color || '#2563EB'} strokeWidth={2} />;
   }
 
   const { iconName, colorHex, isNativeEmoji } = parseSpaceIconValue(icon);

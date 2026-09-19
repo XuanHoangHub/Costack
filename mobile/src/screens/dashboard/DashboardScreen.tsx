@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
+import Toast from 'react-native-toast-message';
 import {
   Calendar,
   AlertTriangle,
-  Play,
-  Pause,
   Clock,
   Sparkles,
   CheckCircle2,
@@ -24,6 +23,8 @@ import {
   FileText,
   ChevronDown,
   Layers,
+  ArrowRight,
+  Zap,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -32,7 +33,6 @@ import { useAuthStore } from '../../store/authStore';
 import { useTaskStore } from '../../store/taskStore';
 import { useSpaceStore } from '../../store/spaceStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { usePomodoroStore } from '../../store/pomodoroStore';
 import { useTranslation } from '../../locales';
 import { Task } from '../../types';
 import { Avatar } from '../../components/common/Avatar';
@@ -42,6 +42,9 @@ import { TaskCreateModal } from '../../components/tasks/TaskCreateModal';
 import { WorkspaceSwitcherModal } from '../../components/common/WorkspaceSwitcherModal';
 import { RenderSpaceIcon } from '../../components/common/RenderSpaceIcon';
 import { FloatingActionButton } from '../../components/common/FloatingActionButton';
+import { PressableScale } from '../../components/common/PressableScale';
+import { GlassCard } from '../../components/common/GlassCard';
+import { SkeletonCard } from '../../components/common/SkeletonLoader';
 
 interface DashboardScreenProps {
   navigation: any;
@@ -60,12 +63,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
   const workspaces = useWorkspaceStore((s) => s.workspaces);
   const { t } = useTranslation();
 
-  const isPomodoroRunning = usePomodoroStore((s) => s.isRunning);
-  const pomodoroTimeLeft = usePomodoroStore((s) => s.timeLeft);
-  const startPomodoro = usePomodoroStore((s) => s.start);
-  const pausePomodoro = usePomodoroStore((s) => s.pause);
-  const tickPomodoro = usePomodoroStore((s) => s.tick);
-
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -74,20 +71,23 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
   const activeWorkspace =
     workspaces.find((w) => w.id === activeWorkspaceId) || workspaces[0];
 
-  useEffect(() => {
-    let interval: any = null;
-    if (isPomodoroRunning) {
-      interval = setInterval(() => {
-        tickPomodoro();
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isPomodoroRunning]);
-
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.allSettled([fetchTasks(), fetchSpaces()]);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
+    await Promise.allSettled([
+      fetchTasks(),
+      fetchSpaces(),
+      useWorkspaceStore.getState().fetchWorkspacesFromSupabase(),
+    ]);
     setRefreshing(false);
+    Toast.show({
+      type: 'success',
+      text1: 'Đã cập nhật',
+      text2: 'Dữ liệu công việc & không gian đã được đồng bộ mới nhất.',
+      visibilityTime: 2500,
+    });
   };
 
   // Spaces & Tasks strictly scoped to active workspace
@@ -121,22 +121,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
 
   // Recent tasks
   const recentTasks = displayTasks.slice(0, 4);
-
-  // Format pomodoro
-  const minutes = Math.floor(pomodoroTimeLeft / 60);
-  const seconds = pomodoroTimeLeft % 60;
-  const formattedTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-
-  const togglePomodoro = () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } catch {}
-    if (isPomodoroRunning) {
-      pausePomodoro();
-    } else {
-      startPomodoro();
-    }
-  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -173,7 +157,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
             <Image
               source={{ uri: activeWorkspace.logoUrl }}
               style={styles.chipLogo}
-              resizeMode="cover"
+              contentFit="cover"
+              transition={200}
             />
           ) : (
             <View style={[styles.chipInitial, { backgroundColor: colors.primary }]}>
@@ -240,8 +225,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
         {/* 4 Quick Stat Cards */}
         <View style={styles.statsGrid}>
           {/* Due Today */}
-          <TouchableOpacity
-            activeOpacity={0.7}
+          <PressableScale
+            activeScale={0.96}
             onPress={() => navigation.navigate('Tasks')}
             style={[
               styles.statCard,
@@ -259,11 +244,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
             <Text style={[styles.statValue, { color: colors.textPrimary }]}>
               {dueTodayCount}
             </Text>
-          </TouchableOpacity>
+          </PressableScale>
 
           {/* Overdue */}
-          <TouchableOpacity
-            activeOpacity={0.7}
+          <PressableScale
+            activeScale={0.96}
             onPress={() => navigation.navigate('Tasks')}
             style={[
               styles.statCard,
@@ -289,11 +274,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
             >
               {overdueCount}
             </Text>
-          </TouchableOpacity>
+          </PressableScale>
 
           {/* In Progress */}
-          <TouchableOpacity
-            activeOpacity={0.7}
+          <PressableScale
+            activeScale={0.96}
             onPress={() => navigation.navigate('Tasks')}
             style={[
               styles.statCard,
@@ -311,11 +296,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
             <Text style={[styles.statValue, { color: colors.inprogress }]}>
               {inProgressCount}
             </Text>
-          </TouchableOpacity>
+          </PressableScale>
 
           {/* Completed */}
-          <TouchableOpacity
-            activeOpacity={0.7}
+          <PressableScale
+            activeScale={0.96}
             onPress={() => navigation.navigate('Tasks')}
             style={[
               styles.statCard,
@@ -333,115 +318,99 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
             <Text style={[styles.statValue, { color: colors.completed }]}>
               {completedCount}
             </Text>
-          </TouchableOpacity>
+          </PressableScale>
         </View>
 
         {/* Quick Action Shortcuts Carousel */}
         <View style={styles.shortcutsWrap}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcutsScroll}>
-            <TouchableOpacity
+            <PressableScale
               onPress={() => setShowCreateModal(true)}
               style={[styles.shortcutBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
             >
               <Plus size={16} color={colors.primary} />
               <Text style={[styles.shortcutText, { color: colors.textPrimary }]}>Tạo việc mới</Text>
-            </TouchableOpacity>
+            </PressableScale>
 
-            <TouchableOpacity
-              onPress={() => navigation.navigate('More', { screen: 'Pomodoro' })}
-              style={[styles.shortcutBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            >
-              <Clock size={16} color="#f97316" />
-              <Text style={[styles.shortcutText, { color: colors.textPrimary }]}>Phiên Focus</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
+            <PressableScale
               onPress={() => navigation.navigate('More', { screen: 'AiBrain' })}
-              style={[styles.shortcutBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              style={[styles.shortcutBtn, { backgroundColor: `${colors.primary}12`, borderColor: `${colors.primary}35` }]}
             >
               <Sparkles size={16} color={colors.primary} />
-              <Text style={[styles.shortcutText, { color: colors.textPrimary }]}>Hỏi AI Brain</Text>
-            </TouchableOpacity>
+              <Text style={[styles.shortcutText, { color: colors.primaryText, fontWeight: '700' }]}>Hỏi AI Brain</Text>
+            </PressableScale>
 
-            <TouchableOpacity
+            <PressableScale
+              onPress={() => navigation.navigate('Spaces')}
+              style={[styles.shortcutBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            >
+              <Layers size={16} color={colors.accentCyan} />
+              <Text style={[styles.shortcutText, { color: colors.textPrimary }]}>Không gian</Text>
+            </PressableScale>
+
+            <PressableScale
               onPress={() => navigation.navigate('More', { screen: 'Finance' })}
               style={[styles.shortcutBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
             >
               <Wallet size={16} color={colors.success} />
               <Text style={[styles.shortcutText, { color: colors.textPrimary }]}>Sổ quỹ</Text>
-            </TouchableOpacity>
+            </PressableScale>
 
-            <TouchableOpacity
+            <PressableScale
               onPress={() => navigation.navigate('More', { screen: 'Docs' })}
               style={[styles.shortcutBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
             >
               <FileText size={16} color={colors.info} />
               <Text style={[styles.shortcutText, { color: colors.textPrimary }]}>Tài liệu</Text>
-            </TouchableOpacity>
+            </PressableScale>
           </ScrollView>
         </View>
 
-        {/* Pomodoro Focus Quick Widget */}
-        <TouchableOpacity
-          activeOpacity={0.88}
-          onPress={() => navigation.navigate('More', { screen: 'Pomodoro' })}
+        {/* Upgen AI Smart Intelligence Card (Replaces Pomodoro with Modern Webapp Accent) */}
+        <PressableScale
+          activeScale={0.97}
+          onPress={() => navigation.navigate('More', { screen: 'AiBrain' })}
           style={[
-            styles.pomodoroWidget,
+            styles.aiBriefingCard,
             {
               backgroundColor: colors.card,
-              borderColor: isPomodoroRunning ? `${colors.primary}50` : colors.cardBorder,
+              borderColor: `${colors.primary}35`,
             },
           ]}
         >
-          <View style={styles.pomodoroLeft}>
-            <View
-              style={[
-                styles.timerIconWrap,
-                {
-                  backgroundColor: isPomodoroRunning ? `${colors.primary}30` : colors.surfaceHover,
-                  borderColor: isPomodoroRunning ? colors.primary : 'transparent',
-                },
-              ]}
-            >
-              <Clock
-                size={22}
-                color={isPomodoroRunning ? colors.primaryLight : colors.textMuted}
-              />
+          <LinearGradient
+            colors={colors.gradientStat}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.aiBriefingGradient}
+          >
+            <View style={styles.aiBriefingLeft}>
+              <View style={[styles.aiIconBadge, { backgroundColor: `${colors.primary}22` }]}>
+                <Sparkles size={20} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[styles.aiBriefingTitle, { color: colors.textPrimary }]}>
+                    Upgen Brain AI
+                  </Text>
+                  <View style={[styles.aiPillBadge, { backgroundColor: `${colors.accentCyan}20` }]}>
+                    <Text style={[styles.aiPillText, { color: colors.accentCyan }]}>
+                      Thông minh
+                    </Text>
+                  </View>
+                </View>
+                <Text style={[styles.aiBriefingDesc, { color: colors.textSecondary }]} numberOfLines={2}>
+                  {overdueCount > 0
+                    ? `⚠️ Có ${overdueCount} việc quá hạn cần ưu tiên. Chạm để AI gợi ý lộ trình xử lý!`
+                    : `✨ ${dueTodayCount > 0 ? `Hôm nay có ${dueTodayCount} việc tới hạn.` : 'Tiến độ rất tốt!'} Hỏi AI để lập kế hoạch tối ưu.`}
+                </Text>
+              </View>
             </View>
-            <View>
-              <Text style={[styles.pomodoroTitle, { color: colors.textPrimary }]}>
-                {t.dashboard.focusPomodoro}
-              </Text>
-              <Text style={[styles.pomodoroSubtitle, { color: colors.textSecondary }]}>
-                {isPomodoroRunning ? '⚡ Đang trong phiên tập trung' : 'Sẵn sàng đạt năng suất cao nhất'}
-              </Text>
+            <View style={[styles.aiActionIcon, { backgroundColor: `${colors.primary}15` }]}>
+              <ArrowRight size={16} color={colors.primary} />
             </View>
-          </View>
-
-          <View style={styles.pomodoroRight}>
-            <Text
-              style={[
-                styles.timerCountdown,
-                { color: isPomodoroRunning ? colors.primaryLight : colors.textPrimary },
-              ]}
-            >
-              {formattedTime}
-            </Text>
-            <TouchableOpacity
-              onPress={togglePomodoro}
-              style={[
-                styles.playBtn,
-                { backgroundColor: isPomodoroRunning ? colors.danger : colors.primary },
-              ]}
-            >
-              {isPomodoroRunning ? (
-                <Pause size={16} color="#ffffff" />
-              ) : (
-                <Play size={16} color="#ffffff" style={{ marginLeft: 2 }} />
-              )}
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
+          </LinearGradient>
+        </PressableScale>
 
         {/* Spaces Overview Section */}
         <View style={styles.sectionHeader}>
@@ -475,13 +444,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
               const spColor = sp.themeColor || colors.primary;
 
               return (
-                <TouchableOpacity
+                <PressableScale
                   key={sp.id}
-                  activeOpacity={0.75}
+                  activeScale={0.96}
                   onPress={() => {
-                    try {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    } catch {}
                     setActiveSpaceId(sp.id);
                     setActiveListId(null);
                     navigation.navigate('Tasks');
@@ -516,12 +482,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
                   <Text style={[styles.spaceSub, { color: colors.textSecondary }]}>
                     {sp.lists?.length || 0} danh sách • {spTasks.length} việc
                   </Text>
-                </TouchableOpacity>
+                </PressableScale>
               );
             })}
           </ScrollView>
         ) : (
-          <TouchableOpacity
+          <PressableScale
             onPress={() => navigation.navigate('Spaces')}
             style={[
               styles.emptySpaceBanner,
@@ -540,7 +506,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
               </Text>
             </View>
             <Plus size={18} color={colors.primary} />
-          </TouchableOpacity>
+          </PressableScale>
         )}
 
         {/* Recent Tasks Header */}
@@ -556,15 +522,21 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
         </View>
 
         {/* Recent Tasks List */}
-        {recentTasks.map((task) => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            onPress={() => setSelectedTask(task)}
-          />
-        ))}
-
-        {recentTasks.length === 0 && (
+        {refreshing ? (
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        ) : recentTasks.length > 0 ? (
+          recentTasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              onPress={() => setSelectedTask(task)}
+            />
+          ))
+        ) : (
           <View
             style={[
               styles.emptyTasks,
@@ -761,51 +733,56 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  pomodoroWidget: {
+  aiBriefingCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginBottom: 18,
+  },
+  aiBriefingGradient: {
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 18,
+    gap: 12,
   },
-  pomodoroLeft: {
+  aiBriefingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     flex: 1,
   },
-  timerIconWrap: {
-    width: 48,
-    height: 48,
+  aiIconBadge: {
+    width: 44,
+    height: 44,
     borderRadius: 14,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pomodoroTitle: {
+  aiBriefingTitle: {
     fontSize: 15,
-    fontWeight: '700',
-  },
-  pomodoroSubtitle: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  pomodoroRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  timerCountdown: {
-    fontSize: 18,
     fontWeight: '800',
-    fontVariant: ['tabular-nums'],
+    letterSpacing: -0.2,
   },
-  playBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  aiPillBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  aiPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  aiBriefingDesc: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 3,
+  },
+  aiActionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -81,7 +81,7 @@ export default function DashboardHealthBar({
 
   return (
     <section
-      className="apexa-inset-group rounded-2xl bg-white dark:bg-[#121318] border border-black/[0.06] dark:border-white/[0.08] shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] overflow-hidden text-left"
+      className="apexa-inset-group rounded-2xl bg-white dark:bg-[#0a0b10] border border-black/[0.06] dark:border-white/[0.08] shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] overflow-hidden text-left"
       aria-label="Task Health Indicators"
     >
       <div className="grid grid-cols-2 divide-y divide-black/[0.05] dark:divide-white/[0.06] md:grid-cols-5 md:divide-y-0 md:divide-x">

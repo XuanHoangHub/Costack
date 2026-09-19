@@ -238,7 +238,7 @@
 }
 
 .dark {
-  /* ── Apexa Atmospheric Deep Dark System (Linear / Raycast / Apple Obsidian Standard) ── */
+  /* ── Higgsfield AI Cinematic Deep Dark System (#030304 Void Black) ── */
   --cu-primary: #3B82F6;
   --cu-primary-hover: #60A5FA;
   --cu-primary-light: rgba(59, 130, 246, 0.15);
@@ -246,18 +246,18 @@
   --cu-accent: #38BDF8;
   --cu-accent-subtle: rgba(56, 189, 248, 0.12);
 
-  /* Atmospheric Obsidian & Ergonomic Layer Surfaces */
-  --cu-bg: #0c0e14;
-  --cu-bg-subtle: #0f111a;
-  --cu-surface: #121520;
-  --cu-surface-2: #181c2b;
-  --cu-surface-3: #1f2436;
+  /* Refined Layered Obsidian & Surface Dark System - Pure Deep Dark Black */
+  --cu-bg: #000000;
+  --cu-bg-subtle: #050508;
+  --cu-surface: #0a0b10;
+  --cu-surface-2: #11131a;
+  --cu-surface-3: #181a24;
   --cu-border: rgba(255, 255, 255, 0.08);
   --cu-border-strong: rgba(255, 255, 255, 0.14);
 
   /* Unified Sidebar & Navigation System */
-  --sidebar-bg: #090a10;
-  --sidebar-surface: #121520;
+  --sidebar-bg: #050508;
+  --sidebar-surface: #0a0b10;
   --sidebar-border: rgba(255, 255, 255, 0.08);
   --sidebar-text: #f4f4f6;
   --sidebar-muted: #8b92a5;
@@ -268,15 +268,15 @@
   --cu-text-secondary: #a1a1aa;
   --cu-text-muted: #71717a;
   --cu-text-tertiary: #52525b;
-  --cu-text-inverse: #0c0e14;
+  --cu-text-inverse: #000000;
 
-  --cu-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
-  --cu-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.55);
-  --cu-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.65);
-  --cu-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.75);
+  --cu-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.6);
+  --cu-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.7);
+  --cu-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.8);
+  --cu-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.9);
   --cu-shadow-primary: 0 8px 28px -6px rgba(59, 130, 246, 0.35);
 
-  /* Harmonious Slate Palette for Tailwind classes in Dark Mode (Modern Deep Dark) */
+  /* Harmonious Slate Palette for Tailwind classes in Dark Mode (Pure Deep Dark Black) */
   --slate-50: #fafafa;
   --slate-100: #f4f4f6;
   --slate-200: #e4e4e7;
@@ -285,10 +285,10 @@
   --slate-500: #71717a;
   --slate-600: #52525b;
   --slate-700: #3f3f46;
-  --slate-800: #181c2b;
-  --slate-850: #121520;
-  --slate-900: #121520;
-  --slate-950: #0c0e14;
+  --slate-800: #141722;
+  --slate-850: #0d0f15;
+  --slate-900: #090a0f;
+  --slate-950: #000000;
 
   --slate-55: #fafafa;
   --slate-101: #f4f4f6;
@@ -312,14 +312,14 @@
   --slate-650: #3f3f46;
   --slate-655: #3f3f46;
   --slate-705: #27272a;
-  --slate-750: #181c2b;
-  --slate-755: #181c2b;
-  --slate-805: #181c2b;
-  --slate-808: #181c2b;
-  --slate-850: #121520;
-  --slate-855: #121520;
-  --slate-905: #090a10;
-  --slate-955: #0c0e14;
+  --slate-750: #141722;
+  --slate-755: #141722;
+  --slate-805: #10121a;
+  --slate-808: #10121a;
+  --slate-850: #0d0f15;
+  --slate-855: #0d0f15;
+  --slate-905: #05060a;
+  --slate-955: #000000;
 
   /* Apexa Core Theme Color Gradients */
   --apexa-primary: #3B82F6;
@@ -2755,8 +2755,9 @@ input[type="checkbox"]:not(.sr-only):disabled {
 
 .dark .apexa-space-sidebar .apexa-space-nav-item[aria-current="page"],
 .dark .apexa-space-sidebar [data-space-active="true"] {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
+  background: rgba(56, 189, 248, 0.08) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .dark .apexa-space-sidebar [class*="border-slate-"] {
@@ -2831,14 +2832,23 @@ input[type="checkbox"]:not(.sr-only):disabled {
   min-height: 34px;
   border-radius: 11px !important;
   color: #ffffff !important;
-  background: linear-gradient(135deg, #2563eb, #0284c7) !important;
-  box-shadow: 0 6px 18px -8px rgba(37,99,235,0.7) !important;
+  background: #2563eb !important;
+  box-shadow: 0 4px 12px -4px rgba(37,99,235,0.4) !important;
+  transition: all 0.15s ease !important;
+}
+
+.apexa-space-header-actions > button:last-child:hover {
+  background: #1d4ed8 !important;
 }
 
 .dark .apexa-space-header-actions > button:last-child {
   color: #ffffff !important;
-  background: linear-gradient(135deg, #2563eb, #0284c7) !important;
-  box-shadow: 0 6px 18px -8px rgba(56,189,248,0.5) !important;
+  background: #2563eb !important;
+  box-shadow: 0 4px 14px -4px rgba(37,99,235,0.5) !important;
+}
+
+.dark .apexa-space-header-actions > button:last-child:hover {
+  background: #1d4ed8 !important;
 }
 
 .apexa-space-pulse {
@@ -3126,12 +3136,12 @@ input[type="checkbox"]:not(.sr-only):disabled {
 }
 
 .dark .apexa-app-shell {
-  --sidebar-bg: #0c0d12;
-  --sidebar-surface: #121318;
+  --sidebar-bg: #050508;
+  --sidebar-surface: #0a0b10;
   --sidebar-border: rgba(255, 255, 255, 0.07);
   --sidebar-muted: #94a3b8;
   --sidebar-text: #f8fafc;
-  --sidebar-signal: #0A84FF;
+  --sidebar-signal: #3b82f6;
 }
 
 .apexa-header-sidebar,
@@ -3287,6 +3297,48 @@ input[type="checkbox"]:not(.sr-only):disabled {
   border-radius: 50%;
   background: rgba(255,255,255,.22);
   box-shadow: 0 0 0 3px rgba(255,255,255,.035);
+}
+
+.apexa-nav-item {
+  color: #475569;
+  border-radius: 9px;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.apexa-nav-item:hover {
+  color: #0f172a;
+  background: rgba(0, 0, 0, 0.04);
+  border-color: transparent;
+}
+
+.apexa-nav-item[aria-current="page"] {
+  color: #0071E3 !important;
+  background: rgba(0, 113, 227, 0.08) !important;
+  border-color: rgba(0, 113, 227, 0.2) !important;
+}
+
+.apexa-nav-item[aria-current="page"] .apexa-nav-item-icon {
+  color: #0071E3 !important;
+  background: transparent;
+}
+
+.apexa-nav-item[aria-current="page"] > span:not([class*="absolute"]) {
+  color: #0071E3 !important;
+  font-weight: 600 !important;
+}
+
+.apexa-nav-item:not([aria-current="page"]) .apexa-nav-item-icon {
+  color: #64748b;
+}
+
+.apexa-nav-item:not([aria-current="page"]):hover .apexa-nav-item-icon {
+  color: #0f172a;
+}
+
+.apexa-nav-active-marker {
+  background: #0071E3;
 }
 
 .dark .apexa-nav-item {
@@ -3552,5 +3604,118 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   outline-offset: 0 !important;
   box-shadow: none !important;
 }
+
+/* ═══════════════════════════════════════════════════════
+   Higgsfield AI Design System Utilities
+   ═══════════════════════════════════════════════════════ */
+
+/* Liquid Frosted Glass */
+.hf-glass {
+  background: rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.hf-glass:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Elevated Glass Surface */
+.hf-glass-elevated {
+  background: rgba(10, 11, 16, 0.85);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+/* Luminous White Pill Button */
+.hf-pill-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 9999px;
+  background: #ffffff;
+  color: #000000;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1;
+  padding: 12px 24px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 24px rgba(255, 255, 255, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  text-decoration: none;
+  border: none;
+}
+
+.hf-pill-btn-primary:hover {
+  background: #f1f5f9;
+  box-shadow: 0 0 36px rgba(255, 255, 255, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
+}
+
+/* Dark Frosted Glass Pill Button */
+.hf-pill-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1;
+  padding: 12px 22px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.hf-pill-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+/* Pill Badge with Shimmer Sheen */
+.hf-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Metallic Sheen Typography */
+.hf-text-gradient {
+  background: linear-gradient(180deg, #ffffff 20%, rgba(255, 255, 255, 0.88) 60%, rgba(255, 255, 255, 0.45) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Aurora Gradient Typography */
+.hf-text-gradient-aurora {
+  background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 
 

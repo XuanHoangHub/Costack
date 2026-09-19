@@ -397,22 +397,32 @@ export default function InviteModal({
     <Portal>
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center p-3 sm:p-4">
+          <motion.div
+            key="invite-modal-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[150] flex items-center justify-center p-3 sm:p-4"
+          >
             {/* Backdrop */}
             <motion.div
+              key="invite-modal-backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
               onClick={onClose}
-              className="absolute inset-0 modal-backdrop bg-slate-950/60 cursor-pointer"
+              className="absolute inset-0 modal-backdrop bg-black/40 dark:bg-black/75 backdrop-blur-xs cursor-pointer"
             />
 
             {/* Modal Container */}
             <motion.div
-              initial={{ scale: 0.95, y: 15, opacity: 0 }}
+              key="invite-modal-card"
+              initial={{ scale: 0.94, y: 14, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.95, y: 15, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+              exit={{ scale: 0.94, y: 14, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
               className="relative w-full max-w-[520px] max-h-[92dvh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-[28px] shadow-2xl shadow-slate-900/20 p-5 sm:p-7 z-10 select-none custom-scrollbar text-left"
             >
               {/* Close Button */}
@@ -980,7 +990,7 @@ export default function InviteModal({
                 </>
               )}
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </Portal>

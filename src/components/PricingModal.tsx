@@ -680,14 +680,23 @@ export const PricingModal: React.FC<PricingModalProps> = ({
     <Portal>
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto p-3 sm:p-5">
+          <motion.div
+            key="pricing-modal-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto p-3 sm:p-5"
+          >
             {/* Ambient Backdrop */}
             <motion.div
+              key="pricing-modal-backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
               onClick={() => !loadingPlan && handleModalClose()}
-              className="fixed inset-0 modal-backdrop bg-black/25 dark:bg-black/60 cursor-pointer"
+              className="fixed inset-0 modal-backdrop bg-black/40 dark:bg-black/75 backdrop-blur-xs cursor-pointer"
             />
 
           {/* Main Modal Shell */}
@@ -1052,17 +1061,17 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                       const canRenew = current && (entitlement.provider === 'payos' || entitlement.provider === 'paypal');
                       const loading = loadingPlan === plan;
                       return (
-                        <article className="relative flex flex-col justify-between overflow-hidden rounded-2xl border-2 border-indigo-500 bg-white p-5 shadow-[0_20px_50px_-15px_rgba(79,70,229,0.35)] ring-2 ring-indigo-500/20 dark:bg-slate-900 dark:shadow-[0_20px_50px_-15px_rgba(79,70,229,0.5)]">
-                          {/* Top Gradient Stripe */}
-                          <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-indigo-600 via-purple-500 to-cyan-400" />
+                        <article className="relative flex flex-col justify-between overflow-hidden rounded-2xl border-2 border-blue-600 bg-white p-5 shadow-[0_20px_50px_-15px_rgba(37,99,235,0.25)] ring-2 ring-blue-500/20 dark:bg-slate-900">
+                          {/* Top Stripe */}
+                          <div className="absolute inset-x-0 top-0 h-1.5 bg-blue-600" />
 
                           <div>
                             <div className="flex items-center justify-between gap-1.5">
-                              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300">
-                                <Rocket className="h-3 w-3 text-indigo-600" />
+                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:bg-blue-950/80 dark:text-blue-300">
+                                <Rocket className="h-3 w-3 text-blue-600" />
                                 {info.audience}
                               </span>
-                              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-indigo-600 to-blue-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white shadow-2xs">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-600 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-2xs">
                                 <Crown className="h-2.5 w-2.5" />
                                 {isVietnamese ? 'Phổ biến nhất' : 'Most Popular'}
                               </span>
@@ -1100,7 +1109,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                               type="button"
                               onClick={() => selectPlan(plan)}
                               disabled={(current && !canRenew) || Boolean(loadingPlan) || checking || pricesLoading || (paymentMethod === 'paypal' && !paypalConfigured)}
-                              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-blue-600 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-indigo-500/25 transition hover:shadow-lg hover:shadow-indigo-500/35 hover:-translate-y-0.5 disabled:opacity-60 whitespace-nowrap shrink-0"
+                              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:-translate-y-0.5 disabled:opacity-60 whitespace-nowrap shrink-0"
                             >
                               {loading ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
@@ -1236,7 +1245,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                   </div>
 
                   {/* ======================= ENTERPRISE VIP BANNER ======================= */}
-                  <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-r from-slate-900 via-slate-850 to-indigo-950 p-5 text-white shadow-sm dark:border-slate-800">
+                  <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200/90 bg-slate-900 p-5 text-white shadow-sm dark:border-slate-800">
                     <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
                       <div className="max-w-2xl">
                         <div className="flex items-center gap-2">
@@ -1325,7 +1334,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
               />
             )}
           </motion.section>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
     </Portal>

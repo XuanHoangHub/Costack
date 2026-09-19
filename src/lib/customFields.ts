@@ -1,6 +1,6 @@
 import type { CustomFieldDefinition, Task } from '@/types';
 
-const numericTypes = new Set(['number', 'money', 'rating', 'progress']);
+const numericTypes = new Set(['number', 'money', 'rating', 'progress', 'progress_auto', 'progress_manual', 'voting']);
 export const RESERVED_FIELD_NAMES = new Set(['assigneeIds', 'isMilestone', 'reminder', '__proto__', 'constructor', 'prototype']);
 
 export function isEmptyFieldValue(value: unknown): boolean {
@@ -40,16 +40,16 @@ export function validateCustomField(field: CustomFieldDefinition, value: unknown
   if (numericTypes.has(field.type)) {
     const number = Number(value);
     if (!Number.isFinite(number) || !['number', 'string'].includes(typeof value)) return vi ? 'Nhập một số hợp lệ.' : 'Enter a valid number.';
-    const min = field.type === 'rating' || field.type === 'progress' ? 0 : field.numberMin;
-    const max = field.type === 'rating' ? field.ratingMax ?? 5 : field.type === 'progress' ? field.progressMax ?? 100 : field.numberMax;
+    const min = field.type === 'rating' || field.type === 'progress' || field.type === 'progress_auto' || field.type === 'progress_manual' || field.type === 'voting' ? 0 : field.numberMin;
+    const max = field.type === 'rating' ? field.ratingMax ?? 5 : (field.type === 'progress' || field.type === 'progress_auto' || field.type === 'progress_manual') ? field.progressMax ?? 100 : field.type === 'voting' ? field.votingMax ?? 9999 : field.numberMax;
     if (min != null && number < min) return vi ? `Giá trị tối thiểu là ${min}.` : `Minimum value is ${min}.`;
     if (max != null && number > max) return vi ? `Giá trị tối đa là ${max}.` : `Maximum value is ${max}.`;
-    const precision = field.type === 'rating' ? 0 : field.numberPrecision;
+    const precision = field.type === 'rating' || field.type === 'voting' ? 0 : field.numberPrecision;
     if (precision != null && Math.abs(number - Number(number.toFixed(Math.min(10, Math.max(0, precision))))) > 1e-9) return vi ? `Chỉ được nhập tối đa ${precision} chữ số thập phân.` : `Use at most ${precision} decimal places.`;
   }
   if (field.type === 'checkbox' && ![true, false, 'true', 'false'].includes(value as boolean)) return vi ? 'Giá trị hộp kiểm không hợp lệ.' : 'Invalid checkbox value.';
   if (field.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value))) return vi ? 'Địa chỉ email không hợp lệ.' : 'Invalid email address.';
-  if (field.type === 'url') {
+  if (field.type === 'url' || field.type === 'website') {
     try { if (!['https:', 'http:'].includes(new URL(String(value)).protocol)) throw new Error(); }
     catch { return vi ? 'Nhập đường dẫn http:// hoặc https:// hợp lệ.' : 'Enter a valid http:// or https:// URL.'; }
   }

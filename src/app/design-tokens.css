@@ -94,6 +94,20 @@
   --apple-active: rgba(0, 0, 0, 0.05);
   --apple-pill-bg: #f2f2f7;
   --apple-vibrancy: blur(20px) saturate(180%);
+
+  /* ── Higgsfield AI Cinematic Material & Atmosphere Tokens ── */
+  --hf-void: #030304;
+  --hf-obsidian: #08090d;
+  --hf-surface: #0e1017;
+  --hf-surface-glass: rgba(14, 16, 23, 0.75);
+  --hf-surface-card: rgba(255, 255, 255, 0.035);
+  --hf-surface-card-hover: rgba(255, 255, 255, 0.065);
+  --hf-border-hairline: rgba(255, 255, 255, 0.08);
+  --hf-border-hover: rgba(255, 255, 255, 0.2);
+  --hf-glow-cyan: rgba(6, 182, 212, 0.25);
+  --hf-glow-violet: rgba(139, 92, 246, 0.25);
+  --hf-glow-magenta: rgba(236, 72, 153, 0.2);
+  --hf-glow-blue: rgba(59, 130, 246, 0.25);
 }
 
 .dark {
@@ -110,18 +124,18 @@
   --ax-shadow-success: 0 2px 10px rgba(16, 185, 129, 0.25);
   --ax-shadow-danger: 0 2px 10px rgba(239, 68, 68, 0.25);
 
-  /* Apple & Linear Obsidian Deep Dark Materials */
-  --apple-canvas: #0c0e14;
-  --apple-surface: #121520;
-  --apple-surface-secondary: #181c2b;
-  --apple-surface-tertiary: #1f2436;
-  --apple-grouped-bg: rgba(255, 255, 255, 0.025);
+  /* Higgsfield Obsidian Deep Void Materials */
+  --apple-canvas: #030304;
+  --apple-surface: #0a0b10;
+  --apple-surface-secondary: #10131c;
+  --apple-surface-tertiary: #161925;
+  --apple-grouped-bg: rgba(255, 255, 255, 0.03);
   --apple-hairline: rgba(255, 255, 255, 0.08);
-  --apple-hairline-strong: rgba(255, 255, 255, 0.14);
-  --apple-hover: rgba(255, 255, 255, 0.045);
-  --apple-active: rgba(255, 255, 255, 0.08);
+  --apple-hairline-strong: rgba(255, 255, 255, 0.16);
+  --apple-hover: rgba(255, 255, 255, 0.05);
+  --apple-active: rgba(255, 255, 255, 0.09);
   --apple-pill-bg: rgba(255, 255, 255, 0.06);
-  --apple-vibrancy: blur(20px) saturate(180%);
+  --apple-vibrancy: blur(24px) saturate(190%);
 }
 
 /* ── Animation / Easing Tokens ── */
@@ -168,13 +182,13 @@
 
 /* ── AI / Brand Gradient Tokens ── */
 :root {
-  --ax-gradient-brand: linear-gradient(135deg, #2563EB 0%, #06B6D4 100%);
-  --ax-gradient-brand-hover: linear-gradient(135deg, #1D4ED8 0%, #0891B2 100%);
+  --ax-gradient-brand: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  --ax-gradient-brand-hover: linear-gradient(135deg, #1D4ED8 0%, #1E40AF 100%);
   --ax-gradient-ai: linear-gradient(135deg, #7C3AED 0%, #2563EB 50%, #06B6D4 100%);
   --ax-gradient-ai-shimmer: linear-gradient(90deg, transparent 0%, rgba(124, 58, 237, 0.15) 25%, rgba(37, 99, 235, 0.2) 50%, rgba(6, 182, 212, 0.15) 75%, transparent 100%);
-  --ax-gradient-surface: linear-gradient(180deg, var(--cu-surface) 0%, var(--cu-bg) 100%);
-  --ax-gradient-success: linear-gradient(135deg, #10B981 0%, #059669 100%);
-  --ax-gradient-danger: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+  --ax-gradient-surface: var(--cu-surface);
+  --ax-gradient-success: #10B981;
+  --ax-gradient-danger: #EF4444;
 }
 
 /* ── Priority Color Tokens ── */

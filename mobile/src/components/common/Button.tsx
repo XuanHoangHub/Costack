@@ -1,25 +1,27 @@
 import React from 'react';
 import {
-  TouchableOpacity,
   Text,
   StyleSheet,
   ActivityIndicator,
   ViewStyle,
   TextStyle,
+  View,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useUiStore } from '../../store/uiStore';
+import { PressableScale } from './PressableScale';
 
-interface ButtonProps {
+export interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'gradient';
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   disabled?: boolean;
   icon?: React.ReactNode;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  gradientColors?: readonly [string, string, ...string[]];
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -32,16 +34,9 @@ export const Button: React.FC<ButtonProps> = ({
   icon,
   style,
   textStyle,
+  gradientColors,
 }) => {
   const colors = useUiStore((s) => s.getColors());
-
-  const handlePress = () => {
-    if (disabled || loading) return;
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch {}
-    onPress();
-  };
 
   let bg = colors.primary;
   let textCol = '#ffffff';
@@ -50,6 +45,7 @@ export const Button: React.FC<ButtonProps> = ({
   if (variant === 'secondary') {
     bg = colors.surfaceHover;
     textCol = colors.textPrimary;
+    borderCol = colors.border;
   } else if (variant === 'outline') {
     bg = 'transparent';
     textCol = colors.textPrimary;
@@ -62,27 +58,12 @@ export const Button: React.FC<ButtonProps> = ({
     textCol = '#ffffff';
   }
 
-  const paddingVertical = size === 'sm' ? 6 : size === 'lg' ? 14 : 10;
-  const paddingHorizontal = size === 'sm' ? 12 : size === 'lg' ? 20 : 16;
-  const fontSize = size === 'sm' ? 13 : size === 'lg' ? 16 : 14;
+  const paddingVertical = size === 'sm' ? 8 : size === 'lg' ? 14 : 11;
+  const paddingHorizontal = size === 'sm' ? 14 : size === 'lg' ? 22 : 18;
+  const fontSize = size === 'sm' ? 13 : size === 'lg' ? 16 : 14.5;
 
-  return (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={handlePress}
-      disabled={disabled || loading}
-      style={[
-        styles.button,
-        {
-          backgroundColor: bg,
-          borderColor: borderCol,
-          paddingVertical,
-          paddingHorizontal,
-          opacity: disabled ? 0.5 : 1,
-        },
-        style,
-      ]}
-    >
+  const content = (
+    <>
       {loading ? (
         <ActivityIndicator size="small" color={textCol} />
       ) : (
@@ -93,13 +74,73 @@ export const Button: React.FC<ButtonProps> = ({
           </Text>
         </>
       )}
-    </TouchableOpacity>
+    </>
+  );
+
+  if (variant === 'gradient') {
+    const activeGradient = gradientColors || colors.gradientBrand || ['#2563eb', '#06b6d4'];
+    return (
+      <PressableScale
+        activeScale={0.96}
+        hapticFeedback="medium"
+        onPress={onPress}
+        disabled={disabled || loading}
+        style={[
+          styles.outerWrap,
+          styles.glowShadow,
+          { opacity: disabled ? 0.5 : 1 },
+          style,
+        ]}
+      >
+        <LinearGradient
+          colors={activeGradient as any}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0.8 }}
+          style={[
+            styles.button,
+            {
+              paddingVertical,
+              paddingHorizontal,
+            },
+          ]}
+        >
+          {content}
+        </LinearGradient>
+      </PressableScale>
+    );
+  }
+
+  return (
+    <PressableScale
+      activeScale={0.96}
+      hapticFeedback={variant === 'primary' || variant === 'danger' ? 'medium' : 'light'}
+      onPress={onPress}
+      disabled={disabled || loading}
+      style={[
+        styles.outerWrap,
+        styles.button,
+        variant === 'primary' && styles.glowShadow,
+        {
+          backgroundColor: bg,
+          borderColor: borderCol,
+          paddingVertical,
+          paddingHorizontal,
+          opacity: disabled ? 0.5 : 1,
+        },
+        style,
+      ]}
+    >
+      {content}
+    </PressableScale>
   );
 };
 
 const styles = StyleSheet.create({
+  outerWrap: {
+    borderRadius: 14,
+  },
   button: {
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -107,7 +148,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   text: {
-    fontWeight: '600',
+    fontWeight: '700',
     letterSpacing: -0.2,
+  },
+  glowShadow: {
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
 });

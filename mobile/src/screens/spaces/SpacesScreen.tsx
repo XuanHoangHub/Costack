@@ -20,6 +20,7 @@ import { Header } from '../../components/common/Header';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { RenderSpaceIcon } from '../../components/common/RenderSpaceIcon';
+import Toast from 'react-native-toast-message';
 
 interface SpacesScreenProps {
   navigation: any;
@@ -62,11 +63,21 @@ export const SpacesScreen: React.FC<SpacesScreenProps> = ({ navigation }) => {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
     await Promise.allSettled([
       fetchSpaces(),
       useTaskStore.getState().fetchTasksFromSupabase(),
+      useWorkspaceStore.getState().fetchWorkspacesFromSupabase(),
     ]);
     setRefreshing(false);
+    Toast.show({
+      type: 'success',
+      text1: 'Đã cập nhật',
+      text2: 'Danh sách Không gian đã được đồng bộ.',
+      visibilityTime: 2000,
+    });
   };
 
   const handleSelectList = (spaceId: string, listId: string | null) => {
@@ -98,6 +109,12 @@ export const SpacesScreen: React.FC<SpacesScreenProps> = ({ navigation }) => {
         lists: [
           { id: newListId, name: initialListName.trim() || 'Công việc chung' },
         ],
+      });
+
+      Toast.show({
+        type: 'success',
+        text1: 'Thành công',
+        text2: `Không gian "${spaceName.trim()}" đã được tạo.`,
       });
 
       setSpaceName('');

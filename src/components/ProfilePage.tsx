@@ -12,7 +12,8 @@ import {
   FileText, Check, Copy, ExternalLink, Lock, SlidersHorizontal, Eye, Move,
   Globe, MapPin, KeyRound, Smartphone,
   LogOut, Download, Bell, Volume2, Moon, Sun, Laptop, Award, Target,
-  Zap, ChevronRight, Search, Flame, Smile, CheckCircle2, MessageSquare, FolderKanban
+  Zap, ChevronRight, Search, Flame, Smile, CheckCircle2, MessageSquare, FolderKanban,
+  ChevronDown
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import SignedImage from './SignedImage';
@@ -186,6 +187,22 @@ function ProfilePage({
   const dragStartRef = useRef<{ startX: number; startY: number; initPosX: number; initPosY: number } | null>(null);
   const bannerContainerRef = useRef<HTMLDivElement>(null);
   const prevBannerPosRef = useRef<{ x: number; y: number }>({ x: 50, y: 50 });
+  const [isBannerMenuOpen, setIsBannerMenuOpen] = useState(false);
+  const bannerMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (bannerMenuRef.current && !bannerMenuRef.current.contains(e.target as Node)) {
+        setIsBannerMenuOpen(false);
+      }
+    };
+    if (isBannerMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isBannerMenuOpen]);
 
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'dirty'>('saved');
   const loadedProfileRef = useRef({ 
@@ -1049,70 +1066,121 @@ function ProfilePage({
                 <span>{presenceLabel}</span>
               </button>
 
-              {/* Banner Tools Capsule */}
-              <div className="flex items-center gap-1 p-1 rounded-full bg-slate-900/60 hover:bg-slate-900/80 border border-white/20 backdrop-blur-xl shadow-lg">
+              {/* Banner Tools Dropdown Menu (Consolidated into 1 button) */}
+              <div className="relative" ref={bannerMenuRef}>
                 <button
                   type="button"
-                  onClick={() => bannerFileInputRef.current?.click()}
+                  onClick={() => setIsBannerMenuOpen(prev => !prev)}
                   disabled={isUploadingBanner}
-                  className="px-3 py-1 rounded-full hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95"
-                  title={locale === 'vi' ? 'Tải lên hoặc đổi ảnh bìa' : 'Upload or change profile banner'}
+                  className="px-3 py-1.5 rounded-full bg-slate-900/60 hover:bg-slate-900/85 border border-white/20 backdrop-blur-xl shadow-lg text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                  title={locale === 'vi' ? 'Tùy chọn ảnh bìa' : 'Banner options'}
                 >
                   {isUploadingBanner ? (
-                    <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+                    <RotateCcw className="w-3.5 h-3.5 animate-spin text-sky-300" />
                   ) : (
                     <Camera className="w-3.5 h-3.5 text-sky-300" />
                   )}
-                  <span className="hidden sm:inline">
+                  <span>
                     {isUploadingBanner
                       ? (locale === 'vi' ? 'Đang tải...' : 'Uploading...')
                       : bannerUrl
                         ? (locale === 'vi' ? 'Đổi ảnh bìa' : 'Change banner')
                         : (locale === 'vi' ? 'Tải ảnh bìa' : 'Upload banner')}
                   </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-white/70 transition-transform duration-200 ${isBannerMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
 
-                {bannerUrl && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={startRepositionBanner}
-                      className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
-                      title={locale === 'vi' ? 'Căn chỉnh vị trí ảnh bìa' : 'Reposition banner'}
+                {/* Dropdown Menu */}
+                <AnimatePresence>
+                  {isBannerMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-slate-900/95 border border-white/15 backdrop-blur-2xl shadow-2xl p-1.5 z-40 flex flex-col gap-0.5 text-xs text-white"
                     >
-                      <Move className="w-3.5 h-3.5 text-sky-300" />
-                    </button>
+                      {/* Upload / Change Cover */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsBannerMenuOpen(false);
+                          bannerFileInputRef.current?.click();
+                        }}
+                        disabled={isUploadingBanner}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/15 text-left font-semibold transition-colors cursor-pointer"
+                      >
+                        <Camera className="w-4 h-4 text-sky-300 shrink-0" />
+                        <span>{bannerUrl ? (locale === 'vi' ? 'Tải ảnh bìa mới' : 'Upload new banner') : (locale === 'vi' ? 'Tải ảnh bìa lên' : 'Upload banner')}</span>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setBannerFit(prev => prev === 'cover' ? 'contain' : 'cover')}
-                      className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
-                      title={bannerFit === 'cover' ? (locale === 'vi' ? 'Chuyển sang vừa khung' : 'Fit contain') : (locale === 'vi' ? 'Phóng đầy khung' : 'Cover fill')}
-                    >
-                      <SlidersHorizontal className="w-3.5 h-3.5 text-amber-300" />
-                    </button>
+                      {bannerUrl && (
+                        <>
+                          {/* Reposition Banner */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsBannerMenuOpen(false);
+                              startRepositionBanner();
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/15 text-left font-semibold transition-colors cursor-pointer"
+                          >
+                            <Move className="w-4 h-4 text-sky-300 shrink-0" />
+                            <span>{locale === 'vi' ? 'Căn chỉnh vị trí' : 'Reposition banner'}</span>
+                          </button>
 
-                    <button
-                      type="button"
-                      onClick={handleRemoveBanner}
-                      className="p-1.5 rounded-full hover:bg-rose-600/80 text-white/80 hover:text-white transition-colors cursor-pointer"
-                      title={locale === 'vi' ? 'Gỡ ảnh bìa' : 'Remove banner'}
-                    >
-                      <X className="w-3.5 h-3.5 text-rose-300" />
-                    </button>
-                  </>
-                )}
+                          {/* Fit / Cover mode */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBannerFit(prev => prev === 'cover' ? 'contain' : 'cover');
+                              setIsBannerMenuOpen(false);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/15 text-left font-semibold transition-colors cursor-pointer"
+                          >
+                            <SlidersHorizontal className="w-4 h-4 text-amber-300 shrink-0" />
+                            <span>{bannerFit === 'cover' ? (locale === 'vi' ? 'Chuyển sang vừa khung' : 'Fit contain') : (locale === 'vi' ? 'Phóng đầy khung' : 'Cover fill')}</span>
+                          </button>
+                        </>
+                      )}
 
-                <div className="h-3 w-[1px] bg-white/20 my-auto mx-0.5" />
+                      {/* Copy Profile Link */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsBannerMenuOpen(false);
+                          handleCopyProfileLink();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/15 text-left font-semibold transition-colors cursor-pointer"
+                      >
+                        {copiedLink ? (
+                          <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                        ) : (
+                          <Copy className="w-4 h-4 text-white/80 shrink-0" />
+                        )}
+                        <span>{locale === 'vi' ? 'Sao chép liên kết hồ sơ' : 'Copy profile link'}</span>
+                      </button>
 
-                <button
-                  type="button"
-                  onClick={handleCopyProfileLink}
-                  className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
-                  title={locale === 'vi' ? 'Sao chép liên kết hồ sơ' : 'Copy profile link'}
-                >
-                  {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
+                      {bannerUrl && (
+                        <>
+                          <div className="my-1 border-t border-white/10" />
+                          {/* Remove Banner */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsBannerMenuOpen(false);
+                              handleRemoveBanner();
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-rose-500/20 text-rose-300 hover:text-rose-200 text-left font-semibold transition-colors cursor-pointer"
+                          >
+                            <X className="w-4 h-4 text-rose-300 shrink-0" />
+                            <span>{locale === 'vi' ? 'Gỡ ảnh bìa' : 'Remove banner'}</span>
+                          </button>
+                        </>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           )}
@@ -1810,12 +1878,12 @@ function ProfilePage({
                   completed: { labelVi: 'Hoàn thành', labelEn: 'Completed', cls: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' },
                 }[task.status] || { labelVi: task.status, labelEn: task.status, cls: 'bg-slate-500/10 text-slate-400 border-slate-500/20' };
 
-                const priorityMeta = {
+                const priorityMeta = (task.priority ? {
                   urgent: { labelVi: 'Khẩn cấp', labelEn: 'Urgent', cls: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20' },
                   high: { labelVi: 'Cao', labelEn: 'High', cls: 'text-orange-600 dark:text-orange-400 bg-orange-500/10 border-orange-500/20' },
                   medium: { labelVi: 'Trung bình', labelEn: 'Medium', cls: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' },
                   low: { labelVi: 'Thấp', labelEn: 'Low', cls: 'text-slate-500 dark:text-slate-400 bg-slate-500/10 border-slate-500/20' },
-                }[task.priority] || { labelVi: 'Thường', labelEn: 'Normal', cls: 'text-slate-400 bg-slate-500/10 border-slate-500/20' };
+                }[task.priority] : null) || { labelVi: 'Thường', labelEn: 'Normal', cls: 'text-slate-400 bg-slate-500/10 border-slate-500/20' };
 
                 const completedSubtasks = task.subtasks?.filter(st => st.completed).length || 0;
                 const totalSubtasks = task.subtasks?.length || 0;

@@ -25,10 +25,45 @@ interface TaskState {
   subscribeToTasks: () => () => void;
 }
 
+export const DEFAULT_STARTER_TASKS: Task[] = [
+  {
+    id: 'task-1c35ee45-a2fc-4cf2-bbcf-eb3d276202fd',
+    title: 'Demo',
+    description: 'Nhiệm vụ kiểm thử hệ thống Supabase & Spaces',
+    priority: 'medium',
+    status: 'todo',
+    workspaceId: 'w2',
+    spaceId: 's-1789191738195',
+    listId: 'l-1789191738195',
+    createdAt: '2026-09-12T05:42:31.326Z',
+    progress: 0,
+    tags: ['Demo', 'Mobile'],
+    commentsCount: 0,
+    comments: [],
+    subtasks: [],
+  },
+  {
+    id: 'task-1786506727984',
+    title: 'Design Tokens & Dark Mode Theme Spec',
+    description: 'Thiết kế hệ thống giao diện dark mode và tokens',
+    priority: 'high',
+    status: 'inprogress',
+    workspaceId: 'w2',
+    spaceId: 's-1789191738195',
+    listId: 'l-1789191738195',
+    createdAt: '2026-09-10T12:00:00.000Z',
+    progress: 50,
+    tags: ['UI/UX', 'Design'],
+    commentsCount: 0,
+    comments: [],
+    subtasks: [],
+  },
+];
+
 export const useTaskStore = create<TaskState>()(
   persist(
     (set, get) => ({
-      tasks: [],
+      tasks: DEFAULT_STARTER_TASKS,
       filter: 'all',
       searchQuery: '',
       isLoading: false,
@@ -191,11 +226,16 @@ export const useTaskStore = create<TaskState>()(
             .is('deleted_at', null)
             .order('created_at', { ascending: false });
 
-          if (!error && data) {
+          if (!error && data && data.length > 0) {
             set({ tasks: data.map(mapTaskRow) });
+          } else if (!error && data && data.length === 0 && get().tasks.length === 0) {
+            set({ tasks: DEFAULT_STARTER_TASKS });
           }
         } catch (e) {
           console.log('Error fetching tasks from Supabase:', e);
+          if (get().tasks.length === 0) {
+            set({ tasks: DEFAULT_STARTER_TASKS });
+          }
         } finally {
           set({ isLoading: false });
         }

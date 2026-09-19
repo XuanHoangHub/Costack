@@ -160,10 +160,10 @@ export default function SettingsPanel({
   const setDefaultStartupTab = useUiStore(state => state.setDefaultStartupTab);
 
   const accentOptions: Array<{ id: AccentPreset; name: string; hex: string; className: string }> = useMemo(() => [
-    { id: 'indigo', name: isVietnamese ? 'Xanh Apexa (Mặc định)' : 'Apexa Blue (Default)', hex: '#2563EB', className: 'from-blue-600 to-cyan-600' },
-    { id: 'ocean', name: isVietnamese ? 'Xanh đại dương' : 'Ocean Blue', hex: '#0EA5E9', className: 'from-sky-400 to-blue-600' },
-    { id: 'forest', name: isVietnamese ? 'Xanh rừng' : 'Forest Green', hex: '#10B981', className: 'from-emerald-400 to-teal-600' },
-    { id: 'sunset', name: isVietnamese ? 'Hồng hoàng hôn' : 'Sunset Rose', hex: '#F43F5E', className: 'from-orange-400 to-rose-600' }
+    { id: 'indigo', name: isVietnamese ? 'Xanh Apexa (Mặc định)' : 'Apexa Blue (Default)', hex: '#2563EB', className: 'bg-blue-600' },
+    { id: 'ocean', name: isVietnamese ? 'Xanh biển' : 'Ocean Blue', hex: '#0284C7', className: 'bg-sky-600' },
+    { id: 'forest', name: isVietnamese ? 'Xanh lục' : 'Forest Green', hex: '#10B981', className: 'bg-emerald-600' },
+    { id: 'sunset', name: isVietnamese ? 'Hồng hoàng hôn' : 'Sunset Rose', hex: '#F43F5E', className: 'bg-rose-600' }
   ], [isVietnamese]);
 
   const navigationSections: Array<{ label: string; items: Array<{ id: SettingsTab; label: string; description: string; icon: React.ElementType }> }> = useMemo(() => [
@@ -1066,7 +1066,7 @@ export default function SettingsPanel({
                         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                           {accentOptions.map(option => (
                             <button type="button" key={option.id} onClick={() => setWorkspaceTheme(option.id)} className={`flex items-center gap-2 rounded-xl border p-2.5 text-left transition cursor-pointer ${workspaceTheme === option.id ? 'border-indigo-400 bg-indigo-50 ring-2 ring-indigo-500/10 dark:bg-indigo-950/20' : 'border-slate-200 hover:border-slate-300 dark:border-slate-800'}`}>
-                              <span className={`h-7 w-7 rounded-lg bg-gradient-to-br ${option.className}`} />
+                              <span className={`h-7 w-7 rounded-lg ${option.className}`} />
                               <span>
                                 <span className="block text-[11px] font-extrabold text-slate-700 dark:text-slate-200">{option.name}</span>
                                 <span className="text-[9px] font-mono text-slate-400">{option.hex}</span>
@@ -1297,7 +1297,7 @@ export default function SettingsPanel({
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {accentOptions.map(option => (
                       <button key={option.id} type="button" onClick={() => setAccentPreset(option.id)} className={`rounded-xl border p-3 text-left transition cursor-pointer ${accentPreset === option.id ? 'border-indigo-400 ring-2 ring-indigo-500/10' : 'border-slate-200 dark:border-slate-800'}`}>
-                        <span className={`block h-9 rounded-lg bg-gradient-to-r ${option.className}`} />
+                        <span className={`block h-9 rounded-lg ${option.className}`} />
                         <span className="mt-2 block text-[11px] font-extrabold text-slate-700 dark:text-slate-200">{option.name}</span>
                       </button>
                     ))}
@@ -2255,7 +2255,7 @@ export default function SettingsPanel({
                   <p className="mb-2 text-[11px] font-bold text-slate-600 dark:text-slate-300">{t('brandColor') || (isVietnamese ? 'Màu thương hiệu' : 'Brand Color')}</p>
                   <div className="grid grid-cols-4 gap-2">
                     {accentOptions.map(option => (
-                      <button type="button" key={option.id} onClick={() => setNewWorkspaceTheme(option.id)} className={`h-11 rounded-xl bg-gradient-to-br ${option.className} cursor-pointer ${newWorkspaceTheme === option.id ? 'ring-3 ring-offset-2 ring-indigo-500 dark:ring-offset-slate-900' : 'opacity-70 hover:opacity-100'}`} aria-label={option.name} />
+                      <button type="button" key={option.id} onClick={() => setNewWorkspaceTheme(option.id)} className={`h-11 rounded-xl ${option.className} cursor-pointer ${newWorkspaceTheme === option.id ? 'ring-3 ring-offset-2 ring-indigo-500 dark:ring-offset-slate-900' : 'opacity-70 hover:opacity-100'}`} aria-label={option.name} />
                     ))}
                   </div>
                 </div>

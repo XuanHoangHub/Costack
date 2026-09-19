@@ -254,7 +254,7 @@ const EN_STANDARD_OPTION_LABELS: Record<string, string> = {
 const STANDARD_LABEL_ALIASES: Record<string, string[]> = {
   todo: ['to do', 'todo', 'cần làm', 'chưa làm'],
   inprogress: ['in progress', 'inprogress', 'đang thực hiện', 'đang làm'],
-  review: ['review', 'under review', 'chờ duyệt', 'đang duyệt'],
+  review: ['review', 'under review', 'in review', 'chờ duyệt', 'đang duyệt'],
   completed: ['done', 'complete', 'completed', 'hoàn thành', 'đã xong'],
   urgent: ['urgent', 'khẩn cấp'],
   high: ['high', 'cao'],
@@ -264,7 +264,19 @@ const STANDARD_LABEL_ALIASES: Record<string, string[]> = {
 
 export function getLocalizedOptionLabel(id: string, label: string, locale: string) {
   const normalizedLabel = (label || '').trim().toLowerCase();
-  const isStandard = VI_STANDARD_OPTION_LABELS[id] !== undefined || (STANDARD_LABEL_ALIASES[id] && STANDARD_LABEL_ALIASES[id].includes(normalizedLabel));
+  const aliases = STANDARD_LABEL_ALIASES[id] || [];
+  const defaultStatus = DEFAULT_STATUSES.find(s => s.id === id)?.label?.toLowerCase();
+  const defaultPriority = DEFAULT_PRIORITIES.find(p => p.id === id)?.label?.toLowerCase();
+  const viStandard = VI_STANDARD_OPTION_LABELS[id]?.toLowerCase();
+  const enStandard = EN_STANDARD_OPTION_LABELS[id]?.toLowerCase();
+
+  const isStandard =
+    aliases.includes(normalizedLabel) ||
+    normalizedLabel === defaultStatus ||
+    normalizedLabel === defaultPriority ||
+    normalizedLabel === viStandard ||
+    normalizedLabel === enStandard;
+
   if (isStandard) {
     return locale === 'vi'
       ? (VI_STANDARD_OPTION_LABELS[id] || label)

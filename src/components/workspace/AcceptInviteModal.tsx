@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
   CheckCircle2, X, Building2, Shield, ShieldCheck,
@@ -8,6 +9,16 @@ import {
 } from "lucide-react";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { supabase } from "@/supabaseClient";
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
 
 interface InvitationData {
   id: string;
@@ -207,8 +218,6 @@ export default function AcceptInviteModal({
     }
   };
 
-  if (!token) return null;
-
   const roleLabel = (role: string) => {
     if (role === "admin") return isVietnamese ? "Quản trị viên (Admin)" : "Admin";
     if (role === "guest") return isVietnamese ? "Khách (Guest)" : "Guest";
@@ -216,28 +225,35 @@ export default function AcceptInviteModal({
   };
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={() => {
-            cleanUrlToken();
-            onClose();
-          }}
-          className="absolute inset-0 modal-backdrop-blur bg-slate-950/60 cursor-pointer"
-        />
+    <Portal>
+      <AnimatePresence>
+        {Boolean(token) && (
+          <motion.div
+            key="accept-invite-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+          >
+            {/* Backdrop */}
+            <div
+              onClick={() => {
+                cleanUrlToken();
+                onClose();
+              }}
+              className="absolute inset-0 modal-backdrop-blur bg-slate-950/60 cursor-pointer"
+            />
 
-        {/* Modal Container */}
-        <motion.div
-          initial={{ scale: 0.94, y: 15, opacity: 0 }}
-          animate={{ scale: 1, y: 0, opacity: 1 }}
-          exit={{ scale: 0.94, y: 15, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 360, damping: 28 }}
-          className="relative w-[min(95vw,460px)] bg-white dark:bg-slate-900 rounded-[32px] shadow-2xl border border-slate-200/90 dark:border-slate-800/90 p-6 sm:p-7 z-10 select-none text-center"
-        >
+            {/* Modal Container */}
+            <motion.div
+              key="accept-invite-card"
+              initial={{ scale: 0.94, y: 15, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.94, y: 15, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              className="relative w-[min(95vw,460px)] bg-white dark:bg-slate-900 rounded-[32px] shadow-2xl border border-slate-200/90 dark:border-slate-800/90 p-6 sm:p-7 z-10 select-none text-center"
+            >
           {/* Close button */}
           <button
             type="button"
@@ -374,8 +390,10 @@ export default function AcceptInviteModal({
               </div>
             </div>
           ) : null}
-        </motion.div>
-      </div>
-    </AnimatePresence>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Portal>
   );
 }

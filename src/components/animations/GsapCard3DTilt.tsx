@@ -6,6 +6,8 @@ import { gsap, useGSAP, isReducedMotion } from "@/lib/gsap";
 interface GsapCard3DTiltProps {
   children: React.ReactNode;
   className?: string;
+  innerClassName?: string;
+  style?: React.CSSProperties;
   maxTilt?: number; // max tilt in degrees
   scale?: number; // scale on hover
   glare?: boolean; // dynamic light reflection spotlight
@@ -14,6 +16,8 @@ interface GsapCard3DTiltProps {
 export function GsapCard3DTilt({
   children,
   className = "",
+  innerClassName = "",
+  style,
   maxTilt = 7,
   scale = 1.02,
   glare = true,
@@ -101,6 +105,7 @@ export function GsapCard3DTilt({
   return (
     <div
       ref={cardRef}
+      style={style}
       className={`relative ${className}`}
     >
       {glare && (
@@ -110,7 +115,7 @@ export function GsapCard3DTilt({
           aria-hidden="true"
         />
       )}
-      <div className="relative z-10 h-full w-full">{children}</div>
+      <div className={`relative z-10 h-full w-full ${innerClassName}`}>{children}</div>
     </div>
   );
 }

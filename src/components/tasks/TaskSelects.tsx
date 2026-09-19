@@ -3,8 +3,9 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronDown, Check, CalendarDays, ChevronLeft, ChevronRight, X, Clock, ChevronUp, Flag, Bell, BellRing, Search, Users, UserPlus, Circle, CircleDot, CheckCircle2, Eye, Minus } from 'lucide-react';
+import { ChevronDown, Check, CalendarDays, ChevronLeft, ChevronRight, X, Clock, ChevronUp, Flag, Bell, BellRing, Search, Users, UserPlus, Circle, CircleDot, CheckCircle2, Eye, Minus, Building2, Briefcase } from 'lucide-react';
 import { Priority, TaskStatus, User, Workspace } from '../../types';
+import { useWorkspaceTeams, getStoredTeams, TeamItem } from '@/lib/teamStore';
 import SignedImage from '../SignedImage';
 import { getStoredPriorities, getStoredStatuses, OptionConfig, getStoredDateFormat, formatCustomDate, DateFormatOption, getLocalizedOptionLabel, getColorOption, COLOR_PALETTE, getStoredCustomFieldsConfig } from '../../utils/fieldConfig';
 import { renderSpaceIcon } from '../EmojiIconPicker';
@@ -73,7 +74,7 @@ export const STANDARD_PRIORITY_META: Record<Priority, {
     labelEn: 'Urgent',
     labelVi: 'Khẩn cấp',
     hex: '#ef4444',
-    badgeClass: 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200/90 dark:border-rose-900/60 shadow-xs shadow-rose-500/10',
+    badgeClass: 'bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-200/90 dark:border-rose-500/30 shadow-xs shadow-rose-500/10 hover:dark:bg-rose-500/25',
     textClass: 'text-rose-600 dark:text-rose-400',
     iconClass: 'fill-rose-500 text-rose-500'
   },
@@ -82,7 +83,7 @@ export const STANDARD_PRIORITY_META: Record<Priority, {
     labelEn: 'High',
     labelVi: 'Cao',
     hex: '#f97316',
-    badgeClass: 'bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 border-orange-200/90 dark:border-orange-900/60 shadow-xs shadow-orange-500/10',
+    badgeClass: 'bg-orange-50 dark:bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-200/90 dark:border-orange-500/30 shadow-xs shadow-orange-500/10 hover:dark:bg-orange-500/25',
     textClass: 'text-orange-600 dark:text-orange-400',
     iconClass: 'fill-orange-500 text-orange-500'
   },
@@ -91,7 +92,7 @@ export const STANDARD_PRIORITY_META: Record<Priority, {
     labelEn: 'Normal',
     labelVi: 'Bình thường',
     hex: '#3b82f6',
-    badgeClass: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200/90 dark:border-blue-900/60 shadow-xs shadow-blue-500/10',
+    badgeClass: 'bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-200/90 dark:border-blue-500/30 shadow-xs shadow-blue-500/10 hover:dark:bg-blue-500/25',
     textClass: 'text-blue-600 dark:text-blue-400',
     iconClass: 'fill-blue-500 text-blue-500'
   },
@@ -100,8 +101,8 @@ export const STANDARD_PRIORITY_META: Record<Priority, {
     labelEn: 'Low',
     labelVi: 'Thấp',
     hex: '#64748b',
-    badgeClass: 'bg-slate-100/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 shadow-xs',
-    textClass: 'text-slate-500 dark:text-slate-400',
+    badgeClass: 'bg-slate-100/80 dark:bg-white/[0.06] text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-white/10 shadow-xs hover:dark:bg-white/[0.1]',
+    textClass: 'text-slate-500 dark:text-zinc-400',
     iconClass: 'fill-slate-400 text-slate-400'
   }
 };
@@ -239,15 +240,15 @@ export const STANDARD_STATUS_META: Record<TaskStatus, {
     labelEn: 'To Do',
     labelVi: 'Cần làm',
     hex: '#64748b',
-    badgeClass: 'bg-slate-100/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 border-slate-200/90 dark:border-slate-700 shadow-xs',
-    textClass: 'text-slate-600 dark:text-slate-400',
+    badgeClass: 'bg-slate-100/90 dark:bg-white/[0.06] text-slate-700 dark:text-zinc-300 border-slate-200/90 dark:border-white/10 shadow-xs hover:dark:bg-white/[0.1]',
+    textClass: 'text-slate-600 dark:text-zinc-400',
   },
   inprogress: {
     id: 'inprogress',
     labelEn: 'In Progress',
     labelVi: 'Đang thực hiện',
     hex: '#f59e0b',
-    badgeClass: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200/90 dark:border-amber-800/60 shadow-xs shadow-amber-500/10',
+    badgeClass: 'bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-200/90 dark:border-amber-500/30 shadow-xs shadow-amber-500/10 hover:dark:bg-amber-500/25',
     textClass: 'text-amber-600 dark:text-amber-400',
   },
   review: {
@@ -255,7 +256,7 @@ export const STANDARD_STATUS_META: Record<TaskStatus, {
     labelEn: 'In Review',
     labelVi: 'Chờ duyệt',
     hex: '#8b5cf6',
-    badgeClass: 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200/90 dark:border-purple-800/60 shadow-xs shadow-purple-500/10',
+    badgeClass: 'bg-purple-50 dark:bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-200/90 dark:border-purple-500/30 shadow-xs shadow-purple-500/10 hover:dark:bg-purple-500/25',
     textClass: 'text-purple-600 dark:text-purple-400',
   },
   completed: {
@@ -263,7 +264,7 @@ export const STANDARD_STATUS_META: Record<TaskStatus, {
     labelEn: 'Done',
     labelVi: 'Hoàn thành',
     hex: '#10b981',
-    badgeClass: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200/90 dark:border-emerald-800/60 shadow-xs shadow-emerald-500/10',
+    badgeClass: 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-200/90 dark:border-emerald-500/30 shadow-xs shadow-emerald-500/10 hover:dark:bg-emerald-500/25',
     textClass: 'text-emerald-600 dark:text-emerald-400',
   }
 };
@@ -373,16 +374,450 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
   );
 }
 
-// ── Assignee Pill Select (Modern Multi-Assignee Selection) ──
+// ── Assignee & Team Pill Select (Modern Multi-Assignee & Team Selection) ──
 export function AssigneePillSelect({ 
   value, 
   members, 
   onChange, 
+  teamIds,
+  onTeamChange,
+  workspaceId = 'default',
   compact = false 
 }: { 
   value: string | string[] | null | undefined; 
   members: User[]; 
   onChange: (v: string[] | null) => void; 
+  teamIds?: string[] | null;
+  onTeamChange?: (v: string[] | null) => void;
+  workspaceId?: string;
+  compact?: boolean;
+}) {
+  const { locale } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'members' | 'teams'>('members');
+  const [query, setQuery] = useState('');
+  const ref = React.useRef<HTMLDivElement>(null);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 380, 320);
+
+  const teams = useWorkspaceTeams(workspaceId);
+
+  React.useEffect(() => {
+    const handler = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (ref.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) {
+      setQuery('');
+      setActiveTab('members');
+    }
+  }, [open]);
+
+  const valueIds = useMemo(() => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.filter(Boolean);
+    return [value];
+  }, [value]);
+
+  const selectedTeamIds = useMemo(() => {
+    if (!teamIds) return [];
+    if (Array.isArray(teamIds)) return teamIds.filter(Boolean);
+    return [teamIds];
+  }, [teamIds]);
+
+  const selectedMembers = useMemo(() => {
+    return members.filter(member => valueIds.includes(member.id));
+  }, [members, valueIds]);
+
+  const selectedTeams = useMemo(() => {
+    return teams.filter(team => selectedTeamIds.includes(team.id));
+  }, [teams, selectedTeamIds]);
+
+  const filteredMembers = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return members;
+    return members.filter(member => `${member.name} ${member.email || ''}`.toLowerCase().includes(normalized));
+  }, [members, query]);
+
+  const filteredTeams = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return teams;
+    return teams.filter(team => `${team.name} ${team.department || ''}`.toLowerCase().includes(normalized));
+  }, [teams, query]);
+
+  const toggleAssignee = (memberId: string) => {
+    const nextIds = valueIds.includes(memberId)
+      ? valueIds.filter(id => id !== memberId)
+      : [...valueIds, memberId];
+    onChange(nextIds.length > 0 ? nextIds : null);
+  };
+
+  const toggleTeam = (teamId: string) => {
+    if (!onTeamChange) return;
+    const nextIds = selectedTeamIds.includes(teamId)
+      ? selectedTeamIds.filter(id => id !== teamId)
+      : [...selectedTeamIds, teamId];
+    onTeamChange(nextIds.length > 0 ? nextIds : null);
+  };
+
+  const clearAll = () => {
+    if (activeTab === 'members') {
+      onChange(null);
+    } else if (onTeamChange) {
+      onTeamChange(null);
+    }
+  };
+
+  const avatar = (member: User, className: string) => member.avatar ? (
+    <SignedImage filePath={member.avatar} className={`${className} object-cover`} alt={member.name} />
+  ) : (
+    <span className={`${className} flex items-center justify-center bg-blue-600 text-white text-[9px] font-bold`} aria-hidden="true">
+      {(member.name || '?').trim().charAt(0).toUpperCase()}
+    </span>
+  );
+
+  const dropdownContent = coords ? (
+    <motion.div
+      ref={dropdownRef}
+      initial={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }}
+      transition={{ duration: 0.14 }}
+      style={{
+        position: 'fixed',
+        top: openUpward ? coords.top - 8 : coords.bottom + 8,
+        left: coords.safeLeft,
+        width: Math.max(280, Math.min(340, coords.width + 100)),
+        transform: openUpward ? 'translateY(-100%)' : undefined,
+        zIndex: 1000,
+      }}
+      className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xl shadow-slate-900/15 dark:border-slate-800 dark:bg-slate-900"
+      role="listbox"
+      aria-label={locale === 'vi' ? 'Người phụ trách & Đội ngũ' : 'Assignee & Team'}
+    >
+      {/* Dropdown Header with Count & Clear */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-850/60">
+        <div className="flex items-center gap-1.5">
+          {activeTab === 'members' ? (
+            <Users className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+          ) : (
+            <Building2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+          )}
+          <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+            {activeTab === 'members' 
+              ? (locale === 'vi' ? 'Thành viên' : 'Members') 
+              : (locale === 'vi' ? 'Đội ngũ' : 'Teams')}
+          </span>
+          {(activeTab === 'members' ? selectedMembers.length : selectedTeams.length) > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+              {activeTab === 'members' ? selectedMembers.length : selectedTeams.length}
+            </span>
+          )}
+        </div>
+
+        {(activeTab === 'members' ? selectedMembers.length > 0 : selectedTeams.length > 0) && (
+          <button
+            type="button"
+            onClick={clearAll}
+            className="text-[10px] font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+          >
+            {locale === 'vi' ? 'Bỏ chọn' : 'Clear'}
+          </button>
+        )}
+      </div>
+
+      {/* Selector Tabs: Members vs Teams */}
+      {onTeamChange && (
+        <div className="flex border-b border-slate-100 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-900/60 p-1 gap-1">
+          <button
+            type="button"
+            onClick={() => setActiveTab('members')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              activeTab === 'members'
+                ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs'
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            <Users className="w-3 h-3" />
+            <span>{locale === 'vi' ? 'Thành viên' : 'Members'}</span>
+            {selectedMembers.length > 0 && (
+              <span className="w-4 h-4 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-300 text-[9px] flex items-center justify-center font-black">
+                {selectedMembers.length}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('teams')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              activeTab === 'teams'
+                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            <Building2 className="w-3 h-3" />
+            <span>{locale === 'vi' ? 'Đội ngũ' : 'Teams'}</span>
+            {selectedTeams.length > 0 && (
+              <span className="w-4 h-4 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 text-[9px] flex items-center justify-center font-black">
+                {selectedTeams.length}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Search Input */}
+      <div className="p-2 border-b border-slate-100 dark:border-slate-800">
+        <div className="relative flex items-center">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
+          <input
+            autoFocus
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder={
+              activeTab === 'members'
+                ? (locale === 'vi' ? 'Tìm theo tên hoặc email...' : 'Search members...')
+                : (locale === 'vi' ? 'Tìm theo tên đội ngũ...' : 'Search teams...')
+            }
+            className="h-8 w-full rounded-xl border border-slate-200/90 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/80 pl-8 pr-7 text-xs font-medium text-slate-800 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:bg-white dark:focus:bg-slate-850 focus:ring-2 focus:ring-blue-500/20"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              className="absolute right-2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* List Content */}
+      <div className="max-h-60 overflow-y-auto p-1.5 space-y-0.5">
+        {activeTab === 'members' ? (
+          <>
+            {filteredMembers.map(member => {
+              const selected = valueIds.includes(member.id);
+              return (
+                <button
+                  key={member.id}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={selected}
+                  onClick={() => toggleAssignee(member.id)}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-all cursor-pointer group ${
+                    selected 
+                      ? 'bg-blue-50/80 dark:bg-blue-950/40 text-blue-950 dark:text-blue-100 font-medium' 
+                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 border transition-all ${
+                    selected 
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-xs shadow-blue-500/30' 
+                      : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 group-hover:border-blue-400'
+                  }`}>
+                    {selected && <Check className="w-3 h-3 stroke-[2.5]" />}
+                  </div>
+
+                  <div className="relative shrink-0">
+                    {avatar(member, 'h-6 w-6 rounded-full')}
+                    {member.status === 'online' && (
+                      <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-semibold truncate leading-snug">
+                      {member.name}
+                    </div>
+                    {member.email && (
+                      <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate leading-snug">
+                        {member.email}
+                      </div>
+                    )}
+                  </div>
+
+                  {member.role === 'admin' && (
+                    <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase shrink-0">
+                      Admin
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+
+            {filteredMembers.length === 0 && (
+              <div className="py-6 text-center text-xs text-slate-400 dark:text-slate-500">
+                {locale === 'vi' ? 'Không tìm thấy thành viên nào' : 'No members found'}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {filteredTeams.map(team => {
+              const selected = selectedTeamIds.includes(team.id);
+              return (
+                <button
+                  key={team.id}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={selected}
+                  onClick={() => toggleTeam(team.id)}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-all cursor-pointer group ${
+                    selected 
+                      ? 'bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-950 dark:text-indigo-100 font-medium' 
+                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 border transition-all ${
+                    selected 
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs shadow-indigo-500/30' 
+                      : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 group-hover:border-indigo-400'
+                  }`}>
+                    {selected && <Check className="w-3 h-3 stroke-[2.5]" />}
+                  </div>
+
+                  <div 
+                    className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 text-base shadow-3xs"
+                    style={{ backgroundColor: `${team.color || '#6366f1'}20`, color: team.color || '#6366f1' }}
+                  >
+                    {team.icon || '👥'}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-semibold truncate leading-snug">
+                      {team.name}
+                    </div>
+                    {team.department && (
+                      <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate leading-snug">
+                        {team.department}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+
+            {filteredTeams.length === 0 && (
+              <div className="py-6 text-center text-xs text-slate-400 dark:text-slate-500">
+                {locale === 'vi' ? 'Không tìm thấy đội ngũ nào' : 'No teams found'}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Dropdown Footer with Done button */}
+      <div className="flex items-center justify-between px-3 py-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/50">
+        <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
+          {activeTab === 'members'
+            ? (selectedMembers.length === 0
+                ? (locale === 'vi' ? 'Chọn 1 hoặc nhiều người' : 'Select 1 or more people')
+                : (locale === 'vi' ? `Đã chọn ${selectedMembers.length} người` : `${selectedMembers.length} selected`))
+            : (selectedTeams.length === 0
+                ? (locale === 'vi' ? 'Chọn 1 hoặc nhiều nhóm' : 'Select 1 or more teams')
+                : (locale === 'vi' ? `Đã chọn ${selectedTeams.length} nhóm` : `${selectedTeams.length} selected`))}
+        </span>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="h-7 px-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] rounded-lg shadow-xs transition-all cursor-pointer active:scale-95"
+        >
+          {locale === 'vi' ? 'Xong' : 'Done'}
+        </button>
+      </div>
+    </motion.div>
+  ) : null;
+
+  return (
+    <div ref={ref} className="relative inline-block min-w-0">
+      {selectedMembers.length === 0 && selectedTeams.length === 0 ? (
+        <button
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          onClick={() => setOpen(current => !current)}
+          className={`inline-flex items-center gap-1.5 rounded-xl border border-dashed border-slate-300/90 dark:border-white/15 bg-white/60 dark:bg-white/[0.03] hover:bg-slate-100/80 dark:hover:bg-white/[0.08] hover:dark:border-white/25 px-2.5 py-1 text-xs font-semibold text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 transition-all cursor-pointer ${compact ? 'max-w-[140px]' : ''}`}
+        >
+          <UserPlus className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-400 shrink-0" />
+          <span className="truncate">{locale === 'vi' ? 'Chưa phân công' : 'Unassigned'}</span>
+          <ChevronDown className={`w-3 h-3 text-slate-400 dark:text-zinc-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+      ) : (
+        <button
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          onClick={() => setOpen(current => !current)}
+          className={`inline-flex items-center gap-1.5 rounded-xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#0a0b10] hover:bg-slate-50 dark:hover:bg-[#11131a] px-2.5 py-1 text-xs font-semibold text-slate-750 dark:text-zinc-200 shadow-xs transition-all cursor-pointer ${compact ? 'max-w-[180px]' : ''}`}
+        >
+          {/* Member avatars */}
+          {selectedMembers.length > 0 && (
+            <span className="flex shrink-0 -space-x-1.5">
+              {selectedMembers.slice(0, 2).map(member => (
+                <span key={member.id} className="rounded-full ring-2 ring-white dark:ring-slate-900 overflow-hidden shrink-0">
+                  {avatar(member, 'h-4.5 w-4.5')}
+                </span>
+              ))}
+              {selectedMembers.length > 2 && (
+                <span className="h-4.5 w-4.5 rounded-full ring-2 ring-white dark:ring-slate-900 bg-blue-600 text-white text-[8px] font-black flex items-center justify-center shrink-0">
+                  +{selectedMembers.length - 2}
+                </span>
+              )}
+            </span>
+          )}
+
+          {/* Member name or count */}
+          {selectedMembers.length === 1 && selectedTeams.length === 0 && (
+            <span className="truncate max-w-[100px]">{selectedMembers[0].name}</span>
+          )}
+
+          {/* Team badges if selected */}
+          {selectedTeams.length > 0 && (
+            <span className="flex items-center gap-1 shrink-0">
+              {selectedTeams.slice(0, 1).map(team => (
+                <span 
+                  key={team.id}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold"
+                  style={{ backgroundColor: `${team.color || '#6366f1'}15`, color: team.color || '#6366f1' }}
+                >
+                  <span>{team.icon || '👥'}</span>
+                  <span className="truncate max-w-[80px]">{team.name}</span>
+                </span>
+              ))}
+              {selectedTeams.length > 1 && (
+                <span className="text-[10px] font-bold text-indigo-500">
+                  +{selectedTeams.length - 1}
+                </span>
+              )}
+            </span>
+          )}
+
+          <ChevronDown className={`w-3 h-3 text-slate-400 dark:text-zinc-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+      )}
+      {typeof document !== 'undefined' && open && coords && createPortal(dropdownContent, document.body)}
+    </div>
+  );
+}
+
+// ── Dedicated Team Pill Select ──
+export function TeamPillSelect({
+  value,
+  workspaceId = 'default',
+  onChange,
+  compact = false
+}: {
+  value: string | string[] | null | undefined;
+  workspaceId?: string;
+  onChange: (v: string[] | null) => void;
   compact?: boolean;
 }) {
   const { locale } = useTranslation();
@@ -390,7 +825,9 @@ export function AssigneePillSelect({
   const [query, setQuery] = useState('');
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
-  const { coords, openUpward } = useDropdownPosition(open, ref, 340, 280);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 300, 260);
+
+  const teams = useWorkspaceTeams(workspaceId);
 
   React.useEffect(() => {
     const handler = (event: MouseEvent) => {
@@ -412,34 +849,22 @@ export function AssigneePillSelect({
     return [value];
   }, [value]);
 
-  const selectedMembers = useMemo(() => {
-    return members.filter(member => valueIds.includes(member.id));
-  }, [members, valueIds]);
+  const selectedTeams = useMemo(() => {
+    return teams.filter(team => valueIds.includes(team.id));
+  }, [teams, valueIds]);
 
-  const filteredMembers = useMemo(() => {
+  const filteredTeams = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return members;
-    return members.filter(member => `${member.name} ${member.email || ''}`.toLowerCase().includes(normalized));
-  }, [members, query]);
+    if (!normalized) return teams;
+    return teams.filter(team => `${team.name} ${team.department || ''}`.toLowerCase().includes(normalized));
+  }, [teams, query]);
 
-  const toggleAssignee = (memberId: string) => {
-    const nextIds = valueIds.includes(memberId)
-      ? valueIds.filter(id => id !== memberId)
-      : [...valueIds, memberId];
+  const toggleTeam = (teamId: string) => {
+    const nextIds = valueIds.includes(teamId)
+      ? valueIds.filter(id => id !== teamId)
+      : [...valueIds, teamId];
     onChange(nextIds.length > 0 ? nextIds : null);
   };
-
-  const clearAssignees = () => {
-    onChange(null);
-  };
-
-  const avatar = (member: User, className: string) => member.avatar ? (
-    <SignedImage filePath={member.avatar} className={`${className} object-cover`} alt={member.name} />
-  ) : (
-    <span className={`${className} flex items-center justify-center bg-gradient-to-br from-indigo-500 to-violet-600 text-white text-[9px] font-black`} aria-hidden="true">
-      {(member.name || '?').trim().charAt(0).toUpperCase()}
-    </span>
-  );
 
   const dropdownContent = coords ? (
     <motion.div
@@ -452,40 +877,37 @@ export function AssigneePillSelect({
         position: 'fixed',
         top: openUpward ? coords.top - 8 : coords.bottom + 8,
         left: coords.safeLeft,
-        width: Math.max(260, Math.min(320, coords.width + 90)),
+        width: Math.max(260, Math.min(320, coords.width + 60)),
         transform: openUpward ? 'translateY(-100%)' : undefined,
         zIndex: 1000,
       }}
       className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xl shadow-slate-900/15 dark:border-slate-800 dark:bg-slate-900"
       role="listbox"
-      aria-label={locale === 'vi' ? 'Người phụ trách' : 'Assignee'}
+      aria-label={locale === 'vi' ? 'Chọn đội ngũ' : 'Select team'}
     >
-      {/* Dropdown Header with Count & Clear */}
-      <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-850/60">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-850/60">
         <div className="flex items-center gap-1.5">
-          <Users className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+          <Building2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
           <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
-            {locale === 'vi' ? 'Người phụ trách' : 'Assignees'}
+            {locale === 'vi' ? 'Đội ngũ / Nhóm' : 'Teams'}
           </span>
-          {selectedMembers.length > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-              {selectedMembers.length}
+          {selectedTeams.length > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+              {selectedTeams.length}
             </span>
           )}
         </div>
-
-        {selectedMembers.length > 0 && (
+        {selectedTeams.length > 0 && (
           <button
             type="button"
-            onClick={clearAssignees}
-            className="text-[10px] font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+            onClick={() => onChange(null)}
+            className="text-[10px] font-bold text-rose-500 hover:text-rose-600 px-2 py-0.5 rounded-lg cursor-pointer"
           >
-            {locale === 'vi' ? 'Bỏ chọn tất cả' : 'Clear all'}
+            {locale === 'vi' ? 'Bỏ chọn' : 'Clear'}
           </button>
         )}
       </div>
 
-      {/* Search Input */}
       <div className="p-2 border-b border-slate-100 dark:border-slate-800">
         <div className="relative flex items-center">
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
@@ -493,14 +915,14 @@ export function AssigneePillSelect({
             autoFocus
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder={locale === 'vi' ? 'Tìm theo tên hoặc email...' : 'Search members...'}
-            className="h-8 w-full rounded-xl border border-slate-200/90 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/80 pl-8 pr-7 text-xs font-medium text-slate-800 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:bg-white dark:focus:bg-slate-850 focus:ring-2 focus:ring-blue-500/20"
+            placeholder={locale === 'vi' ? 'Tìm đội ngũ...' : 'Search teams...'}
+            className="h-8 w-full rounded-xl border border-slate-200/90 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/80 pl-8 pr-7 text-xs font-medium text-slate-800 dark:text-slate-100 outline-none transition focus:border-indigo-500"
           />
           {query && (
             <button
               type="button"
               onClick={() => setQuery('')}
-              className="absolute right-2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              className="absolute right-2 p-1 text-slate-400 hover:text-slate-600"
             >
               <X className="w-3 h-3" />
             </button>
@@ -508,80 +930,67 @@ export function AssigneePillSelect({
         </div>
       </div>
 
-      {/* Member Multi-Select List */}
       <div className="max-h-60 overflow-y-auto p-1.5 space-y-0.5">
-        {filteredMembers.map(member => {
-          const selected = valueIds.includes(member.id);
+        {filteredTeams.map(team => {
+          const selected = valueIds.includes(team.id);
           return (
             <button
-              key={member.id}
+              key={team.id}
               type="button"
               role="checkbox"
               aria-checked={selected}
-              onClick={() => toggleAssignee(member.id)}
+              onClick={() => toggleTeam(team.id)}
               className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-all cursor-pointer group ${
                 selected 
-                  ? 'bg-blue-50/80 dark:bg-blue-950/40 text-blue-950 dark:text-blue-100 font-medium' 
+                  ? 'bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-950 dark:text-indigo-100 font-medium' 
                   : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
               }`}
             >
-              {/* Checkbox box indicator */}
               <div className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 border transition-all ${
                 selected 
-                  ? 'bg-blue-600 border-blue-600 text-white shadow-xs shadow-blue-500/30' 
-                  : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 group-hover:border-blue-400'
+                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs' 
+                  : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 group-hover:border-indigo-400'
               }`}>
                 {selected && <Check className="w-3 h-3 stroke-[2.5]" />}
               </div>
 
-              {/* Avatar */}
-              <div className="relative shrink-0">
-                {avatar(member, 'h-6 w-6 rounded-full')}
-                {member.status === 'online' && (
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
-                )}
+              <div 
+                className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 text-base shadow-3xs"
+                style={{ backgroundColor: `${team.color || '#6366f1'}20`, color: team.color || '#6366f1' }}
+              >
+                {team.icon || '👥'}
               </div>
 
-              {/* Details */}
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-semibold truncate leading-snug">
-                  {member.name}
+                  {team.name}
                 </div>
-                {member.email && (
+                {team.department && (
                   <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate leading-snug">
-                    {member.email}
+                    {team.department}
                   </div>
                 )}
               </div>
-
-              {/* Role badge */}
-              {member.role === 'admin' && (
-                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase shrink-0">
-                  Admin
-                </span>
-              )}
             </button>
           );
         })}
-
-        {filteredMembers.length === 0 && (
+        {filteredTeams.length === 0 && (
           <div className="py-6 text-center text-xs text-slate-400 dark:text-slate-500">
-            {locale === 'vi' ? 'Không tìm thấy thành viên nào' : 'No members found'}
+            {locale === 'vi' ? 'Không tìm thấy đội ngũ nào' : 'No teams found'}
           </div>
         )}
       </div>
 
-      {/* Dropdown Footer with Done button */}
       <div className="flex items-center justify-between px-3 py-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/50">
         <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
-          {selectedMembers.length === 0
-            ? (locale === 'vi' ? 'Chọn 1 hoặc nhiều người' : 'Select 1 or more people')
-            : (locale === 'vi' ? `Đã chọn ${selectedMembers.length} người` : `${selectedMembers.length} selected`)}
+          {selectedTeams.length === 0
+            ? (locale === 'vi' ? 'Chọn 1 hoặc nhiều nhóm' : 'Select teams')
+            : (locale === 'vi' ? `Đã chọn ${selectedTeams.length} nhóm` : `${selectedTeams.length} selected`)}
         </span>
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="h-7 px-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] rounded-lg shadow-xs transition-all cursor-pointer active:scale-95"
+          className="h-7 px-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] rounded-lg shadow-xs transition-all cursor-pointer active:scale-95"
         >
           {locale === 'vi' ? 'Xong' : 'Done'}
         </button>
@@ -591,29 +1000,31 @@ export function AssigneePillSelect({
 
   return (
     <div ref={ref} className="relative inline-block min-w-0">
-      {selectedMembers.length === 0 ? (
+      {selectedTeams.length === 0 ? (
         <button
           type="button"
           aria-haspopup="listbox"
           aria-expanded={open}
           onClick={() => setOpen(current => !current)}
-          className={`inline-flex items-center gap-1.5 rounded-xl border border-dashed border-slate-300/90 dark:border-slate-700 bg-white/60 dark:bg-slate-900/60 hover:bg-slate-100/80 dark:hover:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all cursor-pointer ${compact ? 'max-w-[140px]' : ''}`}
+          className={`inline-flex items-center gap-1.5 rounded-xl border border-dashed border-slate-300/90 dark:border-white/15 bg-white/60 dark:bg-white/[0.03] hover:bg-slate-100/80 dark:hover:bg-white/[0.08] hover:dark:border-white/25 px-2.5 py-1 text-xs font-semibold text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 transition-all cursor-pointer ${compact ? 'max-w-[140px]' : ''}`}
         >
-          <UserPlus className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-          <span className="truncate">{locale === 'vi' ? 'Chưa phân công' : 'Unassigned'}</span>
-          <ChevronDown className={`w-3 h-3 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+          <Building2 className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-400 shrink-0" />
+          <span className="truncate">{locale === 'vi' ? 'Chọn đội ngũ' : 'No team'}</span>
+          <ChevronDown className={`w-3 h-3 text-slate-400 dark:text-zinc-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
-      ) : selectedMembers.length === 1 ? (
+      ) : selectedTeams.length === 1 ? (
         <button
           type="button"
           aria-haspopup="listbox"
           aria-expanded={open}
           onClick={() => setOpen(current => !current)}
-          className={`inline-flex items-center gap-2 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-850 px-2.5 py-1 text-xs font-semibold text-slate-750 dark:text-slate-200 shadow-xs transition-all cursor-pointer ${compact ? 'max-w-[160px]' : ''}`}
+          className={`inline-flex items-center gap-1.5 rounded-xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#0a0b10] hover:bg-slate-50 dark:hover:bg-[#11131a] px-2.5 py-1 text-xs font-semibold text-slate-750 dark:text-zinc-200 shadow-xs transition-all cursor-pointer ${compact ? 'max-w-[160px]' : ''}`}
         >
-          {avatar(selectedMembers[0], 'h-5 w-5 rounded-full')}
-          <span className="truncate max-w-[120px]">{selectedMembers[0].name}</span>
-          <ChevronDown className={`w-3 h-3 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+          <span className="text-sm">{selectedTeams[0].icon || '👥'}</span>
+          <span className="truncate max-w-[110px] font-bold" style={{ color: selectedTeams[0].color || undefined }}>
+            {selectedTeams[0].name}
+          </span>
+          <ChevronDown className={`w-3 h-3 text-slate-400 dark:text-zinc-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
       ) : (
         <button
@@ -621,25 +1032,13 @@ export function AssigneePillSelect({
           aria-haspopup="listbox"
           aria-expanded={open}
           onClick={() => setOpen(current => !current)}
-          title={selectedMembers.map(m => m.name).join(', ')}
-          className={`inline-flex items-center gap-2 rounded-xl border border-blue-200/80 dark:border-blue-900/50 bg-blue-50/40 dark:bg-blue-950/30 hover:bg-blue-50 dark:hover:bg-blue-950/60 px-2.5 py-1 text-xs font-bold text-blue-700 dark:text-blue-300 shadow-xs transition-all cursor-pointer ${compact ? 'max-w-[180px]' : ''}`}
+          className={`inline-flex items-center gap-1.5 rounded-xl border border-indigo-200/80 dark:border-indigo-500/30 bg-indigo-50/40 dark:bg-indigo-500/15 hover:bg-indigo-50 dark:hover:bg-indigo-500/25 px-2.5 py-1 text-xs font-bold text-indigo-700 dark:text-indigo-300 shadow-xs transition-all cursor-pointer ${compact ? 'max-w-[180px]' : ''}`}
         >
-          <span className="flex shrink-0 -space-x-2">
-            {selectedMembers.slice(0, 3).map(member => (
-              <span key={member.id} className="rounded-full ring-2 ring-white dark:ring-slate-900 overflow-hidden shrink-0">
-                {avatar(member, 'h-5 w-5')}
-              </span>
-            ))}
-            {selectedMembers.length > 3 && (
-              <span className="h-5 w-5 rounded-full ring-2 ring-white dark:ring-slate-900 bg-blue-600 text-white text-[9px] font-black flex items-center justify-center shrink-0">
-                +{selectedMembers.length - 3}
-              </span>
-            )}
-          </span>
+          <Building2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
           <span className="truncate">
-            {selectedMembers.length} {locale === 'vi' ? 'người' : 'people'}
+            {selectedTeams.length} {locale === 'vi' ? 'đội ngũ' : 'teams'}
           </span>
-          <ChevronDown className={`w-3 h-3 text-blue-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`w-3 h-3 text-indigo-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
       )}
       {typeof document !== 'undefined' && open && coords && createPortal(dropdownContent, document.body)}
@@ -1162,13 +1561,13 @@ export function PremiumDatePicker({
                       onClick={() => selectDate(day)}
                       aria-label={`${activeTab === 'start' ? 'Start' : 'Due'} date ${monthNamesFull[currentMonth]} ${day}, ${currentYear}`}
                       aria-pressed={isSelected}
-                      className={`relative z-10 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-all duration-150 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1
+                      className={`relative z-10 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-all duration-150 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1
                         ${isStartDate
-                          ? 'text-white font-black bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-md shadow-blue-500/25 ring-2 ring-indigo-400/30'
+                          ? 'text-white font-bold bg-blue-600 shadow-xs'
                           : isDueDate
-                            ? 'text-white font-black bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md shadow-cyan-500/25 ring-2 ring-violet-400/30'
+                            ? 'text-white font-bold bg-blue-600 shadow-xs'
                             : inRange
-                              ? 'font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40'
+                              ? 'font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40'
                               : isToday
                                 ? 'font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/20 ring-1 ring-indigo-200 dark:ring-indigo-800'
                                 : isPast
@@ -1562,7 +1961,7 @@ export function PremiumDatePicker({
             setIsOpen(false);
             setActiveSubPanel(null);
           }}
-          className="h-8 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-[11px] rounded-xl shadow-sm shadow-blue-500/20 transition-all cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+          className="h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] rounded-xl shadow-xs transition-all cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
         >
           Xong
         </button>
@@ -1582,8 +1981,8 @@ export function PremiumDatePicker({
             ? `inline-flex items-center gap-1.5 whitespace-nowrap ${className}`
             : `inline-flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer select-none transition-all hover:shadow-xs truncate max-w-full ${
                 activeDateValue
-                  ? 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                  : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'
+                  ? 'bg-white dark:bg-[#0a0b10] text-slate-750 dark:text-zinc-200 border-slate-200 dark:border-white/10'
+                  : 'bg-slate-50 dark:bg-white/[0.03] text-slate-400 dark:text-zinc-400 border-slate-200 dark:border-white/10 hover:dark:border-white/20 hover:dark:bg-white/[0.06] hover:dark:text-zinc-200'
               }`
         }
       >
@@ -1685,17 +2084,35 @@ export function SpacePillSelect({ value, workspaces, onChange }: { value: string
   );
 }
 
+export const PLATFORM_BADGE_COLORS: Record<string, { bg: string; text: string }> = {
+  facebook: { bg: '#0084FF', text: '#ffffff' },
+  youtube: { bg: '#FF0000', text: '#ffffff' },
+  tiktok: { bg: '#111111', text: '#ffffff' },
+  instagram: { bg: '#E1306C', text: '#ffffff' },
+  threads: { bg: '#000000', text: '#ffffff' },
+  zalo: { bg: '#0068FF', text: '#ffffff' },
+  website: { bg: '#059669', text: '#ffffff' },
+  twitter: { bg: '#1DA1F2', text: '#ffffff' },
+  x: { bg: '#000000', text: '#ffffff' },
+  linkedin: { bg: '#0A66C2', text: '#ffffff' },
+};
+
 export function DropdownFieldSelect({ 
   value, 
   options = [], 
   fieldId,
+  fieldName,
+  placeholder,
   onChange 
 }: { 
   value: string; 
   options?: (string | OptionConfig)[]; 
   fieldId?: string;
+  fieldName?: string;
+  placeholder?: string;
   onChange: (v: string) => void;
 }) {
+  const { locale } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
@@ -1722,6 +2139,13 @@ export function DropdownFieldSelect({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  const defaultPlatformOptions: OptionConfig[] = useMemo(() => [
+    { id: 'fb', label: 'Facebook', color: 'indigo' },
+    { id: 'yt', label: 'YouTube', color: 'rose' },
+    { id: 'tt', label: 'TikTok', color: 'slate' },
+    { id: 'ig', label: 'Instagram', color: 'pink' }
+  ], []);
+
   const resolvedOptions: OptionConfig[] = useMemo(() => {
     if (fieldId && customConfigs[fieldId] && customConfigs[fieldId].length > 0) {
       return customConfigs[fieldId];
@@ -1743,15 +2167,20 @@ export function DropdownFieldSelect({
         };
       });
     }
+    if (fieldName && (fieldName.toLowerCase().includes('kênh') || fieldName.toLowerCase().includes('channel') || fieldName.toLowerCase().includes('platform'))) {
+      return defaultPlatformOptions;
+    }
     return [
-      { id: 'opt-1', label: 'Option 1', color: 'indigo' },
-      { id: 'opt-2', label: 'Option 2', color: 'emerald' },
-      { id: 'opt-3', label: 'Option 3', color: 'amber' }
+      { id: 'opt-1', label: 'Facebook', color: 'indigo' },
+      { id: 'opt-2', label: 'YouTube', color: 'rose' },
+      { id: 'opt-3', label: 'TikTok', color: 'slate' },
+      { id: 'opt-4', label: 'Instagram', color: 'pink' }
     ];
-  }, [fieldId, customConfigs, options]);
+  }, [fieldId, customConfigs, options, fieldName, defaultPlatformOptions]);
 
   const selectedOpt = resolvedOptions.find(o => o.label === value || o.id === value);
   const selectedColorMeta = selectedOpt ? getColorOption(selectedOpt.color) : null;
+  const platformColor = value ? PLATFORM_BADGE_COLORS[value.toLowerCase().trim()] : null;
 
   const dropdownContent = (
     <motion.div 
@@ -1772,10 +2201,11 @@ export function DropdownFieldSelect({
         onClick={() => { onChange(''); setOpen(false); }}
         className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 cursor-pointer"
       >
-        <span>— Xóa lựa chọn —</span>
+        <span>— {locale === 'vi' ? 'Để trống (—)' : 'Clear selection (—)'}</span>
       </button>
       {resolvedOptions.map((opt) => {
         const colorMeta = getColorOption(opt.color);
+        const pColor = PLATFORM_BADGE_COLORS[opt.label.toLowerCase().trim()];
         const isSelected = value === opt.label || value === opt.id;
         return (
           <button 
@@ -1790,7 +2220,7 @@ export function DropdownFieldSelect({
           >
             <span 
               className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs" 
-              style={{ backgroundColor: colorMeta.hex }} 
+              style={{ backgroundColor: pColor ? pColor.bg : colorMeta.hex }} 
             />
             <span className="truncate flex-1">{opt.label}</span>
             {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />}
@@ -1801,32 +2231,38 @@ export function DropdownFieldSelect({
   );
 
   return (
-    <div ref={ref} className="relative inline-block w-full">
-      <button 
-        type="button" 
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between gap-1.5 border border-slate-200/80 dark:border-slate-800 p-1 px-2 rounded-lg bg-slate-50/60 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-xs font-semibold cursor-pointer select-none"
-      >
-        {selectedOpt && selectedColorMeta ? (
-          <span 
-            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold truncate max-w-[130px] shadow-3xs"
-            style={{ 
-              backgroundColor: `${selectedColorMeta.hex}18`, 
-              color: selectedColorMeta.hex,
-              border: `1px solid ${selectedColorMeta.hex}40`
-            }}
-          >
-            <span 
-              className="w-1.5 h-1.5 rounded-full shrink-0" 
-              style={{ backgroundColor: selectedColorMeta.hex }} 
-            />
-            <span className="truncate">{selectedOpt.label}</span>
-          </span>
-        ) : (
-          <span className="text-slate-400 text-xs truncate">Chọn...</span>
-        )}
-        <ChevronDown className={`w-3 h-3 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
+    <div ref={ref} className="relative inline-flex items-center">
+      {value ? (
+        <button 
+          type="button" 
+          onClick={() => setOpen(!open)}
+          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold shadow-xs transition-all hover:brightness-110 active:scale-95 cursor-pointer select-none"
+          style={platformColor ? {
+            backgroundColor: platformColor.bg,
+            color: platformColor.text
+          } : selectedColorMeta ? {
+            backgroundColor: `${selectedColorMeta.hex}`,
+            color: '#ffffff'
+          } : {
+            backgroundColor: '#4f46e5',
+            color: '#ffffff'
+          }}
+          title={value}
+        >
+          <span className="truncate max-w-[130px]">{value}</span>
+          <ChevronDown className={`w-3 h-3 text-white/90 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+      ) : (
+        <button 
+          type="button" 
+          onClick={() => setOpen(!open)}
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors cursor-pointer select-none font-medium"
+          title={locale === 'vi' ? 'Chọn giá trị' : 'Select value'}
+        >
+          <span>{placeholder || '—'}</span>
+          <ChevronDown className={`w-3 h-3 opacity-40 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+      )}
       {typeof document !== 'undefined' && coords && createPortal(
         <AnimatePresence>
           {open && dropdownContent}
@@ -2102,7 +2538,7 @@ export function BulkPrioritySelect({ onChange }: { onChange: (v: Priority | unde
       animate={{ opacity: 1, y: 0, scale: 1 }} 
       exit={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }} 
       transition={{ duration: 0.12 }}
-      className="p-1.5 bg-white dark:bg-[#141724] border border-slate-200/90 dark:border-white/10 rounded-xl shadow-xl w-48"
+      className="p-1.5 bg-white dark:bg-[#0a0b10] border border-slate-200/90 dark:border-white/10 rounded-xl shadow-xl w-48"
       style={{
         position: 'fixed',
         zIndex: 9999,
@@ -2171,7 +2607,7 @@ export function BulkAssigneeSelect({ members, onChange }: { members: User[]; onC
       animate={{ opacity: 1, y: 0 }} 
       exit={{ opacity: 0, y: openUpward ? 4 : -4 }} 
       transition={{ duration: 0.12 }}
-      className="p-1 bg-white dark:bg-[#141724] border border-slate-200/80 dark:border-white/10 rounded-xl shadow-xl w-56 max-h-56 overflow-y-auto custom-scrollbar"
+      className="p-1 bg-white dark:bg-[#0a0b10] border border-slate-200/80 dark:border-white/10 rounded-xl shadow-xl w-56 max-h-56 overflow-y-auto custom-scrollbar"
       style={{
         position: 'fixed',
         zIndex: 9999,

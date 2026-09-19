@@ -10,10 +10,10 @@
   --cu-surface-3: #f2f2f7;
   --cu-border: rgba(0, 0, 0, 0.06);
   --cu-border-strong: rgba(0, 0, 0, 0.1);
-  --cu-text-primary: #1d1d1f;
-  --cu-text-secondary: #515154;
-  --cu-text-muted: #86868b;
-  --cu-text-tertiary: #a1a1a6;
+  --cu-text-primary: #0f172a;
+  --cu-text-secondary: #475569;
+  --cu-text-muted: #94a3b8;
+  --cu-text-tertiary: #cbd5e1;
   --cu-primary: #0071e3;
   --cu-primary-hover: #0077ed;
   --cu-primary-subtle: rgba(0, 113, 227, 0.08);
@@ -27,8 +27,8 @@
   --cu-shadow-primary: 0 2px 8px rgba(0, 113, 227, 0.18);
   --sidebar-bg: #ffffff;
   --sidebar-border: rgba(0, 0, 0, 0.06);
-  --sidebar-text: #1d1d1f;
-  --sidebar-muted: #86868b;
+  --sidebar-text: #0f172a;
+  --sidebar-muted: #64748b;
   --sidebar-signal: #0071e3;
   background: var(--cu-bg);
   color: var(--cu-text-primary);
@@ -38,26 +38,26 @@
   -webkit-font-smoothing: antialiased;
 }
 .dark .apexa-app-shell.apexa-design-system {
-  --cu-bg: #0c0e14;
-  --cu-bg-subtle: #0f111a;
-  --cu-surface: #121520;
-  --cu-surface-2: #181c2b;
-  --cu-surface-3: #1f2436;
-  --cu-border: rgba(255, 255, 255, 0.08);
-  --cu-border-strong: rgba(255, 255, 255, 0.14);
-  --cu-text-primary: #f4f4f6;
+  --cu-bg: #000000;
+  --cu-bg-subtle: #050508;
+  --cu-surface: #0a0b10;
+  --cu-surface-2: #11131a;
+  --cu-surface-3: #181a24;
+  --cu-border: rgba(255, 255, 255, 0.07);
+  --cu-border-strong: rgba(255, 255, 255, 0.12);
+  --cu-text-primary: #f8fafc;
   --cu-text-secondary: #a1a1aa;
   --cu-text-muted: #71717a;
   --cu-text-tertiary: #52525b;
   --cu-primary: #3b82f6;
   --cu-primary-hover: #60a5fa;
   --cu-primary-subtle: rgba(59, 130, 246, 0.12);
-  --sidebar-bg: #090a10;
-  --sidebar-surface: #121520;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-text: #f4f4f6;
+  --sidebar-bg: #050508;
+  --sidebar-surface: #0a0b10;
+  --sidebar-border: rgba(255, 255, 255, 0.07);
+  --sidebar-text: #f8fafc;
   --sidebar-muted: #8b92a5;
-  --sidebar-signal: #3b82f6;
+  --sidebar-signal: #38bdf8;
 }
 
 /* Readable type without making every label a heading. */

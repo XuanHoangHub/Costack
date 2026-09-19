@@ -17,7 +17,7 @@ import {
   Sparkles, Pin, Hash, MoreHorizontal, ChevronRight, ChevronLeft,
   FileText, GanttChart, Cog, Users, Brain, Map as MapIcon,
   Pencil, Link as LinkIcon, Lock, Shield, Star, Copy, Trash2,
-  Download, ArrowLeft, ArrowRight, Search, Check, Layers, SlidersHorizontal, Activity, User as UserIcon,
+  Download, ArrowLeft, ArrowRight, Search, Check, Layers, SlidersHorizontal, Sliders, Activity, User as UserIcon,
   LayoutDashboard, Palette, BarChart3, ListTodo, Table2
 } from 'lucide-react';
 import { User, Space } from '../types';
@@ -285,6 +285,8 @@ interface SpaceViewTabBarProps {
   onOpenTemplates?: () => void;
   onOpenShareModal?: () => void;
   onAddSyncLog?: (msg: string) => void;
+  onOpenCustomizeView?: (tabId: string) => void;
+  showAddViewButton?: boolean;
 }
 
 export default function SpaceViewTabBar({
@@ -303,6 +305,8 @@ export default function SpaceViewTabBar({
   onOpenTemplates,
   onOpenShareModal,
   onAddSyncLog,
+  onOpenCustomizeView,
+  showAddViewButton = false,
 }: SpaceViewTabBarProps) {
   const { t, locale } = useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -843,22 +847,24 @@ export default function SpaceViewTabBar({
         </div>
 
         {/* Add View "+" Button */}
-        <div className="relative shrink-0 pl-1 border-l border-slate-200/80 dark:border-slate-800/80">
-          <button
-            ref={addBtnRef}
-            type="button"
-            onClick={handleToggleAddMenu}
-            className={`apexa-space-add-view flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              showAddMenu
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-white/80 dark:hover:bg-slate-800/60'
-            }`}
-            title="Thêm chế độ xem"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span className="hidden md:inline text-[11px]">{locale === 'vi' ? 'Thêm xem' : 'Add View'}</span>
-          </button>
-        </div>
+        {showAddViewButton && (
+          <div className="relative shrink-0 pl-1 border-l border-slate-200/80 dark:border-slate-800/80">
+            <button
+              ref={addBtnRef}
+              type="button"
+              onClick={handleToggleAddMenu}
+              className={`apexa-space-add-view flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                showAddMenu
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-white/80 dark:hover:bg-slate-800/60'
+              }`}
+              title="Thêm chế độ xem"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden md:inline text-[11px]">{locale === 'vi' ? 'Thêm xem' : 'Add View'}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Scroll Right Button */}
@@ -893,6 +899,20 @@ export default function SpaceViewTabBar({
               <span className="font-bold text-slate-900 dark:text-slate-100 truncate">{getLocalizedViewLabel(contextTab.label, contextTab.viewId, locale)}</span>
               <span className="text-[10px] uppercase font-bold text-slate-400">{contextTab.viewId}</span>
             </div>
+
+            {/* Customize view */}
+            {onOpenCustomizeView && (
+              <button
+                onClick={() => {
+                  setContextMenu(prev => ({ ...prev, show: false }));
+                  onOpenCustomizeView(contextTab.id);
+                }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/70 text-left cursor-pointer font-medium transition-colors text-indigo-600 dark:text-indigo-400"
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span>{locale === 'vi' ? 'Tùy chỉnh chế độ xem...' : 'Customize view...'}</span>
+              </button>
+            )}
 
             {/* Rename */}
             <button

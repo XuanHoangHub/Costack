@@ -5,6 +5,7 @@ import { getStoredColumnNames, saveColumnNames, saveStatuses, savePriorities, ge
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, 
   Search, 
@@ -80,21 +81,35 @@ export interface CustomFieldsManagerModalProps {
   anchorPosition?: { x: number; y: number } | null;
 }
 
-const FIELD_CATEGORY_META: Record<string, { category: 'popular' | 'metrics' | 'choices' | 'contact' | 'text'; tags: string[] }> = {
-  text: { category: 'text', tags: ['Tiêu đề', 'Mã hiệu', 'Ký tự ngắn'] },
-  number: { category: 'metrics', tags: ['Số nguyên', 'Thập phân', 'Đơn vị'] },
-  date: { category: 'popular', tags: ['Ngày hạn', 'Lịch trình', 'Kèm giờ'] },
-  textarea: { category: 'text', tags: ['Mô tả chi tiết', 'Ghi chú nhiều dòng'] },
-  dropdown: { category: 'choices', tags: ['Chọn 1 giá trị', 'Màu sắc thẻ', 'Lọc dữ liệu'] },
-  labels: { category: 'choices', tags: ['Nhiều nhãn/tags', 'Màu sắc', 'Đa lựa chọn'] },
-  checkbox: { category: 'popular', tags: ['Có / Không', 'Checklist', 'Hoàn tất'] },
-  money: { category: 'metrics', tags: ['VNĐ', 'USD', 'EUR', 'Chi phí', 'Ngân sách'] },
-  rating: { category: 'metrics', tags: ['Sao ⭐', 'Tim ❤️', 'Lửa 🔥', 'Thang điểm'] },
+const FIELD_CATEGORY_META: Record<string, { category: 'popular' | 'metrics' | 'choices' | 'contact' | 'text' | 'advanced'; tags: string[] }> = {
+  button: { category: 'advanced', tags: ['Nút bấm', 'Thao tác', 'Action', 'Kích hoạt'] },
+  checkbox: { category: 'popular', tags: ['Có / Không', 'Checklist', 'Hoàn tất', 'Đánh dấu'] },
+  date: { category: 'popular', tags: ['Ngày hạn', 'Lịch trình', 'Kèm giờ', 'Deadline'] },
+  dropdown: { category: 'choices', tags: ['Chọn 1 giá trị', 'Màu sắc thẻ', 'Lọc dữ liệu', 'Menu'] },
+  email: { category: 'contact', tags: ['Hòm thư', 'Gửi email nhanh', 'Liên hệ'] },
+  files: { category: 'advanced', tags: ['Tài liệu', 'Đính kèm', 'Hình ảnh', 'PDF', 'Tệp tin'] },
+  formula: { category: 'advanced', tags: ['Công thức', 'Tính toán', 'Toán học', 'Tự động'] },
+  labels: { category: 'choices', tags: ['Nhiều nhãn/tags', 'Màu sắc', 'Đa lựa chọn', 'Phân loại'] },
+  location: { category: 'contact', tags: ['Địa chỉ', 'Bản đồ', 'Vị trí', 'Chi nhánh', 'Tọa độ'] },
+  money: { category: 'metrics', tags: ['VNĐ', 'USD', 'EUR', 'Chi phí', 'Ngân sách', 'Tiền tệ'] },
+  number: { category: 'metrics', tags: ['Số nguyên', 'Thập phân', 'Đơn vị', 'Số lượng'] },
+  people: { category: 'popular', tags: ['Phân công', 'Thành viên', 'Avatar', 'Người phụ trách'] },
+  phone: { category: 'contact', tags: ['Số điện thoại', 'Gọi nhanh', 'Liên lạc', 'Hotline'] },
+  progress_auto: { category: 'metrics', tags: ['Tiến độ tự động', 'Subtasks', 'Phần trăm', '% hoàn thành'] },
+  progress_manual: { category: 'metrics', tags: ['Tiến độ thủ công', 'Thanh trượt %', '0 - 100%'] },
+  rating: { category: 'metrics', tags: ['Sao ⭐', 'Tim ❤️', 'Lửa 🔥', 'Thang điểm', 'Đánh giá'] },
+  relationship: { category: 'advanced', tags: ['Mối quan hệ', 'Liên kết Space', 'Tham chiếu'] },
+  rollup: { category: 'advanced', tags: ['Tổng hợp', 'Sum', 'Average', 'Thống kê'] },
+  signature: { category: 'advanced', tags: ['Chữ ký', 'Ký tên', 'Phê duyệt', 'Xác thực'] },
+  tasks: { category: 'advanced', tags: ['Công việc liên kết', 'Tasks', 'Task chéo'] },
+  text: { category: 'text', tags: ['Tiêu đề', 'Mã hiệu', 'Ký tự ngắn', 'Văn bản'] },
+  textarea: { category: 'text', tags: ['Mô tả chi tiết', 'Ghi chú nhiều dòng', 'Nội dung'] },
+  voting: { category: 'metrics', tags: ['Bình chọn', 'Vote', 'Thích 👍', 'Biểu quyết'] },
+  website: { category: 'contact', tags: ['Website', 'Figma', 'GitHub', 'Liên kết', 'URL', 'Link'] },
+  // Backward compatibility aliases
   progress: { category: 'metrics', tags: ['Thanh trượt %', 'Hoàn thành', '0 - 100%'] },
-  email: { category: 'contact', tags: ['Hòm thư', 'Gửi email nhanh'] },
-  phone: { category: 'contact', tags: ['Số điện thoại', 'Gọi nhanh'] },
   url: { category: 'contact', tags: ['Website', 'Figma', 'GitHub', 'Liên kết'] },
-  member: { category: 'text', tags: ['Phân công', 'Thành viên', 'Avatar'] }
+  member: { category: 'popular', tags: ['Phân công', 'Thành viên', 'Avatar'] }
 };
 
 export default function CustomFieldsManagerModal({
@@ -415,31 +430,42 @@ export default function CustomFieldsManagerModal({
     triggerToast?.('info', isVi ? 'Khôi phục mặc định' : 'Reset Defaults', isVi ? 'Đã đặt lại các cột cơ bản.' : 'Reset to default columns.');
   };
 
-  if (!isOpen) return null;
-
   if (isDropdown) {
     return (
       <Portal>
-        {/* Backdrop for click outside - Pure transparent, zero blur */}
-        <div 
-          className="fixed inset-0 z-[120] bg-transparent cursor-default"
-          onClick={onClose}
-          aria-hidden="true"
-        />
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              key="custom-fields-dropdown-wrapper"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              {/* Backdrop for click outside - Pure transparent, zero blur */}
+              <div 
+                className="fixed inset-0 z-[120] bg-transparent cursor-default"
+                onClick={onClose}
+                aria-hidden="true"
+              />
 
-        {/* Floating Dropdown Popup positioned right at the "+" button */}
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={isVi ? 'Thêm trường tùy chỉnh' : 'Add custom field'}
-          className="fixed z-[121] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-[0_16px_40px_-8px_rgba(0,0,0,0.18),0_6px_16px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8),0_8px_20px_-4px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden text-slate-800 dark:text-zinc-100 select-none animate-in fade-in zoom-in-95 duration-150"
-          style={{
-            left: `${dropdownStyle.left}px`,
-            top: `${dropdownStyle.top}px`,
-            width: `${dropdownStyle.width || 360}px`,
-            maxHeight: 'min(520px, 85vh)'
-          }}
-        >
+              {/* Floating Dropdown Popup positioned right at the "+" button */}
+              <motion.div
+                role="dialog"
+                aria-modal="true"
+                aria-label={isVi ? 'Thêm trường tùy chỉnh' : 'Add custom field'}
+                initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                transition={{ type: "spring", stiffness: 420, damping: 28 }}
+                className="fixed z-[121] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-[0_16px_40px_-8px_rgba(0,0,0,0.18),0_6px_16px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8),0_8px_20px_-4px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden text-slate-800 dark:text-zinc-100 select-none"
+                style={{
+                  left: `${dropdownStyle.left}px`,
+                  top: `${dropdownStyle.top}px`,
+                  width: `${dropdownStyle.width || 360}px`,
+                  maxHeight: 'min(520px, 85vh)'
+                }}
+              >
           {/* Header */}
           <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shrink-0">
             <div className="flex items-center gap-2">
@@ -534,7 +560,8 @@ export default function CustomFieldsManagerModal({
                     { id: 'metrics', label: isVi ? '🔢 Số & Tiền' : '🔢 Metrics' },
                     { id: 'choices', label: isVi ? '🏷️ Nhãn' : '🏷️ Labels' },
                     { id: 'contact', label: isVi ? '🌐 Link' : '🌐 Links' },
-                    { id: 'text', label: isVi ? '📝 Chữ' : '📝 Text' }
+                    { id: 'text', label: isVi ? '📝 Chữ' : '📝 Text' },
+                    { id: 'advanced', label: isVi ? '⚡ Nâng cao' : '⚡ Advanced' }
                   ].map(cat => (
                     <button
                       key={cat.id}
@@ -709,30 +736,46 @@ export default function CustomFieldsManagerModal({
               onSave={handleSaveFieldFromModal}
             />
           )}
-        </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </Portal>
     );
   }
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-5 md:p-8 font-sans select-none animate-in fade-in duration-200">
-        {/* Backdrop - Clean dark overlay, zero blur */}
-        <div 
-          className="fixed inset-0 bg-black/40 dark:bg-black/65 transition-opacity cursor-pointer"
-          onClick={onClose}
-          aria-hidden="true"
-        />
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            key="custom-fields-modal-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-5 md:p-8 font-sans select-none"
+          >
+            {/* Backdrop - Clean dark overlay */}
+            <div 
+              className="fixed inset-0 bg-black/40 dark:bg-black/65 transition-opacity cursor-pointer modal-backdrop-blur"
+              onClick={onClose}
+              aria-hidden="true"
+            />
 
-        {/* Centered Modal Window */}
-        <div 
-          role="dialog"
-          aria-modal="true"
-          aria-label={isVi ? 'Quản lý trường dữ liệu' : 'Manage custom fields'}
-          className="relative w-full max-w-4xl max-h-[88vh] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-200"
-        >
+            {/* Centered Modal Window */}
+            <motion.div 
+              role="dialog"
+              aria-modal="true"
+              aria-label={isVi ? 'Quản lý trường dữ liệu' : 'Manage custom fields'}
+              initial={{ scale: 0.94, y: 16, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.94, y: 16, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              className="relative w-full max-w-4xl max-h-[88vh] bg-white dark:bg-[#0a0b10] border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden z-10"
+            >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shrink-0">
+          <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-100 dark:border-white/10 bg-white dark:bg-[#0a0b10] shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-2xs shrink-0">
                 <SlidersHorizontal className="w-4 h-4 stroke-[2.5]" />
@@ -764,7 +807,7 @@ export default function CustomFieldsManagerModal({
           </div>
 
           {/* Navigation & Action Bar */}
-          <div className="px-6 py-2.5 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+          <div className="px-6 py-2.5 border-b border-slate-100 dark:border-white/10 bg-white dark:bg-[#0a0b10] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
             {/* Tabs */}
             <div className="flex items-center gap-1 p-0.5 bg-slate-100 dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 rounded-xl shrink-0">
               <button
@@ -879,7 +922,7 @@ export default function CustomFieldsManagerModal({
                           aria-label={`${isVi ? 'Tạo trường' : 'Create field'} ${isVi ? fc.label : fc.labelEn}`}
                           onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); handleOpenCreateStudio(fc); } }}
                           onClick={() => handleOpenCreateStudio(fc)}
-                          className="p-4 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[#181b24] hover:border-indigo-400 dark:hover:border-blue-500/60 hover:shadow-lg hover:shadow-indigo-500/5 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group flex flex-col justify-between"
+                          className="p-4 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[#0d0f15] hover:border-indigo-400 dark:hover:border-blue-500/60 hover:shadow-lg hover:shadow-indigo-500/5 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group flex flex-col justify-between"
                         >
                           <div>
                             {/* Top row */}
@@ -928,7 +971,7 @@ export default function CustomFieldsManagerModal({
             {activeTab === 'manage' && (
               <div className="space-y-6">
                 {/* Stats & Quick Actions Banner */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-2xl bg-slate-50/80 dark:bg-[#181b24] border border-slate-200/80 dark:border-white/[0.06]">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-2xl bg-slate-50/80 dark:bg-[#0d0f15] border border-slate-200/80 dark:border-white/[0.06]">
                   <div className="flex items-center gap-3 px-2">
                     <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-xs">
                       {allPropertiesList.length}
@@ -953,14 +996,14 @@ export default function CustomFieldsManagerModal({
                     <button
                       type="button"
                       onClick={handleShowAll}
-                      className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-[#1f2330] border border-slate-200 dark:border-white/[0.08] hover:bg-slate-100 text-[11px] font-bold text-slate-700 dark:text-slate-200 cursor-pointer shadow-3xs transition-colors"
+                      className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-[#141722] border border-slate-200 dark:border-white/[0.08] hover:bg-slate-100 text-[11px] font-bold text-slate-700 dark:text-slate-200 cursor-pointer shadow-3xs transition-colors"
                     >
                       {isVi ? 'Hiện tất cả' : 'Show All'}
                     </button>
                     <button
                       type="button"
                       onClick={handleResetVisibility}
-                      className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-[#1f2330] border border-slate-200 dark:border-white/[0.08] hover:bg-slate-100 text-[11px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer shadow-3xs transition-colors"
+                      className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-[#141722] border border-slate-200 dark:border-white/[0.08] hover:bg-slate-100 text-[11px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer shadow-3xs transition-colors"
                     >
                       {isVi ? 'Đặt lại' : 'Reset'}
                     </button>
@@ -1017,8 +1060,8 @@ export default function CustomFieldsManagerModal({
                             key={prop.key}
                             className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${
                               isVisible 
-                                ? 'bg-white dark:bg-[#181b24] border-slate-200/90 dark:border-white/[0.08] shadow-3xs' 
-                                : 'bg-slate-50/50 dark:bg-[#14161e]/60 border-slate-200/50 dark:border-white/[0.04] opacity-75'
+                                ? 'bg-white dark:bg-[#0d0f15] border-slate-200/90 dark:border-white/[0.08] shadow-3xs' 
+                                : 'bg-slate-50/50 dark:bg-[#07080c]/60 border-slate-200/50 dark:border-white/[0.04] opacity-75'
                             }`}
                           >
                             <div className="flex items-center gap-3 min-w-0">
@@ -1140,8 +1183,8 @@ export default function CustomFieldsManagerModal({
                           key={prop.key}
                           className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${
                             isVisible 
-                              ? 'bg-white dark:bg-[#181b24] border-slate-200/90 dark:border-white/[0.08] shadow-3xs' 
-                              : 'bg-slate-50/50 dark:bg-[#14161e]/60 border-slate-200/50 dark:border-white/[0.04] opacity-75'
+                              ? 'bg-white dark:bg-[#0d0f15] border-slate-200/90 dark:border-white/[0.08] shadow-3xs' 
+                              : 'bg-slate-50/50 dark:bg-[#07080c]/60 border-slate-200/50 dark:border-white/[0.04] opacity-75'
                           }`}
                         >
                           <div className="flex items-center gap-3 min-w-0">
@@ -1199,7 +1242,7 @@ export default function CustomFieldsManagerModal({
           </div>
 
           {/* Modal Footer */}
-          <div className="px-6 py-3.5 border-t border-slate-100 dark:border-white/[0.06] bg-slate-50/60 dark:bg-[#161922] flex items-center justify-between text-xs shrink-0">
+          <div className="px-6 py-3.5 border-t border-slate-100 dark:border-white/[0.06] bg-slate-50/60 dark:bg-[#07080c] flex items-center justify-between text-xs shrink-0">
             <div className="flex items-center gap-1.5 text-slate-400 text-[11px] font-medium">
               <Info className="w-3.5 h-3.5 shrink-0" />
               <span>
@@ -1217,18 +1260,20 @@ export default function CustomFieldsManagerModal({
               {isVi ? 'Hoàn tất' : 'Done'}
             </button>
           </div>
-        </div>
+            </motion.div>
 
-        {/* Field Settings Studio Sub-modal */}
-        {editingFieldConfig && (
-          <FieldSettingsModal
-            existingFields={customFields}
-            config={editingFieldConfig}
-            onClose={() => setEditingFieldConfig(null)}
-            onSave={handleSaveFieldFromModal}
-          />
+            {/* Field Settings Studio Sub-modal */}
+            {editingFieldConfig && (
+              <FieldSettingsModal
+                existingFields={customFields}
+                config={editingFieldConfig}
+                onClose={() => setEditingFieldConfig(null)}
+                onSave={handleSaveFieldFromModal}
+              />
+            )}
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
     </Portal>
   );
 }

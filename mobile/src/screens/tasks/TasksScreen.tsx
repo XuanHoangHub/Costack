@@ -27,6 +27,8 @@ import { CalendarAgendaView } from '../../components/tasks/CalendarAgendaView';
 import { TaskDetailSheet } from '../../components/tasks/TaskDetailSheet';
 import { TaskCreateModal } from '../../components/tasks/TaskCreateModal';
 import { FloatingActionButton } from '../../components/common/FloatingActionButton';
+import Toast from 'react-native-toast-message';
+import { SkeletonCard } from '../../components/common/SkeletonLoader';
 
 export const TasksScreen: React.FC = () => {
   const colors = useUiStore((s) => s.getColors());
@@ -55,11 +57,21 @@ export const TasksScreen: React.FC = () => {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
     await Promise.allSettled([
       fetchTasks(),
       useSpaceStore.getState().fetchSpacesFromSupabase(),
+      useWorkspaceStore.getState().fetchWorkspacesFromSupabase(),
     ]);
     setRefreshing(false);
+    Toast.show({
+      type: 'success',
+      text1: 'Đã cập nhật',
+      text2: 'Danh sách công việc đã được đồng bộ.',
+      visibilityTime: 2000,
+    });
   };
 
   const handleModeChange = (mode: 'list' | 'board' | 'calendar') => {
@@ -276,15 +288,21 @@ export const TasksScreen: React.FC = () => {
             />
           }
         >
-          {filteredTasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onPress={() => setSelectedTask(task)}
-            />
-          ))}
-
-          {filteredTasks.length === 0 && (
+          {refreshing ? (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          ) : filteredTasks.length > 0 ? (
+            filteredTasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                onPress={() => setSelectedTask(task)}
+              />
+            ))
+          ) : (
             <View
               style={[
                 styles.emptyWrap,

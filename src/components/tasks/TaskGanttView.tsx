@@ -483,7 +483,7 @@ export default function TaskGanttView({
         low: { title: 'LOW PRIORITY', tasks: [], color: 'bg-slate-400' },
       };
       filteredTasks.forEach(t => {
-        if (groups[t.priority]) groups[t.priority].tasks.push(t);
+        if (t.priority && groups[t.priority]) groups[t.priority].tasks.push(t);
       });
       return groups;
     } else {

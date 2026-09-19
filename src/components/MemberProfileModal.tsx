@@ -47,17 +47,17 @@ const statusLabels: Record<string, { vi: string; en: string; iconColor: string; 
 const roleMeta: Record<string, { label: { vi: string; en: string }; badgeCls: string; icon: React.ComponentType<{ className?: string }> }> = {
   owner: { 
     label: { vi: 'Chủ sở hữu (Owner)', en: 'Workspace Owner' }, 
-    badgeCls: 'bg-gradient-to-r from-amber-500/15 to-orange-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 ring-1 ring-amber-500/20',
+    badgeCls: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/25',
     icon: Crown
   },
   admin: { 
     label: { vi: 'Quản trị viên (Admin)', en: 'Admin' }, 
-    badgeCls: 'bg-gradient-to-r from-indigo-500/15 to-blue-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 ring-1 ring-indigo-500/20',
+    badgeCls: 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/25',
     icon: Shield
   },
   member: { 
     label: { vi: 'Thành viên (Member)', en: 'Member' }, 
-    badgeCls: 'bg-gradient-to-r from-cyan-500/15 to-blue-500/15 text-cyan-800 dark:text-cyan-300 border-cyan-500/30 ring-1 ring-cyan-500/20',
+    badgeCls: 'bg-sky-500/10 text-sky-800 dark:text-sky-300 border-sky-500/25',
     icon: Zap
   },
   guest: { 
@@ -407,20 +407,30 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
   return (
     <Portal>
       <AnimatePresence>
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+        <motion.div
+          key="member-profile-wrapper"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+        >
           <motion.div 
+            key="member-profile-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 cursor-pointer" 
+            transition={{ duration: 0.18 }}
+            className="absolute inset-0 modal-backdrop bg-black/40 dark:bg-black/75 backdrop-blur-xs cursor-pointer" 
             onClick={onClose} 
           />
 
         <motion.div
-          initial={{ opacity: 0, scale: 0.94, y: 18 }}
+          key="member-profile-card"
+          initial={{ opacity: 0, scale: 0.94, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.94, y: 18 }}
-          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+          exit={{ opacity: 0, scale: 0.94, y: 16 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 28 }}
           role="dialog"
           aria-modal="true"
           aria-labelledby="member-profile-title"
@@ -436,7 +446,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
             onTouchStart={handleBannerTouchStart}
             onTouchMove={handleBannerTouchMove}
             onTouchEnd={handleBannerMouseUp}
-            className={`h-52 sm:h-64 bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 relative shrink-0 overflow-hidden group select-none transition-all ${
+            className={`h-52 sm:h-64 bg-blue-600 relative shrink-0 overflow-hidden group select-none transition-all ${
               isRepositioningBanner 
                 ? (isDraggingBanner ? 'cursor-grabbing ring-2 ring-inset ring-sky-400' : 'cursor-grab ring-2 ring-inset ring-sky-400/80') 
                 : ''
@@ -659,7 +669,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleOpenChat}
-                  className="px-4.5 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white text-xs font-black flex items-center gap-2 shadow-lg shadow-indigo-500/20 transition-all cursor-pointer"
+                  className="px-4.5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-all cursor-pointer"
                 >
                   <MessageSquare className="w-4 h-4" />
                   <span>
@@ -750,7 +760,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
             {/* Bento Stat Cards Strip */}
             <div className="grid grid-cols-3 gap-3 sm:gap-4">
               {/* Card 1: Assigned Tasks */}
-              <div className="p-4 rounded-[22px] bg-gradient-to-br from-indigo-50/80 to-blue-50/40 dark:from-indigo-950/20 dark:to-slate-900 border border-indigo-100/80 dark:border-indigo-900/30 text-left space-y-1 relative overflow-hidden group shadow-2xs">
+              <div className="p-4 rounded-[22px] bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-left space-y-1 relative overflow-hidden group shadow-2xs">
                 <div className="flex items-center justify-between text-indigo-500 dark:text-indigo-400">
                   <FolderKanban className="w-4 h-4" />
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600/80 dark:text-indigo-400/80">
@@ -766,7 +776,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
               </div>
 
               {/* Card 2: Completed Tasks */}
-              <div className="p-4 rounded-[22px] bg-gradient-to-br from-emerald-50/80 to-teal-50/40 dark:from-emerald-950/20 dark:to-slate-900 border border-emerald-100/80 dark:border-emerald-900/30 text-left space-y-1 relative overflow-hidden group shadow-2xs">
+              <div className="p-4 rounded-[22px] bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-left space-y-1 relative overflow-hidden group shadow-2xs">
                 <div className="flex items-center justify-between text-emerald-500 dark:text-emerald-400">
                   <CheckCircle2 className="w-4 h-4" />
                   {assignedTasks.length > 0 && (
@@ -784,7 +794,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
               </div>
 
               {/* Card 3: Logged Hours */}
-              <div className="p-4 rounded-[22px] bg-gradient-to-br from-amber-50/80 to-orange-50/40 dark:from-amber-950/20 dark:to-slate-900 border border-amber-100/80 dark:border-amber-900/30 text-left space-y-1 relative overflow-hidden group shadow-2xs">
+              <div className="p-4 rounded-[22px] bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-left space-y-1 relative overflow-hidden group shadow-2xs">
                 <div className="flex items-center justify-between text-amber-500 dark:text-amber-400">
                   <Clock className="w-4 h-4" />
                   {totalHoursEstimate > 0 && (
@@ -960,7 +970,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
             </div>
           </div>
         </motion.div>
-      </div>
+      </motion.div>
 
       {/* Full-Resolution HD Lightbox Viewer */}
       {lightboxImage && (

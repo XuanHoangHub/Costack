@@ -47,7 +47,7 @@ export function AppShell({
       <aside
         className={[
           "hidden md:flex flex-col shrink-0 h-full",
-          "bg-[var(--sidebar-bg,#10121a)] text-white",
+          "bg-[var(--sidebar-bg,#050508)] text-white",
           "border-r border-white/[0.06]",
           "transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
           "overflow-hidden z-[var(--ax-z-fixed)]",
@@ -70,7 +70,7 @@ export function AppShell({
             className={[
               "fixed inset-y-0 left-0 z-[var(--ax-z-drawer)]",
               "w-[280px] flex flex-col md:hidden",
-              "bg-[var(--sidebar-bg,#10121a)] text-white",
+              "bg-[var(--sidebar-bg,#050508)] text-white",
               "shadow-2xl",
               "animate-[ax-slide-in-right_0.25s_ease-out]",
               "safe-area-top safe-area-bottom",

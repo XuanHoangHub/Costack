@@ -4,6 +4,31 @@ import { Workspace, Space } from '../types';
 import { supabase, getCleanChannel } from '../api/supabase';
 import { safeAsyncStorage } from '../api/storage';
 import { useSpaceStore } from './spaceStore';
+import { useAuthStore } from './authStore';
+
+export const DEFAULT_AVAXA_WORKSPACE: Workspace = {
+  id: 'w2',
+  name: 'Avaxa',
+  theme: 'ocean',
+  initial: 'A',
+  user_id: 'd8c93bca-750a-4c79-9acc-61007b0ba261',
+  created_at: '2026-06-15T11:37:11.445761+00:00',
+  coverUrl: '',
+  logoUrl:
+    'https://zfyngidcwjijuogaygwe.supabase.co/storage/v1/object/public/avatars/d8c93bca-750a-4c79-9acc-61007b0ba261/workspaces/w2_avatar_1782787127482.jpg',
+  settings: {
+    defaultClickApps: {
+      subtasks: true,
+      priorities: true,
+      customFields: true,
+      timeTracking: true,
+      relationships: true,
+      multipleAssignees: true,
+    },
+  },
+  role: 'owner',
+  memberCount: 4,
+};
 
 interface WorkspaceState {
   activeWorkspaceId: string;
@@ -20,10 +45,11 @@ interface WorkspaceState {
 export const useWorkspaceStore = create<WorkspaceState>()(
   persist(
     (set, get) => ({
-      activeWorkspaceId: '',
-      workspaces: [],
+      activeWorkspaceId: 'w2',
+      workspaces: [DEFAULT_AVAXA_WORKSPACE],
 
       setActiveWorkspaceId: (id: string) => {
+        if (!id) return;
         set({ activeWorkspaceId: id });
 
         // Synchronize active space and list with target workspace's spaces
@@ -32,9 +58,6 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         if (targetSpaces.length > 0) {
           useSpaceStore.getState().setActiveSpaceId(targetSpaces[0].id);
           useSpaceStore.getState().setActiveListId(targetSpaces[0].lists?.[0]?.id || null);
-        } else {
-          useSpaceStore.getState().setActiveSpaceId(null);
-          useSpaceStore.getState().setActiveListId(null);
         }
       },
 
@@ -43,23 +66,94 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       fetchWorkspacesFromSupabase: async () => {
         try {
           const { data: { session } } = await supabase.auth.getSession();
-          const currentUserId = session?.user?.id;
+          const currentAuthUser = useAuthStore.getState().currentUser;
+          const currentUserId = session?.user?.id || currentAuthUser?.id;
+          const userEmail = session?.user?.email || currentAuthUser?.email;
 
-          const [wsRes, memRes] = await Promise.allSettled([
+          // 1. Concurrently query workspaces, memberships, and member profile
+          const [wsRes, memRes, profileRes] = await Promise.allSettled([
             supabase.from('workspaces').select('*').order('created_at', { ascending: true }),
             supabase.from('workspace_memberships').select('*'),
+            currentUserId
+              ? supabase
+                  .from('members')
+                  .select('workspace_ids')
+                  .or(`user_id.eq.${currentUserId},id.eq.user-${currentUserId}${userEmail ? `,email.eq.${userEmail}` : ''}`)
+                  .maybeSingle()
+              : Promise.resolve({ data: null, error: null }),
           ]);
 
-          const wsData = wsRes.status === 'fulfilled' && !wsRes.value.error ? wsRes.value.data : null;
-          const memData = memRes.status === 'fulfilled' && !memRes.value.error ? memRes.value.data : [];
+          let rawWorkspaces: any[] =
+            wsRes.status === 'fulfilled' && !wsRes.value.error && Array.isArray(wsRes.value.data)
+              ? wsRes.value.data
+              : [];
+          const memData: any[] =
+            memRes.status === 'fulfilled' && !memRes.value.error && Array.isArray(memRes.value.data)
+              ? memRes.value.data
+              : [];
+          const memberProfile =
+            profileRes.status === 'fulfilled' && !profileRes.value.error ? profileRes.value.data : null;
+          const allowedIds: string[] = Array.isArray(memberProfile?.workspace_ids)
+            ? memberProfile.workspace_ids
+            : [];
 
-          if (wsData) {
-            const mapped: Workspace[] = wsData.map((w: any) => {
-              const userMembership = (memData || []).find(
+          // 2. If direct workspaces query missed allowedIds from profile, query explicitly
+          if (allowedIds.length > 0) {
+            const missingIds = allowedIds.filter((id) => !rawWorkspaces.some((w) => w.id === id));
+            if (missingIds.length > 0) {
+              const { data: additionalWs } = await supabase
+                .from('workspaces')
+                .select('*')
+                .in('id', missingIds);
+              if (additionalWs && additionalWs.length > 0) {
+                rawWorkspaces = [...rawWorkspaces, ...additionalWs];
+              }
+            }
+          }
+
+          // 3. If authenticated user has 0 workspaces in DB (e.g. brand new user registration)
+          if (rawWorkspaces.length === 0 && session?.user) {
+            const fallbackWsId = `ws-${session.user.id.slice(0, 8)}-${Date.now()}`;
+            const fallbackWs = {
+              id: fallbackWsId,
+              name: 'Personal Workspace',
+              theme: 'indigo',
+              initial: 'P',
+              user_id: session.user.id,
+            };
+            try {
+              await supabase.from('workspaces').insert([fallbackWs]);
+              await supabase.from('workspace_memberships').insert([
+                {
+                  workspace_id: fallbackWsId,
+                  user_id: session.user.id,
+                  role: 'owner',
+                  status: 'active',
+                },
+              ]);
+              rawWorkspaces = [fallbackWs];
+            } catch (e) {
+              console.warn('Failed to auto-seed fallback workspace for new user:', e);
+            }
+          }
+
+          // 4. Map workspaces
+          if (rawWorkspaces.length > 0) {
+            // Deduplicate by ID
+            const uniqueMap = new Map<string, any>();
+            rawWorkspaces.forEach((w) => {
+              if (w?.id && !uniqueMap.has(w.id)) uniqueMap.set(w.id, w);
+            });
+            const uniqueWorkspaces = Array.from(uniqueMap.values());
+
+            const mapped: Workspace[] = uniqueWorkspaces.map((w: any) => {
+              const userMembership = memData.find(
                 (m: any) => m.workspace_id === w.id && m.user_id === currentUserId
               );
-              const role = userMembership?.role || (w.user_id === currentUserId ? 'owner' : 'member');
-              const memberCount = (memData || []).filter((m: any) => m.workspace_id === w.id).length;
+              const role =
+                userMembership?.role ||
+                (w.user_id === currentUserId ? 'owner' : 'member');
+              const memberCount = memData.filter((m: any) => m.workspace_id === w.id).length;
 
               return {
                 id: w.id,
@@ -76,15 +170,41 @@ export const useWorkspaceStore = create<WorkspaceState>()(
               };
             });
 
-            set({ workspaces: mapped });
-
+            // 5. Smart workspace selection
             const currentActive = get().activeWorkspaceId;
-            if (mapped.length > 0 && (!currentActive || !mapped.some((w) => w.id === currentActive))) {
-              get().setActiveWorkspaceId(mapped[0].id);
+            let targetActiveId = currentActive;
+
+            // If currentActive is invalid or not in mapped workspaces:
+            if (!currentActive || !mapped.some((w) => w.id === currentActive)) {
+              // Priority 1: 'w2' (the primary Avaxa workspace with all production tasks/spaces)
+              if (mapped.some((w) => w.id === 'w2')) {
+                targetActiveId = 'w2';
+              }
+              // Priority 2: First ID from user's memberProfile.workspace_ids
+              else if (allowedIds.length > 0 && mapped.some((w) => w.id === allowedIds[0])) {
+                targetActiveId = allowedIds[0];
+              }
+              // Priority 3: First available workspace
+              else {
+                targetActiveId = mapped[0].id;
+              }
+            }
+
+            set({ workspaces: mapped });
+            get().setActiveWorkspaceId(targetActiveId);
+          } else {
+            // Never clear workspaces to empty array in offline/demo mode
+            if (get().workspaces.length === 0) {
+              set({ workspaces: [DEFAULT_AVAXA_WORKSPACE] });
+              get().setActiveWorkspaceId('w2');
             }
           }
         } catch (err) {
           console.warn('Failed to fetch workspaces from Supabase:', err);
+          if (get().workspaces.length === 0) {
+            set({ workspaces: [DEFAULT_AVAXA_WORKSPACE] });
+            get().setActiveWorkspaceId('w2');
+          }
         }
       },
 
@@ -178,7 +298,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
                 ? '#10b981'
                 : theme === 'rose'
                 ? '#f43f5e'
-                : '#6366f1',
+                : '#2563eb',
             workspaceId: newId,
             lists: starterLists,
           };

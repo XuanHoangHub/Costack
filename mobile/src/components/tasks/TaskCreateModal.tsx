@@ -8,9 +8,9 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Image,
 } from 'react-native';
 import { X, Calendar, User, Tag, Check, Sparkles } from 'lucide-react-native';
+import Toast from 'react-native-toast-message';
 import { useUiStore } from '../../store/uiStore';
 import { useTaskStore } from '../../store/taskStore';
 import { useSpaceStore } from '../../store/spaceStore';
@@ -20,6 +20,7 @@ import { useTranslation } from '../../locales';
 import { Priority, TaskStatus } from '../../types';
 import { Input } from '../common/Input';
 import { Button } from '../common/Button';
+import { Avatar } from '../common/Avatar';
 
 interface TaskCreateModalProps {
   visible: boolean;
@@ -82,7 +83,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
 
   const toggleTag = (tag: string) => {
     if (selectedTags.includes(tag)) {
-      setSelectedTags(selectedTags.filter((t) => t !== tag));
+      setSelectedTags(selectedTags.filter((t: string) => t !== tag));
     } else {
       setSelectedTags([...selectedTags, tag]);
     }
@@ -104,6 +105,11 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
         assigneeIds: selectedAssigneeId ? [selectedAssigneeId] : [],
         tags: selectedTags,
         dueDate: calculateDueDate(),
+      });
+      Toast.show({
+        type: 'success',
+        text1: 'Thành công',
+        text2: `Công việc "${title.trim()}" đã được tạo.`,
       });
       setTitle('');
       setDescription('');
@@ -272,15 +278,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                         },
                       ]}
                     >
-                      {m.avatar ? (
-                        <Image source={{ uri: m.avatar }} style={styles.avatarImg} />
-                      ) : (
-                        <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
-                          <Text style={{ fontSize: 11, color: '#fff', fontWeight: '700' }}>
-                            {m.name.charAt(0)}
-                          </Text>
-                        </View>
-                      )}
+                      <Avatar name={m.name} url={m.avatar} size={22} />
                       <Text
                         style={[
                           styles.optionText,
@@ -357,16 +355,16 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                       style={[
                         styles.tagChip,
                         {
-                          backgroundColor: isSelected ? '#6366f125' : colors.surfaceSubtle,
-                          borderColor: isSelected ? '#6366f1' : colors.border,
+                          backgroundColor: isSelected ? `${colors.primary}25` : colors.surfaceSubtle,
+                          borderColor: isSelected ? colors.primary : colors.border,
                         },
                       ]}
                     >
-                      {isSelected && <Check size={11} color="#6366f1" strokeWidth={3} />}
+                      {isSelected && <Check size={11} color={colors.primary} strokeWidth={3} />}
                       <Text
                         style={[
                           styles.optionText,
-                          { color: isSelected ? '#a5b4fc' : colors.textSecondary },
+                          { color: isSelected ? colors.primaryText : colors.textSecondary },
                         ]}
                       >
                         #{tag}

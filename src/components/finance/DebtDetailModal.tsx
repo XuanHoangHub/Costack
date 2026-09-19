@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { motion } from "motion/react";
 import {
   AlertCircle,
   ArrowDownRight,
@@ -160,8 +161,23 @@ export function DebtDetailModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-in fade-in duration-150">
-      <div className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-[var(--cu-border)] bg-[var(--cu-surface)] shadow-2xl">
+    <motion.div
+      key="debt-detail-modal-wrapper"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 modal-backdrop-blur"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <motion.div
+        key="debt-detail-modal-card"
+        initial={{ scale: 0.94, y: 16, opacity: 0 }}
+        animate={{ scale: 1, y: 0, opacity: 1 }}
+        exit={{ scale: 0.94, y: 16, opacity: 0 }}
+        transition={{ type: "spring", stiffness: 400, damping: 28 }}
+        className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-[var(--cu-border)] bg-[var(--cu-surface)] shadow-2xl"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--cu-border)] px-6 py-4">
           <div className="flex items-center gap-3">
@@ -459,7 +475,7 @@ export function DebtDetailModal({
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

@@ -130,9 +130,32 @@ export default function DocumentStartModal({ open, onClose, onCreate }: Document
     <Portal>
       <AnimatePresence>
         {open && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6">
-            <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={close} className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 backdrop-blur-xs cursor-pointer" aria-label="Đóng" />
-          <motion.section initial={{ opacity: 0, y: 18, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12, scale: 0.98 }} transition={{ duration: 0.2 }} className="relative z-10 flex max-h-[88vh] w-full max-w-[860px] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-[#fbfcfe] shadow-[0_32px_100px_-24px_rgba(15,23,42,.5)] dark:border-slate-700 dark:bg-[#101217]">
+          <motion.div
+            key="document-start-modal-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6"
+          >
+            <motion.button
+              key="document-start-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              onClick={close}
+              className="absolute inset-0 modal-backdrop bg-black/40 dark:bg-black/75 backdrop-blur-xs cursor-pointer"
+              aria-label="Đóng"
+            />
+          <motion.section
+            key="document-start-card"
+            initial={{ opacity: 0, y: 16, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 400, damping: 28 }}
+            className="relative z-10 flex max-h-[88vh] w-full max-w-[860px] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-[#fbfcfe] shadow-[0_32px_100px_-24px_rgba(15,23,42,.5)] dark:border-slate-700 dark:bg-[#101217]"
+          >
             <header className="flex items-center justify-between border-b border-slate-200/80 px-5 py-4 sm:px-7 dark:border-slate-800">
               <div className="flex min-w-0 items-center gap-3">
                 {view !== 'home' && <button onClick={() => { setView('home'); setError(''); }} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"><ArrowLeft className="h-4 w-4" /></button>}
@@ -223,7 +246,7 @@ export default function DocumentStartModal({ open, onClose, onCreate }: Document
               {error && <p className="mt-4 rounded-xl bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600 dark:bg-rose-950/30 dark:text-rose-300">{error}</p>}
             </div>
           </motion.section>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
     </Portal>

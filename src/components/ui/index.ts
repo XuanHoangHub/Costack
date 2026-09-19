@@ -22,6 +22,8 @@ export { Skeleton, SkeletonText, SkeletonAvatar, SkeletonCard } from "./Skeleton
 export { EmptyState } from "./EmptyState";
 
 // ── Overlay / Dialog ──
+export { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "./Accordion";
+export { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./Collapsible";
 export {
   Dialog,
   DialogTrigger,

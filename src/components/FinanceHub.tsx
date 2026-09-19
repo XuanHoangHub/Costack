@@ -1778,92 +1778,100 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
       </AnimatePresence>
 
       {/* MODAL QUẢN LÝ & TẠO/SỬA TÀI KHOẢN NGÂN HÀNG & VÍ */}
-      {accountToEdit !== null && (
-        <AccountManagerModal
-          initialData={accountToEdit.id ? {
-            id: accountToEdit.id,
-            bank: accountToEdit.bank,
-            number: accountToEdit.number,
-            branch: accountToEdit.branch,
-            type: accountToEdit.type,
-            balance: String(accountToEdit.balance),
-            color: accountToEdit.color || "#005432",
-          } : null}
-          saving={saving}
-          onClose={() => setAccountToEdit(null)}
-          onSubmit={handleSaveAccount}
-          onDelete={async (id) => {
-            const acc = accounts.find(a => a.id === id);
-            if (acc) {
-              setAccountToEdit(null);
-              setAccountToDelete(acc);
-            }
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {accountToEdit !== null && (
+          <AccountManagerModal
+            initialData={accountToEdit.id ? {
+              id: accountToEdit.id,
+              bank: accountToEdit.bank,
+              number: accountToEdit.number,
+              branch: accountToEdit.branch,
+              type: accountToEdit.type,
+              balance: String(accountToEdit.balance),
+              color: accountToEdit.color || "#005432",
+            } : null}
+            saving={saving}
+            onClose={() => setAccountToEdit(null)}
+            onSubmit={handleSaveAccount}
+            onDelete={async (id) => {
+              const acc = accounts.find(a => a.id === id);
+              if (acc) {
+                setAccountToEdit(null);
+                setAccountToDelete(acc);
+              }
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* MODAL CHI TIẾT CÔNG NỢ & LỊCH SỬ THANH TOÁN */}
-      {selectedDebtDetail && (
-        <DebtDetailModal
-          debt={selectedDebtDetail}
-          payments={payments}
-          accounts={accounts}
-          formatMoney={formatMoney}
-          onClose={() => setSelectedDebtDetail(null)}
-          onOpenPayment={debt => {
-            setSelectedDebtDetail(null);
-            setPaymentTarget({ kind: "debt", record: debt });
-          }}
-          onEditDebt={debt => {
-            setSelectedDebtDetail(null);
-            setDebtToEdit(debt);
-          }}
-          onDeleteDebt={debt => {
-            setSelectedDebtDetail(null);
-            setDebtToDelete(debt);
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {selectedDebtDetail && (
+          <DebtDetailModal
+            debt={selectedDebtDetail}
+            payments={payments}
+            accounts={accounts}
+            formatMoney={formatMoney}
+            onClose={() => setSelectedDebtDetail(null)}
+            onOpenPayment={debt => {
+              setSelectedDebtDetail(null);
+              setPaymentTarget({ kind: "debt", record: debt });
+            }}
+            onEditDebt={debt => {
+              setSelectedDebtDetail(null);
+              setDebtToEdit(debt);
+            }}
+            onDeleteDebt={debt => {
+              setSelectedDebtDetail(null);
+              setDebtToDelete(debt);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* MODAL TẠO & SỬA CÔNG NỢ */}
-      {debtToEdit !== null && (
-        <DebtFormModal
-          initialData={debtToEdit.id ? {
-            id: debtToEdit.id,
-            type: debtToEdit.type,
-            partnerName: debtToEdit.partnerName,
-            totalAmount: String(debtToEdit.totalAmount),
-            paidAmount: String(debtToEdit.paidAmount),
-            dueDate: debtToEdit.dueDate,
-            phone: debtToEdit.phone || "",
-            email: debtToEdit.email || "",
-          } : {
-            type: debtToEdit.type || "receivable",
-            partnerName: "",
-            totalAmount: "",
-            paidAmount: "0",
-            dueDate: today(),
-            phone: "",
-            email: "",
-          }}
-          saving={saving}
-          onClose={() => setDebtToEdit(null)}
-          onSubmit={handleSaveDebt}
-        />
-      )}
+      <AnimatePresence>
+        {debtToEdit !== null && (
+          <DebtFormModal
+            initialData={debtToEdit.id ? {
+              id: debtToEdit.id,
+              type: debtToEdit.type,
+              partnerName: debtToEdit.partnerName,
+              totalAmount: String(debtToEdit.totalAmount),
+              paidAmount: String(debtToEdit.paidAmount),
+              dueDate: debtToEdit.dueDate,
+              phone: debtToEdit.phone || "",
+              email: debtToEdit.email || "",
+            } : {
+              type: debtToEdit.type || "receivable",
+              partnerName: "",
+              totalAmount: "",
+              paidAmount: "0",
+              dueDate: today(),
+              phone: "",
+              email: "",
+            }}
+            saving={saving}
+            onClose={() => setDebtToEdit(null)}
+            onSubmit={handleSaveDebt}
+          />
+        )}
+      </AnimatePresence>
 
       {/* MODAL GHI NHẬN THANH TOÁN CÔNG NỢ & HÓA ĐƠN ĐỒNG BỘ SỔ THU CHI */}
-      {paymentTarget !== null && (
-        <DebtPaymentModal
-          target={paymentTarget}
-          accounts={accounts}
-          payments={payments}
-          formatMoney={formatMoney}
-          saving={saving}
-          onClose={() => setPaymentTarget(null)}
-          onSubmit={handlePaymentSubmit}
-        />
-      )}
+      <AnimatePresence>
+        {paymentTarget !== null && (
+          <DebtPaymentModal
+            target={paymentTarget}
+            accounts={accounts}
+            payments={payments}
+            formatMoney={formatMoney}
+            saving={saving}
+            onClose={() => setPaymentTarget(null)}
+            onSubmit={handlePaymentSubmit}
+          />
+        )}
+      </AnimatePresence>
 
       {/* MODAL XÁC NHẬN XÓA GIAO DỊCH */}
       <ConfirmModal

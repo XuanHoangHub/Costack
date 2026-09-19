@@ -7,8 +7,9 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Task, TaskStatus, Priority, User, SubTask, Workspace, Space, TaskAttachment, Document } from '../../types';
-import { DropdownFieldSelect, LabelsFieldSelect, PriorityPillSelect, StatusPillSelect, PremiumDatePicker, SpacePillSelect, AssigneePillSelect } from './TaskSelects';
+import { DropdownFieldSelect, LabelsFieldSelect, PriorityPillSelect, StatusPillSelect, PremiumDatePicker, SpacePillSelect, AssigneePillSelect, TeamPillSelect } from './TaskSelects';
+import { getTaskTeamIds } from '@/lib/teamStore';
+import { Task, TaskStatus, Priority, User, Space, Document, Workspace, TaskAttachment, SubTask } from '../../types';
 import { Select } from '../ui/Select';
 import NotionDocEditor from './NotionDocEditor';
 import SignedImage from '../SignedImage';
@@ -19,6 +20,9 @@ import { callAiApi } from '@/lib/aiClient';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { saveTaskReminder, ReminderOption } from '@/lib/notificationManager';
 import {
+  Boxes,
+  Layers3,
+  Building2,
   GripVertical,
   X,
   Trash2,
@@ -218,6 +222,9 @@ export default function TaskDetailsPanel({
   const [showAddCustomField, setShowAddCustomField] = useState(false);
   const [newFieldName, setNewFieldName] = useState('');
   const [newFieldValue, setNewFieldValue] = useState('');
+  const [taskType, setTaskType] = useState<'Task' | 'Milestone' | 'Bug'>('Task');
+  const [showTaskTypeMenu, setShowTaskTypeMenu] = useState(false);
+  const [hideEmptyFields, setHideEmptyFields] = useState(false);
 
   const handleLayoutChange = (newLayout: 'modal' | 'fullscreen' | 'sidebar') => {
     setModalLayout(newLayout);
@@ -811,7 +818,7 @@ export default function TaskDetailsPanel({
     onAddSyncLog(`Commented on "${task.title}"`);
   };
 
-  const theme = PRIORITY_THEMES[task.priority];
+  const theme = (task.priority && PRIORITY_THEMES[task.priority]) || PRIORITY_THEMES.medium;
 
   let spaceName = isVietnamese ? 'Không gian chung' : 'General Space';
   let listName = '';
@@ -983,6 +990,20 @@ export default function TaskDetailsPanel({
               <AssigneePillSelect
                 value={task.assigneeIds && task.assigneeIds.length > 0 ? task.assigneeIds : (task.assigneeId ? [task.assigneeId] : [])}
                 members={members}
+                teamIds={getTaskTeamIds(task)}
+                onTeamChange={nextTeams => {
+                  const tIds = nextTeams || [];
+                  onUpdateTask({
+                    ...task,
+                    teamIds: tIds,
+                    teamId: tIds[0] || undefined,
+                    custom_fields: {
+                      ...(task.custom_fields || {}),
+                      teamIds: tIds
+                    }
+                  });
+                }}
+                workspaceId={task.workspaceId}
                 onChange={newIds => {
                   const nextIds = newIds || [];
                   onUpdateTask({
@@ -1010,6 +1031,31 @@ export default function TaskDetailsPanel({
           </div>
         )}
 
+        {/* Team / Department */}
+        <div className="py-1.5 px-2 -mx-1 rounded-xl flex items-center justify-between min-h-[38px] group/row relative hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
+          <span className="w-28 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
+            <Building2 className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" /> {isVietnamese ? 'Đội ngũ' : 'Team'}
+          </span>
+          <div className="relative flex-1 min-w-0 flex items-center justify-end gap-1">
+            <TeamPillSelect
+              value={getTaskTeamIds(task)}
+              workspaceId={task.workspaceId}
+              onChange={newIds => {
+                const tIds = newIds || [];
+                onUpdateTask({
+                  ...task,
+                  teamIds: tIds,
+                  teamId: tIds[0] || undefined,
+                  custom_fields: {
+                    ...(task.custom_fields || {}),
+                    teamIds: tIds
+                  }
+                });
+              }}
+            />
+          </div>
+        </div>
+
         {/* Priority */}
         {isShown('priority') && (
           <div className="py-1.5 px-2 -mx-1 rounded-xl flex items-center justify-between min-h-[38px] group/row relative hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
@@ -1017,7 +1063,7 @@ export default function TaskDetailsPanel({
               <Flag className="w-3.5 h-3.5 text-slate-400" /> {isVietnamese ? 'Mức ưu tiên' : 'Priority'}
             </span>
             <div className="flex-1 min-w-0 flex items-center justify-end gap-1">
-              <PriorityPillSelect value={task.priority} onChange={p => { onUpdateTask({ ...task, priority: p || 'medium' }); onAddSyncLog(`Priority → ${p || 'medium'}`); }} />
+              <PriorityPillSelect value={task.priority} onChange={p => { onUpdateTask({ ...task, priority: p }); onAddSyncLog(`Priority → ${p || 'none'}`); }} />
               {onToggleFieldVisibility && (
                 <button 
                   type="button" 
@@ -2227,8 +2273,57 @@ export default function TaskDetailsPanel({
             {/* ── Header Bar ── */}
             <div className="task-studio-header apexa-task-detail-header shrink-0 px-3 sm:px-5 md:px-6 py-2.5 sm:py-3 border-b border-slate-200/80 dark:border-white/[0.08] flex items-center justify-between gap-2 sm:gap-3 bg-white dark:bg-[var(--cu-surface)] select-none min-w-0 w-full overflow-hidden">
               
-              {/* Left: Path Breadcrumb */}
-              <div className="flex items-center gap-1 sm:gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 min-w-0 flex-1 overflow-hidden">
+              {/* Left: Task Badge, ID & Path Breadcrumb */}
+              <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 min-w-0 flex-1 overflow-hidden">
+                {/* Task Type Dropdown */}
+                <div className="relative shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowTaskTypeMenu(!showTaskTypeMenu)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200/80 dark:bg-white/[0.08] dark:hover:bg-white/[0.12] text-xs font-bold text-slate-800 dark:text-slate-100 transition-colors cursor-pointer select-none"
+                  >
+                    <CircleDot className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>{taskType}</span>
+                    <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${showTaskTypeMenu ? 'rotate-180' : ''}`} />
+                  </button>
+                  {showTaskTypeMenu && (
+                    <>
+                      <div className="fixed inset-0 z-40 cursor-default" onClick={() => setShowTaskTypeMenu(false)} />
+                      <div className="absolute left-0 mt-1 z-50 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl w-36 text-left space-y-0.5">
+                        {(['Task', 'Milestone', 'Bug'] as const).map(t => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => {
+                              setTaskType(t);
+                              setShowTaskTypeMenu(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors ${
+                              taskType === t ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            }`}
+                          >
+                            <span>{t}</span>
+                            {taskType === t && <Check className="w-3.5 h-3.5 text-indigo-500" />}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* ID Badge */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    copyTaskLink();
+                    triggerToast?.('success', 'Đã sao chép ID', `#${task.id.slice(-6).toUpperCase()}`);
+                  }}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.08] text-xs font-mono font-bold text-slate-400 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 transition-colors cursor-pointer select-none shrink-0"
+                  title={isVietnamese ? "Sao chép ID công việc" : "Copy task ID"}
+                >
+                  <span className="text-[11px] font-bold">[ID]</span>
+                </button>
+
                 <div className="relative shrink min-w-0 max-w-[130px] sm:max-w-[170px] md:max-w-[210px]">
                   <button
                     type="button"
@@ -2817,23 +2912,58 @@ export default function TaskDetailsPanel({
                   <button 
                     type="button" 
                     onClick={togglePropertiesSidebar}
-                    className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer select-none ${
+                    className={`p-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer select-none ${
                       isPropertiesSidebarOpen 
                         ? 'bg-indigo-50/90 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border-indigo-200/80 dark:border-indigo-800/60 shadow-3xs' 
-                        : 'bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-white/10'
+                        : 'bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-slate-500 dark:text-slate-400 border-slate-200/80 dark:border-white/10'
                     }`}
-                    title={isPropertiesSidebarOpen ? (isVietnamese ? "Thu gọn thuộc tính (Ctrl+\\)" : "Collapse properties (Ctrl+\\)") : (isVietnamese ? "Mở thuộc tính (Ctrl+\\)" : "Expand properties (Ctrl+\\)")}
+                    title={isPropertiesSidebarOpen ? (isVietnamese ? "Thu gọn thuộc tính" : "Collapse panel") : (isVietnamese ? "Mở thuộc tính" : "Expand panel")}
                   >
                     {isPropertiesSidebarOpen ? (
-                      <PanelRightClose className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                      <PanelRightClose className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                     ) : (
-                      <PanelRightOpen className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                      <PanelRightOpen className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                     )}
-                    <span className="hidden lg:inline text-[11px] font-bold">
-                      {isPropertiesSidebarOpen ? (isVietnamese ? 'Thu gọn' : 'Collapse') : (isVietnamese ? 'Thuộc tính' : 'Properties')}
-                    </span>
                   </button>
                 )}
+
+                {/* Comments / Chat Bubble Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsPropertiesSidebarOpen(true);
+                    setDetailTab('activity');
+                  }}
+                  className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-all cursor-pointer flex items-center justify-center relative"
+                  title={isVietnamese ? "Bình luận & Thảo luận" : "Comments"}
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  {task.comments && task.comments.length > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center shadow-xs">
+                      {task.comments.length}
+                    </span>
+                  )}
+                </button>
+
+                {/* Relationship / Link Button */}
+                <button
+                  type="button"
+                  onClick={() => setRelationshipsExpanded(prev => !prev)}
+                  className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-all cursor-pointer flex items-center justify-center"
+                  title={isVietnamese ? "Mối quan hệ & Phụ thuộc" : "Relationships"}
+                >
+                  <Link2 className="w-4 h-4" />
+                </button>
+
+                {/* Apps / More Grid Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowMoreMenu(prev => !prev)}
+                  className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-all cursor-pointer flex items-center justify-center"
+                  title={isVietnamese ? "Tiện ích & Ứng dụng" : "Apps & Options"}
+                >
+                  <Boxes className="w-4 h-4" />
+                </button>
 
                 <button 
                   type="button" 
@@ -2935,84 +3065,204 @@ export default function TaskDetailsPanel({
                     </div>
                   </div>
 
-                  {/* Collapsed Sidebar Quick-Properties Strip (Linear style) */}
-                  {(
-                    <motion.div 
-                      initial={{ opacity: 0, y: -6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="task-studio-quick-properties"
+                  {/* Ask Brain Prompt Bar */}
+                  <div className="my-3 max-w-[620px]">
+                    <div 
+                      onClick={() => setIsAiPanelOpen(true)}
+                      className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-slate-100/70 dark:bg-white/[0.04] hover:bg-slate-200/60 dark:hover:bg-white/[0.07] border border-slate-200/80 dark:border-white/[0.08] transition-all cursor-pointer shadow-3xs group"
                     >
-                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mr-0.5 hidden sm:inline select-none">
-                        {isVietnamese ? 'Thuộc tính:' : 'Properties:'}
-                      </span>
-
-                      {/* Status */}
-                      <StatusPillSelect 
-                        value={task.status} 
-                        onChange={s => { onUpdateTask({ ...task, status: s }); onAddSyncLog(`Status → ${s}`); }} 
-                      />
-
-                      {/* Assignee */}
-                      <AssigneePillSelect
-                        value={task.assigneeIds && task.assigneeIds.length > 0 ? task.assigneeIds : (task.assigneeId ? [task.assigneeId] : [])}
-                        members={members}
-                        onChange={newIds => {
-                          const nextIds = newIds || [];
-                          onUpdateTask({
-                            ...task,
-                            assigneeIds: nextIds,
-                            assigneeId: nextIds[0] || undefined,
-                            custom_fields: {
-                              ...(task.custom_fields || {}),
-                              assigneeIds: nextIds
-                            }
-                          });
+                      <Sparkles className="w-4 h-4 text-pink-500 shrink-0 group-hover:rotate-12 transition-transform" />
+                      <input 
+                        type="text"
+                        placeholder="Ask Brain² for a presentation, document or prototype"
+                        value={aiPrompt}
+                        onChange={e => setAiPrompt(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.stopPropagation();
+                            setIsAiPanelOpen(true);
+                          }
                         }}
+                        className="w-full bg-transparent text-xs sm:text-[13px] font-medium text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-zinc-500 outline-none cursor-pointer"
                       />
-
-                      {/* Priority */}
-                      <PriorityPillSelect 
-                        value={task.priority} 
-                        onChange={p => { onUpdateTask({ ...task, priority: p || 'medium' }); onAddSyncLog(`Priority → ${p}`); }} 
-                      />
-
-                      {/* Due Date */}
-                      <PremiumDatePicker 
-                        startDateValue={task.startDate || ''}
-                        onStartDateChange={v => onUpdateTask({ ...task, startDate: v || '' })}
-                        dateValue={task.dueDate || ''}
-                        onChange={v => onUpdateTask({ ...task, dueDate: v || '' })} 
-                        label={isVietnamese ? "Hạn chót" : "Due date"} 
-                        displayLabel={task.dueDate ? formatFullDate(task.dueDate) : undefined}
-                        align="left"
-                        taskId={task.id}
-                        taskTitle={task.title}
-                        reminderValue={task.reminder || (task.custom_fields?.reminder as ReminderOption)}
-                        onReminderChange={r => {
-                          onUpdateTask({ ...task, reminder: r, custom_fields: { ...(task.custom_fields || {}), reminder: r } });
-                          saveTaskReminder(task.id, task.title, task.dueDate || '', r);
-                        }}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium cursor-pointer border border-slate-200/80 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 transition-all ${task.dueDate ? 'text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50/50 dark:bg-indigo-950/30' : 'text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900'}`} 
-                      />
-
-                      {/* Open Full Sidebar button */}
-                      <button
-                        type="button"
-                        onClick={togglePropertiesSidebar}
-                        className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer select-none"
-                        title={isVietnamese ? 'Mở bảng thuộc tính chi tiết (Ctrl+\\)' : 'Open full properties (Ctrl+\\)'}
-                      >
-                        <PanelRightOpen className="w-3.5 h-3.5" />
-                        <span>{isVietnamese ? (isPropertiesSidebarOpen ? 'Thu gọn' : 'Thuộc tính') : (isPropertiesSidebarOpen ? 'Collapse' : 'Properties')}</span>
-                      </button>
-                    </motion.div>
-                  )}
-
-                  {/* Quick Actions Bar */}
-                  <div className="task-studio-meta">
-                    <span><CircleDot size={13} />{isVietnamese ? 'Công việc' : 'Task'} · {task.id.slice(-6).toUpperCase()}</span>
-                    <span><Clock size={13} />{isVietnamese ? 'Tạo ngày ' : 'Created '}{new Date(task.createdAt).toLocaleDateString(isVietnamese ? 'vi-VN' : 'en-US', { day: 'numeric', month: 'short' })}</span>
+                    </div>
                   </div>
+
+                  {/* Core Properties Vertical Table (ClickUp 3.0 Layout from Image 1) */}
+                  <div className="my-3 space-y-1 text-xs select-none max-w-[620px]">
+                    {/* Status */}
+                    <div className="flex items-center min-h-[34px] py-0.5">
+                      <div className="w-28 sm:w-32 flex items-center gap-2 text-slate-500 dark:text-zinc-400 font-semibold shrink-0">
+                        <CircleDot className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Status</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        <StatusPillSelect
+                          value={task.status}
+                          onChange={s => {
+                            onUpdateTask({ ...task, status: s });
+                            onAddSyncLog(`Status → ${s}`);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const flow: TaskStatus[] = ['todo', 'inprogress', 'review', 'completed'];
+                            const idx = flow.indexOf(task.status);
+                            const next = flow[(idx + 1) % flow.length];
+                            onUpdateTask({ ...task, status: next });
+                            onAddSyncLog(`Status → ${next}`);
+                          }}
+                          className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/[0.08] text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 transition-colors cursor-pointer"
+                          title={isVietnamese ? "Chuyển trạng thái kế tiếp" : "Next status"}
+                        >
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = task.status === 'completed' ? 'todo' : 'completed';
+                            onUpdateTask({ ...task, status: next });
+                            onAddSyncLog(`Status → ${next}`);
+                          }}
+                          className={`p-1 rounded-md border transition-all cursor-pointer ${
+                            task.status === 'completed' 
+                              ? 'bg-emerald-50 border-emerald-300 text-emerald-600 dark:bg-emerald-950/40 dark:border-emerald-700 dark:text-emerald-400' 
+                              : 'border-slate-200 dark:border-zinc-700 text-slate-400 hover:text-emerald-500'
+                          }`}
+                          title={task.status === 'completed' ? (isVietnamese ? "Đánh dấu chưa hoàn thành" : "Mark incomplete") : (isVietnamese ? "Đánh dấu hoàn thành" : "Mark complete")}
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Assignees */}
+                    <div className="flex items-center min-h-[34px] py-0.5">
+                      <div className="w-28 sm:w-32 flex items-center gap-2 text-slate-500 dark:text-zinc-400 font-semibold shrink-0">
+                        <UserIcon className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Assignees</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        <AssigneePillSelect
+                          value={task.assigneeIds && task.assigneeIds.length > 0 ? task.assigneeIds : (task.assigneeId ? [task.assigneeId] : [])}
+                          members={members}
+                          teamIds={getTaskTeamIds(task)}
+                          workspaceId={task.workspaceId}
+                          onChange={newIds => {
+                            const nextIds = newIds || [];
+                            onUpdateTask({
+                              ...task,
+                              assigneeIds: nextIds,
+                              assigneeId: nextIds[0] || undefined,
+                              custom_fields: { ...(task.custom_fields || {}), assigneeIds: nextIds }
+                            });
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Dates */}
+                    <div className="flex items-center min-h-[34px] py-0.5">
+                      <div className="w-28 sm:w-32 flex items-center gap-2 text-slate-500 dark:text-zinc-400 font-semibold shrink-0">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Dates</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        <PremiumDatePicker
+                          startDateValue={task.startDate || ''}
+                          onStartDateChange={v => onUpdateTask({ ...task, startDate: v || '' })}
+                          dateValue={task.dueDate || ''}
+                          onChange={v => onUpdateTask({ ...task, dueDate: v || '' })}
+                          label="Start → Due"
+                          displayLabel={
+                            task.startDate && task.dueDate
+                              ? `${formatShortDate(task.startDate)} → ${formatShortDate(task.dueDate)}`
+                              : task.dueDate
+                              ? `Due: ${formatFullDate(task.dueDate)}`
+                              : task.startDate
+                              ? `Start: ${formatFullDate(task.startDate)}`
+                              : "Start → Due"
+                          }
+                          align="left"
+                          taskId={task.id}
+                          taskTitle={task.title}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Track time */}
+                    <div className="flex items-center min-h-[34px] py-0.5">
+                      <div className="w-28 sm:w-32 flex items-center gap-2 text-slate-500 dark:text-zinc-400 font-semibold shrink-0">
+                        <Timer className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Track time</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        {currentTimerActive ? (
+                          <button
+                            type="button"
+                            onClick={handleStopTimer}
+                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 text-xs font-bold transition-all cursor-pointer animate-pulse"
+                          >
+                            <Square className="w-3 h-3 fill-current" />
+                            <span className="font-mono">{formatTimerTime(currentElapsedSeconds)}</span>
+                            <span>{isVietnamese ? "Dừng" : "Stop"}</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleStartTimer}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] text-xs font-semibold transition-colors cursor-pointer"
+                          >
+                            <Play className="w-3 h-3 fill-current text-slate-400" />
+                            <span>Start</span>
+                            {task.hoursLogged && task.hoursLogged > 0 ? (
+                              <span className="text-[11px] text-slate-400 font-mono">({task.hoursLogged}h)</span>
+                            ) : null}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* More */}
+                    <div className="flex items-center min-h-[34px] py-0.5">
+                      <div className="w-28 sm:w-32 flex items-center gap-2 text-slate-500 dark:text-zinc-400 font-semibold shrink-0">
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                        <span>More</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <PriorityPillSelect
+                          value={task.priority}
+                          onChange={p => {
+                            onUpdateTask({ ...task, priority: p });
+                            onAddSyncLog(`Priority → ${p || 'none'}`);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setRelationshipsExpanded(prev => !prev)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
+                          title={isVietnamese ? "Mối quan hệ" : "Relationships"}
+                        >
+                          <Link2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowTagsDropdown(prev => !prev)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
+                          title={isVietnamese ? "Thẻ nhãn" : "Tags"}
+                        >
+                          <Tag className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Horizontal Divider */}
+                  <div className="my-4 border-t border-slate-200/80 dark:border-white/[0.08]" />
+
+                  {/* Section tabs if not on overview */}
                   <div className="task-studio-tabs" role="tablist" aria-label={isVietnamese ? 'Nội dung công việc' : 'Task sections'}>
                     {([
                       { id: 'overview', label: isVietnamese ? 'Tổng quan' : 'Overview', icon: FileText, count: null },
@@ -3029,6 +3279,7 @@ export default function TaskDetailsPanel({
                         event.preventDefault(); setDetailTab(ids[next]); document.getElementById('task-tab-' + ids[next])?.focus();
                       }}><tab.icon size={15} /><span>{tab.label}</span>{tab.count !== null && <small>{tab.count}</small>}</button>)}
                   </div>
+
                   <div role="tabpanel" id="task-panel-overview" aria-labelledby="task-tab-overview" hidden={detailTab !== 'overview'} className="task-studio-section">
                   {/* Notion Doc / Tài liệu & Mô tả chi tiết */}
                   <div className="pt-1">
@@ -3045,12 +3296,116 @@ export default function TaskDetailsPanel({
                     />
                   </div>
 
+                  {/* Fields Section Accordion (from Image 1) */}
+                  <div className="my-3 select-none max-w-[620px]">
+                    <button
+                      type="button"
+                      onClick={() => setFieldsExpanded(prev => !prev)}
+                      className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer py-1"
+                    >
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${fieldsExpanded ? '' : '-rotate-90'}`} />
+                      <span>Fields</span>
+                    </button>
+
+                    {fieldsExpanded && (
+                      <div className="mt-2 space-y-1.5 text-xs pl-2 border-l border-slate-100 dark:border-white/[0.06]">
+                        {/* Kênh 1: Instagram */}
+                        <div className="flex items-center min-h-[34px] py-0.5">
+                          <div className="w-28 sm:w-32 flex items-center gap-2 text-slate-500 dark:text-zinc-400 font-semibold shrink-0">
+                            <Layers3 className="w-3.5 h-3.5 text-slate-400" />
+                            <span>Kênh</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                            <DropdownFieldSelect
+                              value={String(task.custom_fields?.['Kênh'] || task.custom_fields?.['kênh'] || task.custom_fields?.['Platform'] || 'Instagram')}
+                              fieldName="Kênh"
+                              onChange={val => {
+                                const next = { ...(task.custom_fields || {}), Kênh: val };
+                                onUpdateTask({ ...task, custom_fields: next });
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Kênh 2: Empty row */}
+                        {!hideEmptyFields && (
+                          <div className="flex items-center min-h-[34px] py-0.5">
+                            <div className="w-28 sm:w-32 flex items-center gap-2 text-slate-500 dark:text-zinc-400 font-semibold shrink-0">
+                              <Layers3 className="w-3.5 h-3.5 text-slate-400" />
+                              <span>Kênh</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                              <DropdownFieldSelect
+                                value={String(task.custom_fields?.['Kênh 2'] || '')}
+                                fieldName="Kênh"
+                                onChange={val => {
+                                  const next = { ...(task.custom_fields || {}), 'Kênh 2': val };
+                                  onUpdateTask({ ...task, custom_fields: next });
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Hide / Show 1 empty field */}
+                        <div className="pt-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setHideEmptyFields(prev => !prev)}
+                            className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 hover:text-slate-700 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors cursor-pointer"
+                          >
+                            <ChevronDown className={`w-3 h-3 transition-transform ${hideEmptyFields ? 'rotate-180' : ''}`} />
+                            <span>{hideEmptyFields ? (isVietnamese ? "Hiện 1 trường trống" : "Show 1 empty field") : (isVietnamese ? "Hide 1 empty field" : "Hide 1 empty field")}</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Next Actions (Add subtask, Relate items, Create checklist, Attach file) */}
+                  <div className="my-5 pt-3 border-t border-slate-200/80 dark:border-white/[0.08] space-y-1 text-xs max-w-[620px]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDetailTab('subtasks');
+                        focusSubtaskComposer();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-600 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer font-semibold"
+                    >
+                      <Plus className="w-4 h-4 text-slate-400" />
+                      <span>Add subtask</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRelationshipsExpanded(prev => !prev)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-600 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer font-semibold"
+                    >
+                      <Link2 className="w-4 h-4 text-slate-400" />
+                      <span>Relate items or add dependencies</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDetailTab('subtasks');
+                        focusSubtaskComposer();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-600 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer font-semibold"
+                    >
+                      <CheckSquare className="w-4 h-4 text-slate-400" />
+                      <span>Create checklist</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-600 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer font-semibold"
+                    >
+                      <Paperclip className="w-4 h-4 text-slate-400" />
+                      <span>Attach file</span>
+                    </button>
+                  </div>
+
                   {renderRelationshipsSection('relationships-section')}
                   {renderAiAssistantPanel()}
-                  <div className="task-studio-next-actions">
-                    <button type="button" onClick={focusSubtaskComposer}><Plus size={15} />{isVietnamese ? 'Thêm công việc con' : 'Add subtask'}<ChevronRight size={14} /></button>
-                    <button type="button" onClick={() => setDetailTab('activity')}><MessageSquare size={15} />{isVietnamese ? 'Bắt đầu trao đổi' : 'Start a conversation'}<ChevronRight size={14} /></button>
-                  </div>
                   </div>
                   {/* Subtasks */}
                   <div role="tabpanel" id="task-panel-subtasks" aria-labelledby="task-tab-subtasks" hidden={detailTab !== 'subtasks'} className="task-studio-section space-y-3 text-left">

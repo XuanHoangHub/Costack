@@ -110,15 +110,23 @@ export default function ConfirmModal({
     <Portal>
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-hidden">
+          <motion.div
+            key="confirm-modal-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-hidden"
+          >
             {/* Backdrop with smooth blur */}
             <motion.div
+              key="confirm-modal-backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
+              transition={{ duration: 0.18 }}
               onClick={onCancel}
-              className="absolute inset-0 modal-backdrop bg-black/25 dark:bg-black/60 cursor-pointer"
+              className="absolute inset-0 modal-backdrop bg-black/40 dark:bg-black/75 backdrop-blur-xs cursor-pointer"
             />
 
             {/* Modal Card Container */}
@@ -127,7 +135,7 @@ export default function ConfirmModal({
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 8 }}
               transition={{ type: "spring", stiffness: 400, damping: 28 }}
-              className="relative w-full max-w-[420px] bg-white dark:bg-[#12141e] border border-slate-200/90 dark:border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.65)] rounded-xl p-5 sm:p-6 text-left z-10 font-sans select-none overflow-hidden"
+              className="relative w-full max-w-[420px] bg-white dark:bg-[#0a0b10] border border-slate-200/90 dark:border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.65)] rounded-xl p-5 sm:p-6 text-left z-10 font-sans select-none overflow-hidden"
             >
               {/* Top Row: Icon + Title + Close Button */}
               <div className="flex items-start justify-between gap-3">
@@ -171,8 +179,8 @@ export default function ConfirmModal({
 
               {/* Target Item Callout (if specific item is targeted) */}
               {detectedInfo.name && (
-                <div className="mt-3.5 p-2.5 rounded-lg bg-slate-50 dark:bg-[#181a26] border border-slate-200/80 dark:border-white/10 flex items-center gap-2.5 min-w-0">
-                  <div className="w-6 h-6 rounded-md bg-white dark:bg-[#12141e] border border-slate-200 dark:border-white/10 flex items-center justify-center shrink-0 shadow-3xs">
+                <div className="mt-3.5 p-2.5 rounded-lg bg-slate-50 dark:bg-[#0d0f15] border border-slate-200/80 dark:border-white/10 flex items-center gap-2.5 min-w-0">
+                  <div className="w-6 h-6 rounded-md bg-white dark:bg-[#0a0b10] border border-slate-200 dark:border-white/10 flex items-center justify-center shrink-0 shadow-3xs">
                     {getItemIcon()}
                   </div>
                   <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate min-w-0 flex-1" title={detectedInfo.name}>
@@ -187,7 +195,7 @@ export default function ConfirmModal({
                 <button
                   type="button"
                   onClick={onCancel}
-                  className="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-[#181a26] text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.08] transition-colors cursor-pointer select-none shadow-3xs flex items-center whitespace-nowrap shrink-0"
+                  className="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-[#0d0f15] text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.08] transition-colors cursor-pointer select-none shadow-3xs flex items-center whitespace-nowrap shrink-0"
                 >
                   <span>{effectiveCancelText}</span>
                 </button>
@@ -211,7 +219,7 @@ export default function ConfirmModal({
                 </button>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </Portal>

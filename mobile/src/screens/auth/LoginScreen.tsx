@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,14 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Animated,
+  LayoutAnimation,
+  UIManager,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Linking,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -28,21 +35,32 @@ import {
   Globe,
   Users,
   FolderKanban,
-  CreditCard,
-  Layers,
+  Sun,
+  Moon,
+  AlertCircle,
+  X,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useUiStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
+import { useWorkspaceStore } from '../../store/workspaceStore';
 import { supabase } from '../../api/supabase';
 import { Input } from '../../components/common/Input';
+import { PressableScale } from '../../components/common/PressableScale';
 import { AuthErrorAlert } from '../../components/auth/AuthErrorAlert';
 import { formatAuthError } from '../../utils/authError';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 type AuthMode = 'signin' | 'signup' | 'forgot';
 
 export const LoginScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const colors = useUiStore((s) => s.getColors());
+  const isDarkMode = useUiStore((s) => s.isDarkMode);
+  const toggleDarkMode = useUiStore((s) => s.toggleDarkMode);
   const language = useUiStore((s) => s.language);
   const setLanguage = useUiStore((s) => s.setLanguage);
   const setCurrentUser = useAuthStore((s) => s.setCurrentUser);
@@ -60,12 +78,59 @@ export const LoginScreen: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(true);
 
   const [loading, setLoading] = useState(false);
+  const [oAuthLoading, setOAuthLoading] = useState<'google' | 'facebook' | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [showDevSuite, setShowDevSuite] = useState(false);
 
   const isSignUp = authMode === 'signup';
   const isForgot = authMode === 'forgot';
+
+  // Animation values
+  const [tabBarWidth, setTabBarWidth] = useState(0);
+  const [tabIndicatorAnim] = useState(() => new Animated.Value(0));
+  const [strengthAnim] = useState(() => new Animated.Value(0));
+  const [rememberAnim] = useState(() => new Animated.Value(1));
+  const [logoScaleAnim] = useState(() => new Animated.Value(1));
+  const [shakeAnim] = useState(() => new Animated.Value(0));
+
+  // Gentle breathing effect on logo
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(logoScaleAnim, {
+          toValue: 1.06,
+          duration: 2200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoScaleAnim, {
+          toValue: 1,
+          duration: 2200,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
+
+  const triggerShake = () => {
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } catch {}
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 8, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 6, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -6, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 3, duration: 40, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 40, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const showValidationError = (msg: string) => {
+    setError(msg);
+    triggerShake();
+  };
 
   const copy = isVietnamese
     ? {
@@ -84,9 +149,13 @@ export const LoginScreen: React.FC = () => {
         emailPlaceholder: 'name@company.com',
         password: 'Mật khẩu',
         passwordPlaceholder: 'Nhập mật khẩu',
-        createPasswordPlaceholder: 'Tạo mật khẩu mạnh',
+        createPasswordPlaceholder: 'Tạo mật khẩu (tối thiểu 6 ký tự)',
         confirmPassword: 'Xác nhận mật khẩu',
         confirmPasswordPlaceholder: 'Nhập lại mật khẩu',
+        passwordsMatch: 'Mật khẩu trùng khớp',
+        passwordsMismatch: 'Mật khẩu chưa khớp',
+        themeLight: 'Sáng',
+        themeDark: 'Tối',
         forgotPassword: 'Quên mật khẩu?',
         rememberMe: 'Ghi nhớ đăng nhập trên thiết bị này',
         rememberMeSubtitle: 'Duy trì phiên làm việc an toàn trong 30 ngày',
@@ -96,17 +165,16 @@ export const LoginScreen: React.FC = () => {
         backToSignin: 'Quay lại đăng nhập',
         termsAgreement:
           'Tôi đồng ý với Điều khoản sử dụng và Chính sách quyền riêng tư của Upgen.',
-        orContinueWith: 'hoặc tiếp tục với',
+        signinWithGoogle: 'Tiếp tục với Google',
+        signinWithFacebook: 'Tiếp tục với Facebook',
+        signupWithGoogle: 'Đăng ký nhanh với Google',
+        signupWithFacebook: 'Đăng ký nhanh với Facebook',
+        orContinueWithEmail: 'hoặc tiếp tục với email',
         freePlanBadge: 'GÓI FREE TIÊU CHUẨN',
         freePlanMembers: '5 Thành viên',
         freePlanSpaces: '3 Không gian',
         freePlanLang: 'VI / EN',
         freePlanNoCard: 'Không cần thẻ thanh toán',
-        quickWebappTitle: 'Tài khoản Webapp chính chủ',
-        quickWebappSubtitle: 'hoang.benjamin.creative@gmail.com',
-        quickWebappHint: 'Chạm 1 lần để đồng bộ ngay dữ liệu Webapp & Spaces →',
-        quickDemoBtn: 'Vào nhanh chế độ Trải nghiệm (Demo User)',
-        devHeader: 'Truy cập nhanh dành cho Phát triển & Demo',
         processing: 'Đang xử lý…',
       }
     : {
@@ -125,9 +193,13 @@ export const LoginScreen: React.FC = () => {
         emailPlaceholder: 'name@company.com',
         password: 'Password',
         passwordPlaceholder: 'Enter your password',
-        createPasswordPlaceholder: 'Create a strong password',
+        createPasswordPlaceholder: 'Create a password (min 6 chars)',
         confirmPassword: 'Confirm Password',
         confirmPasswordPlaceholder: 'Re-enter your password',
+        passwordsMatch: 'Passwords match',
+        passwordsMismatch: 'Passwords do not match',
+        themeLight: 'Light',
+        themeDark: 'Dark',
         forgotPassword: 'Forgot password?',
         rememberMe: 'Stay signed in on this device',
         rememberMeSubtitle: 'Keep session securely active for 30 days',
@@ -136,17 +208,16 @@ export const LoginScreen: React.FC = () => {
         submitReset: 'Send Reset Link',
         backToSignin: 'Back to Sign In',
         termsAgreement: 'I agree to Upgen’s Terms of Use and Privacy Policy.',
-        orContinueWith: 'or continue with',
+        signinWithGoogle: 'Continue with Google',
+        signinWithFacebook: 'Continue with Facebook',
+        signupWithGoogle: 'Sign up with Google',
+        signupWithFacebook: 'Sign up with Facebook',
+        orContinueWithEmail: 'or continue with email',
         freePlanBadge: 'FREE TIER PERKS',
         freePlanMembers: '5 Members',
         freePlanSpaces: '3 Spaces',
         freePlanLang: 'VI / EN',
         freePlanNoCard: 'No credit card needed',
-        quickWebappTitle: 'Webapp Primary Account',
-        quickWebappSubtitle: 'hoang.benjamin.creative@gmail.com',
-        quickWebappHint: '1-Tap to sync all Webapp & Spaces data →',
-        quickDemoBtn: 'Quick Demo Access (Demo User)',
-        devHeader: 'Fast Access for Development & Demo',
         processing: 'Processing…',
       };
 
@@ -157,6 +228,20 @@ export const LoginScreen: React.FC = () => {
   const hasLetter = /\p{L}/u.test(password);
   const strengthScore = [hasMinLength, hasNumber, hasSpecial, hasLetter].filter(Boolean).length;
 
+  useEffect(() => {
+    Animated.spring(strengthAnim, {
+      toValue: strengthScore,
+      useNativeDriver: false,
+      friction: 8,
+      tension: 120,
+    }).start();
+  }, [strengthScore]);
+
+  const strengthWidth = strengthAnim.interpolate({
+    inputRange: [0, 1, 2, 3, 4],
+    outputRange: ['15%', '35%', '65%', '85%', '100%'],
+  });
+
   const getStrengthMeta = () => {
     switch (strengthScore) {
       case 0:
@@ -166,7 +251,7 @@ export const LoginScreen: React.FC = () => {
       case 2:
         return { text: isVietnamese ? 'Trung bình' : 'Medium', color: '#f59e0b', percent: '65%' };
       case 3:
-        return { text: isVietnamese ? 'Khá mạnh' : 'Strong', color: '#6366f1', percent: '85%' };
+        return { text: isVietnamese ? 'Khá mạnh' : 'Strong', color: '#2563eb', percent: '85%' };
       case 4:
         return { text: isVietnamese ? 'Mạnh' : 'Very strong', color: '#10b981', percent: '100%' };
       default:
@@ -183,12 +268,33 @@ export const LoginScreen: React.FC = () => {
     try {
       Haptics.selectionAsync();
     } catch {}
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    Animated.spring(tabIndicatorAnim, {
+      toValue: mode === 'signup' ? 1 : 0,
+      useNativeDriver: true,
+      friction: 8,
+      tension: 120,
+    }).start();
     setAuthMode(mode);
     clearFeedback();
     setPassword('');
     setConfirmPassword('');
     setShowPassword(false);
     setShowConfirmPassword(false);
+  };
+
+  const toggleRememberMe = () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
+    const nextVal = !rememberMe;
+    setRememberMe(nextVal);
+    Animated.spring(rememberAnim, {
+      toValue: nextVal ? 1 : 0,
+      useNativeDriver: true,
+      friction: 9,
+      tension: 140,
+    }).start();
   };
 
   const toggleLanguage = () => {
@@ -238,6 +344,13 @@ export const LoginScreen: React.FC = () => {
         isPremium: Boolean(memberProfile?.is_premium ?? true),
       });
 
+      // Synchronize workspaces and spaces immediately from Supabase
+      try {
+        useWorkspaceStore.getState().fetchWorkspacesFromSupabase();
+      } catch (wsErr) {
+        console.warn('Failed to fetch workspaces after login:', wsErr);
+      }
+
       try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch {}
@@ -252,7 +365,7 @@ export const LoginScreen: React.FC = () => {
 
     if (isForgot) {
       if (!normalizedEmail || !isValidEmail) {
-        setError(
+        showValidationError(
           isVietnamese
             ? 'Vui lòng nhập địa chỉ email hợp lệ.'
             : 'Please enter a valid email address.'
@@ -269,7 +382,7 @@ export const LoginScreen: React.FC = () => {
             : 'If the email exists, a password reset link has been sent. Please check your spam folder too.'
         );
       } catch (err: any) {
-        setError(formatAuthError(err, isVietnamese).description);
+        showValidationError(formatAuthError(err, isVietnamese).description);
       } finally {
         setLoading(false);
       }
@@ -278,7 +391,7 @@ export const LoginScreen: React.FC = () => {
 
     if (isSignUp) {
       if (name.trim().length < 2) {
-        setError(
+        showValidationError(
           isVietnamese
             ? 'Vui lòng nhập họ và tên (ít nhất 2 ký tự).'
             : 'Please enter your full name (at least 2 characters).'
@@ -286,29 +399,29 @@ export const LoginScreen: React.FC = () => {
         return;
       }
       if (!normalizedEmail || !isValidEmail) {
-        setError(
+        showValidationError(
           isVietnamese
             ? 'Vui lòng nhập địa chỉ email hợp lệ.'
             : 'Please enter a valid email address.'
         );
         return;
       }
-      if (strengthScore < 3) {
-        setError(
+      if (password.length < 6) {
+        showValidationError(
           isVietnamese
-            ? 'Mật khẩu cần đạt mức khá trở lên (tối thiểu 8 ký tự, gồm chữ và số).'
-            : 'Password must be strong (at least 8 characters with letters and numbers).'
+            ? 'Mật khẩu phải có ít nhất 6 ký tự.'
+            : 'Password must be at least 6 characters.'
         );
         return;
       }
       if (password !== confirmPassword) {
-        setError(
+        showValidationError(
           isVietnamese ? 'Mật khẩu xác nhận không khớp.' : 'Confirmation password does not match.'
         );
         return;
       }
       if (!acceptTerms) {
-        setError(
+        showValidationError(
           isVietnamese
             ? 'Bạn cần đồng ý với Điều khoản sử dụng để tiếp tục.'
             : 'You must agree to the Terms of Use to create an account.'
@@ -330,6 +443,17 @@ export const LoginScreen: React.FC = () => {
         });
 
         if (signUpErr) throw signUpErr;
+
+        // If user already exists in Supabase, identities array is returned as empty
+        if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+          showValidationError(
+            isVietnamese
+              ? 'Địa chỉ email này đã được đăng ký. Vui lòng chuyển sang Đăng nhập hoặc khôi phục mật khẩu.'
+              : 'This email is already registered. Please sign in or reset your password.'
+          );
+          setAuthMode('signin');
+          return;
+        }
 
         if (!data.session || !data.user) {
           setSuccess(
@@ -353,11 +477,18 @@ export const LoginScreen: React.FC = () => {
           isPremium: true,
         });
 
+        // Synchronize workspaces from Supabase
+        try {
+          useWorkspaceStore.getState().fetchWorkspacesFromSupabase();
+        } catch (wsErr) {
+          console.warn('Failed to fetch workspaces after signup:', wsErr);
+        }
+
         try {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch {}
       } catch (err: any) {
-        setError(formatAuthError(err, isVietnamese).description);
+        showValidationError(formatAuthError(err, isVietnamese).description);
       } finally {
         setLoading(false);
       }
@@ -366,13 +497,13 @@ export const LoginScreen: React.FC = () => {
 
     // Sign In Flow
     if (!normalizedEmail || !isValidEmail) {
-      setError(
+      showValidationError(
         isVietnamese ? 'Vui lòng nhập địa chỉ email hợp lệ.' : 'Please enter a valid email address.'
       );
       return;
     }
     if (!password.trim()) {
-      setError(isVietnamese ? 'Vui lòng nhập mật khẩu.' : 'Please enter your password.');
+      showValidationError(isVietnamese ? 'Vui lòng nhập mật khẩu.' : 'Please enter your password.');
       return;
     }
 
@@ -380,59 +511,56 @@ export const LoginScreen: React.FC = () => {
     try {
       await signInWithCredentials(normalizedEmail, password);
     } catch (err: any) {
-      setError(formatAuthError(err, isVietnamese).description);
+      showValidationError(formatAuthError(err, isVietnamese).description);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleQuickWebappLogin = async () => {
-    clearFeedback();
-    setLoading(true);
+  const handleOAuthLogin = async (provider: 'google' | 'facebook') => {
     try {
-      await signInWithCredentials('hoang.benjamin.creative@gmail.com', 'Apexa@2026');
-    } catch (err: any) {
-      setError(formatAuthError(err, isVietnamese).description);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDemoLogin = async () => {
-    clearFeedback();
-    setLoading(true);
-    try {
-      await signInWithCredentials('hoang.benjamin.creative@gmail.com', 'Apexa@2026');
-    } catch {
-      try {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      } catch {}
-      setCurrentUser({
-        id: 'demo-user-1',
-        name: 'Nguyễn Xuân Hoàng',
-        email: 'hoang@apexa.app',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-        role: 'admin',
-        status: 'online',
-        statusMessage: 'Ready to build ⚡',
-        department: 'Lead Architecture',
-        isPremium: true,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSocialLogin = (provider: 'google' | 'facebook') => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch {}
-    setError(
-      isVietnamese
-        ? `Đăng nhập qua ${provider === 'google' ? 'Google' : 'Facebook'} trên mobile đang đồng bộ cấu hình Deep Link. Bạn có thể sử dụng email hoặc tài khoản Webapp để truy cập ngay.`
-        : `Sign in with ${provider === 'google' ? 'Google' : 'Facebook'} is syncing deep link configuration. Please use email or the Webapp account to proceed.`
-    );
+    clearFeedback();
+    setOAuthLoading(provider);
+
+    try {
+      const { data, error: oauthErr } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: 'upgen://auth/callback',
+          skipBrowserRedirect: false,
+        },
+      });
+
+      if (oauthErr) throw oauthErr;
+
+      if (data?.url) {
+        await Linking.openURL(data.url);
+      } else {
+        throw new Error(
+          isVietnamese
+            ? 'Không nhận được liên kết xác thực từ dịch vụ.'
+            : 'Failed to obtain authentication URL.'
+        );
+      }
+    } catch (err: any) {
+      showValidationError(formatAuthError(err, isVietnamese).description);
+    } finally {
+      setOAuthLoading(null);
+    }
   };
+
+  const tabWidth = tabBarWidth > 0 ? (tabBarWidth - 8) / 2 : 0;
+  const tabTranslateX = tabIndicatorAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, tabWidth],
+  });
+
+  const switchThumbTranslateX = rememberAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 20],
+  });
 
   return (
     <KeyboardAvoidingView
@@ -440,22 +568,61 @@ export const LoginScreen: React.FC = () => {
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: Math.max(insets.top, 16) + 8,
+            paddingBottom: Math.max(insets.bottom, 16) + 24,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         {/* Ambient Top Glow */}
         <LinearGradient
-          colors={['rgba(99, 102, 241, 0.18)', 'rgba(6, 182, 212, 0.05)', 'transparent']}
+          colors={
+            isDarkMode
+              ? ['rgba(59, 130, 246, 0.22)', 'rgba(6, 182, 212, 0.07)', 'transparent']
+              : ['rgba(59, 130, 246, 0.12)', 'rgba(6, 182, 212, 0.04)', 'transparent']
+          }
           style={styles.ambientGlow}
           pointerEvents="none"
         />
 
-        {/* Top Header: Language Switcher */}
+        {/* Top Header: Theme Switcher & Language Switcher */}
         <View style={styles.topBar}>
-          <TouchableOpacity
-            activeOpacity={0.8}
+          {/* Dark / Light Toggle */}
+          <PressableScale
+            onPress={() => {
+              try {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              } catch {}
+              toggleDarkMode();
+            }}
+            activeScale={0.92}
+            style={[
+              styles.themeButton,
+              {
+                backgroundColor: colors.surfaceHover,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            {isDarkMode ? (
+              <Sun size={15} color="#f59e0b" />
+            ) : (
+              <Moon size={15} color={colors.primary} />
+            )}
+            <Text style={[styles.themeText, { color: colors.textPrimary }]}>
+              {isDarkMode ? copy.themeDark : copy.themeLight}
+            </Text>
+          </PressableScale>
+
+          {/* Language Switcher */}
+          <PressableScale
             onPress={toggleLanguage}
+            activeScale={0.94}
+            hapticFeedback="light"
             style={[
               styles.langButton,
               {
@@ -466,26 +633,28 @@ export const LoginScreen: React.FC = () => {
           >
             <Globe size={14} color={colors.primary} />
             <Text style={[styles.langText, { color: colors.textPrimary }]}>
-              {isVietnamese ? 'Tiếng Việt (VI)' : 'English (EN)'}
+              {isVietnamese ? 'Tiếng Việt' : 'English'}
             </Text>
             <View style={[styles.langBadge, { backgroundColor: colors.primarySubtle }]}>
               <Text style={[styles.langBadgeText, { color: colors.primary }]}>
-                {isVietnamese ? 'EN' : 'VI'}
+                {isVietnamese ? 'VI' : 'EN'}
               </Text>
             </View>
-          </TouchableOpacity>
+          </PressableScale>
         </View>
 
         {/* Brand Header */}
         <View style={styles.brandHeader}>
-          <LinearGradient
-            colors={['#3b82f6', '#6366f1', '#8b5cf6']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.logoWrap}
-          >
-            <Zap size={30} color="#ffffff" />
-          </LinearGradient>
+          <Animated.View style={{ transform: [{ scale: logoScaleAnim }] }}>
+            <LinearGradient
+              colors={['#2563eb', '#06b6d4']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.logoWrap}
+            >
+              <Zap size={30} color="#ffffff" />
+            </LinearGradient>
+          </Animated.View>
           <Text style={[styles.brandTitle, { color: colors.textPrimary }]}>Upgen.</Text>
           <Text style={[styles.brandSubtitle, { color: colors.primaryLight }]}>
             {isVietnamese ? 'Không gian cho công việc & Đội ngũ' : 'A space for work & Teams'}
@@ -500,6 +669,7 @@ export const LoginScreen: React.FC = () => {
         {/* High-Performance Segmented Tab Switcher (Sign In vs Sign Up) */}
         {!isForgot && (
           <View
+            onLayout={(e) => setTabBarWidth(e.nativeEvent.layout.width)}
             style={[
               styles.tabContainer,
               {
@@ -508,55 +678,53 @@ export const LoginScreen: React.FC = () => {
               },
             ]}
           >
-            {/* Sign In Tab */}
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => switchAuthMode('signin')}
-              style={[
-                styles.tabButton,
-                !isSignUp && [
-                  styles.tabButtonActive,
+            {tabWidth > 0 && (
+              <Animated.View
+                style={[
+                  styles.tabIndicator,
                   {
+                    width: tabWidth,
+                    transform: [{ translateX: tabTranslateX }],
                     backgroundColor: colors.surface,
                     borderColor: colors.border,
                   },
-                ],
-              ]}
+                ]}
+              />
+            )}
+
+            {/* Sign In Tab */}
+            <PressableScale
+              onPress={() => switchAuthMode('signin')}
+              style={styles.tabButton}
+              activeScale={0.97}
+              hapticFeedback="selection"
             >
               <Text
                 style={[
                   styles.tabText,
                   {
                     color: !isSignUp ? colors.primary : colors.textMuted,
-                    fontWeight: !isSignUp ? '700' : '500',
+                    fontWeight: !isSignUp ? '800' : '600',
                   },
                 ]}
               >
                 {copy.signinTab}
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
 
             {/* Sign Up Tab */}
-            <TouchableOpacity
-              activeOpacity={0.8}
+            <PressableScale
               onPress={() => switchAuthMode('signup')}
-              style={[
-                styles.tabButton,
-                isSignUp && [
-                  styles.tabButtonActive,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                  },
-                ],
-              ]}
+              style={styles.tabButton}
+              activeScale={0.97}
+              hapticFeedback="selection"
             >
               <Text
                 style={[
                   styles.tabText,
                   {
                     color: isSignUp ? colors.primary : colors.textMuted,
-                    fontWeight: isSignUp ? '700' : '500',
+                    fontWeight: isSignUp ? '800' : '600',
                   },
                 ]}
               >
@@ -567,22 +735,35 @@ export const LoginScreen: React.FC = () => {
                   {copy.freeBadge}
                 </Text>
               </View>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         )}
 
-        {/* Main Auth Form Card */}
-        <View
+        {/* Main Auth Form Card with Shake Feedback */}
+        <Animated.View
           style={[
             styles.card,
             {
               backgroundColor: colors.surface,
               borderColor: colors.border,
+              transform: [{ translateX: shakeAnim }],
             },
           ]}
         >
           {/* Card Title & Subtitle */}
           <View style={styles.formHeader}>
+            {isForgot && (
+              <View style={styles.forgotHeroBadge}>
+                <LinearGradient
+                  colors={['#2563eb', '#06b6d4']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.forgotIconCircle}
+                >
+                  <KeyRound size={26} color="#ffffff" />
+                </LinearGradient>
+              </View>
+            )}
             <Text style={[styles.formTitle, { color: colors.textPrimary }]}>
               {isForgot
                 ? copy.forgotTitle
@@ -632,14 +813,15 @@ export const LoginScreen: React.FC = () => {
                 leftIcon={<Mail size={16} color={colors.textMuted} />}
               />
 
-              <TouchableOpacity
-                activeOpacity={0.8}
+              <PressableScale
                 onPress={handleAuth}
                 disabled={loading}
+                activeScale={0.97}
+                hapticFeedback="medium"
                 style={styles.submitButtonWrap}
               >
                 <LinearGradient
-                  colors={['#3b82f6', '#6366f1']}
+                  colors={['#2563eb', '#06b6d4']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.submitGradient}
@@ -653,7 +835,7 @@ export const LoginScreen: React.FC = () => {
                     </>
                   )}
                 </LinearGradient>
-              </TouchableOpacity>
+              </PressableScale>
 
               <TouchableOpacity
                 onPress={() => switchAuthMode('signin')}
@@ -668,6 +850,90 @@ export const LoginScreen: React.FC = () => {
           ) : (
             /* FORM: Sign In & Sign Up */
             <View style={styles.formContent}>
+              {/* Social Login Section (Google & Facebook - Spacious & Full Width) */}
+              <View style={styles.socialButtonsCol}>
+                {/* Google Button */}
+                <PressableScale
+                  onPress={() => handleOAuthLogin('google')}
+                  disabled={loading || oAuthLoading !== null}
+                  activeScale={0.97}
+                  style={[
+                    styles.socialButtonFull,
+                    {
+                      backgroundColor: colors.surfaceHover,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <Svg width={20} height={20} viewBox="0 0 24 24">
+                    <Path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <Path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <Path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.85z"
+                    />
+                    <Path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.85c.87-2.6 3.3-4.53 6.16-4.53z"
+                    />
+                  </Svg>
+                  <Text style={[styles.socialButtonFullText, { color: colors.textPrimary }]}>
+                    {isSignUp ? copy.signupWithGoogle : copy.signinWithGoogle}
+                  </Text>
+                  {oAuthLoading === 'google' && (
+                    <ActivityIndicator size="small" color="#4285F4" style={styles.socialLoader} />
+                  )}
+                </PressableScale>
+
+                {/* Facebook Button */}
+                <PressableScale
+                  onPress={() => handleOAuthLogin('facebook')}
+                  disabled={loading || oAuthLoading !== null}
+                  activeScale={0.97}
+                  style={[
+                    styles.socialButtonFull,
+                    {
+                      backgroundColor: colors.surfaceHover,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <Svg width={20} height={20} viewBox="0 0 24 24">
+                    <Path
+                      fill="#1877F2"
+                      d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"
+                    />
+                  </Svg>
+                  <Text style={[styles.socialButtonFullText, { color: colors.textPrimary }]}>
+                    {isSignUp ? copy.signupWithFacebook : copy.signinWithFacebook}
+                  </Text>
+                  {oAuthLoading === 'facebook' && (
+                    <ActivityIndicator size="small" color="#1877F2" style={styles.socialLoader} />
+                  )}
+                </PressableScale>
+              </View>
+
+              {/* Divider: or continue with email */}
+              <View style={styles.socialDividerRow}>
+                <View
+                  style={[styles.socialDividerLine, { backgroundColor: colors.border }]}
+                />
+                <Text
+                  style={[styles.socialDividerText, { color: colors.textMuted }]}
+                >
+                  {copy.orContinueWithEmail}
+                </Text>
+                <View
+                  style={[styles.socialDividerLine, { backgroundColor: colors.border }]}
+                />
+              </View>
+
               {/* Full Name (Sign Up only) */}
               {isSignUp && (
                 <Input
@@ -770,11 +1036,11 @@ export const LoginScreen: React.FC = () => {
                       { backgroundColor: colors.border },
                     ]}
                   >
-                    <View
+                    <Animated.View
                       style={[
                         styles.strengthBarFill,
                         {
-                          width: getStrengthMeta().percent as any,
+                          width: strengthWidth as any,
                           backgroundColor: getStrengthMeta().color,
                         },
                       ]}
@@ -860,29 +1126,67 @@ export const LoginScreen: React.FC = () => {
 
               {/* Confirm Password (Sign Up only) */}
               {isSignUp && (
-                <Input
-                  label={copy.confirmPassword}
-                  placeholder={copy.confirmPasswordPlaceholder}
-                  value={confirmPassword}
-                  onChangeText={(t) => {
-                    setConfirmPassword(t);
-                    clearFeedback();
-                  }}
-                  secureTextEntry={!showConfirmPassword}
-                  leftIcon={<Lock size={16} color={colors.textMuted} />}
-                  rightIcon={
-                    <TouchableOpacity
-                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff size={18} color={colors.textMuted} />
+                <>
+                  <Input
+                    label={copy.confirmPassword}
+                    placeholder={copy.confirmPasswordPlaceholder}
+                    value={confirmPassword}
+                    onChangeText={(t) => {
+                      setConfirmPassword(t);
+                      clearFeedback();
+                    }}
+                    secureTextEntry={!showConfirmPassword}
+                    leftIcon={<Lock size={16} color={colors.textMuted} />}
+                    rightIcon={
+                      <TouchableOpacity
+                        onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff size={18} color={colors.textMuted} />
+                        ) : (
+                          <Eye size={18} color={colors.textMuted} />
+                        )}
+                      </TouchableOpacity>
+                    }
+                  />
+
+                  {confirmPassword.length > 0 && (
+                    <View style={styles.matchStatusWrap}>
+                      {confirmPassword === password ? (
+                        <View
+                          style={[
+                            styles.matchBadge,
+                            {
+                              backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                              borderColor: 'rgba(16, 185, 129, 0.3)',
+                            },
+                          ]}
+                        >
+                          <CheckCircle2 size={12} color="#10b981" strokeWidth={2.5} />
+                          <Text style={[styles.matchText, { color: '#10b981' }]}>
+                            {copy.passwordsMatch}
+                          </Text>
+                        </View>
                       ) : (
-                        <Eye size={18} color={colors.textMuted} />
+                        <View
+                          style={[
+                            styles.matchBadge,
+                            {
+                              backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                              borderColor: 'rgba(245, 158, 11, 0.3)',
+                            },
+                          ]}
+                        >
+                          <AlertCircle size={12} color="#f59e0b" strokeWidth={2.5} />
+                          <Text style={[styles.matchText, { color: '#f59e0b' }]}>
+                            {copy.passwordsMismatch}
+                          </Text>
+                        </View>
                       )}
-                    </TouchableOpacity>
-                  }
-                />
+                    </View>
+                  )}
+                </>
               )}
 
               {/* Terms Agreement Checkbox (Sign Up only) */}
@@ -918,13 +1222,8 @@ export const LoginScreen: React.FC = () => {
               {/* Remember Me Toggle (Sign In only) */}
               {!isSignUp && (
                 <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => {
-                    try {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    } catch {}
-                    setRememberMe(!rememberMe);
-                  }}
+                  activeOpacity={0.85}
+                  onPress={toggleRememberMe}
                   style={[
                     styles.rememberRow,
                     {
@@ -972,10 +1271,12 @@ export const LoginScreen: React.FC = () => {
                       },
                     ]}
                   >
-                    <View
+                    <Animated.View
                       style={[
                         styles.switchThumb,
-                        rememberMe ? styles.switchThumbOn : styles.switchThumbOff,
+                        {
+                          transform: [{ translateX: switchThumbTranslateX }],
+                        },
                       ]}
                     />
                   </View>
@@ -1029,207 +1330,38 @@ export const LoginScreen: React.FC = () => {
               )}
 
               {/* Primary Submit Button with Gradient */}
-              <TouchableOpacity
-                activeOpacity={0.85}
+              <PressableScale
                 onPress={handleAuth}
                 disabled={loading}
+                activeScale={0.97}
+                hapticFeedback="medium"
                 style={styles.submitButtonWrap}
               >
                 <LinearGradient
-                  colors={['#3b82f6', '#6366f1']}
+                  colors={['#2563eb', '#06b6d4']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.submitGradient}
                 >
                   {loading ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
+                    <View style={styles.loadingRow}>
+                      <ActivityIndicator size="small" color="#ffffff" />
+                      <Text style={styles.submitText}>{copy.processing}</Text>
+                    </View>
                   ) : (
-                    <Text style={styles.submitText}>
-                      {isSignUp ? copy.submitSignup : copy.submitSignin}
-                    </Text>
+                    <>
+                      <Text style={styles.submitText}>
+                        {isSignUp ? copy.submitSignup : copy.submitSignin}
+                      </Text>
+                      <ArrowRight size={16} color="#ffffff" strokeWidth={2.5} />
+                    </>
                   )}
                 </LinearGradient>
-              </TouchableOpacity>
+              </PressableScale>
 
-              {/* Social Login Section */}
-              <View style={styles.socialDividerRow}>
-                <View
-                  style={[styles.socialDividerLine, { backgroundColor: colors.border }]}
-                />
-                <Text
-                  style={[styles.socialDividerText, { color: colors.textMuted }]}
-                >
-                  {copy.orContinueWith}
-                </Text>
-                <View
-                  style={[styles.socialDividerLine, { backgroundColor: colors.border }]}
-                />
-              </View>
-
-              <View style={styles.socialButtonsRow}>
-                {/* Google Button */}
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => handleSocialLogin('google')}
-                  disabled={loading}
-                  style={[
-                    styles.socialButton,
-                    {
-                      backgroundColor: colors.surfaceHover,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                >
-                  <Svg width={18} height={18} viewBox="0 0 24 24">
-                    <Path
-                      fill="#4285F4"
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    />
-                    <Path
-                      fill="#34A853"
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    />
-                    <Path
-                      fill="#FBBC05"
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.85z"
-                    />
-                    <Path
-                      fill="#EA4335"
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.85c.87-2.6 3.3-4.53 6.16-4.53z"
-                    />
-                  </Svg>
-                  <Text
-                    style={[styles.socialButtonText, { color: colors.textPrimary }]}
-                  >
-                    Google
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Facebook Button */}
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => handleSocialLogin('facebook')}
-                  disabled={loading}
-                  style={[
-                    styles.socialButton,
-                    {
-                      backgroundColor: colors.surfaceHover,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                >
-                  <Svg width={18} height={18} viewBox="0 0 24 24">
-                    <Path
-                      fill="#1877F2"
-                      d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"
-                    />
-                  </Svg>
-                  <Text
-                    style={[styles.socialButtonText, { color: colors.textPrimary }]}
-                  >
-                    Facebook
-                  </Text>
-                </TouchableOpacity>
-              </View>
             </View>
           )}
-        </View>
-
-        {/* Developer & Fast Access Section */}
-        <View style={styles.devSection}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => {
-              try {
-                Haptics.selectionAsync();
-              } catch {}
-              setShowDevSuite(!showDevSuite);
-            }}
-            style={styles.devHeaderToggle}
-          >
-            <Layers size={14} color={colors.textMuted} />
-            <Text style={[styles.devHeaderText, { color: colors.textMuted }]}>
-              {copy.devHeader}
-            </Text>
-            <Text style={[styles.devHeaderArrow, { color: colors.textMuted }]}>
-              {showDevSuite ? '▲' : '▼'}
-            </Text>
-          </TouchableOpacity>
-
-          {showDevSuite && (
-            <View style={styles.devContent}>
-              {/* 1-Tap Fast Access: Webapp Account */}
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={handleQuickWebappLogin}
-                disabled={loading}
-                style={[
-                  styles.quickLoginCard,
-                  {
-                    backgroundColor: 'rgba(99, 102, 241, 0.12)',
-                    borderColor: colors.primary,
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.quickIconWrap,
-                    { backgroundColor: colors.primary },
-                  ]}
-                >
-                  <Zap size={20} color="#ffffff" />
-                </View>
-                <View style={styles.quickInfo}>
-                  <View style={styles.quickBadgeRow}>
-                    <Text
-                      style={[styles.quickTitle, { color: colors.textPrimary }]}
-                    >
-                      {copy.quickWebappTitle}
-                    </Text>
-                    <View
-                      style={[
-                        styles.verifiedBadge,
-                        { backgroundColor: 'rgba(16, 185, 129, 0.16)' },
-                      ]}
-                    >
-                      <ShieldCheck size={11} color="#10b981" />
-                      <Text style={styles.verifiedText}>
-                        {isVietnamese ? 'Chính chủ' : 'Primary'}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text
-                    style={[styles.quickSub, { color: colors.textSecondary }]}
-                  >
-                    {copy.quickWebappSubtitle}
-                  </Text>
-                  <Text style={[styles.quickHint, { color: colors.primary }]}>
-                    {copy.quickWebappHint}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-
-              {/* Demo Fast Access Button */}
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={handleDemoLogin}
-                disabled={loading}
-                style={[
-                  styles.demoBtn,
-                  {
-                    backgroundColor: colors.surfaceHover,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <Text style={[styles.demoText, { color: colors.primary }]}>
-                  {copy.quickDemoBtn}
-                </Text>
-                <ArrowRight size={16} color={colors.primary} />
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
+        </Animated.View>
 
         {/* Brand Footer */}
         <View style={styles.brandFooter}>
@@ -1256,13 +1388,26 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingTop: 50,
     paddingBottom: 40,
   },
   topBar: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
+  },
+  themeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  themeText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   langButton: {
     flexDirection: 'row',
@@ -1297,7 +1442,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
-    shadowColor: '#6366f1',
+    shadowColor: '#2563eb',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.45,
     shadowRadius: 14,
@@ -1322,10 +1467,24 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
+    position: 'relative',
     borderRadius: 16,
     borderWidth: 1,
     padding: 4,
     marginBottom: 16,
+  },
+  tabIndicator: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    bottom: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   tabButton: {
     flex: 1,
@@ -1379,6 +1538,22 @@ const styles = StyleSheet.create({
     marginTop: 4,
     lineHeight: 18,
   },
+  forgotHeroBadge: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  forgotIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 4,
+  },
   formContent: {
     gap: 2,
   },
@@ -1399,6 +1574,24 @@ const styles = StyleSheet.create({
     color: '#34d399',
     lineHeight: 18,
     fontWeight: '500',
+  },
+  matchStatusWrap: {
+    marginTop: -6,
+    marginBottom: 12,
+    alignItems: 'flex-start',
+  },
+  matchBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  matchText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   forgotPassRow: {
     alignItems: 'flex-end',
@@ -1592,7 +1785,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     marginTop: 4,
-    shadowColor: '#6366f1',
+    shadowColor: '#2563eb',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
@@ -1603,6 +1796,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
+    gap: 8,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
   },
   submitText: {
@@ -1627,23 +1826,31 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     fontWeight: '600',
   },
-  socialButtonsRow: {
-    flexDirection: 'row',
-    gap: 12,
+  socialButtonsCol: {
+    flexDirection: 'column',
+    gap: 10,
+    width: '100%',
   },
-  socialButton: {
-    flex: 1,
+  socialButtonFull: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 11,
+    gap: 10,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
     borderRadius: 14,
     borderWidth: 1,
+    minHeight: 48,
+    position: 'relative',
   },
-  socialButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
+  socialButtonFullText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    letterSpacing: -0.1,
+  },
+  socialLoader: {
+    position: 'absolute',
+    right: 16,
   },
   backButtonRow: {
     flexDirection: 'row',
@@ -1656,89 +1863,6 @@ const styles = StyleSheet.create({
   backButtonText: {
     fontSize: 13,
     fontWeight: '700',
-  },
-  devSection: {
-    marginTop: 24,
-  },
-  devHeaderToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-  },
-  devHeaderText: {
-    fontSize: 11.5,
-    fontWeight: '600',
-  },
-  devHeaderArrow: {
-    fontSize: 9,
-  },
-  devContent: {
-    marginTop: 10,
-  },
-  quickLoginCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 18,
-    borderWidth: 1.5,
-    padding: 14,
-    marginBottom: 12,
-    gap: 12,
-  },
-  quickIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickInfo: {
-    flex: 1,
-  },
-  quickBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 2,
-  },
-  quickTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    gap: 3,
-  },
-  verifiedText: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    color: '#10b981',
-  },
-  quickSub: {
-    fontSize: 11.5,
-    marginBottom: 3,
-  },
-  quickHint: {
-    fontSize: 10.5,
-    fontWeight: '600',
-  },
-  demoBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 8,
-  },
-  demoText: {
-    fontSize: 13,
-    fontWeight: '600',
   },
   brandFooter: {
     alignItems: 'center',

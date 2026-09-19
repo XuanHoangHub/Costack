@@ -106,7 +106,7 @@ export default function DashboardKpis({
   ];
 
   return (
-    <div className="apexa-telemetry-ribbon rounded-2xl bg-white dark:bg-[#121318] border border-black/[0.06] dark:border-white/[0.08] shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] overflow-hidden text-left">
+    <div className="apexa-telemetry-ribbon rounded-2xl bg-white dark:bg-[#0a0b10] border border-black/[0.06] dark:border-white/[0.08] shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] overflow-hidden text-left">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-black/[0.05] dark:divide-white/[0.06]">
         {cards.map((card, index) => (
           <motion.div
@@ -114,26 +114,29 @@ export default function DashboardKpis({
             initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.04, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="group relative flex flex-col justify-between p-4.5 sm:p-5 hover:bg-black/[0.015] dark:hover:bg-white/[0.025] transition-colors"
+            className="group relative flex flex-col justify-between p-4.5 sm:p-5 hover:bg-black/[0.015] dark:hover:bg-white/[0.025] transition-all duration-200 hover:-translate-y-0.5 cursor-default"
           >
+            {/* Ambient Corner Glow on Hover */}
+            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-blue-500/5 dark:from-blue-400/5 to-transparent rounded-tr-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+
             {/* Top Row: Title, Badge, and Minimalist Icon */}
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold tracking-wider uppercase text-neutral-400 dark:text-zinc-400">
                 {card.title}
               </span>
               
-              <div className={`flex h-7.5 w-7.5 items-center justify-center rounded-xl ${card.iconBg} ${card.iconColor} transition-transform duration-200 group-hover:scale-105`}>
-                <card.icon className="h-4 w-4 stroke-[2]" />
+              <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${card.iconBg} ${card.iconColor} transition-transform duration-200 group-hover:scale-110 shadow-xs`}>
+                <card.icon className="h-4 w-4 stroke-[2.2]" />
               </div>
             </div>
 
             {/* Metric Value & Subtitle */}
             <div className="mt-2.5 space-y-1">
               <div className="flex items-baseline justify-between gap-2">
-                <span className="text-2xl sm:text-[28px] font-extrabold tracking-tight text-neutral-900 dark:text-white tabular-nums">
+                <span className="text-2xl sm:text-[28px] font-extrabold tracking-tight text-neutral-900 dark:text-white tabular-nums group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                   {card.value}
                 </span>
-                <span className="rounded-full bg-black/[0.04] dark:bg-white/[0.08] border border-transparent dark:border-white/[0.06] px-2.5 py-0.5 text-[10px] font-bold text-neutral-600 dark:text-zinc-200">
+                <span className="rounded-full bg-black/[0.04] dark:bg-white/[0.08] border border-transparent dark:border-white/[0.06] px-2.5 py-0.5 text-[10px] font-bold text-neutral-600 dark:text-zinc-200 group-hover:border-blue-500/20 transition-colors">
                   {card.badge}
                 </span>
               </div>
@@ -142,14 +145,14 @@ export default function DashboardKpis({
               </p>
             </div>
 
-            {/* Micro Progress Bar */}
+            {/* Micro Progress Bar with Luminous Glow */}
             <div className="mt-3.5">
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/[0.04] dark:bg-white/[0.07]">
                 <motion.div
                   initial={prefersReducedMotion ? false : { width: 0 }}
                   animate={{ width: `${Math.min(100, Math.max(0, card.progress))}%` }}
                   transition={{ delay: 0.1 + index * 0.04, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                  className={`h-full rounded-full bg-gradient-to-r ${card.barColor}`}
+                  className={`h-full rounded-full bg-gradient-to-r ${card.barColor} shadow-xs`}
                 />
               </div>
             </div>

@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   X,
   Plus,
@@ -14,6 +16,13 @@ import {
 import { useTranslation } from '@/contexts/TranslationContext';
 import { Task, User, Space, Priority } from '@/types';
 import SignedImage from '../SignedImage';
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
 
 interface DashboardQuickTaskModalProps {
   isOpen: boolean;
@@ -40,7 +49,14 @@ export default function DashboardQuickTaskModal({
   const [spaceId, setSpaceId] = useState(spaces[0]?.id || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -83,10 +99,37 @@ export default function DashboardQuickTaskModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/50 text-left animate-in fade-in duration-150">
-      <div className="fixed inset-0" onClick={onClose} />
+    <Portal>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            key="dashboard-quick-task-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[150] flex items-center justify-center p-4 text-left"
+          >
+            {/* Backdrop */}
+            <motion.div
+              key="dashboard-quick-task-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="fixed inset-0 bg-black/40 dark:bg-black/75 backdrop-blur-xs cursor-pointer"
+              onClick={onClose}
+            />
 
-      <div className="relative w-full max-w-lg rounded-2xl bg-white dark:bg-[#151824] border border-black/[0.08] dark:border-white/[0.1] shadow-2xl dark:shadow-[0_25px_60px_rgba(0,0,0,0.85),inset_0_1px_0_0_rgba(255,255,255,0.06)] p-5 sm:p-6 z-10 space-y-4">
+            {/* Modal Card */}
+            <motion.div
+              key="dashboard-quick-task-card"
+              initial={{ scale: 0.94, opacity: 0, y: 16 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.94, opacity: 0, y: 16 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+              className="relative w-full max-w-lg rounded-2xl bg-white dark:bg-[#0d0f15] border border-black/[0.08] dark:border-white/[0.1] shadow-2xl dark:shadow-[0_25px_60px_rgba(0,0,0,0.85),inset_0_1px_0_0_rgba(255,255,255,0.06)] p-5 sm:p-6 z-10 space-y-4 font-sans select-none"
+            >
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-black/[0.05] dark:border-white/[0.06]">
           <div className="flex items-center gap-2.5">
@@ -249,7 +292,10 @@ export default function DashboardQuickTaskModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Portal>
   );
 }

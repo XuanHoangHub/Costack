@@ -41,7 +41,7 @@ const endOfLocalDay = (date: Date) => {
   return result;
 };
 
-const priorityScore = (task: Task) => ({ urgent: 4, high: 3, medium: 2, low: 1 }[task.priority] || 0);
+const priorityScore = (task: Task) => (task.priority ? ({ urgent: 4, high: 3, medium: 2, low: 1 }[task.priority] || 0) : 0);
 
 const sortByAttention = (left: Task, right: Task) => {
   const leftDue = parseTaskDueDate(left.dueDate)?.getTime() ?? Number.MAX_SAFE_INTEGER;

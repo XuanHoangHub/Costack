@@ -32,7 +32,9 @@ export function rankSpaceTasks(tasks: Task[], now = new Date()): Task[] {
     if (overdue) return overdue;
     const dateDiff = taskDueTime(a.dueDate) - taskDueTime(b.dueDate);
     if (!Number.isNaN(dateDiff) && dateDiff !== 0) return dateDiff;
-    return (priority[b.priority] || 0) - (priority[a.priority] || 0);
+    const bW = b.priority ? (priority[b.priority] || 0) : 0;
+    const aW = a.priority ? (priority[a.priority] || 0) : 0;
+    return bW - aW;
   });
 }
 

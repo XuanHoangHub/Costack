@@ -22,6 +22,7 @@ export interface ThemeColors {
   primaryLight: string;
   primarySubtle: string;
   primaryText: string;
+  accentCyan: string;
 
   todo: string;
   inprogress: string;
@@ -48,6 +49,8 @@ export interface ThemeColors {
   tabBarInactive: string;
 
   gradientPrimary: GradientTuple;
+  gradientBrand: GradientTuple;
+  gradientAi: GradientTuple;
   gradientCard: GradientTuple;
   gradientStat: GradientTuple;
   gradientSuccess: GradientTuple;
@@ -56,14 +59,14 @@ export interface ThemeColors {
 }
 
 export const darkColors: ThemeColors = {
-  // Ultra-modern obsidian & slate backgrounds
-  background: '#08090d',
-  surface: '#111420',
-  surfaceHover: '#181c2d',
-  surfaceSubtle: '#141724',
-  card: '#121522',
-  cardSecondary: '#161a29',
-  cardBorder: 'rgba(255, 255, 255, 0.09)',
+  // Ultra-modern obsidian & slate backgrounds (matching Upgen Webapp design tokens)
+  background: '#0c0e14',
+  surface: '#121520',
+  surfaceHover: '#181c2b',
+  surfaceSubtle: '#151926',
+  card: '#121520',
+  cardSecondary: '#181c2b',
+  cardBorder: 'rgba(255, 255, 255, 0.08)',
   border: 'rgba(255, 255, 255, 0.08)',
   borderSubtle: 'rgba(255, 255, 255, 0.04)',
   borderHover: 'rgba(255, 255, 255, 0.16)',
@@ -74,12 +77,13 @@ export const darkColors: ThemeColors = {
   textMuted: '#64748b',
   textPlaceholder: '#475569',
 
-  // Primary Brand & Gradients (Indigo / Purple high-tech)
-  primary: '#6366f1',
-  primaryHover: '#4f46e5',
-  primaryLight: '#818cf8',
-  primarySubtle: 'rgba(99, 102, 241, 0.15)',
-  primaryText: '#a5b4fc',
+  // Primary Brand & Accent (Modern Electric Blue & Cyan like Upgen Webapp)
+  primary: '#3b82f6',
+  primaryHover: '#2563eb',
+  primaryLight: '#60a5fa',
+  primarySubtle: 'rgba(59, 130, 246, 0.15)',
+  primaryText: '#93c5fd',
+  accentCyan: '#06b6d4',
 
   // Statuses
   todo: '#64748b',
@@ -91,11 +95,11 @@ export const darkColors: ThemeColors = {
   priorityLow: '#64748b',
   priorityMedium: '#38bdf8',
   priorityHigh: '#f59e0b',
-  priorityUrgent: '#f43f5e',
+  priorityUrgent: '#ef4444',
 
   // Semantic
-  danger: '#f43f5e',
-  dangerSubtle: 'rgba(244, 63, 94, 0.15)',
+  danger: '#ef4444',
+  dangerSubtle: 'rgba(239, 68, 68, 0.15)',
   success: '#10b981',
   successSubtle: 'rgba(16, 185, 129, 0.15)',
   warning: '#f59e0b',
@@ -104,17 +108,19 @@ export const darkColors: ThemeColors = {
   infoSubtle: 'rgba(14, 165, 233, 0.15)',
 
   // Tab & Header
-  tabBar: '#0b0d14',
-  tabBarBorder: 'rgba(255, 255, 255, 0.07)',
-  tabBarActive: '#818cf8',
+  tabBar: '#0c0e14',
+  tabBarBorder: 'rgba(255, 255, 255, 0.08)',
+  tabBarActive: '#38bdf8',
   tabBarInactive: '#64748b',
 
-  // Gradients for Modern Cards
-  gradientPrimary: ['#6366f1', '#8b5cf6'],
-  gradientCard: ['#171a2b', '#0f121d'],
-  gradientStat: ['rgba(99, 102, 241, 0.12)', 'rgba(139, 92, 246, 0.04)'],
+  // Gradients for Modern Cards & Brand Identity
+  gradientPrimary: ['#2563eb', '#06b6d4'],
+  gradientBrand: ['#2563eb', '#06b6d4'],
+  gradientAi: ['#7c3aed', '#2563eb', '#06b6d4'],
+  gradientCard: ['#181c2b', '#121520'],
+  gradientStat: ['rgba(37, 99, 235, 0.14)', 'rgba(6, 182, 212, 0.04)'],
   gradientSuccess: ['#059669', '#10b981'],
-  gradientDanger: ['#e11d48', '#f43f5e'],
+  gradientDanger: ['#dc2626', '#ef4444'],
   gradientWarning: ['#d97706', '#f59e0b'],
 };
 
@@ -125,7 +131,7 @@ export const lightColors: ThemeColors = {
   surfaceHover: '#f1f5f9',
   surfaceSubtle: '#f8fafc',
   card: '#ffffff',
-  cardSecondary: '#f1f5f9',
+  cardSecondary: '#f8fafc',
   cardBorder: '#e2e8f0',
   border: '#e2e8f0',
   borderSubtle: '#f1f5f9',
@@ -137,12 +143,13 @@ export const lightColors: ThemeColors = {
   textMuted: '#64748b',
   textPlaceholder: '#94a3b8',
 
-  // Primary brand
-  primary: '#4f46e5',
-  primaryHover: '#4338ca',
-  primaryLight: '#6366f1',
-  primarySubtle: 'rgba(79, 70, 229, 0.1)',
-  primaryText: '#4f46e5',
+  // Primary brand (Electric Blue)
+  primary: '#2563eb',
+  primaryHover: '#1d4ed8',
+  primaryLight: '#3b82f6',
+  primarySubtle: 'rgba(37, 99, 235, 0.09)',
+  primaryText: '#2563eb',
+  accentCyan: '#0891b2',
 
   // Statuses
   todo: '#64748b',
@@ -169,13 +176,15 @@ export const lightColors: ThemeColors = {
   // Tab & Header
   tabBar: '#ffffff',
   tabBarBorder: '#e2e8f0',
-  tabBarActive: '#4f46e5',
+  tabBarActive: '#2563eb',
   tabBarInactive: '#94a3b8',
 
   // Gradients for Modern Cards
-  gradientPrimary: ['#4f46e5', '#7c3aed'],
+  gradientPrimary: ['#2563eb', '#06b6d4'],
+  gradientBrand: ['#2563eb', '#06b6d4'],
+  gradientAi: ['#7c3aed', '#2563eb', '#06b6d4'],
   gradientCard: ['#ffffff', '#f8fafc'],
-  gradientStat: ['rgba(79, 70, 229, 0.08)', 'rgba(124, 58, 237, 0.02)'],
+  gradientStat: ['rgba(37, 99, 235, 0.08)', 'rgba(6, 182, 212, 0.02)'],
   gradientSuccess: ['#059669', '#10b981'],
   gradientDanger: ['#dc2626', '#ef4444'],
   gradientWarning: ['#d97706', '#f59e0b'],

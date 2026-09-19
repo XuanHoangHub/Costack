@@ -52,7 +52,7 @@ const variantStyles: Record<ButtonVariant, string> = {
   outline:
     "bg-transparent text-[var(--cu-text-primary)] border-[var(--cu-border-strong)] hover:bg-[var(--cu-primary-subtle)] hover:text-[var(--cu-primary)] hover:border-[var(--cu-primary)]",
   gradient:
-    "bg-gradient-to-r from-[#2563EB] to-[#06B6D4] text-white border-transparent shadow-[var(--ax-shadow-primary)] hover:shadow-[var(--ax-shadow-lg)] hover:brightness-110",
+    "bg-[var(--cu-primary)] text-white border-transparent shadow-[var(--ax-shadow-primary)] hover:bg-[var(--cu-primary-hover)] hover:shadow-[var(--ax-shadow-md)]",
   soft:
     "bg-[var(--cu-primary-light)] text-[var(--cu-primary)] border-transparent hover:bg-[var(--cu-primary-subtle)]",
   link:

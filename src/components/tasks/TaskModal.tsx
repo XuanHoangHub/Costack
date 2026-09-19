@@ -40,7 +40,8 @@ import {
   Zap,
 } from 'lucide-react';
 import { Task, TaskStatus, Priority, User, Space, Workspace, SubTask, TaskAttachment } from '../../types';
-import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker, DropdownFieldSelect, LabelsFieldSelect } from './TaskSelects';
+import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, TeamPillSelect, PremiumDatePicker, DropdownFieldSelect, LabelsFieldSelect } from './TaskSelects';
+import { getTaskTeamIds } from '@/lib/teamStore';
 import { Select } from '../ui/Select';
 import NotionDocEditor from './NotionDocEditor';
 import SignedImage from '../SignedImage';
@@ -183,8 +184,9 @@ export default function TaskModal({
   const [title, setTitle] = useState(initialData?.title || '');
   const [description, setDescription] = useState(initialData?.description || '');
   const [status, setStatus] = useState<TaskStatus>(initialData?.status || 'todo');
-  const [priority, setPriority] = useState<Priority>(initialData?.priority || 'medium');
+  const [priority, setPriority] = useState<Priority | undefined>(initialData ? initialData.priority : 'medium');
   const [assigneeIds, setAssigneeIds] = useState<string[]>(initialData?.assigneeIds?.length ? initialData.assigneeIds : initialData?.assigneeId ? [initialData.assigneeId] : []);
+  const [teamIds, setTeamIds] = useState<string[]>(initialData?.teamIds?.length ? initialData.teamIds : initialData?.teamId ? [initialData.teamId] : (getTaskTeamIds(initialData) || []));
   const [spaceId, setSpaceId] = useState<string>(initialData?.spaceId || activeSpaceId || (spaces[0]?.id || ''));
   const [listId, setListId] = useState<string | null>(initialData?.listId || activeListId || null);
   const [startDate, setStartDate] = useState<string>(initialData?.startDate || '');
@@ -261,8 +263,9 @@ export default function TaskModal({
     setTitle(initialData?.title || '');
     setDescription(initialData?.description || '');
     setStatus(initialData?.status || 'todo');
-    setPriority(initialData?.priority || 'medium');
+    setPriority(initialData ? initialData.priority : 'medium');
     setAssigneeIds(initialData?.assigneeIds?.length ? initialData.assigneeIds : initialData?.assigneeId ? [initialData.assigneeId] : []);
+    setTeamIds(initialData?.teamIds?.length ? initialData.teamIds : initialData?.teamId ? [initialData.teamId] : (getTaskTeamIds(initialData) || []));
     setSpaceId(nextSpaceId);
     setListId(nextListId);
     setStartDate(initialData?.startDate || '');
@@ -524,6 +527,8 @@ export default function TaskModal({
       priority,
       assigneeId: primaryAssigneeId,
       assigneeIds,
+      teamId: teamIds[0] || undefined,
+      teamIds,
       spaceId: spaceId || undefined,
       listId: listId || undefined,
       workspaceId: activeWorkspaceId,
@@ -535,6 +540,7 @@ export default function TaskModal({
       hoursLogged: hoursLogged === '' ? undefined : Math.max(0, Number(hoursLogged) || 0),
       custom_fields: {
         ...resolvedValues,
+        teamIds,
         reminder: reminder !== 'none' ? reminder : undefined,
         isMilestone: isMilestone ? true : undefined,
       },
@@ -557,6 +563,8 @@ export default function TaskModal({
       if (createAnother) {
         setTitle('');
         setDescription('');
+        setAssigneeIds([]);
+        setTeamIds([]);
         setSubtasks([]);
         setNewSubtaskTitle('');
         setTags([]);
@@ -784,35 +792,44 @@ export default function TaskModal({
     }
   };
 
-  if (!isOpen) return null;
-
   // ═══════════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════════
   return (
     <Portal>
-      <div className="fixed inset-0 z-[150] flex items-center justify-center p-3 sm:p-5 font-sans select-none">
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.12 }}
-          onClick={requestClose}
-          className="fixed inset-0 modal-backdrop bg-black/25 dark:bg-black/60 cursor-pointer"
-        />
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            key="task-modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[150] flex items-center justify-center p-3 sm:p-5 font-sans select-none"
+          >
+            {/* Backdrop */}
+            <motion.div
+              key="task-modal-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={requestClose}
+              className="fixed inset-0 modal-backdrop bg-black/40 dark:bg-black/75 backdrop-blur-xs cursor-pointer"
+            />
 
-        {/* ════════════════════════════════════════ */}
-        {/* MODAL CARD                               */}
-        {/* ════════════════════════════════════════ */}
-        <motion.div
-          initial={{ scale: 0.96, opacity: 0, y: 12 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.96, opacity: 0, y: 12 }}
-          transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+            {/* ════════════════════════════════════════ */}
+            {/* MODAL CARD                               */}
+            {/* ════════════════════════════════════════ */}
+            <motion.div
+              key="task-modal-card"
+              initial={{ scale: 0.94, opacity: 0, y: 16 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.94, opacity: 0, y: 16 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
           ref={createDialogRef}
           role="dialog" aria-modal="true" aria-label={isVietnamese ? (isEditMode ? 'Chỉnh sửa công việc' : 'Tạo công việc mới') : (isEditMode ? 'Edit task' : 'Create task')}
-          className="task-create-studio relative z-10 w-full max-w-2xl bg-white dark:bg-[#1a1a1a] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] outline-none"
+          className="task-create-studio relative z-10 w-full max-w-2xl bg-white dark:bg-[#0a0b10] border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] outline-none"
           style={{ boxShadow: '0 20px 50px -12px rgba(0,0,0,0.3)' }}
         >
           {/* Top Accent Bar */}
@@ -983,7 +1000,7 @@ export default function TaskModal({
 
                 <div className="w-px h-5 bg-slate-200 dark:bg-slate-700/60 hidden sm:block" />
 
-                <PriorityPillSelect value={priority} onChange={(v) => setPriority(v || 'medium')} />
+                <PriorityPillSelect value={priority} onChange={(v) => setPriority(v)} />
 
                 <div className="w-px h-5 bg-slate-200 dark:bg-slate-700/60 hidden sm:block" />
 
@@ -991,6 +1008,17 @@ export default function TaskModal({
                   value={assigneeIds}
                   members={members.filter(m => !activeWorkspaceId || !m.workspaceIds?.length || m.workspaceIds.includes(activeWorkspaceId))}
                   onChange={(ids) => setAssigneeIds(ids || [])}
+                  teamIds={teamIds}
+                  onTeamChange={(tIds) => setTeamIds(tIds || [])}
+                  workspaceId={activeWorkspaceId}
+                />
+
+                <div className="w-px h-5 bg-slate-200 dark:bg-slate-700/60 hidden sm:block" />
+
+                <TeamPillSelect
+                  value={teamIds}
+                  workspaceId={activeWorkspaceId}
+                  onChange={(tIds) => setTeamIds(tIds || [])}
                 />
 
                 <div className="w-px h-5 bg-slate-200 dark:bg-slate-700/60 hidden sm:block" />
@@ -1717,7 +1745,9 @@ export default function TaskModal({
             </div>
           </div>
         </motion.div>
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Portal>
   );
 }

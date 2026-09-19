@@ -9,6 +9,8 @@ import {
   TextInput,
 } from 'react-native';
 import { FileText, Plus, ChevronRight, X, Star } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
+import Toast from 'react-native-toast-message';
 import { useUiStore } from '../../store/uiStore';
 import { useDocStore } from '../../store/docStore';
 import { DocumentItem } from '../../types';
@@ -30,11 +32,19 @@ export const DocsScreen: React.FC<DocsScreenProps> = ({ navigation }) => {
 
   const handleCreate = () => {
     if (!title.trim()) return;
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {}
     addDoc({
       title: title.trim(),
       content: content.trim(),
       emoji: '📄',
       category: 'General',
+    });
+    Toast.show({
+      type: 'success',
+      text1: 'Thành công',
+      text2: `Tài liệu "${title.trim()}" đã được tạo.`,
     });
     setTitle('');
     setContent('');

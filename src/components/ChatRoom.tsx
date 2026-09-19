@@ -3057,7 +3057,7 @@ ${channelMessagesText}`;
                           <span className="truncate">{c.name}</span>
                         </div>
                         {(unreadCounts[c.id] || 0) > 0 && (
-                          <span className="ml-auto px-1.5 py-0.2 min-w-[18px] text-center text-[9px] font-black text-white bg-gradient-to-r from-rose-500 to-pink-500 rounded-full shadow-xs">
+                          <span className="ml-auto px-1.5 py-0.2 min-w-[18px] text-center text-[9px] font-black text-white bg-rose-500 rounded-full shadow-xs">
                             {unreadCounts[c.id] > 99 ? '99+' : unreadCounts[c.id]}
                           </span>
                         )}
@@ -3117,7 +3117,7 @@ ${channelMessagesText}`;
                         <Hash className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-500' : 'text-slate-400 dark:text-slate-500'}`} />
                         <span className="truncate">{c.name}</span>
                         {(unreadCounts[c.id] || 0) > 0 && (
-                          <span className="ml-auto px-1.5 py-0.2 min-w-[18px] text-center text-[9px] font-black text-white bg-gradient-to-r from-rose-500 to-pink-500 rounded-full shadow-xs">
+                          <span className="ml-auto px-1.5 py-0.2 min-w-[18px] text-center text-[9px] font-black text-white bg-rose-500 rounded-full shadow-xs">
                             {unreadCounts[c.id] > 99 ? '99+' : unreadCounts[c.id]}
                           </span>
                         )}
@@ -3329,7 +3329,7 @@ ${channelMessagesText}`;
                             {member.name}
                           </span>
                           {unread > 0 && (
-                            <span className="px-1.5 py-0.2 min-w-[18px] text-center text-[9px] font-black text-white bg-gradient-to-r from-rose-500 to-pink-500 rounded-full shadow-xs shrink-0">
+                            <span className="px-1.5 py-0.2 min-w-[18px] text-center text-[9px] font-black text-white bg-rose-500 rounded-full shadow-xs shrink-0">
                               {unread > 99 ? '99+' : unread}
                             </span>
                           )}
@@ -3541,7 +3541,7 @@ ${channelMessagesText}`;
                   <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white dark:border-slate-900 ${presenceDotClass(dmMember.status, true)}`} />
                 </div>
               ) : (
-                <div className="flex h-11 w-11 shrink-0 select-none items-center justify-center rounded-2xl border border-indigo-200/70 bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 text-base font-black text-white shadow-md shadow-indigo-500/20">
+                <div className="flex h-11 w-11 shrink-0 select-none items-center justify-center rounded-2xl border border-blue-500/20 bg-blue-600 text-base font-black text-white shadow-xs">
                   {isSpaceChan ? (spaceChanName ? '📁' : '#') : '#'}
                 </div>
               )}
@@ -3726,7 +3726,7 @@ ${channelMessagesText}`;
           {/* Self DM Notes View */}
           {isSelfDm && (
             <div className="flex flex-col items-center justify-center text-center py-10 max-w-lg mx-auto select-none border-b border-slate-100 dark:border-slate-800/40 mb-6 animate-fadeIn">
-              <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-indigo-500 to-cyan-500 text-white flex items-center justify-center mb-4 text-2xl shadow-lg shadow-indigo-500/25">
+              <div className="w-16 h-16 rounded-3xl bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400 border border-blue-100 dark:border-blue-900/50 flex items-center justify-center mb-4 text-2xl shadow-xs">
                 🧠
               </div>
               <h2 className="text-lg font-black text-slate-900 dark:text-white mb-1.5 tracking-tight">Không gian Ghi chú Cá nhân của bạn</h2>
@@ -3751,7 +3751,7 @@ ${channelMessagesText}`;
                         setInputVal(s.prompt);
                         inputRef.current?.focus();
                       }}
-                      className="p-3 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/70 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all text-left shadow-2xs hover:-translate-y-0.5 cursor-pointer"
+                      className="p-3 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/70 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all text-left shadow-2xs hover:-translate-y-0.5 cursor-pointer"
                     >
                       {s.label}
                     </button>
@@ -3766,7 +3766,6 @@ ${channelMessagesText}`;
             <div className="flex flex-col items-center justify-center text-center py-12 max-w-xl mx-auto select-none animate-fadeIn">
               {/* Glowing Icon Header */}
               <div className="relative mb-5">
-                <div className="absolute -inset-2 bg-gradient-to-r from-blue-500/20 via-indigo-500/20 to-cyan-500/20 rounded-full blur-xl animate-pulse pointer-events-none" />
                 {isDm && dmMember ? (
                   <div className="relative">
                     <SignedImage
@@ -3777,7 +3776,7 @@ ${channelMessagesText}`;
                     <span className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white dark:border-slate-900 ${presenceDotClass(dmMember.status, true)}`} />
                   </div>
                 ) : (
-                  <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-600 text-white flex items-center justify-center text-3xl shadow-xl shadow-indigo-500/25 border border-white/20">
+                  <div className="w-20 h-20 rounded-3xl bg-blue-600 text-white flex items-center justify-center text-3xl shadow-lg shadow-blue-500/20 border border-blue-500/30">
                     {isSpaceChan ? (spaceChanName ? '📁' : '#') : '#'}
                   </div>
                 )}
@@ -3988,9 +3987,9 @@ ${channelMessagesText}`;
                   <div className={`group/bubble relative flex items-center gap-1.5 max-w-full ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                     <div className={`max-w-full break-words px-3.5 py-2.5 text-xs font-medium leading-relaxed shadow-sm ${
                       isMe
-                        ? `bg-gradient-to-br from-blue-600 to-indigo-600 text-white ${groupedWithNext ? 'rounded-[20px] rounded-br-md' : 'rounded-[20px]'} ${groupedWithPrevious ? 'rounded-tr-md' : ''}`
+                        ? `bg-blue-600 text-white ${groupedWithNext ? 'rounded-[20px] rounded-br-md' : 'rounded-[20px]'} ${groupedWithPrevious ? 'rounded-tr-md' : ''}`
                         : msg.isAi
-                          ? `border border-indigo-100 bg-gradient-to-br from-indigo-50 to-violet-50 text-slate-800 dark:border-indigo-900/70 dark:from-indigo-950/60 dark:to-violet-950/40 dark:text-slate-100 ${groupedWithNext ? 'rounded-[20px] rounded-bl-md' : 'rounded-[20px]'} ${groupedWithPrevious ? 'rounded-tl-md' : ''}`
+                          ? `border border-blue-100 bg-blue-50/70 text-slate-800 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-slate-100 ${groupedWithNext ? 'rounded-[20px] rounded-bl-md' : 'rounded-[20px]'} ${groupedWithPrevious ? 'rounded-tl-md' : ''}`
                           : `border border-slate-200/70 bg-slate-100 text-slate-800 dark:border-slate-700/80 dark:bg-slate-800 dark:text-slate-100 ${groupedWithNext ? 'rounded-[20px] rounded-bl-md' : 'rounded-[20px]'} ${groupedWithPrevious ? 'rounded-tl-md' : ''}`
                     }`}>
 
@@ -4068,9 +4067,9 @@ ${channelMessagesText}`;
                               </div>
                             </div>
                           ) : (msg.attachment as any)?.isVideoMeet ? (
-                            <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-sky-500/10 to-cyan-500/10 dark:from-indigo-950/40 dark:via-cyan-950/30 border border-indigo-200 dark:border-indigo-800 max-w-sm space-y-3 text-left">
+                            <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/50 max-w-sm space-y-3 text-left">
                               <div className="flex items-center gap-2.5">
-                                <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                                <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
                                   <Video className="w-5 h-5 animate-pulse" />
                                 </div>
                                 <div className="min-w-0">
@@ -4436,7 +4435,7 @@ ${channelMessagesText}`;
           {/* AI typing simulation tracker */}
           {isAiTyping && activeChannelId.endsWith('apexa-brain-ai') && (
             <div className="flex gap-3 items-start animate-pulse">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center text-white shrink-0 shadow-sm">
+              <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white shrink-0 shadow-xs">
                 <Bot className="w-4.5 h-4.5 animate-spin" />
               </div>
               <div className="space-y-1 text-left">
@@ -5035,7 +5034,7 @@ ${channelMessagesText}`;
                   {inputVal.trim() || selectedFile ? (
                     <button
                       type="submit"
-                      className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-sm shadow-blue-500/30 flex items-center justify-center cursor-pointer active:scale-90 transition-all shrink-0"
+                      className="w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-xs flex items-center justify-center cursor-pointer active:scale-90 transition-all shrink-0"
                       title="Gửi tin nhắn (Enter)"
                     >
                       <Send className="w-3.5 h-3.5 fill-current ml-0.5" />
@@ -6455,7 +6454,7 @@ ${channelMessagesText}`;
                     setShowChatSettingsModal(false);
                     triggerToast?.('success', 'Đã lưu Cài đặt Chat ⚙️', 'Các tùy chọn đã được cập nhật thành công');
                   }}
-                  className="px-5 py-2.5 rounded-xl text-white shadow-md hover:brightness-105 transition-all cursor-pointer bg-gradient-to-r from-blue-600 to-indigo-600 font-black"
+                  className="px-5 py-2.5 rounded-xl text-white shadow-xs hover:bg-blue-700 transition-all cursor-pointer bg-blue-600 font-bold"
                 >
                   Hoàn tất
                 </button>

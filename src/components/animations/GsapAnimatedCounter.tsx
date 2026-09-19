@@ -10,6 +10,7 @@ interface GsapAnimatedCounterProps {
   decimals?: number;
   duration?: number;
   className?: string;
+  scroller?: string | HTMLElement;
 }
 
 export function GsapAnimatedCounter({
@@ -19,6 +20,7 @@ export function GsapAnimatedCounter({
   decimals = 0,
   duration = 2.0,
   className = "",
+  scroller,
 }: GsapAnimatedCounterProps) {
   const containerRef = useRef<HTMLSpanElement>(null);
   const [displayValue, setDisplayValue] = useState<string>(
@@ -35,10 +37,12 @@ export function GsapAnimatedCounter({
       }
 
       const counterObj = { count: 0 };
+      const scrollerEl = scroller || containerRef.current.closest(".apexa-auth-shell") || undefined;
 
       ScrollTrigger.create({
         trigger: containerRef.current,
-        start: "top 90%",
+        scroller: scrollerEl,
+        start: "top 95%",
         once: true,
         onEnter: () => {
           gsap.to(counterObj, {

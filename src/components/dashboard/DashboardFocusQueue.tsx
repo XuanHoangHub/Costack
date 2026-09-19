@@ -112,8 +112,8 @@ export default function DashboardFocusQueue({
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
 
-      const aWeight = priorityWeight[a.priority] || 0;
-      const bWeight = priorityWeight[b.priority] || 0;
+      const aWeight = (a.priority && priorityWeight[a.priority]) || 0;
+      const bWeight = (b.priority && priorityWeight[b.priority]) || 0;
       if (aWeight !== bWeight) return bWeight - aWeight;
 
       const aDue = parseDateOnly(a.dueDate)?.getTime() || Number.MAX_SAFE_INTEGER;
@@ -243,7 +243,7 @@ export default function DashboardFocusQueue({
 
       {/* Apple Inset Grouped List */}
       {filteredTasks.length > 0 ? (
-        <div className="apexa-inset-group divide-y divide-black/[0.05] dark:divide-white/[0.05] rounded-2xl bg-white dark:bg-[#121318] border border-black/[0.06] dark:border-white/[0.08] shadow-xs dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] overflow-hidden">
+        <div className="apexa-inset-group divide-y divide-black/[0.05] dark:divide-white/[0.05] rounded-2xl bg-white dark:bg-[#0a0b10] border border-black/[0.06] dark:border-white/[0.08] shadow-xs dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] overflow-hidden">
           {filteredTasks.slice(0, 10).map((task, index) => {
             const dueDate = parseDateOnly(task.dueDate);
             const isOverdue = dueDate && dueDate.getTime() < now.getTime();
@@ -340,7 +340,7 @@ export default function DashboardFocusQueue({
         </div>
       ) : (
         /* Empty State */
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#121318] p-8 text-center dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#0a0b10] p-8 text-center dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
           <div className="grid h-10 w-10 place-items-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
             <CheckCircle2 className="h-5 w-5" />
           </div>

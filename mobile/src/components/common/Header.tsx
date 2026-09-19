@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 import { useUiStore } from '../../store/uiStore';
+import { PressableScale } from './PressableScale';
 
 interface HeaderProps {
   title: string;
@@ -36,8 +37,8 @@ export const Header: React.FC<HeaderProps> = ({
       <View style={styles.content}>
         <View style={styles.leftRow}>
           {showBack && onBack && (
-            <TouchableOpacity
-              activeOpacity={0.7}
+            <PressableScale
+              activeScale={0.88}
               onPress={onBack}
               style={[
                 styles.backButton,
@@ -49,7 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <ChevronLeft size={20} color={colors.textPrimary} />
-            </TouchableOpacity>
+            </PressableScale>
           )}
           <View>
             <Text style={[styles.title, { color: colors.textPrimary }]}>

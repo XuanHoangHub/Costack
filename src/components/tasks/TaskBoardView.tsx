@@ -29,13 +29,16 @@ import {
   useSortable, 
   verticalListSortingStrategy 
 } from '@dnd-kit/sortable';
-import { Plus, Calendar, MessageSquare, Check, Pin, Paperclip, ChevronDown, Play, Pause, Clock, GripVertical, User as UserIcon, Hourglass, Copy, Flag, Repeat, MoreHorizontal, Trash2, Edit2, X } from 'lucide-react';
+import { Plus, Calendar, MessageSquare, Check, Pin, Paperclip, ChevronDown, Play, Pause, Clock, GripVertical, User as UserIcon, Hourglass, Copy, Flag, Repeat, MoreHorizontal, Trash2, Edit2, X, AlignLeft, Tag, CircleDot, ChevronsLeft, ChevronsRight, ChevronRight, UserCircle2, Building2 } from 'lucide-react';
 import { Task, User, TaskStatus, Priority, Workspace } from '../../types';
+import { getTaskTeamIds, useWorkspaceTeams } from '@/lib/teamStore';
 import SignedImage from '../SignedImage';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { getStoredStatuses, getStoredPriorities, OptionConfig, getLocalizedOptionLabel, getColorOption, saveStatuses, savePriorities, COLOR_PALETTE, DEFAULT_STATUSES, DEFAULT_PRIORITIES } from '../../utils/fieldConfig';
 import { useUiStore } from '../../store/uiStore';
 import { Select } from '../ui/Select';
+import { fireTaskCompleteConfetti } from '@/lib/confetti';
+import { playSuccessSound, playToggleSound } from '@/lib/soundEffects';
 
 // Simple Portal wrapper
 function Portal({ children }: { children: React.ReactNode }) {
@@ -61,13 +64,13 @@ const dropAnimationConfig: DropAnimation = {
 
 import { useDroppable } from '@dnd-kit/core';
 
-function KanbanColumn({ id, children, isOver }: { id: string; children: React.ReactNode; isOver?: boolean }) {
+function KanbanColumn({ id, children, isOver, isCollapsed }: { id: string; children: React.ReactNode; isOver?: boolean; isCollapsed?: boolean }) {
   const { setNodeRef } = useDroppable({ id });
 
   return (
     <div 
       ref={setNodeRef}
-      className={`flex-1 space-y-2 min-h-[140px] transition-colors duration-150 rounded-xl p-0.5 overflow-y-auto custom-scrollbar ${
+      className={isCollapsed ? "w-full h-full flex flex-col items-center justify-between" : `flex-1 space-y-2 min-h-[140px] transition-colors duration-150 rounded-xl p-0.5 overflow-y-auto custom-scrollbar ${
         isOver ? 'bg-indigo-50/50 dark:bg-indigo-950/40 ring-2 ring-indigo-500/40 ring-dashed' : 'bg-transparent'
       }`}
     >
@@ -157,11 +160,11 @@ function KanbanCard({
         onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
         {...attributes}
         {...listeners}
-        className={`group relative bg-white dark:bg-[#181c2b] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] rounded-xl border ${
+        className={`group relative bg-white dark:bg-[#18191d] rounded-xl border ${
           isCardDragging 
             ? 'border-2 border-dashed border-indigo-400/80 bg-indigo-50/20 dark:bg-indigo-950/20 shadow-none pointer-events-none' 
-            : 'border-slate-200/80 dark:border-white/[0.08] hover:border-indigo-400/60 dark:hover:border-indigo-500/50 shadow-xs hover:shadow-md'
-        } border-l-[3.5px] ${dynamicPriorityColors[task.priority] || PRIORITY_COLORS[task.priority]} cursor-grab active:cursor-grabbing hover:-translate-y-0.5 active:scale-[0.99] transition-[border-color,box-shadow,background-color,transform] duration-150 ${selectedTaskIds.includes(task.id) ? 'ring-2 ring-indigo-500 border-indigo-500' : ''} overflow-hidden select-none`}
+            : 'border-slate-200/80 dark:border-[#2a2b32] hover:border-slate-300 dark:hover:border-zinc-600 shadow-xs hover:shadow-md'
+        } cursor-grab active:cursor-grabbing transition-all duration-150 ${selectedTaskIds.includes(task.id) ? 'ring-2 ring-indigo-500 border-indigo-500' : ''} overflow-hidden select-none`}
       >
         {imageAttachment && (
           <div className="w-full relative overflow-hidden bg-slate-50 dark:bg-slate-950" style={{ height: localCardSize === 'small' ? '65px' : localCardSize === 'large' ? '120px' : '90px' }}>
@@ -169,250 +172,175 @@ function KanbanCard({
           </div>
         )}
 
-        <div className={paddingCls}>
-          {localCardSize === 'small' ? (
-            <div className="flex items-center gap-2">
-              <h4 className={`${titleCls} leading-snug cursor-pointer hover:text-indigo-650 hover:underline transition-colors truncate flex-1 ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-850 dark:text-slate-100'}`}>
-                {task.title}
-              </h4>
-            </div>
-          ) : (
-            <>
-              {/* Card Top Meta Row */}
-              <div className="flex items-center justify-between gap-1.5 mb-2.5">
-                <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-                  <input 
-                    type="checkbox" 
-                    checked={selectedTaskIds.includes(task.id)}
-                    onChange={e => { e.stopPropagation(); setSelectedTaskIds((prev: any) => e.target.checked ? [...prev, task.id] : prev.filter((id: any) => id !== task.id)); }}
-                    onClick={e => e.stopPropagation()}
-                    className="w-3.5 h-3.5 rounded-md border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500/20 cursor-pointer shrink-0 accent-indigo-600" 
-                  />
-                  
-                  {task.isPinned && <Pin className="w-3 h-3 text-amber-500 fill-amber-400 shrink-0" />}
-
-                  {/* Quick Action Buttons on Hover */}
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-
-
-                    {onAddTask && (
-                      <button
-                        type="button"
-                        onClick={e => {
-                          e.stopPropagation();
-                          onAddTask({
-                            ...task,
-                            title: `${task.title} (Bản sao)`,
-                            subtasks: (task.subtasks || []).map((st: any) => ({ ...st, id: `sub-${crypto.randomUUID()}` })),
-                            tags: task.tags ? [...task.tags] : []
-                          });
-                          triggerToast?.('success', 'Đã nhân bản', `Đã tạo bản sao cho "${task.title}"`);
-                          if (onAddSyncLog) onAddSyncLog(`Duplicated task "${task.title}"`);
-                        }}
-                        className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-sky-600 cursor-pointer transition-all"
-                        title="Nhân bản công việc"
-                      >
-                        <Copy className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Badges */}
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {task.isPinned && (
-                    <span 
-                      title={isVietnamese ? 'Đã ghim' : 'Pinned'} 
-                      className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 text-amber-600 dark:text-amber-400"
-                    >
-                      <Pin className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
-                    </span>
-                  )}
-                  {task.isMilestone && (
-                    <span 
-                      title={isVietnamese ? 'Cột mốc quan trọng' : 'Project Milestone'} 
-                      className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200/80 text-purple-600 dark:text-purple-400"
-                    >
-                      <Flag className="w-2.5 h-2.5 fill-purple-500 text-purple-500" />
-                    </span>
-                  )}
-                  {task.recurrence && task.recurrence.frequency !== 'none' && (
-                    <span 
-                      title={isVietnamese ? 'Lặp lại định kỳ' : 'Recurring'} 
-                      className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/80 text-indigo-600 dark:text-indigo-400"
-                    >
-                      <Repeat className="w-2.5 h-2.5 text-indigo-500" />
-                    </span>
-                  )}
-                  {workspaces.find((w: any) => w.id === (task.workspaceId || 'w2')) && (() => {
-                    const ws = workspaces.find((w: any) => w.id === (task.workspaceId || 'w2'));
-                    return (
-                      <span className="text-[8.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg select-none bg-blue-50/80 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-900/30">
-                        {ws?.name}
-                      </span>
-                    );
-                  })()}
-                  <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-lg select-none border ${
-                    task.priority === 'urgent' ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200/80 text-rose-600 dark:text-rose-400 shadow-xs shadow-rose-500/10' :
-                    task.priority === 'high' ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-200/80 text-orange-600 dark:text-orange-400 shadow-xs shadow-orange-500/10' :
-                    task.priority === 'medium' ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200/80 text-blue-600 dark:text-blue-400 shadow-xs shadow-blue-500/10' :
-                    'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'
-                  }`}>
-                    <Flag className={`w-2.5 h-2.5 shrink-0 ${
-                    task.priority === 'urgent' ? 'fill-rose-500 text-rose-500' :
-                    task.priority === 'high' ? 'fill-orange-500 text-orange-500' :
-                    task.priority === 'medium' ? 'fill-blue-500 text-blue-500' :
-                    'fill-slate-400 text-slate-400'
-                  }`} />
-                    {dynamicPriorityMeta[task.priority]?.label || task.priority}
-                  </span>
-                </div>
-              </div>
-
-              {/* Task Title & Complete Toggle */}
-              <div className="flex items-start gap-2.5 mt-1.5">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const newStatus = task.status === 'completed' ? 'todo' : 'completed';
-                    onUpdateTask({ ...task, status: newStatus as TaskStatus });
-                    if (onAddSyncLog) onAddSyncLog(`Toggled completion of task "${task.title}" to: ${newStatus}`);
-                    if (typeof window !== 'undefined') {
-                      (window as any).playSystemSound?.('toggle');
-                    }
+        <div className="p-3.5">
+          {/* Card Title Row */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              {inlineEditTaskId === task.id ? (
+                <input 
+                  autoFocus 
+                  value={inlineEditTitle}
+                  onChange={e => setInlineEditTitle(e.target.value)}
+                  onKeyDown={e => { 
+                    if (e.key === 'Enter') submitInlineEdit(task); 
+                    if (e.key === 'Escape') setInlineEditTaskId(null); 
                   }}
-                  className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all duration-150 hover:scale-110 active:scale-95 mt-0.5 ${
-                    task.status === 'completed'
-                      ? 'border-emerald-500 bg-emerald-500 text-white shadow-[0_0_8px_rgba(16,185,129,0.35)]'
-                      : 'border-slate-300 dark:border-slate-600 bg-transparent text-transparent hover:border-emerald-500 hover:text-emerald-500'
+                  onBlur={() => submitInlineEdit(task)}
+                  onClick={e => e.stopPropagation()}
+                  className="text-[13px] font-semibold text-slate-900 dark:text-zinc-100 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-md px-2 py-0.5 outline-none focus:ring-1.5 focus:ring-indigo-500/30 focus:border-indigo-500/40 shadow-3xs w-full leading-snug" 
+                />
+              ) : (
+                <h4 
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    setInlineEditTaskId(task.id);
+                    setInlineEditTitle(task.title);
+                  }}
+                  className={`text-[13px] font-semibold leading-snug cursor-pointer transition-colors ${
+                    task.status === 'completed' 
+                      ? 'line-through text-slate-400 dark:text-zinc-500' 
+                      : 'text-slate-900 dark:text-zinc-100 hover:text-indigo-600 dark:hover:text-indigo-400'
+                  }`}
+                  title={task.title}
+                >
+                  {task.title}
+                </h4>
+              )}
+            </div>
+
+            {/* Quick checkbox or pin if pinned */}
+            {task.isPinned && (
+              <Pin className="w-3 h-3 text-amber-500 fill-amber-400 shrink-0 mt-0.5" />
+            )}
+          </div>
+
+          {/* Description Indicator (Image 1: ≡ icon) */}
+          {task.description && (
+            <div className="flex items-center text-zinc-400 dark:text-zinc-500 mt-1.5" title={task.description}>
+              <AlignLeft className="w-3.5 h-3.5" />
+            </div>
+          )}
+
+          {/* Tags if any */}
+          {task.tags && task.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {task.tags.slice(0, 3).map((tag: any) => (
+                <span 
+                  key={tag} 
+                  onClick={e => { e.stopPropagation(); setFilterTag(filterTag === tag ? 'all' : tag); }}
+                  className={`text-[9.5px] font-bold px-2 py-0.5 rounded-md border transition-all cursor-pointer ${
+                    filterTag === tag 
+                      ? 'bg-indigo-600 border-indigo-600 text-white' 
+                      : 'bg-zinc-100 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700/60 text-slate-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
                   }`}
                 >
-                  <Check className={`w-2 h-2 text-white dark:text-slate-100 transition-transform duration-200 ${task.status === 'completed' ? 'scale-100' : 'scale-0'}`} strokeWidth={3} />
-                </button>
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
 
-                <div className="flex-1 min-w-0">
-                  {inlineEditTaskId === task.id ? (
-                    <input 
-                      autoFocus 
-                      value={inlineEditTitle}
-                      onChange={e => setInlineEditTitle(e.target.value)}
-                      onKeyDown={e => { 
-                        if (e.key === 'Enter') submitInlineEdit(task); 
-                        if (e.key === 'Escape') setInlineEditTaskId(null); 
-                      }}
-                      onBlur={() => submitInlineEdit(task)}
-                      onClick={e => e.stopPropagation()}
-                      className="text-[13px] font-semibold text-slate-900 dark:text-slate-100 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-md px-2 py-0.5 outline-none focus:ring-1.5 focus:ring-indigo-500/30 focus:border-indigo-500/40 shadow-3xs w-full leading-snug" 
-                    />
-                  ) : (
-                    <h4 
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        setInlineEditTaskId(task.id);
-                        setInlineEditTitle(task.title);
-                      }}
-                      className={`${titleCls} leading-snug cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'}`}
-                      title="Nhấp đúp để đổi tên công việc"
-                    >
-                      {task.title}
-                    </h4>
-                  )}
-                </div>
+          {/* Custom Field Summary & Subtasks */}
+          <CustomFieldSummary fields={customFields} task={task} members={members} />
+          {hasSubtasks && (
+            <div className="mt-2.5 select-none bg-slate-50/80 dark:bg-zinc-900/60 rounded-lg p-1.5 border border-slate-100 dark:border-zinc-800/60">
+              <div className="flex justify-between items-center text-[9px] text-slate-500 dark:text-zinc-400 font-bold mb-1">
+                <span>Tiến độ phụ</span>
+                <span className="font-extrabold text-indigo-600 dark:text-indigo-400">{completedSubtasks}/{subtasks.length} ({subtaskPercent}%)</span>
               </div>
+              <div className="w-full h-1 bg-slate-200/70 dark:bg-zinc-800 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-indigo-500 rounded-full transition-[width] duration-300 ease-out"
+                  style={{ width: `${subtaskPercent}%` }}
+                />
+              </div>
+            </div>
+          )}
 
-              {task.description && (
-                <p className={descCls}>{task.description}</p>
-              )}
-
-              {task.tags && task.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2.5 mb-1">
-                  {task.tags.slice(0, 3).map((tag: any) => (
-                    <span key={tag} onClick={e => { e.stopPropagation(); setFilterTag(filterTag === tag ? 'all' : tag); }}
-                      className={`text-[9px] font-bold px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
-                        filterTag === tag 
-                          ? 'bg-indigo-600 border-indigo-600 text-white' 
-                          : 'bg-indigo-50/40 dark:bg-indigo-950/30 border-indigo-200/40 dark:border-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50'
-                      }`}>
-                      #{tag}
-                    </span>
+          {/* Card Bottom Meta Bar (Image 1: Assignee, Calendar, Priority Badge, Tag) */}
+          <div className="flex items-center justify-between pt-2.5 mt-2.5 text-slate-400 dark:text-zinc-400 select-none">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Assignee Avatar or Placeholder (Image 1) */}
+              {assignees.length > 0 ? (
+                <div className="flex -space-x-1.5 overflow-hidden">
+                  {assignees.map((member: any) => (
+                    <div
+                      key={member.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        useUiStore.getState().setViewingMemberProfileId(member.id);
+                      }}
+                      className="relative cursor-pointer hover:scale-110 transition-transform z-10"
+                      title={member.name}
+                    >
+                      {member.avatar ? (
+                        <SignedImage filePath={member.avatar} className="w-5 h-5 rounded-full object-cover border border-white dark:border-zinc-800 shadow-3xs" alt={member.name} />
+                      ) : (
+                        <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-[9px] border border-white dark:border-zinc-800 shadow-3xs">
+                          {member.name.charAt(0)}
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
-              )}
-
-              {/* Subtasks progress bar */}
-              <CustomFieldSummary fields={customFields} task={task} members={members} />
-              {hasSubtasks && (
-                <div className="mt-3 select-none bg-slate-50/80 dark:bg-slate-900/40 rounded-xl p-2 border border-slate-100 dark:border-slate-800/60">
-                  <div className="flex justify-between items-center text-[9.5px] text-slate-500 dark:text-slate-400 font-bold mb-1">
-                    <span>Tiến độ phụ</span>
-                    <span className="font-extrabold text-indigo-600 dark:text-indigo-400">{completedSubtasks}/{subtasks.length} ({subtaskPercent}%)</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-slate-200/70 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-[width] duration-300 ease-out"
-                      style={{ width: `${subtaskPercent}%` }}
-                    />
-                  </div>
+              ) : (
+                <div className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-300" title={locale === 'vi' ? 'Chưa phân công' : 'Unassigned'}>
+                  <UserCircle2 className="w-4 h-4" />
                 </div>
               )}
 
-              {/* Card Footer Meta */}
-              <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2.5 mt-2.5 text-[10.5px] text-slate-400 dark:text-slate-500 font-semibold select-none">
-                <div className="flex items-center gap-1.5">
-                  {assignees.length > 0 ? (
-                    <div className="flex -space-x-1.5 overflow-hidden">
-                      {assignees.map((member: any) => (
-                        <div
-                          key={member.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            useUiStore.getState().setViewingMemberProfileId(member.id);
-                          }}
-                          className="relative group/avatar cursor-pointer hover:scale-110 transition-transform z-10"
-                          title={member.name}
-                        >
-                          {member.avatar ? (
-                            <SignedImage filePath={member.avatar} className="w-5 h-5 rounded-full object-cover border-2 border-white dark:border-slate-900 shadow-3xs" alt={member.name} />
-                          ) : (
-                            <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-[9px] border-2 border-white dark:border-slate-900 shadow-3xs">
-                              {member.name.charAt(0)}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 text-slate-400 flex items-center justify-center dark:bg-slate-800 dark:border-slate-700"><UserIcon className="w-3 h-3" /></div>
-                  )}
-                  {task.commentsCount > 0 && (
-                    <span className="flex items-center gap-0.5 ml-1">
-                      <MessageSquare className="w-3 h-3 text-slate-400" />
-                      {task.commentsCount}
-                    </span>
-                  )}
-                  {task.attachments && task.attachments.length > 0 && (
-                    <span className="flex items-center gap-0.5">
-                      <Paperclip className="w-3 h-3 text-slate-400" />
-                      {task.attachments.length}
-                    </span>
-                  )}
-                  {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
-                    <span title="Đang chờ công việc khác" className="flex items-center gap-0.5 text-amber-500"><Hourglass className="h-3 w-3" /></span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-1">
-                  {daysInfo && (
-                    <span className={`px-2 py-0.5 rounded-lg flex items-center gap-1 text-[9px] font-black border ${daysInfo.cls}`}>
-                      <Calendar className="w-2.5 h-2.5" />
-                      {daysInfo.text}
-                    </span>
-                  )}
-                </div>
+              {/* Calendar Icon (Image 1) */}
+              <div 
+                className="flex items-center text-zinc-400 dark:text-zinc-500 hover:text-zinc-300" 
+                title={task.dueDate ? `Hạn chót: ${task.dueDate}` : (locale === 'vi' ? 'Chưa có ngày hạn' : 'No due date')}
+              >
+                <Calendar className="w-3.5 h-3.5" />
               </div>
-            </>
-          )}
+
+              {/* Priority Flag Badge (Image 1: 🚩 Urgent / High / Low) */}
+              <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md select-none border ${
+                task.priority === 'urgent' ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 shadow-xs' :
+                task.priority === 'high' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 shadow-xs' :
+                task.priority === 'medium' ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' :
+                'bg-zinc-500/10 border-zinc-500/20 text-zinc-400'
+              }`}>
+                <Flag className={`w-2.5 h-2.5 shrink-0 ${
+                  task.priority === 'urgent' ? 'fill-rose-500 text-rose-500' :
+                  task.priority === 'high' ? 'fill-amber-500 text-amber-500' :
+                  task.priority === 'medium' ? 'fill-blue-500 text-blue-500' :
+                  'fill-zinc-400 text-zinc-400'
+                }`} />
+                <span className="capitalize">{task.priority === 'urgent' ? 'Urgent' : task.priority === 'high' ? 'High' : task.priority === 'medium' ? 'Normal' : 'Low'}</span>
+              </span>
+
+              {/* Tag Icon (Image 1) */}
+              <div className="flex items-center text-zinc-400 dark:text-zinc-500 hover:text-zinc-300" title={locale === 'vi' ? 'Nhãn công việc' : 'Tags'}>
+                <Tag className="w-3.5 h-3.5" />
+              </div>
+
+              {/* Team Icon / Pill if assigned */}
+              {getTaskTeamIds(task).length > 0 && (
+                <div className="flex items-center text-indigo-400 text-[10px] font-bold" title="Đội ngũ">
+                  <Building2 className="w-3.5 h-3.5" />
+                </div>
+              )}
+            </div>
+
+            {/* Extra chips: comments / attachments / due date */}
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold">
+              {task.commentsCount > 0 && (
+                <span className="flex items-center gap-0.5 text-zinc-400">
+                  <MessageSquare className="w-3 h-3" />
+                  {task.commentsCount}
+                </span>
+              )}
+              {daysInfo && (
+                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${daysInfo.cls}`}>
+                  {daysInfo.text}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -551,6 +479,7 @@ interface TaskBoardViewProps {
   onStartGlobalTimer?: (id: string) => void;
   onStopGlobalTimer?: () => void;
   hideHeaderControls?: boolean;
+  showEmptyStatuses?: boolean;
 }
 
 export default function TaskBoardView({
@@ -559,7 +488,8 @@ export default function TaskBoardView({
   boardSwimlaneBy, setBoardSwimlaneBy, filterTag, setFilterTag,
   isSmartSort, isUrgentNearDueTask, isMultiSelectMode, activeDragId, activeOverDropId,
   cardSize = 'medium', setCardSize, cardCover = true, setCardCover, onAddTask, onStartFocus,
-  activeTimerTaskId = null, onStartGlobalTimer, onStopGlobalTimer, hideHeaderControls = false, customFields = []
+  activeTimerTaskId = null, onStartGlobalTimer, onStopGlobalTimer, hideHeaderControls = false, customFields = [],
+  showEmptyStatuses = true
 }: TaskBoardViewProps) {
 
   const { t, locale } = useTranslation();
@@ -644,6 +574,25 @@ export default function TaskBoardView({
   const [localActiveOverDropId, setLocalActiveOverDropId] = useState<string | null>(null);
   const [activeDragTask, setActiveDragTask] = useState<Task | null>(null);
   const [collapsedSwimlanes, setCollapsedSwimlanes] = useState<string[]>([]);
+  const [collapsedColumns, setCollapsedColumns] = useState<Record<string, boolean>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('apexa_kanban_collapsed_cols');
+        if (stored) return JSON.parse(stored);
+      } catch (e) {}
+    }
+    return {};
+  });
+
+  const toggleColumnCollapse = useCallback((colId: string) => {
+    setCollapsedColumns(prev => {
+      const next = { ...prev, [colId]: !prev[colId] };
+      try {
+        localStorage.setItem('apexa_kanban_collapsed_cols', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  }, []);
   const [inlineAddCell, setInlineAddCell] = useState<string | null>(null);
   const [inlineTitle, setInlineTitle] = useState('');
   const isDraggingRef = useRef(false);
@@ -752,14 +701,24 @@ export default function TaskBoardView({
   };
 
   const columns: string[] = useMemo(() => {
+    let base: string[];
     if (boardGroupBy === 'status') {
-      return statusConfigs.length > 0 ? statusConfigs.map(s => s.id) : ['todo', 'inprogress', 'review', 'completed'];
+      base = statusConfigs.length > 0 ? statusConfigs.map(s => s.id) : ['todo', 'inprogress', 'review', 'completed'];
+    } else if (boardGroupBy === 'priority') {
+      base = priorityConfigs.length > 0 ? priorityConfigs.map(p => p.id) : ['urgent', 'high', 'medium', 'low'];
+    } else {
+      base = [...members.map(m => m.id), 'unassigned'];
     }
-    if (boardGroupBy === 'priority') {
-      return priorityConfigs.length > 0 ? priorityConfigs.map(p => p.id) : ['urgent', 'high', 'medium', 'low'];
+    if (showEmptyStatuses === false) {
+      base = base.filter(col => {
+        if (boardGroupBy === 'status') return filteredTasks.some(t => t.status === col);
+        if (boardGroupBy === 'priority') return filteredTasks.some(t => t.priority === col);
+        if (boardGroupBy === 'assignee') return filteredTasks.some(t => (t.assigneeId || 'unassigned') === col || (t.assigneeIds && t.assigneeIds.includes(col)));
+        return true;
+      });
     }
-    return [...members.map(m => m.id), 'unassigned'];
-  }, [boardGroupBy, members, statusConfigs, priorityConfigs]);
+    return base;
+  }, [boardGroupBy, members, statusConfigs, priorityConfigs, showEmptyStatuses, filteredTasks]);
 
   const swimlaneRows: string[] = useMemo(() => {
     if (boardSwimlaneBy === 'none') return [];
@@ -858,7 +817,7 @@ export default function TaskBoardView({
         if (boardGroupBy === 'status') {
           colId = t.status;
         } else if (boardGroupBy === 'priority') {
-          colId = t.priority;
+          colId = t.priority || 'low';
         } else if (boardGroupBy === 'assignee') {
           colId = t.assigneeId || 'unassigned';
         }
@@ -884,7 +843,7 @@ export default function TaskBoardView({
         if (boardGroupBy === 'status') {
           colId = t.status;
         } else if (boardGroupBy === 'priority') {
-          colId = t.priority;
+          colId = t.priority || 'low';
         } else if (boardGroupBy === 'assignee') {
           colId = t.assigneeId || 'unassigned';
         }
@@ -893,7 +852,7 @@ export default function TaskBoardView({
         if (boardSwimlaneBy === 'status') {
           rowId = t.status;
         } else if (boardSwimlaneBy === 'priority') {
-          rowId = t.priority;
+          rowId = t.priority || 'low';
         } else if (boardSwimlaneBy === 'assignee') {
           rowId = t.assigneeId || 'unassigned';
         }
@@ -1409,7 +1368,7 @@ export default function TaskBoardView({
 
     return (
       <div 
-        className={`rounded-2xl border-l-[3.5px] ${dynamicPriorityColors[task.priority] || PRIORITY_COLORS[task.priority]} border-y border-r border-indigo-400/80 dark:border-indigo-500/80 bg-white dark:bg-[#18181b] cursor-grabbing shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_60px_rgba(0,0,0,0.7)] scale-[1.02] rotate-[1deg] ring-4 ring-indigo-500/15 overflow-hidden will-change-transform`}
+        className={`rounded-2xl border-l-[3.5px] ${task.priority ? (dynamicPriorityColors[task.priority] || PRIORITY_COLORS[task.priority]) : 'border-l-slate-300 dark:border-l-slate-700'} border-y border-r border-indigo-400/80 dark:border-indigo-500/80 bg-white dark:bg-[#0a0b10] cursor-grabbing shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_60px_rgba(0,0,0,0.7)] scale-[1.02] rotate-[1deg] ring-4 ring-indigo-500/15 overflow-hidden will-change-transform`}
       >
         {imageAttachment && (
           <div className="w-full relative overflow-hidden bg-slate-50 dark:bg-slate-955" style={{ height: localCardSize === 'small' ? '65px' : localCardSize === 'large' ? '120px' : '90px' }}>
@@ -1444,7 +1403,7 @@ export default function TaskBoardView({
                     task.priority === 'medium' ? 'bg-yellow-50/70 border-yellow-100 text-yellow-700 dark:bg-yellow-950/20 dark:border-yellow-900/30 dark:text-yellow-400' :
                     'bg-slate-50 border-slate-200 text-slate-600 dark:bg-slate-800/40 dark:border-slate-700 dark:text-slate-400'
                   }`}>
-                    {dynamicPriorityMeta[task.priority]?.label || task.priority}
+                    {(task.priority && dynamicPriorityMeta[task.priority]?.label) || task.priority || 'Normal'}
                   </span>
                 </div>
               </div>
@@ -1656,6 +1615,77 @@ export default function TaskBoardView({
               const colMeta = getColumnMeta(col);
               const colTasks = boardState.columns[col]?.taskIds.map(id => boardState.tasks[id]).filter(Boolean) || [];
               const isOverColumn = localActiveOverDropId === col;
+              const isColCollapsed = !!collapsedColumns[col];
+
+              if (isColCollapsed) {
+                return (
+                  <div
+                    key={col}
+                    role="group"
+                    onClick={() => toggleColumnCollapse(col)}
+                    aria-label={`${colMeta.label}: ${colTasks.length} ${locale === 'vi' ? 'công việc' : 'tasks'} (Thu gọn)`}
+                    className={`apexa-board-column-collapsed w-11 min-w-[44px] max-w-[44px] flex-shrink-0 bg-slate-100/80 dark:bg-[#121316] hover:bg-slate-200/70 dark:hover:bg-[#18191f] py-3.5 px-1 rounded-xl flex flex-col items-center justify-between transition-all duration-150 border border-slate-200/80 dark:border-white/[0.08] cursor-pointer group/collapsed shadow-xs hover:border-slate-300 dark:hover:border-zinc-700 ${
+                      isOverColumn ? 'ring-2 ring-indigo-500/40 bg-indigo-50/40 dark:bg-indigo-950/40 border-indigo-400/60' : ''
+                    }`}
+                    title={locale === 'vi' ? `Nhấp để mở rộng cột ${colMeta.label}` : `Click to expand column ${colMeta.label}`}
+                  >
+                    <KanbanColumn id={col} isOver={isOverColumn} isCollapsed={true}>
+                      <div className="flex flex-col items-center gap-3 w-full h-full py-1">
+                        {/* Expand Icon Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleColumnCollapse(col);
+                          }}
+                          className="w-7 h-7 rounded-lg bg-white dark:bg-zinc-800/90 border border-slate-200 dark:border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-zinc-100 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors shadow-3xs"
+                          title={locale === 'vi' ? 'Mở rộng cột' : 'Expand column'}
+                        >
+                          <ChevronsRight className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Dotted circle icon (Image 2) */}
+                        <div className="flex items-center justify-center w-6 h-6 text-zinc-400 dark:text-zinc-500">
+                          <CircleDot className="w-4 h-4" />
+                        </div>
+
+                        {/* Task Count badge */}
+                        <span className="font-black text-[11px] px-1.5 py-0.5 rounded-md bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 min-w-[20px] text-center shadow-3xs">
+                          {colTasks.length}
+                        </span>
+
+                        {/* Vertical Status Label (Image 2) */}
+                        <div className="flex-1 flex items-center justify-center my-3">
+                          <span 
+                            className="text-[11px] font-black uppercase tracking-wider text-zinc-400 group-hover/collapsed:text-zinc-100 transition-colors select-none"
+                            style={{
+                              writingMode: 'vertical-rl',
+                              transform: 'rotate(180deg)',
+                            }}
+                          >
+                            {colMeta.label}
+                          </span>
+                        </div>
+
+                        {/* Quick add */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleColumnCollapse(col);
+                            setInlineAddCell(col);
+                            setInlineTitle('');
+                          }}
+                          className="w-7 h-7 rounded-lg bg-white/60 dark:bg-zinc-800/60 hover:bg-white dark:hover:bg-zinc-700 border border-slate-200/60 dark:border-zinc-700 text-zinc-400 hover:text-zinc-200 flex items-center justify-center transition-colors"
+                          title={locale === 'vi' ? 'Thêm công việc' : 'Add task'}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </KanbanColumn>
+                  </div>
+                );
+              }
                          
               return (
                 <div 
@@ -1663,7 +1693,7 @@ export default function TaskBoardView({
                   role="group"
                   aria-label={`${colMeta.label}: ${colTasks.length} ${locale === 'vi' ? 'công việc' : 'tasks'}`}
                   style={{ '--column-accent': boardGroupBy === 'status' ? ({ todo: '#8190a8', inprogress: '#e9a23b', review: '#7c6ce7', completed: '#26a885' }[col] || '#8190a8') : boardGroupBy === 'priority' ? ({ urgent: '#dc668b', high: '#e9a23b', medium: '#5871e9', low: '#26a885' }[col] || '#8190a8') : '#5871e9' } as React.CSSProperties}
-                  className={`apexa-board-column w-[265px] sm:w-[275px] min-w-[265px] sm:min-w-[275px] flex-shrink-0 bg-slate-100/70 dark:bg-[#121520]/90 backdrop-blur-2xl p-3 rounded-xl flex flex-col gap-2.5 transition-colors duration-150 border border-slate-200/80 dark:border-white/[0.08] shadow-[0_4px_24px_-6px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] hover:border-slate-300 dark:hover:border-white/15 hover:shadow-[0_12px_36px_-6px_rgba(0,0,0,0.08)] ${
+                  className={`apexa-board-column w-[265px] sm:w-[275px] min-w-[265px] sm:min-w-[275px] flex-shrink-0 bg-slate-100/70 dark:bg-[#06070a]/90 backdrop-blur-2xl p-3 rounded-xl flex flex-col gap-2.5 transition-colors duration-150 border border-slate-200/80 dark:border-white/[0.08] shadow-[0_4px_24px_-6px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] hover:border-slate-300 dark:hover:border-white/15 hover:shadow-[0_12px_36px_-6px_rgba(0,0,0,0.08)] ${
                     isOverColumn ? 'ring-2 ring-indigo-500/40 bg-indigo-50/40 dark:bg-indigo-950/40 border-indigo-400/60' : ''
                   }`}
                 >
@@ -1671,40 +1701,71 @@ export default function TaskBoardView({
                   <div className="flex flex-col gap-1.5 px-0.5 py-0.5 text-xs">
                     <div className="flex items-center justify-between">
                       {editingColumnId === col ? (
-                        <div className="flex items-center gap-1.5 flex-1 mr-2">
+                        <div className="flex items-center gap-1.5 flex-1 mr-2" onClick={(e) => e.stopPropagation()}>
                           <input
                             ref={editColumnInputRef}
                             type="text"
                             value={editingColumnTitle}
                             onChange={(e) => setEditingColumnTitle(e.target.value)}
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveRenameColumn(col);
-                              else if (e.key === 'Escape') { setEditingColumnId(null); setEditingColumnTitle(''); }
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleSaveRenameColumn(col);
+                              } else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                setEditingColumnId(null);
+                                setEditingColumnTitle('');
+                              }
                             }}
-                            className="px-2 py-0.5 text-xs font-black bg-white dark:bg-slate-900 border border-indigo-500 rounded-lg text-slate-800 dark:text-slate-100 outline-none w-full"
+                            onBlur={() => {
+                              if (editingColumnTitle.trim() && editingColumnTitle.trim() !== colMeta.label) {
+                                handleSaveRenameColumn(col);
+                              } else {
+                                setEditingColumnId(null);
+                                setEditingColumnTitle('');
+                              }
+                            }}
+                            className="px-2 py-0.5 text-xs font-black bg-white dark:bg-slate-900 border border-indigo-500 rounded-lg text-slate-800 dark:text-slate-100 outline-none w-full shadow-xs focus:ring-1.5 focus:ring-indigo-500/30"
                             autoFocus
                           />
                           <button
+                            onMouseDown={(e) => e.preventDefault()}
                             onClick={() => handleSaveRenameColumn(col)}
-                            className="p-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer transition-colors"
+                            className="p-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer transition-colors shrink-0"
                             title={locale === 'vi' ? 'Lưu' : 'Save'}
                           >
                             <Check className="w-3 h-3 stroke-[2.5]" />
                           </button>
                           <button
+                            onMouseDown={(e) => e.preventDefault()}
                             onClick={() => { setEditingColumnId(null); setEditingColumnTitle(''); }}
-                            className="p-1 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-500 hover:bg-slate-300 dark:hover:bg-slate-700 cursor-pointer transition-colors"
+                            className="p-1 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-500 hover:bg-slate-300 dark:hover:bg-slate-700 cursor-pointer transition-colors shrink-0"
                             title={locale === 'vi' ? 'Hủy' : 'Cancel'}
                           >
                             <X className="w-3 h-3" />
                           </button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2">
+                        <div 
+                          className="flex items-center gap-2 cursor-pointer select-none group/colheader"
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            if (boardGroupBy === 'status' || boardGroupBy === 'priority') {
+                              setEditingColumnId(col);
+                              setEditingColumnTitle(colMeta.label);
+                              setTimeout(() => {
+                                editColumnInputRef.current?.focus();
+                                editColumnInputRef.current?.select();
+                              }, 80);
+                            }
+                          }}
+                          title={boardGroupBy === 'status' || boardGroupBy === 'priority' ? (locale === 'vi' ? 'Nhấp đúp để đổi tên' : 'Double click to rename') : undefined}
+                        >
                           {colMeta.avatar && (
                             <SignedImage filePath={colMeta.avatar} className="w-5 h-5 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-3xs" alt={colMeta.label} />
                           )}
-                          <span className={`px-2.5 py-1 rounded-xl text-[10.5px] font-black tracking-wider uppercase flex items-center gap-1.5 border shadow-3xs ${colMeta.badgeBg} ${colMeta.badgeText}`}>
+                          <span className={`px-2.5 py-1 rounded-xl text-[10.5px] font-black tracking-wider uppercase flex items-center gap-1.5 border shadow-3xs transition-transform group-hover/colheader:scale-[1.02] ${colMeta.badgeBg} ${colMeta.badgeText}`}>
+                            <CircleDot className="w-3 h-3 shrink-0" />
                             {col === 'completed' && <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 stroke-[3px]" />}
                             {colMeta.label}
                           </span>
@@ -1723,6 +1784,15 @@ export default function TaskBoardView({
                       )}
                       
                       <div className="flex items-center gap-1">
+                        {/* Collapse Column Button (Image 2) */}
+                        <button
+                          onClick={() => toggleColumnCollapse(col)}
+                          className="w-6 h-6 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-white/[0.08] hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-3xs"
+                          title={locale === 'vi' ? 'Thu gọn cột' : 'Collapse column'}
+                        >
+                          <ChevronsLeft className="w-3.5 h-3.5" />
+                        </button>
+
                         <button 
                           onClick={() => { setInlineAddCell(col); setInlineTitle(''); }}
                           className="w-6 h-6 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-white/[0.08] hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 dark:hover:bg-indigo-950/60 dark:hover:text-indigo-300 text-slate-400 flex items-center justify-center transition-all cursor-pointer shadow-3xs"
@@ -1746,6 +1816,17 @@ export default function TaskBoardView({
 
                             {columnMenuOpen === col && (
                               <div className="absolute right-0 top-full mt-1.5 w-48 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200/80 dark:border-slate-800 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100">
+                                <button
+                                  onClick={() => {
+                                    toggleColumnCollapse(col);
+                                    setColumnMenuOpen(null);
+                                  }}
+                                  className="w-full px-3 py-1.5 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer transition-colors"
+                                >
+                                  <ChevronsLeft className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>{locale === 'vi' ? 'Thu gọn cột' : 'Collapse column'}</span>
+                                </button>
+
                                 <button
                                   onClick={() => {
                                     setEditingColumnId(col);
@@ -1869,7 +1950,7 @@ export default function TaskBoardView({
             {/* Add Column Card */}
             <div className="w-[265px] sm:w-[275px] min-w-[265px] sm:min-w-[275px] flex-shrink-0">
               {isAddingColumn ? (
-                <div className="bg-white dark:bg-[#181c2b] p-3.5 rounded-xl flex flex-col gap-3 border border-indigo-500/80 dark:border-indigo-500 shadow-xl dark:shadow-[0_12px_40px_rgba(0,0,0,0.6)] animate-in fade-in zoom-in-95 duration-150">
+                <div className="bg-white dark:bg-[#0a0b10] p-3.5 rounded-xl flex flex-col gap-3 border border-indigo-500/80 dark:border-indigo-500 shadow-xl dark:shadow-[0_12px_40px_rgba(0,0,0,0.6)] animate-in fade-in zoom-in-95 duration-150">
                   <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-white/[0.06]">
                     <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: getColorOption(newColumnColor).hex }} />
@@ -1958,9 +2039,9 @@ export default function TaskBoardView({
                 <button
                   type="button"
                   onClick={handleOpenAddColumn}
-                  className="w-full min-h-[120px] flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed border-slate-300/80 dark:border-white/[0.1] hover:border-blue-400 dark:hover:border-blue-500/60 bg-slate-100/50 dark:bg-[#121520]/50 hover:bg-white dark:hover:bg-[#181c2b] text-slate-500 dark:text-slate-400 hover:text-[#0071E3] dark:hover:text-sky-300 transition-all duration-150 cursor-pointer group shadow-3xs hover:shadow-md"
+                  className="w-full min-h-[120px] flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed border-slate-300/80 dark:border-white/[0.1] hover:border-blue-400 dark:hover:border-blue-500/60 bg-slate-100/50 dark:bg-[#06070a]/50 hover:bg-white dark:hover:bg-[#0a0b10] text-slate-500 dark:text-slate-400 hover:text-[#0071E3] dark:hover:text-sky-300 transition-all duration-150 cursor-pointer group shadow-3xs hover:shadow-md"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-white dark:bg-[#181c2b] border border-slate-200/80 dark:border-white/[0.08] flex items-center justify-center shadow-xs group-hover:scale-105 group-hover:border-blue-300 dark:group-hover:border-blue-500/50 transition-all duration-150">
+                  <div className="w-8 h-8 rounded-lg bg-white dark:bg-[#0a0b10] border border-slate-200/80 dark:border-white/[0.08] flex items-center justify-center shadow-xs group-hover:scale-105 group-hover:border-blue-300 dark:group-hover:border-blue-500/50 transition-all duration-150">
                     <Plus className="w-4 h-4 text-slate-400 group-hover:text-[#0071E3] dark:group-hover:text-sky-300 transition-colors" />
                   </div>
                   <div className="text-center">
@@ -1989,16 +2070,77 @@ export default function TaskBoardView({
 
                   return (
                     <div key={col} className="w-[265px] sm:w-[275px] min-w-[265px] sm:min-w-[275px] flex-shrink-0 px-2 py-1 flex items-center justify-between text-xs font-bold text-slate-655 dark:text-slate-405">
-                      <div className="flex items-center gap-2">
-                        {colMeta.avatar && (
-                          <SignedImage filePath={colMeta.avatar} className="w-4.5 h-4.5 rounded-full object-cover border border-slate-200 dark:border-slate-700" alt={colMeta.label} />
-                        )}
-                        <span className={`px-2 py-0.5 rounded-[4px] text-[10px] tracking-wider uppercase flex items-center gap-1.5 ${colMeta.badgeBg} ${colMeta.badgeText}`}>
-                          {col === 'completed' && <Check className="w-3 h-3 text-emerald-650 stroke-[3px]" />}
-                          {colMeta.label}
-                        </span>
-                        <span className="text-[11px] text-slate-400 dark:text-slate-500 font-extrabold">{colTasksCount}</span>
-                      </div>
+                      {editingColumnId === col ? (
+                        <div className="flex items-center gap-1.5 flex-1 mr-2" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            ref={editColumnInputRef}
+                            type="text"
+                            value={editingColumnTitle}
+                            onChange={(e) => setEditingColumnTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleSaveRenameColumn(col);
+                              } else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                setEditingColumnId(null);
+                                setEditingColumnTitle('');
+                              }
+                            }}
+                            onBlur={() => {
+                              if (editingColumnTitle.trim() && editingColumnTitle.trim() !== colMeta.label) {
+                                handleSaveRenameColumn(col);
+                              } else {
+                                setEditingColumnId(null);
+                                setEditingColumnTitle('');
+                              }
+                            }}
+                            className="px-2 py-0.5 text-xs font-black bg-white dark:bg-slate-900 border border-indigo-500 rounded-lg text-slate-800 dark:text-slate-100 outline-none w-full shadow-xs focus:ring-1.5 focus:ring-indigo-500/30"
+                            autoFocus
+                          />
+                          <button
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => handleSaveRenameColumn(col)}
+                            className="p-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer transition-colors shrink-0"
+                            title={locale === 'vi' ? 'Lưu' : 'Save'}
+                          >
+                            <Check className="w-3 h-3 stroke-[2.5]" />
+                          </button>
+                          <button
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => { setEditingColumnId(null); setEditingColumnTitle(''); }}
+                            className="p-1 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-500 hover:bg-slate-300 dark:hover:bg-slate-700 cursor-pointer transition-colors shrink-0"
+                            title={locale === 'vi' ? 'Hủy' : 'Cancel'}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div 
+                          className="flex items-center gap-2 cursor-pointer select-none group/colheader"
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            if (boardGroupBy === 'status' || boardGroupBy === 'priority') {
+                              setEditingColumnId(col);
+                              setEditingColumnTitle(colMeta.label);
+                              setTimeout(() => {
+                                editColumnInputRef.current?.focus();
+                                editColumnInputRef.current?.select();
+                              }, 80);
+                            }
+                          }}
+                          title={boardGroupBy === 'status' || boardGroupBy === 'priority' ? (locale === 'vi' ? 'Nhấp đúp để đổi tên' : 'Double click to rename') : undefined}
+                        >
+                          {colMeta.avatar && (
+                            <SignedImage filePath={colMeta.avatar} className="w-4.5 h-4.5 rounded-full object-cover border border-slate-200 dark:border-slate-700" alt={colMeta.label} />
+                          )}
+                          <span className={`px-2 py-0.5 rounded-[4px] text-[10px] tracking-wider uppercase flex items-center gap-1.5 transition-transform group-hover/colheader:scale-[1.02] ${colMeta.badgeBg} ${colMeta.badgeText}`}>
+                            {col === 'completed' && <Check className="w-3 h-3 text-emerald-650 stroke-[3px]" />}
+                            {colMeta.label}
+                          </span>
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500 font-extrabold">{colTasksCount}</span>
+                        </div>
+                      )}
                       
                       <button 
                         onClick={() => { setInlineAddCell(col); setInlineTitle(''); }}
@@ -2063,7 +2205,7 @@ export default function TaskBoardView({
                             return (
                               <div 
                                 key={col} 
-                                className={`w-[265px] sm:w-[275px] min-w-[265px] sm:min-w-[275px] flex-shrink-0 bg-slate-50/70 dark:bg-[#121520]/60 p-3 rounded-xl flex flex-col gap-2 transition-[background-color,border-color,box-shadow,ring] duration-150 border border-slate-200/80 dark:border-white/[0.08] min-h-[140px] ${
+                                className={`w-[265px] sm:w-[275px] min-w-[265px] sm:min-w-[275px] flex-shrink-0 bg-slate-50/70 dark:bg-[#06070a]/60 p-3 rounded-xl flex flex-col gap-2 transition-[background-color,border-color,box-shadow,ring] duration-150 border border-slate-200/80 dark:border-white/[0.08] min-h-[140px] ${
                                   isOverCell ? 'ring-2 ring-indigo-400/50 bg-indigo-50/30 dark:bg-indigo-950/20' : ''
                                 }`}
                               >

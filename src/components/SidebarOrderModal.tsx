@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, GripVertical, ChevronUp, ChevronDown, RotateCcw, 
@@ -13,6 +14,13 @@ import { DEFAULT_SIDEBAR_ORDER, useUiStore, SidebarZone } from '@/store/uiStore'
 import { useTranslation } from '@/contexts/TranslationContext';
 import { SidebarZoneModal } from '@/components/sidebar/SidebarZoneModal';
 import { renderSpaceIcon } from '@/components/RenderSpaceIcon';
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
 
 interface SidebarOrderModalProps {
   isOpen: boolean;
@@ -217,25 +225,37 @@ export function SidebarOrderModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center p-3 sm:p-4 md:p-6">
-      {/* Backdrop */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.15 }}
-        onClick={onClose}
-        className="absolute inset-0 bg-black/75 cursor-pointer"
-      />
+    <Portal>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            key="sidebar-order-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[999] flex items-center justify-center p-3 sm:p-4 md:p-6"
+          >
+            {/* Backdrop */}
+            <motion.div
+              key="sidebar-order-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              onClick={onClose}
+              className="absolute inset-0 bg-black/40 dark:bg-black/80 backdrop-blur-xs cursor-pointer"
+            />
 
-      {/* Modal Container */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        transition={{ duration: 0.18, ease: "easeOut" }}
-        className="relative w-full max-w-xl max-h-[90vh] flex flex-col rounded-2xl border border-white/12 bg-[#0d0e14] text-white shadow-[0_25px_60px_rgba(0,0,0,0.85)] overflow-hidden z-10"
-      >
+            {/* Modal Container */}
+            <motion.div
+              key="sidebar-order-card"
+              initial={{ opacity: 0, scale: 0.94, y: 16 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.94, opacity: 0, y: 16 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              className="relative w-full max-w-xl max-h-[90vh] flex flex-col rounded-2xl border border-white/12 bg-[#0d0e14] text-white shadow-[0_25px_60px_rgba(0,0,0,0.85)] overflow-hidden z-10"
+            >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08] bg-white/[0.02]">
           <div className="flex items-center gap-3">
@@ -481,21 +501,24 @@ export function SidebarOrderModal({
             </button>
           </div>
         </div>
-      </motion.div>
+        </motion.div>
 
-      {showZoneModal && (
-        <SidebarZoneModal
-          isOpen={showZoneModal}
-          onClose={() => {
-            setShowZoneModal(false);
-            setEditingZone(null);
-          }}
-          zone={editingZone}
-          sidebarItemsMeta={resolvedMeta}
-          triggerToast={triggerToast}
-        />
-      )}
-    </div>
+            {showZoneModal && (
+              <SidebarZoneModal
+                isOpen={showZoneModal}
+                onClose={() => {
+                  setShowZoneModal(false);
+                  setEditingZone(null);
+                }}
+                zone={editingZone}
+                sidebarItemsMeta={resolvedMeta}
+                triggerToast={triggerToast}
+              />
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Portal>
   );
 }
 

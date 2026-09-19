@@ -37,7 +37,13 @@ import {
   ChevronRight,
   Shield,
   HelpCircle,
-  Tag
+  Tag,
+  ExternalLink,
+  Link2,
+  Check,
+  SlidersHorizontal,
+  ArrowUpDown,
+  Bot
 } from 'lucide-react';
 import { Task, Document, Space, User as UserType } from '@/types';
 import { useTranslation } from '@/contexts/TranslationContext';
@@ -121,6 +127,22 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   const resultsContainerRef = useRef<HTMLDivElement | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [sourceTab, setSourceTab] = useState<'all' | 'apexa' | 'drive' | 'gmail' | 'sharepoint' | 'apps'>('all');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'relevance' | 'date' | 'title'>('relevance');
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [showSortMenu, setShowSortMenu] = useState(false);
+
+  const getTaskBreadcrumb = (t: Task) => {
+    const space = spaces.find(s => s.id === t.spaceId);
+    if (!space) return null;
+    const list = space.lists?.find(l => l.id === t.listId);
+    const folder = list?.folderId ? space.folders?.find(f => f.id === list.folderId) : null;
+    const parts = [space.name];
+    if (folder) parts.push(folder.name);
+    if (list) parts.push(list.name);
+    return parts.join(' > ');
+  };
 
   // Load recent searches from localStorage
   useEffect(() => {
@@ -588,51 +610,53 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     );
   };
 
-  if (!isOpen) return null;
-
   return (
     <Portal>
       <AnimatePresence>
-        <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 pt-[8vh] sm:pt-[10vh] overflow-hidden font-sans">
-          {/* Backdrop */}
+        {isOpen && (
           <motion.div
+            key="global-search-wrapper"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            onClick={() => {
-              onClose();
-              setSearchQuery('');
-            }}
-            className="absolute inset-0 modal-backdrop bg-black/30 dark:bg-black/70 cursor-pointer"
-          />
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[100] flex items-start justify-center p-4 pt-[8vh] sm:pt-[10vh] overflow-hidden font-sans"
+          >
+            {/* Backdrop */}
+            <motion.div
+              key="global-search-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              onClick={() => {
+                onClose();
+                setSearchQuery('');
+              }}
+              className="absolute inset-0 modal-backdrop bg-black/40 dark:bg-black/75 backdrop-blur-xs cursor-pointer"
+            />
 
-        {/* Modal Body (Raycast / Linear Command Bar) */}
-        <motion.div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="global-search-title"
-          initial={{ scale: 0.96, opacity: 0, y: -12 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.96, opacity: 0, y: -12 }}
-          transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-          className="relative bg-white dark:bg-[#111218] border border-slate-200/90 dark:border-white/10 rounded-2xl w-[min(95vw,680px)] max-sm:w-full max-sm:mx-2 overflow-hidden shadow-[0_24px_64px_rgba(15,23,42,0.18)] dark:shadow-[0_28px_72px_rgba(0,0,0,0.85)] flex flex-col max-h-[88dvh] z-10"
-        >
+            {/* Modal Body (Raycast / Linear Command Bar) */}
+            <motion.div
+              key="global-search-card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="global-search-title"
+              initial={{ scale: 0.95, opacity: 0, y: -14 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: -14 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+              className="relative bg-white dark:bg-[#0a0b10] border border-slate-200/90 dark:border-white/10 rounded-2xl w-[min(95vw,760px)] max-sm:w-full max-sm:mx-2 overflow-hidden shadow-[0_24px_64px_rgba(15,23,42,0.18)] dark:shadow-[0_28px_72px_rgba(0,0,0,0.85)] flex flex-col max-h-[88dvh] z-10"
+            >
           <h2 id="global-search-title" className="sr-only">
             {isVietnamese ? 'Tìm kiếm toàn cục Upgen' : 'Upgen Global Search'}
           </h2>
 
-          {/* Search Input Bar */}
-          <div className="px-4 py-3 border-b border-slate-200/80 dark:border-white/[0.08] flex items-center justify-between gap-3 bg-white dark:bg-[#111218] focus-within:border-blue-500/60 transition-colors">
-            {isCommandMode ? (
-              <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-200/60 dark:border-purple-800/40">
-                <Terminal className="w-4 h-4 animate-pulse" />
-              </div>
-            ) : (
-              <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-sky-400 flex items-center justify-center shrink-0 border border-blue-200/60 dark:border-blue-800/40">
-                <Search className="w-4 h-4" />
-              </div>
-            )}
+          {/* Search Input Bar (Hình 2 style) */}
+          <div className="px-4 py-3 border-b border-slate-200/80 dark:border-white/[0.08] flex items-center justify-between gap-3 bg-white dark:bg-[#0a0b10] focus-within:border-blue-500/60 transition-colors">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <Boxes className="w-4 h-4" />
+            </div>
             
             <input
               ref={inputRef}
@@ -640,7 +664,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               placeholder={
                 isCommandMode
                   ? (isVietnamese ? "Nhập lệnh hệ thống (ví dụ: /task, /doc, /erp, /ai)..." : "Type command (e.g. /task, /doc, /erp, /ai)...")
-                  : (isVietnamese ? "Tìm kiếm công việc, tài liệu, không gian, ERP, thành viên..." : "Search tasks, documents, spaces, ERP, members...")
+                  : (isVietnamese ? "Tìm kiếm, thực hiện lệnh hoặc hỏi câu hỏi..." : "Search, run a command, or ask a question...")
               }
               value={searchQuery}
               aria-label={isVietnamese ? "Tìm kiếm toàn cục" : "Global search input"}
@@ -659,117 +683,208 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               className="w-full bg-transparent text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-zinc-500 font-sans text-[13.5px] font-semibold focus:outline-none"
             />
 
-            {searchQuery && (
+            <div className="flex items-center gap-2 shrink-0">
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/[0.06] cursor-pointer transition-colors"
+                >
+                  {isVietnamese ? 'Xóa' : 'Clear'}
+                </button>
+              )}
+
+              {/* Ask AI Button (Hình 2 style) */}
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
-                className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-2.5 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/[0.06] cursor-pointer transition-colors"
+                onClick={() => {
+                  onClose();
+                  if (typeof document !== 'undefined') {
+                    const aiBtn = document.getElementById('btn_apexa_ai_float');
+                    if (aiBtn) aiBtn.click();
+                  }
+                  addSyncLog(isVietnamese ? `Hỏi AI: ${searchQuery || 'Trợ lý Upgen Brain'}` : `Ask AI: ${searchQuery || 'Upgen Brain'}`);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-500/15 to-purple-500/15 hover:from-pink-500/25 hover:to-purple-500/25 text-pink-600 dark:text-pink-400 border border-pink-300/40 dark:border-pink-500/30 text-xs font-bold transition-all shadow-2xs cursor-pointer group select-none"
+                title={isVietnamese ? "Mở Trợ lý AI Upgen Brain" : "Open Upgen Brain AI Assistant"}
               >
-                {isVietnamese ? 'Xóa' : 'Clear'}
+                <span className="text-xs">🌸</span>
+                <span>Ask AI</span>
               </button>
-            )}
 
-            <button
-              type="button"
-              aria-label={isVietnamese ? "Đóng tìm kiếm" : "Close search"}
-              onClick={() => {
-                onClose();
-                setSearchQuery('');
-              }}
-              className="h-7 w-7 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-white/[0.06] hover:bg-slate-200 dark:hover:bg-white/[0.1] text-slate-400 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer border border-slate-200/60 dark:border-white/10"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+              <button
+                type="button"
+                aria-label={isVietnamese ? "Đóng tìm kiếm" : "Close search"}
+                onClick={() => {
+                  onClose();
+                  setSearchQuery('');
+                }}
+                className="h-7 w-7 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-white/[0.06] hover:bg-slate-200 dark:hover:bg-white/[0.1] text-slate-400 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer border border-slate-200/60 dark:border-white/10"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
-          {/* Category Filter Pills (When search query exists or in command mode) */}
-          {(searchQuery.trim() !== '' || isCommandMode) && (
-            <div className="px-4 py-2 bg-slate-50/70 dark:bg-white/[0.02] border-b border-slate-200/60 dark:border-white/[0.06] flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0 min-h-[44px]">
+          {/* Source Tabs Row (Hình 2: All, Apexa, Google Drive, Gmail, SharePoint, Apps) */}
+          <div className="px-4 pt-2.5 pb-0 border-b border-slate-200/70 dark:border-white/[0.06] flex items-center gap-5 text-xs font-semibold text-slate-500 dark:text-zinc-400 overflow-x-auto scrollbar-none bg-slate-50/50 dark:bg-white/[0.01]">
+            {[
+              { id: 'all', label: isVietnamese ? 'Tất cả' : 'All' },
+              { id: 'apexa', label: 'Apexa' },
+              { id: 'drive', label: 'Google Drive' },
+              { id: 'gmail', label: 'Gmail' },
+              { id: 'sharepoint', label: 'SharePoint' },
+              { id: 'apps', label: isVietnamese ? 'Ứng dụng' : 'Apps' },
+            ].map(tab => (
               <button
-                onClick={() => setSearchCategory('all')}
+                key={tab.id}
                 type="button"
-                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1 ${
-                  searchCategory === 'all'
-                    ? 'bg-blue-600 text-white shadow-2xs'
-                    : 'bg-white dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
+                onClick={() => setSourceTab(tab.id as any)}
+                className={`pb-2 border-b-2 transition-all cursor-pointer whitespace-nowrap text-xs font-bold ${
+                  sourceTab === tab.id
+                    ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
-                {isVietnamese ? 'Tất cả' : 'All'} ({totalResultsCount})
+                {tab.label}
               </button>
+            ))}
+          </div>
+
+          {/* Category Filter Pills & Controls (Hình 2: Tasks, Docs, Agents, # Channels, Messages, ..., Filter, Sort) */}
+          <div className="px-4 py-2 border-b border-slate-200/60 dark:border-white/[0.06] flex items-center justify-between gap-2 overflow-x-auto scrollbar-none bg-white dark:bg-[#0a0b10]">
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
               <button
                 onClick={() => setSearchCategory('tasks')}
                 type="button"
-                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
                   searchCategory === 'tasks'
-                    ? 'bg-blue-600 text-white shadow-2xs'
-                    : 'bg-white dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
+                    ? 'bg-blue-600 text-white shadow-2xs font-bold'
+                    : 'bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
                 }`}
               >
-                <Briefcase className="w-3 h-3 shrink-0" />
-                <span>{isVietnamese ? 'Công việc' : 'Tasks'} ({filteredTasks.length})</span>
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>{isVietnamese ? 'Công việc' : 'Tasks'}</span>
+                <span className="text-[10px] opacity-75">({filteredTasks.length})</span>
               </button>
+
               <button
                 onClick={() => setSearchCategory('docs')}
                 type="button"
-                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
                   searchCategory === 'docs'
-                    ? 'bg-blue-600 text-white shadow-2xs'
-                    : 'bg-white dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
+                    ? 'bg-blue-600 text-white shadow-2xs font-bold'
+                    : 'bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
                 }`}
               >
-                <FileText className="w-3 h-3 shrink-0" />
-                <span>{isVietnamese ? 'Tài liệu' : 'Docs'} ({filteredDocs.length})</span>
+                <FileText className="w-3.5 h-3.5" />
+                <span>{isVietnamese ? 'Tài liệu' : 'Docs'}</span>
+                <span className="text-[10px] opacity-75">({filteredDocs.length})</span>
               </button>
-              <button
-                onClick={() => setSearchCategory('spaces')}
-                type="button"
-                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
-                  searchCategory === 'spaces'
-                    ? 'bg-blue-600 text-white shadow-2xs'
-                    : 'bg-white dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
-                }`}
-              >
-                <Layers3 className="w-3 h-3 shrink-0" />
-                <span>{isVietnamese ? 'Không gian' : 'Spaces'} ({filteredSpaces.length})</span>
-              </button>
-              <button
-                onClick={() => setSearchCategory('channels')}
-                type="button"
-                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
-                  searchCategory === 'channels'
-                    ? 'bg-blue-600 text-white shadow-2xs'
-                    : 'bg-white dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
-                }`}
-              >
-                <Hash className="w-3 h-3 shrink-0" />
-                <span>{isVietnamese ? 'Trò chuyện' : 'Chat'} ({filteredChannels.length})</span>
-              </button>
-              <button
-                onClick={() => setSearchCategory('members')}
-                type="button"
-                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
-                  searchCategory === 'members'
-                    ? 'bg-blue-600 text-white shadow-2xs'
-                    : 'bg-white dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
-                }`}
-              >
-                <UserIcon className="w-3 h-3 shrink-0" />
-                <span>{isVietnamese ? 'Thành viên' : 'Members'} ({filteredMembers.length})</span>
-              </button>
+
               <button
                 onClick={() => setSearchCategory('commands')}
                 type="button"
-                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
                   searchCategory === 'commands'
-                    ? 'bg-purple-600 text-white shadow-2xs'
-                    : 'bg-white dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
+                    ? 'bg-purple-600 text-white shadow-2xs font-bold'
+                    : 'bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
                 }`}
               >
-                <Terminal className="w-3 h-3 shrink-0" />
-                <span>{isVietnamese ? 'Lệnh' : 'Commands'} ({filteredCommands.length})</span>
+                <Bot className="w-3.5 h-3.5" />
+                <span>Agents</span>
+                <span className="text-[10px] opacity-75">({filteredCommands.length})</span>
+              </button>
+
+              <button
+                onClick={() => setSearchCategory('channels')}
+                type="button"
+                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
+                  searchCategory === 'channels'
+                    ? 'bg-blue-600 text-white shadow-2xs font-bold'
+                    : 'bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
+                }`}
+              >
+                <Hash className="w-3.5 h-3.5" />
+                <span>Channels</span>
+                <span className="text-[10px] opacity-75">({filteredChannels.length})</span>
+              </button>
+
+              <button
+                onClick={() => setSearchCategory('members')}
+                type="button"
+                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
+                  searchCategory === 'members'
+                    ? 'bg-blue-600 text-white shadow-2xs font-bold'
+                    : 'bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
+                }`}
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Messages</span>
+                <span className="text-[10px] opacity-75">({filteredMembers.length})</span>
+              </button>
+
+              <button
+                onClick={() => setSearchCategory(searchCategory === 'spaces' ? 'all' : 'spaces')}
+                type="button"
+                className={`px-2 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
+                  searchCategory === 'spaces'
+                    ? 'bg-blue-600 text-white shadow-xs font-bold'
+                    : 'bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-white/[0.1]'
+                }`}
+                title={isVietnamese ? "Thêm bộ lọc (Không gian...)" : "More filters (Spaces...)"}
+              >
+                <span>...</span>
               </button>
             </div>
-          )}
+
+            <div className="flex items-center gap-1.5 shrink-0 relative">
+              <button
+                type="button"
+                onClick={() => setShowFilterMenu(!showFilterMenu)}
+                className="px-2.5 py-1 text-xs font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] rounded-lg transition-colors flex items-center gap-1 cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-white/10"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <span>Filter</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowSortMenu(!showSortMenu)}
+                className="px-2.5 py-1 text-xs font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] rounded-lg transition-colors flex items-center gap-1 cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-white/10"
+              >
+                <ArrowUpDown className="w-3.5 h-3.5" />
+                <span>Sort</span>
+              </button>
+
+              {/* Sort Menu Dropdown */}
+              {showSortMenu && (
+                <div className="absolute right-0 top-full mt-1 w-36 rounded-xl bg-white dark:bg-[#0a0b10] border border-slate-200 dark:border-white/10 p-1 shadow-lg z-50">
+                  <button
+                    type="button"
+                    onClick={() => { setSortBy('relevance'); setShowSortMenu(false); }}
+                    className={`w-full text-left px-2.5 py-1.5 text-xs rounded-lg ${sortBy === 'relevance' ? 'bg-blue-50 text-blue-600 font-bold dark:bg-blue-900/30 dark:text-blue-400' : 'hover:bg-slate-50 dark:hover:bg-white/[0.04]'}`}
+                  >
+                    {isVietnamese ? 'Độ liên quan' : 'Relevance'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setSortBy('date'); setShowSortMenu(false); }}
+                    className={`w-full text-left px-2.5 py-1.5 text-xs rounded-lg ${sortBy === 'date' ? 'bg-blue-50 text-blue-600 font-bold dark:bg-blue-900/30 dark:text-blue-400' : 'hover:bg-slate-50 dark:hover:bg-white/[0.04]'}`}
+                  >
+                    {isVietnamese ? 'Mới nhất' : 'Recently updated'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setSortBy('title'); setShowSortMenu(false); }}
+                    className={`w-full text-left px-2.5 py-1.5 text-xs rounded-lg ${sortBy === 'title' ? 'bg-blue-50 text-blue-600 font-bold dark:bg-blue-900/30 dark:text-blue-400' : 'hover:bg-slate-50 dark:hover:bg-white/[0.04]'}`}
+                  >
+                    {isVietnamese ? 'Tên (A-Z)' : 'Title (A-Z)'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Body Content */}
           <div
@@ -1057,6 +1172,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
 
                   if (item.type === 'task') {
                     const t = item.data;
+                    const breadcrumb = getTaskBreadcrumb(t);
                     return (
                       <button
                         id={`global-search-result-${idx}`}
@@ -1072,15 +1188,23 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                         }`}
                       >
                         <div className="flex items-center gap-3 truncate min-w-0">
-                          <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shrink-0 shadow-xs">
+                          <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-sky-400 shrink-0 shadow-xs">
                             <Briefcase className="w-4 h-4" />
                           </div>
                           <div className="truncate min-w-0">
-                            <span className="text-xs font-bold text-slate-800 dark:text-slate-100 block group-hover:text-indigo-600 transition-colors truncate">
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-100 block group-hover:text-blue-600 transition-colors truncate">
                               {highlightMatch(t.title, searchQuery)}
                             </span>
-                            <div className="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
-                              <span className="truncate">{t.description ? highlightMatch(t.description, searchQuery) : (isVietnamese ? 'Không có mô tả' : 'No description')}</span>
+                            <div className="flex items-center gap-2 text-[10.5px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
+                              {breadcrumb ? (
+                                <span className="truncate text-slate-500 dark:text-zinc-400 font-medium">
+                                  {breadcrumb}
+                                </span>
+                              ) : t.description ? (
+                                <span className="truncate">{highlightMatch(t.description, searchQuery)}</span>
+                              ) : (
+                                <span>{isVietnamese ? 'Không có mô tả' : 'No description'}</span>
+                              )}
                               {t.dueDate && (
                                 <span className="shrink-0 text-amber-600 dark:text-amber-400 font-bold">
                                   • {isVietnamese ? 'Hạn:' : 'Due:'} {t.dueDate.split('T')[0]}
@@ -1112,7 +1236,61 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                              t.status === 'inprogress' ? (isVietnamese ? 'Đang làm' : 'In Progress') :
                              (isVietnamese ? 'Cần làm' : 'To Do')}
                           </span>
-                          <CornerDownLeft className={`w-3.5 h-3.5 text-indigo-500 transition-all ${isSelected ? 'opacity-100 translate-x-0.5' : 'opacity-0 group-hover:opacity-100'}`} />
+
+                          {/* Hover Actions Group (Hình 2 style) */}
+                          <div className="flex items-center gap-1 shrink-0 ml-1">
+                            <button
+                              type="button"
+                              title={isVietnamese ? "Hỏi AI về mục này" : "Ask AI about this item"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onClose();
+                                if (typeof document !== 'undefined') {
+                                  const aiBtn = document.getElementById('btn_apexa_ai_float');
+                                  if (aiBtn) aiBtn.click();
+                                }
+                                addSyncLog(`Hỏi AI về: "${t.title}"`);
+                              }}
+                              className="hidden group-hover:flex items-center gap-1 px-2 py-1 rounded-md text-[10.5px] font-bold bg-pink-50 dark:bg-pink-950/60 text-pink-600 dark:text-pink-400 hover:bg-pink-100 dark:hover:bg-pink-900/60 border border-pink-200 dark:border-pink-800 transition-colors cursor-pointer"
+                            >
+                              <span className="text-[10px]">🌸</span>
+                              <span>Ask AI</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              title={isVietnamese ? "Mở công việc" : "Open task"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                executeResultItem(item);
+                              }}
+                              className="hidden group-hover:flex p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              type="button"
+                              title={isVietnamese ? "Sao chép liên kết" : "Copy link"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (typeof window !== 'undefined') {
+                                  navigator.clipboard?.writeText?.(window.location.origin + window.location.pathname + `?task=${t.id}`);
+                                  setCopiedId(t.id);
+                                  setTimeout(() => setCopiedId(null), 2000);
+                                  addSyncLog(isVietnamese ? `Đã sao chép liên kết công việc` : `Copied task link`);
+                                }
+                              }}
+                              className="hidden group-hover:flex p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
+                            >
+                              {copiedId === t.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Link2 className="w-3.5 h-3.5" />}
+                            </button>
+
+                            {/* Blue Enter button [ ↵ ] */}
+                            <div className="flex items-center justify-center h-6 px-1.5 rounded-md bg-blue-600 text-white font-bold text-xs shadow-xs group-hover:bg-blue-700 transition-colors">
+                              <CornerDownLeft className="w-3.5 h-3.5" />
+                            </div>
+                          </div>
                         </div>
                       </button>
                     );
@@ -1151,7 +1329,23 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                           <span className="text-[8px] font-black bg-pink-50 dark:bg-pink-950 border border-pink-200 dark:border-pink-900 text-pink-600 dark:text-pink-400 px-2 py-0.5 rounded-lg uppercase font-mono">
                             {isVietnamese ? 'TÀI LIỆU' : 'DOC'}
                           </span>
-                          <CornerDownLeft className={`w-3.5 h-3.5 text-pink-500 transition-all ${isSelected ? 'opacity-100 translate-x-0.5' : 'opacity-0 group-hover:opacity-100'}`} />
+                          {/* Hover Actions Group */}
+                          <div className="flex items-center gap-1 shrink-0 ml-1">
+                            <button
+                              type="button"
+                              title={isVietnamese ? "Mở tài liệu" : "Open doc"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                executeResultItem(item);
+                              }}
+                              className="hidden group-hover:flex p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </button>
+                            <div className="flex items-center justify-center h-6 px-1.5 rounded-md bg-blue-600 text-white font-bold text-xs shadow-xs group-hover:bg-blue-700 transition-colors">
+                              <CornerDownLeft className="w-3.5 h-3.5" />
+                            </div>
+                          </div>
                         </div>
                       </button>
                     );
@@ -1195,7 +1389,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                           <span className="text-[8px] font-black bg-cyan-50 dark:bg-cyan-950 border border-cyan-200 dark:border-cyan-900 text-cyan-600 dark:text-cyan-400 px-2 py-0.5 rounded-lg uppercase font-mono">
                             {isVietnamese ? 'KHÔNG GIAN' : 'SPACE'}
                           </span>
-                          <CornerDownLeft className={`w-3.5 h-3.5 text-cyan-500 transition-all ${isSelected ? 'opacity-100 translate-x-0.5' : 'opacity-0 group-hover:opacity-100'}`} />
+                          <div className="flex items-center justify-center h-6 px-1.5 rounded-md bg-blue-600 text-white font-bold text-xs shadow-xs group-hover:bg-blue-700 transition-colors">
+                            <CornerDownLeft className="w-3.5 h-3.5" />
+                          </div>
                         </div>
                       </button>
                     );
@@ -1234,7 +1430,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                           <span className="text-[8px] font-black bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-900 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-lg uppercase font-mono">
                             {isVietnamese ? 'TRÒ CHUYỆN' : 'CHAT'}
                           </span>
-                          <CornerDownLeft className={`w-3.5 h-3.5 text-purple-500 transition-all ${isSelected ? 'opacity-100 translate-x-0.5' : 'opacity-0 group-hover:opacity-100'}`} />
+                          <div className="flex items-center justify-center h-6 px-1.5 rounded-md bg-blue-600 text-white font-bold text-xs shadow-xs group-hover:bg-blue-700 transition-colors">
+                            <CornerDownLeft className="w-3.5 h-3.5" />
+                          </div>
                         </div>
                       </button>
                     );
@@ -1273,7 +1471,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                           <span className="text-[8px] font-black bg-teal-50 dark:bg-teal-950 border border-teal-200 dark:border-teal-900 text-teal-600 dark:text-teal-400 px-2 py-0.5 rounded-lg uppercase font-mono">
                             {isVietnamese ? 'THÀNH VIÊN' : 'MEMBER'}
                           </span>
-                          <CornerDownLeft className={`w-3.5 h-3.5 text-teal-500 transition-all ${isSelected ? 'opacity-100 translate-x-0.5' : 'opacity-0 group-hover:opacity-100'}`} />
+                          <div className="flex items-center justify-center h-6 px-1.5 rounded-md bg-blue-600 text-white font-bold text-xs shadow-xs group-hover:bg-blue-700 transition-colors">
+                            <CornerDownLeft className="w-3.5 h-3.5" />
+                          </div>
                         </div>
                       </button>
                     );
@@ -1316,7 +1516,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             </div>
           </div>
         </motion.div>
-        </div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </Portal>
   );

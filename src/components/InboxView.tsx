@@ -902,7 +902,7 @@ export default function InboxView({
           {/* Row 1: Title, Scope, Multi-select mode toggle & Global actions */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 flex items-center justify-center text-white shadow-xs shrink-0">
+              <div className="w-7 h-7 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs shrink-0">
                 <Inbox className="w-3.5 h-3.5" />
               </div>
               <div className="flex items-center gap-1.5 min-w-0">
@@ -1363,10 +1363,10 @@ export default function InboxView({
               {workspaceInvitations.map(inv => (
                 <div 
                   key={inv.id} 
-                  className={`p-3.5 bg-gradient-to-br from-blue-50/90 via-indigo-50/40 to-slate-50 dark:from-blue-950/40 dark:via-indigo-950/20 dark:to-slate-900/40 border rounded-2xl flex flex-col gap-2.5 shadow-xs ${
+                  className={`p-3.5 bg-white dark:bg-slate-900 border rounded-2xl flex flex-col gap-2.5 shadow-xs ${
                     inv.token && inv.token === highlightedInviteToken 
                       ? 'border-blue-500 ring-2 ring-blue-500/25' 
-                      : 'border-blue-200/70 dark:border-blue-800/60'
+                      : 'border-slate-200/80 dark:border-slate-800'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -1631,7 +1631,7 @@ export default function InboxView({
           {/* Empty State */}
           {filteredNotifications.length === 0 && workspaceInvitations.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 px-4 text-center space-y-3.5 select-none">
-              <div className="w-14 h-14 rounded-3xl bg-gradient-to-tr from-blue-500/15 via-indigo-500/10 to-violet-500/15 text-blue-600 dark:text-sky-400 flex items-center justify-center border border-blue-500/20 shadow-sm">
+              <div className="w-14 h-14 rounded-3xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-sky-400 flex items-center justify-center border border-blue-100 dark:border-blue-900/40 shadow-xs">
                 <Check className="w-7 h-7" />
               </div>
               <div className="max-w-xs space-y-1.5">
@@ -1920,7 +1920,7 @@ export default function InboxView({
                   </div>
 
                   {/* Inspector Body: Full-bleed Responsive Multi-Column Canvas */}
-                  <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto custom-scrollbar text-left bg-gradient-to-b from-slate-50/50 via-white to-slate-50/20 dark:from-slate-950/50 dark:via-slate-900 dark:to-slate-950/20">
+                  <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto custom-scrollbar text-left bg-white dark:bg-slate-950">
                     <div className="w-full max-w-7xl mx-auto">
                       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
                         
@@ -1930,7 +1930,7 @@ export default function InboxView({
                           {/* Hero Notification Banner */}
                           {isBilling ? (
                             /* Billing Hero Card */
-                            <div className="p-6 sm:p-7 bg-gradient-to-br from-emerald-50/90 via-teal-50/40 to-slate-50 dark:from-emerald-950/30 dark:via-teal-950/20 dark:to-slate-900 border border-emerald-200/90 dark:border-emerald-800/60 rounded-3xl space-y-5 shadow-xs">
+                            <div className="p-6 sm:p-7 bg-white dark:bg-slate-900 border border-emerald-200/90 dark:border-emerald-800/60 rounded-3xl space-y-5 shadow-xs">
                               <div className="flex items-start justify-between gap-4 flex-wrap sm:flex-nowrap">
                                 <div className="flex items-center gap-3.5">
                                   <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/70 text-emerald-700 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700/60 flex items-center justify-center shadow-xs shrink-0">
@@ -2009,7 +2009,7 @@ export default function InboxView({
                               <div className="flex items-center gap-3 pt-2 flex-wrap">
                                 <button
                                   onClick={onUpgradePremium}
-                                  className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 hover:opacity-95 text-white font-black text-xs shadow-md shadow-emerald-500/20 flex items-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
+                                  className="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
                                 >
                                   <CreditCard className="w-4 h-4" />
                                   <span>{isVietnamese ? 'Thử lại thanh toán / Nâng cấp gói' : 'Retry Payment / Upgrade Plan'}</span>
@@ -2422,7 +2422,7 @@ export default function InboxView({
             </div>
 
             {/* Apexa AI Daily Briefing Smart Card */}
-            <div className="p-5 rounded-[24px] bg-gradient-to-br from-blue-50/80 via-indigo-50/40 to-violet-50/40 dark:from-blue-950/30 dark:via-indigo-950/20 dark:to-violet-950/30 border border-blue-200/70 dark:border-blue-800/60 space-y-3.5 shadow-sm shrink-0">
+            <div className="p-5 rounded-[24px] bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3.5 shadow-xs shrink-0">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 rounded-xl bg-white dark:bg-slate-900 shadow-2xs border border-blue-200/60 dark:border-blue-800/60">
@@ -2637,7 +2637,7 @@ export default function InboxView({
 
             {/* Inbox Health & 1-Click Triage */}
             {olderReadNotifications.length > 0 ? (
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-50 via-blue-50/30 to-indigo-50/30 dark:from-slate-900 dark:via-blue-950/20 dark:to-indigo-950/20 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0">
+              <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0 shadow-2xs">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="p-2 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-sky-300">
                     <Sparkles className="w-4 h-4" />

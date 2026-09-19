@@ -8,9 +8,9 @@
 
 1. **Trang chủ & Tổng quan (Dashboard)**:
    - Thống kê 4 ô nhanh: Hạn hôm nay, Quá hạn, Đang làm, Đã hoàn thành.
-   - Widget Pomodoro 1 chạm (Quick Focus).
-   - Danh sách công việc gần đây.
-   - Nút nổi FAB `+` tạo nhanh công việc.
+   - Thẻ thông minh Upgen Brain AI (Smart Daily Briefing & Action Insight).
+   - Danh sách công việc gần đây và không gian làm việc.
+   - Nút nổi FAB `+` tạo nhanh công việc với hiệu ứng nảy (spring physics).
 
 2. **Quản lý công việc (Tasks Engine)**:
    - Chuyển đổi giữa chế độ **Danh sách (List View)** và **Bảng Kanban vuốt ngang (Board View)**.
@@ -43,19 +43,25 @@
    - Màn hình trò chuyện AI chuyên biệt với các câu lệnh mẫu: Tóm tắt ngày, chia nhỏ việc, gợi ý thứ tự ưu tiên.
    - Kết nối với backend AI API.
 
-8. **Đồng hồ Pomodoro (Focus Timer)**:
-   - Đồng hồ đếm ngược toàn màn hình.
-   - Rung xúc giác (Haptics) khi hoàn thành phiên.
-   - Chuyển đổi linh hoạt giữa Tập trung (25 phút) và Nghỉ ngơi (5 phút).
-
-9. **Danh bạ đội nhóm (Team Directory)**:
+8. **Danh bạ đội nhóm (Team Directory)**:
    - Danh sách thành viên, vai trò, phòng ban.
    - Trạng thái hoạt động trực tuyến (Online presence).
 
-10. **Cài đặt & Giao diện cá nhân hóa**:
+9. **Cài đặt & Giao diện cá nhân hóa**:
     - Chuyển đổi Dark Mode / Light Mode đồng bộ với bảng màu Upgen Web (`#0c0e14`).
     - Hỗ trợ song ngữ: Tiếng Việt và English.
     - Cập nhật hồ sơ cá nhân.
+
+---
+
+## 🎨 Hệ thống Thư viện UI/UX Cao cấp (Modern Mobile Stack)
+
+- **`expo-blur`**: Hiệu ứng kính mờ (Frosted Glass / Glassmorphism) cho Bottom Tab Bar nổi và thẻ `GlassCard`.
+- **`expo-image`**: Trình kết xuất hình ảnh thế hệ mới, hỗ trợ bộ nhớ đệm cache đĩa, chuyển cảnh mượt mà không giật lag.
+- **`react-native-reanimated` & `react-native-worklets`**: Động cơ diễn hoạt native 60/120fps chuẩn New Architecture.
+- **`react-native-gesture-handler`**: Tương tác cử chỉ vuốt chạm siêu nhạy.
+- **`react-native-toast-message`**: Thông báo nổi (Floating Toast) hiện đại kết hợp hiệu ứng rung phản hồi xúc giác (`expo-haptics`).
+- **`SkeletonLoader`**: Hiệu ứng skeleton shimmer mượt mà thay thế hoàn toàn các spinner tải truyền thống.
 
 ---
 
@@ -85,3 +91,12 @@ npm start
 - **Android**: Nhấn phím `a` trong terminal (yêu cầu Android Studio).
 - **iOS**: Nhấn phím `i` trong terminal (yêu cầu macOS & Xcode).
 - **Web**: Nhấn phím `w` trong terminal để mở bản preview trên trình duyệt.
+
+### 6. Kiểm tra lỗi & Kết nối Supabase
+```bash
+# Kiểm tra TypeScript typecheck toàn bộ dự án (0 lỗi)
+npm run typecheck
+
+# Kiểm tra kết nối Supabase (truy vấn 9 bảng cốt lõi và kiểm tra Auth)
+npm run test:supabase
+```

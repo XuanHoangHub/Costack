@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   X, User, Mail, Phone, Building2, Briefcase, 
@@ -8,6 +9,16 @@ import {
 } from "lucide-react";
 import { WorkspaceContact, ContactCategory } from "@/types";
 import { useTranslation } from "@/contexts/TranslationContext";
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
 
 interface ContactFormModalProps {
   isOpen: boolean;
@@ -114,34 +125,39 @@ export default function ContactFormModal({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[160] flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="absolute inset-0 modal-backdrop-blur"
-        />
-
-        <motion.div
-          initial={{ scale: 0.94, y: 15, opacity: 0 }}
-          animate={{ scale: 1, y: 0, opacity: 1 }}
-          exit={{ scale: 0.94, y: 15, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 360, damping: 28 }}
-          className="relative w-[min(95vw,540px)] max-h-[90dvh] overflow-y-auto bg-white dark:bg-slate-900 rounded-[28px] shadow-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 z-10 select-none custom-scrollbar"
-        >
-          {/* Close button */}
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute top-4 right-4 min-w-[36px] min-h-[36px] rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer"
+    <Portal>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            key="contact-form-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[160] flex items-center justify-center p-4"
           >
-            <X className="w-4 h-4" />
-          </button>
+            <div
+              onClick={onClose}
+              className="absolute inset-0 modal-backdrop-blur cursor-pointer"
+            />
+
+            <motion.div
+              key="contact-form-modal"
+              initial={{ scale: 0.94, y: 15, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.94, y: 15, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              className="relative w-[min(95vw,540px)] max-h-[90dvh] overflow-y-auto bg-white dark:bg-slate-900 rounded-[28px] shadow-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 z-10 select-none custom-scrollbar"
+            >
+              {/* Close button */}
+              <button
+                type="button"
+                onClick={onClose}
+                className="absolute top-4 right-4 min-w-[36px] min-h-[36px] rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
 
           {/* Header */}
           <div className="mb-5 text-left pr-8">
@@ -319,8 +335,10 @@ export default function ContactFormModal({
               </button>
             </div>
           </form>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Portal>
   );
 }

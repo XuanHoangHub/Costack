@@ -3,6 +3,22 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { Space, SpaceList } from '../types';
 import { supabase, getCleanChannel } from '../api/supabase';
 import { safeAsyncStorage } from '../api/storage';
+import { useWorkspaceStore } from './workspaceStore';
+
+export const DEFAULT_MARKETING_SPACE: Space = {
+  id: 's-1789191738195',
+  name: 'Marketing',
+  emoji: 'Rocket:indigo',
+  themeColor: '#0ea5e9',
+  workspaceId: 'w2',
+  lists: [
+    {
+      id: 'l-1789191738195',
+      name: 'General Tasks',
+      position: 0,
+    },
+  ],
+};
 
 interface SpaceState {
   spaces: Space[];
@@ -20,9 +36,9 @@ interface SpaceState {
 export const useSpaceStore = create<SpaceState>()(
   persist(
     (set, get) => ({
-      spaces: [],
-      activeSpaceId: null,
-      activeListId: null,
+      spaces: [DEFAULT_MARKETING_SPACE],
+      activeSpaceId: DEFAULT_MARKETING_SPACE.id,
+      activeListId: DEFAULT_MARKETING_SPACE.lists?.[0]?.id || null,
       isLoading: false,
       setSpaces: (spaces) => set({ spaces }),
       setActiveSpaceId: (id) => set({ activeSpaceId: id }),
@@ -37,7 +53,7 @@ export const useSpaceStore = create<SpaceState>()(
             id: space.id,
             name: space.name,
             emoji: space.emoji || '📦',
-            theme_color: space.themeColor || '#6366f1',
+            theme_color: space.themeColor || '#2563eb',
             workspace_id: space.workspaceId,
             user_id: session?.user?.id || null,
           });
@@ -65,7 +81,7 @@ export const useSpaceStore = create<SpaceState>()(
             .order('created_at', { ascending: true });
           const { data: dbLists } = await supabase.from('lists').select('*');
 
-          if (!spacesErr && dbSpaces) {
+          if (!spacesErr && dbSpaces && dbSpaces.length > 0) {
             const formatted: Space[] = dbSpaces.map((s: any) => {
               const remoteLists: SpaceList[] = (dbLists || [])
                 .filter((l: any) => l.space_id === s.id)
@@ -81,16 +97,45 @@ export const useSpaceStore = create<SpaceState>()(
                 name: s.name,
                 description: s.description,
                 emoji: s.emoji || '📦',
-                themeColor: s.theme_color || s.themeColor || '#6366f1',
+                themeColor: s.theme_color || s.themeColor || '#2563eb',
                 workspaceId: s.workspace_id,
                 lists: remoteLists,
               };
             });
 
             set({ spaces: formatted });
+
+            // Auto-synchronize active space with the active workspace
+            const activeWsId = useWorkspaceStore.getState().activeWorkspaceId;
+            const currentSpaceId = get().activeSpaceId;
+            const matchingSpaces = formatted.filter((s) => !activeWsId || s.workspaceId === activeWsId);
+
+            if (
+              matchingSpaces.length > 0 &&
+              (!currentSpaceId || !matchingSpaces.some((s) => s.id === currentSpaceId))
+            ) {
+              const targetSpace = matchingSpaces[0];
+              set({
+                activeSpaceId: targetSpace.id,
+                activeListId: targetSpace.lists?.[0]?.id || null,
+              });
+            }
+          } else if (get().spaces.length === 0) {
+            set({
+              spaces: [DEFAULT_MARKETING_SPACE],
+              activeSpaceId: DEFAULT_MARKETING_SPACE.id,
+              activeListId: DEFAULT_MARKETING_SPACE.lists?.[0]?.id || null,
+            });
           }
         } catch (e) {
           console.log('Error fetching spaces from Supabase:', e);
+          if (get().spaces.length === 0) {
+            set({
+              spaces: [DEFAULT_MARKETING_SPACE],
+              activeSpaceId: DEFAULT_MARKETING_SPACE.id,
+              activeListId: DEFAULT_MARKETING_SPACE.lists?.[0]?.id || null,
+            });
+          }
         } finally {
           set({ isLoading: false });
         }
