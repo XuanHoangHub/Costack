@@ -98,9 +98,7 @@ export default function AuthStoryPanel({ isVietnamese = true }: AuthStoryPanelPr
       {/* Top Header: Brand & Live Pulse without awkward line wrap */}
       <div className="relative z-10 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs shrink-0">
-            <Zap className="w-5 h-5 fill-white" />
-          </div>
+          <img src="/logo.png" alt="Costack Logo" className="w-9 h-9 object-contain drop-shadow-md shrink-0" />
           <div className="min-w-0">
             <div className="text-xl font-black tracking-tight text-slate-900 dark:text-white font-display leading-none">
               Costack<span className="text-blue-600 dark:text-cyan-400">.</span>

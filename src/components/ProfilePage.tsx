@@ -2024,7 +2024,7 @@ function ProfilePage({
                   <div className="flex flex-col items-center justify-center p-3.5 bg-white rounded-2xl border border-slate-200/80 shadow-md">
                     <img 
                       src={mfaEnrollment.qrCode} 
-                      alt="Apexa 2FA QR Code" 
+                      alt="Costack 2FA QR Code" 
                       className="w-44 h-44 object-contain select-none" 
                     />
                     <span className="text-[10px] text-slate-400 font-semibold mt-1">
@@ -2120,7 +2120,7 @@ function ProfilePage({
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-extrabold text-slate-900 dark:text-white">
-                            {factor.friendly_name || 'Apexa Authenticator'}
+                            {factor.friendly_name || 'Costack Authenticator'}
                           </span>
                           <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                             TOTP

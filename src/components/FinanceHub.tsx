@@ -1227,7 +1227,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
             </section>
           )}
 
-          {noData && <Card padding="none"><EmptyState icon={Landmark} title="Workspace chưa có dữ liệu tài chính" description="Bắt đầu bằng một tài khoản tiền hoặc ngân hàng. Apexa không tạo số liệu mẫu; mọi số liệu hiển thị đến trực tiếp từ cơ sở dữ liệu." action={<Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setAccountToEdit({ id: "", bank: "", number: "", branch: "", balance: 0, type: "Tài khoản thanh toán", color: "#005432" })}>Thêm tài khoản đầu tiên</Button>} /></Card>}
+          {noData && <Card padding="none"><EmptyState icon={Landmark} title="Workspace chưa có dữ liệu tài chính" description="Bắt đầu bằng một tài khoản tiền hoặc ngân hàng. Costack không tạo số liệu mẫu; mọi số liệu hiển thị đến trực tiếp từ cơ sở dữ liệu." action={<Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setAccountToEdit({ id: "", bank: "", number: "", branch: "", balance: 0, type: "Tài khoản thanh toán", color: "#005432" })}>Thêm tài khoản đầu tiên</Button>} /></Card>}
         </div>}
 
         {/* TAB 2: SỔ THU CHI */}
@@ -2558,7 +2558,7 @@ function ProfileForm({ form, setForm, saving, onSubmit }: { form: ProfileFormSta
             className={INPUT}
             value={form.displayName}
             onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))}
-            placeholder="Ví dụ: Tài chính cá nhân, Công ty TNHH Apexa..."
+            placeholder="Ví dụ: Tài chính cá nhân, Công ty TNHH Costack..."
             required
           />
         </Field>

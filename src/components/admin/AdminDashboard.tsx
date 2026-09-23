@@ -488,10 +488,7 @@ export default function AdminDashboard() {
         {/* Brand Header */}
         <div className="flex items-center gap-3 px-2">
           <div className="relative flex h-11 w-11 shrink-0 items-center justify-center">
-            <div className="absolute inset-0 rounded-2xl bg-indigo-500 opacity-20 blur-md" />
-            <span className="relative grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-indigo-600 via-blue-600 to-indigo-700 text-white shadow-md shadow-indigo-600/30">
-              <ShieldCheck className="h-5 w-5" />
-            </span>
+            <img src="/logo.png" alt="Costack Logo" className="w-10 h-10 object-contain drop-shadow-md" />
           </div>
           <div className="min-w-0">
             <p className="text-sm font-black tracking-tight text-slate-900 dark:text-white">Costack Control</p>

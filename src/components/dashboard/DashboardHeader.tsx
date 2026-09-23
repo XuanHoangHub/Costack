@@ -92,7 +92,7 @@ export default function DashboardHeader({
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-[11px] font-semibold text-neutral-600 dark:text-zinc-200 bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.09] shadow-xs backdrop-blur-md">
               <Layers className="h-3 w-3 text-[#0071e3] dark:text-sky-400" />
-              <span className="truncate max-w-[200px]">{workspaceName || 'Apexa Workspace'}</span>
+              <span className="truncate max-w-[200px]">{workspaceName || 'Costack Workspace'}</span>
             </span>
 
             {isOffline && (

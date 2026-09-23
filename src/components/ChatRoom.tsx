@@ -349,6 +349,20 @@ export default function ChatRoom({
   const [renameChannelName, setRenameChannelName] = useState('');
   const [renameChannelDesc, setRenameChannelDesc] = useState('');
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+
+  // Channel authorization state
+  const [isAuthorized, setIsAuthorized] = useState(true);
+  const [authChecking, setAuthChecking] = useState(false);
+
+  // Online Presence state per channel
+  const [channelOnlineUserIds, setChannelOnlineUserIds] = useState<string[]>([]);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'reconnecting' | 'error'>('connecting');
+
+  // Pagination states
+  const [hasMoreOlderMessages, setHasMoreOlderMessages] = useState(false);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const CHAT_PAGE_SIZE = 50;
+
   const channelSubscriptionRef = useRef<any>(null);
   const messageCacheRef = useRef<Map<string, ChatMessage[]>>(new Map());
   const activeChannelIdRef = useRef('');
@@ -1443,6 +1457,52 @@ ${channelMessagesText}`;
       }
 
       try {
+        setAuthChecking(true);
+        // Kiểm tra quyền truy cập kênh đối với private/dm/group
+        const currentChannel = channelsRef.current.find(c => c.id === activeChannelId);
+        if (currentChannel && (currentChannel.type === 'private' || currentChannel.type === 'dm' || currentChannel.type === 'group')) {
+          const { data: { session } } = await supabase.auth.getSession();
+          const authUserId = session?.user?.id;
+          if (authUserId) {
+            let hasAccess = false;
+            if (currentChannel.dmKey && currentChannel.dmKey.includes(authUserId)) {
+              hasAccess = true;
+            } else {
+              const { data: memCheck } = await supabase
+                .from('chat_channel_members')
+                .select('user_id')
+                .eq('channel_id', activeChannelId)
+                .eq('user_id', authUserId)
+                .maybeSingle();
+
+              if (memCheck) {
+                hasAccess = true;
+              } else {
+                const { data: chanCheck } = await supabase
+                  .from('chat_channels')
+                  .select('created_by')
+                  .eq('id', activeChannelId)
+                  .maybeSingle();
+                if (chanCheck?.created_by === authUserId) hasAccess = true;
+              }
+            }
+
+            if (!cancelled) {
+              setIsAuthorized(hasAccess);
+              setAuthChecking(false);
+              if (!hasAccess) {
+                setIsLoadingMessages(false);
+                return;
+              }
+            }
+          }
+        } else {
+          if (!cancelled) {
+            setIsAuthorized(true);
+            setAuthChecking(false);
+          }
+        }
+
         const cachedMessages = messageCacheRef.current.get(activeChannelId);
         setMessages(cachedMessages || []);
         setIsLoadingMessages(!cachedMessages);
@@ -1451,10 +1511,12 @@ ${channelMessagesText}`;
           .select('*')
           .eq('channel_id', activeChannelId)
           .order('created_at', { ascending: false })
-          .limit(100);
+          .limit(CHAT_PAGE_SIZE);
 
         if (error) throw error;
         if (cancelled || activeChannelIdRef.current !== activeChannelId) return;
+
+        setHasMoreOlderMessages((data || []).length === CHAT_PAGE_SIZE);
         const loadedMessages = (data || []).reverse().map(mapChatMessage);
         const pendingMessages = Array.from(pendingMessagesRef.current.values())
           .map(item => item.message)
@@ -1465,135 +1527,201 @@ ${channelMessagesText}`;
       } catch (err) {
         console.error('Error loading messages from Supabase:', err);
       } finally {
-        if (!cancelled && activeChannelIdRef.current === activeChannelId) setIsLoadingMessages(false);
+        if (!cancelled && activeChannelIdRef.current === activeChannelId) {
+          setIsLoadingMessages(false);
+          setAuthChecking(false);
+        }
       }
       if (!cancelled && activeChannelIdRef.current === activeChannelId) scrollToBottom('auto');
     };
 
     loadMessages();
 
-    // Set up Supabase Realtime channel subscription
+    // Xử lý thống nhất các sự kiện tin nhắn từ Broadcast hoặc CDC
+    const handleIncomingMessagePayload = (m: any, eventType: string) => {
+      if (!m || (m.channel_id && m.channel_id !== activeChannelId)) return;
+
+      if (eventType === 'INSERT') {
+        const newMsg = mapChatMessage(m);
+        const isOwn = isSelfChatMessage(m, currentUserRef.current);
+        const shouldFollowMessage = isNearBottomRef.current || isOwn;
+        setMessages(prev => {
+          const exists = prev.some(x => x.id === newMsg.id);
+          const next = exists
+            ? prev.map(x => x.id === newMsg.id ? { ...newMsg, deliveryState: 'sent' as const } : x)
+            : [...prev, newMsg];
+          messageCacheRef.current.set(activeChannelId, next);
+          return next;
+        });
+        pendingMessagesRef.current.delete(newMsg.id);
+        if (shouldFollowMessage) scrollToBottom();
+        else setNewMessagesBelow(count => count + 1);
+
+        if (!isOwn) {
+          if (chatSettingsRef.current.soundEnabled) {
+            (window as any).playSystemSound?.('notification');
+          }
+          if (
+            chatSettingsRef.current.desktopNotifications &&
+            'Notification' in window &&
+            Notification.permission === 'granted' &&
+            (document.visibilityState !== 'visible' || !document.hasFocus())
+          ) {
+            const chanName = channelsRef.current.find(c => c.id === activeChannelId)?.name;
+            try {
+              const notif = new Notification(newMsg.senderName || 'Tin nhắn mới', {
+                body: `${chanName ? `#${chanName}: ` : ''}${newMsg.content || (newMsg.attachment ? '📎 Tệp đính kèm' : 'Tin nhắn mới')}`,
+                tag: `apexa-chat-${activeChannelId}`,
+                icon: newMsg.senderAvatar || undefined
+              });
+              notif.onclick = () => { window.focus(); };
+            } catch {}
+          }
+        }
+      } else if (eventType === 'UPDATE') {
+        setMessages(prev => {
+          const next = prev.map(x => x.id === m.id ? mapChatMessage(m) : x);
+          messageCacheRef.current.set(activeChannelId, next);
+          return next;
+        });
+      } else if (eventType === 'DELETE') {
+        setMessages(prev => {
+          const next = prev.filter(x => x.id !== m.id);
+          messageCacheRef.current.set(activeChannelId, next);
+          return next;
+        });
+      }
+    };
+
+    // Đăng ký Supabase Realtime Channel với Broadcast, CDC fallback & Presence theo kênh
     if (!isOffline) {
-      subscription = getCleanChannel(`realtime-chat-${activeChannelId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'chat_messages',
-            filter: `channel_id=eq.${activeChannelId}`
-          },
-          (payload) => {
-            const eventType = payload.eventType;
-            const m = (payload.new || payload.old) as any;
-            if (!m || m.channel_id !== activeChannelId) return;
+      setConnectionStatus('connecting');
+      const channelTopic = `chat:${activeChannelId}`;
+      const authId = currentUser?.userId || currentUser?.id;
 
-            if (eventType === 'INSERT') {
-              const newMsg = mapChatMessage(m);
-              const isOwn = isSelfChatMessage(m, currentUserRef.current);
-              const shouldFollowMessage = isNearBottomRef.current || isOwn;
-              setMessages(prev => {
-                const next = prev.some(x => x.id === newMsg.id)
-                  ? prev.map(x => x.id === newMsg.id ? { ...newMsg, deliveryState: 'sent' as const } : x)
-                  : [...prev, newMsg];
-                messageCacheRef.current.set(activeChannelId, next);
-                return next;
-              });
-              pendingMessagesRef.current.delete(newMsg.id);
-              if (shouldFollowMessage) scrollToBottom();
-              else setNewMessagesBelow(count => count + 1);
+      subscription = getCleanChannel(channelTopic, {
+        config: {
+          presence: { key: authId || `guest-${Date.now()}` }
+        }
+      });
 
-              // Khi có tin nhắn từ user khác trong kênh đang mở
-              if (!isOwn) {
-                if (chatSettingsRef.current.soundEnabled) {
-                  (window as any).playSystemSound?.('notification');
-                }
-                if (
-                  chatSettingsRef.current.desktopNotifications &&
-                  'Notification' in window &&
-                  Notification.permission === 'granted' &&
-                  (document.visibilityState !== 'visible' || !document.hasFocus())
-                ) {
-                  const chanName = channelsRef.current.find(c => c.id === activeChannelId)?.name;
-                  try {
-                    const notif = new Notification(newMsg.senderName || 'Tin nhắn mới', {
-                      body: `${chanName ? `#${chanName}: ` : ''}${newMsg.content || (newMsg.attachment ? '📎 Tệp đính kèm' : 'Tin nhắn mới')}`,
-                      tag: `apexa-chat-${activeChannelId}`,
-                      icon: newMsg.senderAvatar || undefined
-                    });
-                    notif.onclick = () => {
-                      window.focus();
-                    };
-                  } catch {}
-                }
-              }
-            } else if (eventType === 'UPDATE') {
-              setMessages(prev => {
-                const next = prev.map(x => x.id === m.id ? mapChatMessage(m) : x);
-                messageCacheRef.current.set(activeChannelId, next);
-                return next;
-              });
-            } else if (eventType === 'DELETE') {
-              setMessages(prev => {
-                const next = prev.filter(x => x.id !== m.id);
-                messageCacheRef.current.set(activeChannelId, next);
-                return next;
-              });
-            }
+      // 1. Broadcast messages từ database trigger (topic: chat:<channel_id>)
+      subscription.on('broadcast', { event: 'message' }, (payload: any) => {
+        const body = payload?.payload || payload;
+        const eventType = body?.eventType || 'INSERT';
+        const row = body?.new || body?.old || body;
+        if (row) handleIncomingMessagePayload(row, eventType);
+      });
+
+      // 2. Dual fallback: CDC postgres_changes trên bảng chat_messages
+      subscription.on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `channel_id=eq.${activeChannelId}`
+        },
+        (payload: any) => {
+          const eventType = payload.eventType;
+          const m = (payload.new || payload.old) as any;
+          if (m) handleIncomingMessagePayload(m, eventType);
+        }
+      );
+
+      // 3. Typing indicator qua Broadcast
+      subscription.on(
+        'broadcast',
+        { event: 'typing' },
+        (payload: any) => {
+          const { userId, name, isTyping = true } = payload.payload || payload || {};
+          if (userId === currentUser.id || (authId && userId === authId)) return;
+
+          const existingTimer = typingRemovalTimers.get(userId);
+          if (existingTimer) clearTimeout(existingTimer);
+          if (!isTyping) {
+            typingRemovalTimers.delete(userId);
+            setTypingUsers(prev => prev.filter(n => n !== name));
+            return;
           }
-        )
-        .on(
-          'broadcast',
-          { event: 'typing' },
-          (payload) => {
-            const { userId, name, isTyping = true } = payload.payload || {};
-            if (userId === currentUser.id) return;
 
-            const existingTimer = typingRemovalTimers.get(userId);
-            if (existingTimer) clearTimeout(existingTimer);
-            if (!isTyping) {
-              typingRemovalTimers.delete(userId);
-              setTypingUsers(prev => prev.filter(n => n !== name));
-              return;
-            }
+          setTypingUsers(prev => {
+            if (prev.includes(name)) return prev;
+            return [...prev, name];
+          });
 
-            setTypingUsers(prev => {
-              if (prev.includes(name)) return prev;
-              return [...prev, name];
+          const timer = setTimeout(() => {
+            setTypingUsers(prev => prev.filter(n => n !== name));
+            typingRemovalTimers.delete(userId);
+          }, 3000);
+          typingRemovalTimers.set(userId, timer);
+        }
+      );
+
+      // 4. Supabase Presence theo kênh (theo dõi người đang mở kênh này)
+      subscription.on('presence', { event: 'sync' }, () => {
+        if (cancelled) return;
+        const state = subscription.presenceState();
+        const onlineIds = new Set<string>();
+        Object.entries(state).forEach(([key, items]: [string, any]) => {
+          if (key && !key.startsWith('guest-')) onlineIds.add(key);
+          if (Array.isArray(items)) {
+            items.forEach((item: any) => {
+              if (item.user_id) onlineIds.add(item.user_id);
             });
-
-            const timer = setTimeout(() => {
-              setTypingUsers(prev => prev.filter(n => n !== name));
-              typingRemovalTimers.delete(userId);
-            }, 3000);
-            typingRemovalTimers.set(userId, timer);
-          }
-        )
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            // Re-sync latest messages to catch up on any messages missed during reconnect
-            supabase
-              .from('chat_messages')
-              .select('*')
-              .eq('channel_id', activeChannelId)
-              .order('created_at', { ascending: false })
-              .limit(30)
-              .then(({ data: recentRows, error: catchupErr }) => {
-                if (!catchupErr && recentRows && recentRows.length > 0) {
-                  const recentMsgs = recentRows.reverse().map(mapChatMessage);
-                  setMessages(prev => {
-                    const existingIds = new Set(prev.map(msg => msg.id));
-                    const missing = recentMsgs.filter(msg => !existingIds.has(msg.id));
-                    if (missing.length === 0) return prev;
-                    const merged = [...prev, ...missing].sort((a, b) => new Date(a.createdAt || a.timestamp).getTime() - new Date(b.createdAt || b.timestamp).getTime());
-                    messageCacheRef.current.set(activeChannelId, merged);
-                    return merged;
-                  });
-                }
-              });
           }
         });
-      
+        setChannelOnlineUserIds(Array.from(onlineIds));
+      });
+
+      // 5. Quản lý trạng thái kết nối & Reconnect catch-up
+      subscription.subscribe((status: any, err?: any) => {
+        if (status === 'SUBSCRIBED') {
+          setConnectionStatus('connected');
+          // Track presence người dùng trong kênh hiện tại
+          if (authId) {
+            subscription.track({
+              user_id: authId,
+              name: currentUser.name,
+              avatar: currentUser.avatar || '',
+              online_at: new Date().toISOString()
+            }).catch(() => {});
+          }
+
+          // Tải bù tin nhắn phát sinh trong thời gian mất kết nối
+          const cached = messageCacheRef.current.get(activeChannelId) || [];
+          const latestTime = cached[cached.length - 1]?.createdAt;
+          let catchupQuery = supabase
+            .from('chat_messages')
+            .select('*')
+            .eq('channel_id', activeChannelId)
+            .order('created_at', { ascending: false })
+            .limit(30);
+
+          if (latestTime) {
+            catchupQuery = catchupQuery.gt('created_at', latestTime);
+          }
+
+          catchupQuery.then(({ data: recentRows, error: catchupErr }) => {
+            if (!catchupErr && recentRows && recentRows.length > 0) {
+              const recentMsgs = recentRows.reverse().map(mapChatMessage);
+              setMessages(prev => {
+                const existingIds = new Set(prev.map(msg => msg.id));
+                const missing = recentMsgs.filter(msg => !existingIds.has(msg.id));
+                if (missing.length === 0) return prev;
+                const merged = [...prev, ...missing].sort((a, b) =>
+                  new Date(a.createdAt || a.timestamp).getTime() - new Date(b.createdAt || b.timestamp).getTime()
+                );
+                messageCacheRef.current.set(activeChannelId, merged);
+                return merged;
+              });
+            }
+          });
+        } else if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+          setConnectionStatus('reconnecting');
+        }
+      });
+
       channelSubscriptionRef.current = subscription;
     }
 
@@ -1606,14 +1734,72 @@ ${channelMessagesText}`;
       lastTypingBroadcastRef.current = 0;
       typingRemovalTimers.forEach(timer => clearTimeout(timer));
       typingRemovalTimers.clear();
+      setChannelOnlineUserIds([]);
+      setTypingUsers([]);
       if (subscription) {
+        try {
+          subscription.untrack().catch(() => {});
+        } catch {}
         supabase.removeChannel(subscription);
       }
       if (channelSubscriptionRef.current === subscription) {
         channelSubscriptionRef.current = null;
       }
     };
-  }, [activeChannelId, isOffline, currentUser.id, currentUser.name, workspaceId]);
+  }, [activeChannelId, isOffline, currentUser?.id, currentUser?.name, currentUser?.userId, workspaceId]);
+
+  // Phân trang: Tải các tin nhắn cũ hơn khi người dùng cuộn lên trên cùng
+  const loadOlderMessages = useCallback(async () => {
+    if (isLoadingOlder || !hasMoreOlderMessages || isOffline || !activeChannelId) return;
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const oldestMsg = messages[0];
+    if (!oldestMsg?.createdAt) return;
+
+    setIsLoadingOlder(true);
+    const prevScrollHeight = container.scrollHeight;
+    const prevScrollTop = container.scrollTop;
+
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('channel_id', activeChannelId)
+        .lt('created_at', oldestMsg.createdAt)
+        .order('created_at', { ascending: false })
+        .limit(CHAT_PAGE_SIZE);
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        setHasMoreOlderMessages(false);
+        return;
+      }
+
+      setHasMoreOlderMessages(data.length === CHAT_PAGE_SIZE);
+      const olderMessages = data.reverse().map(mapChatMessage);
+
+      setMessages(prev => {
+        const existingIds = new Set(prev.map(m => m.id));
+        const filteredNew = olderMessages.filter(m => !existingIds.has(m.id));
+        const merged = [...filteredNew, ...prev];
+        messageCacheRef.current.set(activeChannelId, merged);
+        return merged;
+      });
+
+      // Bảo toàn vị trí cuộn để không bị giật trang
+      requestAnimationFrame(() => {
+        if (container) {
+          const newScrollHeight = container.scrollHeight;
+          container.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight);
+        }
+      });
+    } catch (err) {
+      console.warn('Error loading older messages:', err);
+    } finally {
+      setIsLoadingOlder(false);
+    }
+  }, [isLoadingOlder, hasMoreOlderMessages, isOffline, activeChannelId, messages]);
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     isNearBottomRef.current = true;
@@ -1637,6 +1823,11 @@ ${channelMessagesText}`;
     if (isNearBottom && newMessagesBelow > 0) {
       setNewMessagesBelow(0);
       if (activeChannelId) markChannelAsRead(activeChannelId);
+    }
+
+    // Tự động tải tin nhắn cũ hơn khi cuộn lên gần đầu (scrollTop < 60px)
+    if (container.scrollTop < 60 && hasMoreOlderMessages && !isLoadingOlder) {
+      void loadOlderMessages();
     }
   };
 
@@ -3684,6 +3875,24 @@ ${channelMessagesText}`;
                       <span className="font-semibold text-slate-600 dark:text-slate-300 shrink-0">{activeChannel?.type === 'group' ? 'Nhóm chat' : activeChannel?.type === 'private' ? 'Kênh riêng tư' : 'Kênh workspace'}</span>
                       <span className="text-slate-300 dark:text-slate-700">•</span>
                       <span className="max-w-[320px] truncate">{isSpaceChan ? (spaceChanDesc || 'Trao đổi công việc cùng nhóm') : (activeChannel?.description || 'Trao đổi công việc cùng nhóm')}</span>
+                      {channelOnlineUserIds.length > 0 && (
+                        <>
+                          <span className="text-slate-300 dark:text-slate-700">•</span>
+                          <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400">
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            {channelOnlineUserIds.length} online
+                          </span>
+                        </>
+                      )}
+                      {connectionStatus === 'reconnecting' && (
+                        <>
+                          <span className="text-slate-300 dark:text-slate-700">•</span>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                            <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                            Đang kết nối lại...
+                          </span>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -3725,6 +3934,12 @@ ${channelMessagesText}`;
               >
                 <Users className="h-3.5 w-3.5 text-indigo-500" />
                 <span>{members.length}</span>
+                {channelOnlineUserIds.length > 0 && (
+                  <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[9.5px] font-black text-emerald-600 dark:text-emerald-400">
+                    <span className="inline-block h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
+                    {channelOnlineUserIds.length}
+                  </span>
+                )}
               </button>
             </div>
           </div>
@@ -3767,7 +3982,40 @@ ${channelMessagesText}`;
           onScroll={handleMessagesScroll}
           className="flex flex-1 flex-col space-y-0.5 overflow-y-auto px-3 py-4 scrollbar-thin sm:px-5"
         >
-          {isLoadingMessages && messages.length === 0 && (
+          {/* Unauthorized channel banner */}
+          {!isAuthorized && !authChecking && (
+            <div className="my-auto flex flex-col items-center justify-center p-8 text-center select-none animate-fadeIn">
+              <div className="w-16 h-16 rounded-3xl bg-rose-50 dark:bg-rose-950/40 text-rose-500 border border-rose-100 dark:border-rose-900/50 flex items-center justify-center mb-4 text-2xl shadow-xs">
+                <AlertCircle className="w-8 h-8" />
+              </div>
+              <h3 className="text-base font-black text-slate-900 dark:text-white mb-1.5">Không có quyền truy cập kênh này</h3>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 max-w-sm mb-5 leading-relaxed">
+                Kênh này là kênh riêng tư hoặc bạn chưa được thêm vào danh sách thành viên. Vui lòng liên hệ quản trị viên workspace hoặc người tạo kênh.
+              </p>
+              <button
+                type="button"
+                onClick={() => setActiveChannelId(`${workspaceId}:general`)}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer"
+              >
+                Quay về kênh thảo luận chung (#general)
+              </button>
+            </div>
+          )}
+
+          {/* Older Messages Loading Indicator */}
+          {isLoadingOlder && (
+            <div className="py-2.5 flex items-center justify-center gap-2 text-xs font-bold text-slate-400 select-none animate-fadeIn">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
+              <span>Đang tải tin nhắn cũ hơn...</span>
+            </div>
+          )}
+          {!hasMoreOlderMessages && messages.length > 25 && isAuthorized && (
+            <div className="py-2 text-center text-[10px] font-bold text-slate-400 select-none opacity-70">
+              ── Đã tải toàn bộ tin nhắn trước đó ──
+            </div>
+          )}
+
+          {isLoadingMessages && messages.length === 0 && isAuthorized && (
             <div className="space-y-5 px-2 py-4" aria-label="Đang tải tin nhắn">
               {[0, 1, 2].map(item => (
                 <div key={item} className="flex animate-pulse items-start gap-3">
@@ -5164,23 +5412,34 @@ ${channelMessagesText}`;
               <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin">
                 {activeSidebarTab === 'members' && (
                   <div className="space-y-2">
-                    {members.map(m => (
-                      <div 
-                        key={m.id} 
-                        onClick={() => setViewingMemberProfileId(m.id)}
-                        className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/60 cursor-pointer transition-colors group/m"
-                        title={`Xem hồ sơ của ${m.name}`}
-                      >
-                        <div className="relative shrink-0 flex">
-                          <SignedImage filePath={m.avatar} alt={m.name} className="w-6.5 h-6.5 rounded-full border border-slate-200/50 dark:border-slate-700 object-cover bg-white dark:bg-slate-800 animate-fadeIn group-hover/m:scale-105 transition-transform" />
-                          <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${presenceDotClass(m.status, true)}`} />
+                    {members.map(m => {
+                      const memberAuthId = m.userId || m.id.replace(/^user-/, '');
+                      const isOnlineInThisChannel = channelOnlineUserIds.some(id => 
+                        id === m.id || id === m.userId || id === memberAuthId || id === `user-${memberAuthId}`
+                      );
+                      return (
+                        <div 
+                          key={m.id} 
+                          onClick={() => setViewingMemberProfileId(m.id)}
+                          className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/60 cursor-pointer transition-colors group/m"
+                          title={`Xem hồ sơ của ${m.name}${isOnlineInThisChannel ? ' (Đang có mặt trong kênh)' : ''}`}
+                        >
+                          <div className="relative shrink-0 flex">
+                            <SignedImage filePath={m.avatar} alt={m.name} className="w-6.5 h-6.5 rounded-full border border-slate-200/50 dark:border-slate-700 object-cover bg-white dark:bg-slate-800 animate-fadeIn group-hover/m:scale-105 transition-transform" />
+                            <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${presenceDotClass(isOnlineInThisChannel ? 'online' : m.status, isOnlineInThisChannel)}`} />
+                          </div>
+                          <div className="min-w-0 leading-none flex-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block truncate group-hover/m:text-indigo-600 dark:group-hover/m:text-indigo-400 transition-colors">{m.name}</span>
+                              {isOnlineInThisChannel && (
+                                <span className="text-[8px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1 py-0.2 rounded-xs shrink-0">online</span>
+                              )}
+                            </div>
+                            <span className="text-[8px] text-slate-400 font-medium block mt-0.5">{m.role === 'admin' ? 'PM' : 'Developer'}</span>
+                          </div>
                         </div>
-                        <div className="min-w-0 leading-none">
-                          <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block truncate group-hover/m:text-indigo-600 dark:group-hover/m:text-indigo-400 transition-colors">{m.name}</span>
-                          <span className="text-[8px] text-slate-400 font-medium block mt-0.5">{m.role === 'admin' ? 'PM' : 'Developer'}</span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 

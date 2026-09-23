@@ -726,7 +726,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           <div className="px-4 pt-2.5 pb-0 border-b border-slate-200/70 dark:border-white/[0.06] flex items-center gap-5 text-xs font-semibold text-slate-500 dark:text-zinc-400 overflow-x-auto scrollbar-none bg-slate-50/50 dark:bg-white/[0.01]">
             {[
               { id: 'all', label: isVietnamese ? 'Tất cả' : 'All' },
-              { id: 'apexa', label: 'Apexa' },
+              { id: 'apexa', label: 'Costack' },
               { id: 'drive', label: 'Google Drive' },
               { id: 'gmail', label: 'Gmail' },
               { id: 'sharepoint', label: 'SharePoint' },

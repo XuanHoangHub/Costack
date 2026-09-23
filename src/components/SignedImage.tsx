@@ -32,7 +32,7 @@ const isDefaultAvatar = (path?: string) => {
 };
 
 const getInitial = (filePath?: string, fallback?: string, alt?: string): string => {
-  if (alt && alt !== 'Apexa Storage File' && alt !== 'Workspace avatar' && alt.trim() !== '') {
+  if (alt && alt !== 'Costack Storage File' && alt !== 'Apexa Storage File' && alt !== 'Workspace avatar' && alt.trim() !== '') {
     return alt.trim().charAt(0).toUpperCase();
   }
   
@@ -161,7 +161,7 @@ export default function SignedImage({ filePath, fallback, id, className, style, 
     <img 
       id={id} 
       src={src || fallback} 
-      alt={alt || 'Apexa Storage File'} 
+      alt={alt || 'Costack Storage File'} 
       className={className}
       decoding="async"
       loading="eager"

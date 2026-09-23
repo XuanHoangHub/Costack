@@ -113,7 +113,7 @@ export function DebtDetailModal({
 
     if (!isVietnamese) {
       if (reminderTone === "friendly") {
-        return `Hello ${debt.partnerName}, Apexa sends warm greetings. Your outstanding balance of ${remainingStr} is due on ${formattedDue}. We would appreciate it if you could arrange payment on time.${bankInfoStr}\nThank you!`;
+        return `Hello ${debt.partnerName}, Costack sends warm greetings. Your outstanding balance of ${remainingStr} is due on ${formattedDue}. We would appreciate it if you could arrange payment on time.${bankInfoStr}\nThank you!`;
       }
       if (reminderTone === "urgent") {
         return `Dear ${debt.partnerName}, your balance of ${remainingStr} became overdue on ${formattedDue}. Please settle the remaining amount urgently.${bankInfoStr}\nBest regards.`;
@@ -122,7 +122,7 @@ export function DebtDetailModal({
     }
 
     if (reminderTone === "friendly") {
-      return `Xin chào ${debt.partnerName}, Apexa xin gửi lời chào trân trọng. Khoản công nợ trị giá ${remainingStr} của bạn sẽ đến hạn vào ngày ${formattedDue}. Rất mong bạn sắp xếp thanh toán đúng hạn.${bankInfoStr}\nCảm ơn bạn!`;
+      return `Xin chào ${debt.partnerName}, Costack xin gửi lời chào trân trọng. Khoản công nợ trị giá ${remainingStr} của bạn sẽ đến hạn vào ngày ${formattedDue}. Rất mong bạn sắp xếp thanh toán đúng hạn.${bankInfoStr}\nCảm ơn bạn!`;
     }
     if (reminderTone === "urgent") {
       return `Kính gửi ${debt.partnerName}, khoản công nợ trị giá ${remainingStr} đã quá hạn vào ngày ${formattedDue}. Kính đề nghị bạn khẩn trương thanh toán toàn bộ số tiền còn thiếu để không ảnh hưởng đến đối soát.${bankInfoStr}\nTrân trọng.`;

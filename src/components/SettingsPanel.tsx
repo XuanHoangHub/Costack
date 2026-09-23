@@ -178,7 +178,7 @@ export default function SettingsPanel({
   const setDefaultStartupTab = useUiStore(state => state.setDefaultStartupTab);
 
   const accentOptions: Array<{ id: AccentPreset; name: string; hex: string; className: string }> = useMemo(() => [
-    { id: 'indigo', name: isVietnamese ? 'Xanh Apexa (Mặc định)' : 'Apexa Blue (Default)', hex: '#2563EB', className: 'bg-blue-600' },
+    { id: 'indigo', name: isVietnamese ? 'Xanh Costack (Mặc định)' : 'Costack Blue (Default)', hex: '#2563EB', className: 'bg-blue-600' },
     { id: 'ocean', name: isVietnamese ? 'Xanh biển' : 'Ocean Blue', hex: '#0284C7', className: 'bg-sky-600' },
     { id: 'forest', name: isVietnamese ? 'Xanh lục' : 'Forest Green', hex: '#10B981', className: 'bg-emerald-600' },
     { id: 'sunset', name: isVietnamese ? 'Hồng hoàng hôn' : 'Sunset Rose', hex: '#F43F5E', className: 'bg-rose-600' }

@@ -273,7 +273,7 @@ export default function ShareSettingsModal({
     try {
       await navigator.share({
         title: targetName,
-        text: isVietnamese ? `Xem ${getTargetLabel()} "${targetName}" trên Apexa` : `View ${getTargetLabel()} "${targetName}" on Apexa`,
+        text: isVietnamese ? `Xem ${getTargetLabel()} "${targetName}" trên Costack` : `View ${getTargetLabel()} "${targetName}" on Costack`,
         url: shareUrl
       });
     } catch {
@@ -695,7 +695,7 @@ export default function ShareSettingsModal({
                   <div className="bg-white p-4 rounded-2xl shadow-md inline-block">
                     <img 
                       src={qrCodeDataUrl} 
-                      alt="Apexa QR Code" 
+                      alt="Costack QR Code" 
                       className="w-48 h-48 sm:w-56 sm:h-56 object-contain rounded-xl"
                     />
                   </div>
@@ -772,8 +772,8 @@ export default function ShareSettingsModal({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 {/* Email */}
                 <a
-                  href={`mailto:?subject=${encodeURIComponent(`[Apexa] ${targetName}`)}&body=${encodeURIComponent(
-                    `Xin chào,\n\nMời bạn xem ${getTargetLabel()} "${targetName}" trên Apexa qua liên kết:\n${shareUrl}\n\nTrân trọng!`
+                  href={`mailto:?subject=${encodeURIComponent(`[Costack] ${targetName}`)}&body=${encodeURIComponent(
+                    `Xin chào,\n\nMời bạn xem ${getTargetLabel()} "${targetName}" trên Costack qua liên kết:\n${shareUrl}\n\nTrân trọng!`
                   )}`}
                   className="p-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl flex flex-col items-center gap-2 text-center transition-all cursor-pointer group"
                 >
@@ -785,7 +785,7 @@ export default function ShareSettingsModal({
 
                 {/* Telegram */}
                 <a
-                  href={`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(`[Apexa] ${targetName}`)}`}
+                  href={`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(`[Costack] ${targetName}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl flex flex-col items-center gap-2 text-center transition-all cursor-pointer group"

@@ -379,7 +379,7 @@ export function ReceiptScannerModal({
             <LoaderCircle className="absolute -bottom-1 -right-1 h-6 w-6 animate-spin text-indigo-600 dark:text-indigo-400" />
           </div>
           <h4 className="mt-4 text-sm font-black text-[var(--cu-text-primary)]">
-            {l("Apexa Brain AI đang trích xuất dữ liệu hóa đơn…", "Apexa Brain AI is extracting receipt data…")}
+            {l("Costack Brain AI đang trích xuất dữ liệu hóa đơn…", "Costack Brain AI is extracting receipt data…")}
           </h4>
           <p className="mt-1 text-xs text-[var(--cu-text-tertiary)]">{scanStep}</p>
         </div>

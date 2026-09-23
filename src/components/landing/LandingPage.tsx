@@ -54,7 +54,7 @@ function ProductPreview({ vi }: { vi: boolean }) {
             <span className={s.dotYellow} />
             <span className={s.dotGreen} />
           </div>
-          <div className={s.previewBrand}>Costack <span>WORKSPACE</span></div>
+          <div className={s.previewBrand}><img src="/logo.png" alt="Costack" className="w-4 h-4 object-contain inline-block mr-1.5 align-middle" />Costack <span>WORKSPACE</span></div>
           <div className={s.workspaceName}><span>U</span>Studio workspace <ChevronDown size={13} /></div>
           <div className={s.sidebarLabel}>{choose('KHÔNG GIAN LÀM VIỆC', 'WORKSPACE')}</div>
           {tabs.map(({ id, icon: Icon, label }) => <button key={id} onClick={() => setView(id)} className={view === id ? s.sideActive : ''} aria-pressed={view === id}><Icon size={16} />{label}{id === 'chat' && <span className={s.sideCount}>2</span>}</button>)}
@@ -466,7 +466,10 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
     <a href="#main-content" className={s.skipLink} onClick={event => navigate(event, 'main-content')}>{choose('Đến nội dung chính', 'Skip to content')}</a>
     <header ref={headerRef} className={s.header} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) closeMenu(); }}>
       <div className={s.headerInner}>
-        <a href="#top" onClick={event => navigate(event, 'top')} className={s.brand} aria-label={choose('Costack — Trang chủ', 'Costack — Home')}><span>Costack<span className={s.brandDot}>.</span></span></a>
+        <a href="#top" onClick={event => navigate(event, 'top')} className={s.brand} aria-label={choose('Costack — Trang chủ', 'Costack — Home')}>
+          <img src="/logo.png" alt="Costack Logo" className="w-8 h-8 object-contain shrink-0 transition-transform duration-200 hover:scale-105" />
+          <span>Costack<span className={s.brandDot}>.</span></span>
+        </a>
         <nav className={s.desktopNav} aria-label={choose('Điều hướng chính', 'Main navigation')}>
           <div className={s.navDropdown}><button data-dropdown="product" aria-expanded={menu === 'product'} aria-controls="product-menu" onClick={() => setMenu(menu === 'product' ? null : 'product')}>{choose('Sản phẩm', 'Product')}<ChevronDown size={14} /></button>
             {menu === 'product' && <div className={s.megaMenu} id="product-menu"><div><span className={s.eyebrow}>{choose('KHÁM PHÁ COSTACK', 'EXPLORE COSTACK')}</span>{[[Kanban, 'product', choose('Xem thử workspace', 'Explore the workspace'), choose('Công việc, tài liệu và trao đổi', 'Tasks, documents and conversations')], [Layers, 'features', choose('Tất cả tính năng', 'All features'), choose('Những công cụ cho ngày làm việc', 'Tools for your working day')], [Sparkles, 'ai', 'Costack Brain AI', choose('Thêm một trợ lý cho công việc', 'A helping hand for your work')]].map(([Icon, id, title, description]) => { const ItemIcon = Icon as LucideIcon; return <a key={id as string} href={`#${id}`} onClick={event => navigate(event, id as string)}><ItemIcon size={20} /><span><strong>{title as string}</strong><small>{description as string}</small></span><ArrowUpRight size={15} /></a>; })}</div><div className={s.menuAside}><span className={s.menuOrb}><Workflow size={30} /></span><strong>{choose('Một nơi chung. Nhiều cách làm việc.', 'One shared space. Many ways to work.')}</strong><p>{choose('Bắt đầu từ một dự án và xây cách làm việc phù hợp với bạn.', 'Start with a project and build a way of working that fits you.')}</p><button onClick={signup}>{choose('Bắt đầu miễn phí', 'Start for free')}<ArrowRight size={15} /></button></div></div>}
