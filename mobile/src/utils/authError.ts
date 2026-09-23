@@ -1,5 +1,5 @@
 /**
- * Authentication Error Sanitizer & Localizer for Apexa/Upgen Mobile
+ * Authentication Error Sanitizer & Localizer for Costack Mobile
  * Ensures friendly, localized, and actionable messages without leaking internal UUIDs or technical jargon.
  */
 

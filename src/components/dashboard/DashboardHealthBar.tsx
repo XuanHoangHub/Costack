@@ -8,7 +8,8 @@ import {
   Target,
   Clock,
   Check,
-  X
+  X,
+  Activity
 } from 'lucide-react';
 import { useTranslation } from '@/contexts/TranslationContext';
 import type { HealthFilterKey, PeriodInsights } from './types';
@@ -17,12 +18,14 @@ interface DashboardHealthBarProps {
   periodInsights: PeriodInsights;
   activeHealthFilter: HealthFilterKey;
   onSelectHealthFilter: (filter: HealthFilterKey) => void;
+  layout?: 'horizontal' | 'vertical';
 }
 
 export default function DashboardHealthBar({
   periodInsights,
   activeHealthFilter,
   onSelectHealthFilter,
+  layout = 'horizontal',
 }: DashboardHealthBarProps) {
   const { locale } = useTranslation();
 
@@ -78,6 +81,95 @@ export default function DashboardHealthBar({
       isFilterable: false,
     },
   ];
+
+  if (layout === 'vertical') {
+    return (
+      <section
+        className="apexa-inset-group rounded-2xl bg-white dark:bg-[#0a0b10] border border-black/[0.06] dark:border-white/[0.08] shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] p-4 text-left space-y-3"
+        aria-label="Task Health Indicators"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between pb-1.5 border-b border-black/[0.04] dark:border-white/[0.06]">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10 dark:bg-blue-500/15 border border-blue-500/20 text-[#0071e3] dark:text-sky-400">
+              <Activity className="h-3.5 w-3.5" />
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-neutral-900 dark:text-white leading-tight">
+                {locale === 'vi' ? 'Sức khỏe công việc' : 'Task Health Pulse'}
+              </h3>
+              <p className="text-[10px] text-neutral-400 dark:text-zinc-400">
+                {locale === 'vi' ? 'Nhấn để lọc theo tiêu chí' : 'Click to filter work queue'}
+              </p>
+            </div>
+          </div>
+          {activeHealthFilter !== 'none' && (
+            <button
+              type="button"
+              onClick={() => onSelectHealthFilter('none')}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold text-blue-600 dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 transition-colors cursor-pointer"
+            >
+              <X className="h-3 w-3" />
+              <span>{locale === 'vi' ? 'Bỏ lọc' : 'Clear'}</span>
+            </button>
+          )}
+        </div>
+
+        {/* 5 items in vertical layout */}
+        <div className="grid grid-cols-2 gap-2">
+          {healthItems.map((item, idx) => {
+            const isActive = item.isFilterable && activeHealthFilter === item.key;
+            const isSpanFull = idx === healthItems.length - 1;
+            return (
+              <button
+                key={item.label}
+                type="button"
+                disabled={!item.isFilterable}
+                onClick={() => {
+                  if (item.isFilterable) {
+                    onSelectHealthFilter(isActive ? 'none' : item.key);
+                  }
+                }}
+                className={`group relative flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all ${
+                  isSpanFull ? 'col-span-2' : 'col-span-1'
+                } ${
+                  item.isFilterable ? 'cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.025]' : 'cursor-default'
+                } ${
+                  isActive
+                    ? 'border-blue-500/50 bg-blue-500/[0.08] dark:bg-blue-500/[0.12] ring-1 ring-blue-500/20'
+                    : 'border-black/[0.04] dark:border-white/[0.06] bg-black/[0.015] dark:bg-white/[0.02]'
+                }`}
+              >
+                <div className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border transition-transform group-hover:scale-105 ${item.tone}`}>
+                  <item.icon className="h-3.5 w-3.5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <p className="truncate text-[10px] font-bold uppercase tracking-wider text-neutral-400 dark:text-zinc-400">
+                      {item.label}
+                    </p>
+                    {isActive && (
+                      <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#0071e3] text-white shrink-0">
+                        <Check className="h-2 w-2" />
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-baseline gap-1.5 mt-0.5">
+                    <span className="text-base font-extrabold tabular-nums text-neutral-900 dark:text-white">
+                      {item.value}
+                    </span>
+                    <span className="text-[10px] text-neutral-400 truncate hidden sm:inline">
+                      {item.desc}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section

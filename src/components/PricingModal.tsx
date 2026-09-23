@@ -127,14 +127,14 @@ export const PricingModal: React.FC<PricingModalProps> = ({
               'Task & dự án không giới hạn',
               'Board, List & Docs ghi chú',
               '3 bảng trắng cộng tác Whiteboard',
-              'Không bao gồm Apexa AI',
+              'Không bao gồm Costack AI',
             ]
           : [
               'Up to 5 active Spaces',
               'Unlimited tasks & projects',
               'Core Board, List & Docs',
               '3 collaborative Whiteboards',
-              'Apexa AI is not included',
+              'Costack AI is not included',
             ],
       },
       starter: {
@@ -147,14 +147,14 @@ export const PricingModal: React.FC<PricingModalProps> = ({
           ? [
               'Spaces & dự án không giới hạn',
               'Calendar & biểu đồ Gantt tiến độ',
-              'Toàn bộ Apexa AI · 150 lượt/tháng',
+              'Toàn bộ Costack AI · 150 lượt/tháng',
               'Tự động hóa quy trình cơ bản',
               'Tích hợp Google Calendar, Notion',
             ]
           : [
               'Unlimited spaces & projects',
               'Calendar & Gantt timeline',
-              'All Apexa AI tools · 150 requests/month',
+              'All Costack AI tools · 150 requests/month',
               'Core workflow automation',
               'Google Calendar & Notion integration',
             ],
@@ -168,14 +168,14 @@ export const PricingModal: React.FC<PricingModalProps> = ({
         features: isVietnamese
           ? [
               'Toàn bộ quyền lợi gói Starter',
-              '2.000 lượt Apexa AI mỗi tháng',
+              '2.000 lượt Costack AI mỗi tháng',
               'Hệ sinh thái CRM, ERP & Finance',
               'Tự động hóa và báo cáo nâng cao',
               'Time tracking, KPI & phân quyền khách',
             ]
           : [
               'Everything in Starter',
-              '2,000 Apexa AI requests per month',
+              '2,000 Costack AI requests per month',
               'Integrated CRM, ERP & Finance workspaces',
               'Advanced automation and reporting',
               'Time tracking, KPI & guest permissions',
@@ -554,7 +554,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
       return;
     }
     if (plan === 'enterprise') {
-      window.location.assign(`mailto:contact@apexa.vn?subject=${encodeURIComponent('Apexa Enterprise consultation')}`);
+      window.location.assign(`mailto:contact@costack.vn?subject=${encodeURIComponent('Costack Enterprise consultation')}`);
       return;
     }
     if (
@@ -738,7 +738,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                 <header className="relative px-4 pb-6 pt-8 text-center sm:px-8 sm:pt-10">
                   <div className="mx-auto inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50/90 px-3.5 py-1 text-[11px] font-bold text-indigo-700 shadow-2xs dark:border-indigo-900/80 dark:bg-indigo-950/50 dark:text-indigo-300">
                     <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
-                    {isVietnamese ? 'Nâng tầm hiệu suất với Apexa' : 'Supercharge your team with Apexa'}
+                    {isVietnamese ? 'Nâng tầm hiệu suất với Costack' : 'Supercharge your team with Costack'}
                   </div>
                   <h2
                     id="pricing-modal-title"
@@ -1270,7 +1270,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                       </div>
 
                       <a
-                        href={`mailto:contact@apexa.vn?subject=${encodeURIComponent('Tư vấn gói Apexa Enterprise')}`}
+                        href={`mailto:contact@costack.vn?subject=${encodeURIComponent('Tư vấn gói Costack Enterprise')}`}
                         className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-xs font-black text-slate-950 shadow-md transition hover:bg-slate-100 hover:scale-105 active:scale-100"
                       >
                         <Mail className="h-3.5 w-3.5" />

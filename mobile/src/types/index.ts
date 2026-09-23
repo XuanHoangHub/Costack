@@ -177,3 +177,25 @@ export interface FinanceAccount {
   balance: number;
   color?: string;
 }
+
+export interface WorkspaceInvite {
+  id: string;
+  workspaceId: string;
+  email: string;
+  role: 'admin' | 'member' | 'guest';
+  status: 'pending' | 'accepted' | 'declined';
+  token?: string;
+  createdAt: string;
+}
+
+export interface AutomationRule {
+  id: string;
+  name: string;
+  description?: string;
+  triggerType: 'task_completed' | 'task_urgent' | 'task_created';
+  actionType: 'log_activity' | 'send_notification';
+  enabled: boolean;
+  workspaceId: string;
+  triggerCount?: number;
+  lastTriggeredAt?: string;
+}

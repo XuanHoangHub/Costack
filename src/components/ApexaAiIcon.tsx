@@ -9,7 +9,7 @@ interface ApexaAiIconProps extends React.SVGProps<SVGSVGElement> {
 }
 
 /**
- * Upgen AI Sparkle Icon
+ * Costack AI Sparkle Icon
  * Clean 4-point sparkle star indicating AI assistance, replacing old brand logo.
  */
 export function ApexaAiIcon({
@@ -78,19 +78,19 @@ export function ApexaAiIcon({
       {...props}
     >
       <defs>
-        <linearGradient id={`upgenAiGrad-${gradientId}`} x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient id={`costackAiGrad-${gradientId}`} x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#38BDF8" />
           <stop offset="50%" stopColor="#3B82F6" />
           <stop offset="100%" stopColor="#1D4ED8" />
         </linearGradient>
 
-        <linearGradient id={`upgenAiCoreGrad-${gradientId}`} x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient id={`costackAiCoreGrad-${gradientId}`} x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#60A5FA" />
           <stop offset="100%" stopColor="#2563EB" />
         </linearGradient>
 
         {variant === 'glow' && (
-          <filter id={`upgenAiGlow-${gradientId}`} x="-20%" y="-20%" width="140%" height="140%">
+          <filter id={`costackAiGlow-${gradientId}`} x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="3" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
@@ -100,14 +100,14 @@ export function ApexaAiIcon({
       {/* Main AI Sparkle */}
       <path
         d="M50 8 C50 31 69 50 92 50 C69 50 50 69 50 92 C50 69 31 50 8 50 C31 50 50 31 50 8 Z"
-        fill={`url(#upgenAiGrad-${gradientId})`}
-        filter={variant === 'glow' ? `url(#upgenAiGlow-${gradientId})` : undefined}
+        fill={`url(#costackAiGrad-${gradientId})`}
+        filter={variant === 'glow' ? `url(#costackAiGlow-${gradientId})` : undefined}
       />
 
       {/* Accent Secondary Sparkle */}
       <path
         d="M76 12 C76 20 83 26 91 26 C83 26 76 32 76 40 C76 32 70 26 62 26 C70 26 76 20 76 12 Z"
-        fill={`url(#upgenAiCoreGrad-${gradientId})`}
+        fill={`url(#costackAiCoreGrad-${gradientId})`}
       />
     </svg>
   );
@@ -150,5 +150,8 @@ export function ApexaAiAvatar({
     </div>
   );
 }
+
+export const CostackAiIcon = ApexaAiIcon;
+export const CostackAiAvatar = ApexaAiAvatar;
 
 export default ApexaAiIcon;

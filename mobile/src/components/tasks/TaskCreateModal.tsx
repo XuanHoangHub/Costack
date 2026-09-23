@@ -9,7 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { X, Calendar, User, Tag, Check, Sparkles } from 'lucide-react-native';
+import { X, Calendar, User, Tag, Check, Sparkles, Clock, List as ListIcon } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { useUiStore } from '../../store/uiStore';
 import { useTaskStore } from '../../store/taskStore';
@@ -38,6 +38,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
   const spaces = useSpaceStore((s) => s.spaces);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const activeSpaceId = useSpaceStore((s) => s.activeSpaceId);
+  const activeListId = useSpaceStore((s) => s.activeListId);
   const members = useMemberStore((s) => s.members);
   const { t } = useTranslation();
 
@@ -48,6 +49,8 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
   const [priority, setPriority] = useState<Priority>('medium');
   const [status, setStatus] = useState<TaskStatus>('todo');
   const [selectedSpaceId, setSelectedSpaceId] = useState<string>(activeSpaceId || currentSpaces[0]?.id || '');
+  const [selectedListId, setSelectedListId] = useState<string>(activeListId || '');
+  const [hoursEstimate, setHoursEstimate] = useState<string>('');
   const [selectedAssigneeId, setSelectedAssigneeId] = useState<string>('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [dueDateType, setDueDateType] = useState<'today' | 'tomorrow' | '3days' | '1week' | 'none'>('tomorrow');
@@ -100,11 +103,12 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
         priority,
         status,
         spaceId: selectedSpaceId || undefined,
-        listId: chosenSpace?.lists?.[0]?.id || undefined,
+        listId: selectedListId || chosenSpace?.lists?.[0]?.id || undefined,
         assigneeId: selectedAssigneeId || undefined,
         assigneeIds: selectedAssigneeId ? [selectedAssigneeId] : [],
         tags: selectedTags,
         dueDate: calculateDueDate(),
+        hoursEstimate: hoursEstimate ? parseFloat(hoursEstimate) || 0 : undefined,
       });
       Toast.show({
         type: 'success',
@@ -115,6 +119,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
       setDescription('');
       setSelectedTags([]);
       setSelectedAssigneeId('');
+      setHoursEstimate('');
       onClose();
     } finally {
       setLoading(false);
@@ -207,7 +212,14 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                     return (
                       <TouchableOpacity
                         key={sp.id}
-                        onPress={() => setSelectedSpaceId(sp.id)}
+                        onPress={() => {
+                          setSelectedSpaceId(sp.id);
+                          if (sp.lists && sp.lists.length > 0) {
+                            setSelectedListId(sp.lists[0].id);
+                          } else {
+                            setSelectedListId('');
+                          }
+                        }}
                         style={[
                           styles.optionChip,
                           {
@@ -231,6 +243,49 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                 </ScrollView>
               </View>
             )}
+
+            {/* List Selector */}
+            {(() => {
+              const activeSp = currentSpaces.find((s) => s.id === selectedSpaceId);
+              if (!activeSp || !activeSp.lists || activeSp.lists.length === 0) return null;
+              return (
+                <View style={styles.section}>
+                  <View style={styles.labelRow}>
+                    <ListIcon size={14} color={colors.textSecondary} />
+                    <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+                      Danh sách trong Không gian
+                    </Text>
+                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                    {activeSp.lists.map((l) => {
+                      const isListSelected = (selectedListId || activeSp.lists[0].id) === l.id;
+                      return (
+                        <TouchableOpacity
+                          key={l.id}
+                          onPress={() => setSelectedListId(l.id)}
+                          style={[
+                            styles.optionChip,
+                            {
+                              backgroundColor: isListSelected ? colors.primarySubtle : colors.surfaceSubtle,
+                              borderColor: isListSelected ? colors.primary : colors.border,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.optionText,
+                              { color: isListSelected ? colors.primaryText : colors.textSecondary },
+                            ]}
+                          >
+                            {l.name}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              );
+            })()}
 
             {/* Assignee Selector */}
             <View style={styles.section}>
@@ -335,6 +390,22 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                   );
                 })}
               </View>
+            </View>
+
+            {/* Estimated Hours */}
+            <View style={styles.section}>
+              <View style={styles.labelRow}>
+                <Clock size={14} color={colors.textSecondary} />
+                <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+                  Thời gian ước tính (Giờ)
+                </Text>
+              </View>
+              <Input
+                placeholder="VD: 2.5, 4, 8..."
+                value={hoursEstimate}
+                onChangeText={setHoursEstimate}
+                keyboardType="numeric"
+              />
             </View>
 
             {/* Tags Selector */}

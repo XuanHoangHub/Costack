@@ -4,13 +4,13 @@ import { applyCustomFieldDefaults, validateTaskCustomFields } from "@/lib/custom
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Task, User, Document, SyncLog, Space, TaskStatus, NotificationSettings, BaseApp, Workspace } from '../types';
+import { Task, User, Document, SyncLog, Space, TaskStatus, Priority, NotificationSettings, BaseApp, Workspace } from '../types';
 import { supabase, getCleanChannel } from '../lib/supabaseClient';
 import { useAppActions } from '@/hooks/useAppActions';
 import { useWorkspaceInvitations } from '@/hooks/useRealtimeSync';
 import { disconnectUserPresence, setUserPresenceStatus, useUserPresence } from '@/hooks/useUserPresence';
 import { presenceDotClass, uiStatusToPresence } from '@/lib/presence';
-import { isCreationConfirmation, shouldPersistInInbox } from '@/lib/notificationPolicy';
+import { isCreationConfirmation, shouldPersistInInbox, isSelfChatMessage } from '@/lib/notificationPolicy';
 import { embedTaskRelationships, extractTaskRelationships, getIncompleteBlockers, getNextRecurringDate } from '@/lib/taskRelationships';
 import { checkAndFirePendingReminders, saveTaskReminder } from '@/lib/notificationManager';
 import { normalizeTaskCompletion, resolveTaskLocation } from '@/lib/taskLifecycle';
@@ -111,7 +111,6 @@ const ProductivityHub = dynamic(retryLoader(() => import('../components/Producti
 const WorkspaceSettingsModal = dynamic(retryLoader(() => import('../components/WorkspaceSettingsModal')), { loading: ComponentLoading });
 const InboxView = dynamic(retryLoader(() => import('../components/InboxView')), { loading: ComponentLoading });
 const AnalyticsHub = dynamic(retryLoader(() => import('../components/AnalyticsHub')), { loading: ComponentLoading, ssr: false });
-const KeyboardShortcutsModal = dynamic(retryLoader(() => import('../components/KeyboardShortcutsModal')));
 const AddListModal = dynamic(retryLoader(() => import('../components/AddListModal')));
 const FinanceHub = dynamic(retryLoader(() => import('../components/FinanceHub')), { loading: ComponentLoading });
 const SidebarOrderModal = dynamic(retryLoader(() => import('../components/SidebarOrderModal')), { ssr: false });
@@ -121,7 +120,6 @@ const ExportDataModal = dynamic(() => import('../components/ExportDataModal').th
 const PricingModal = dynamic(() => import('../components/PricingModal').then(m => m.PricingModal), { ssr: false });
 const MemberProfileModal = dynamic(() => import('../components/MemberProfileModal'), { ssr: false });
 const AcceptInviteModal = dynamic(() => import('../components/workspace/AcceptInviteModal'), { ssr: false });
-const DocumentHub = dynamic(retryLoader(() => import('../components/DocumentHub')), { loading: ComponentLoading });
 const LoginScreen = dynamic(() => import('../components/LoginScreen'), { ssr: false });
 const EmojiIconPicker = dynamic(() => import('../components/EmojiIconPicker'), { ssr: false });
 const PromptModal = dynamic(() => import('../components/PromptModal'), { ssr: false });
@@ -129,7 +127,7 @@ const SidebarZoneModal = dynamic(() => import('@/components/sidebar/SidebarZoneM
 
 import { 
   Briefcase, MessageSquare, Edit3, Users, 
-  Grid, LogOut, Cloud, RefreshCw, Sparkles, LayoutDashboard,
+  Grid, LogOut, Cloud, RefreshCw, Sparkles, LayoutDashboard, LayoutGrid,
   Search, X, Cog, ArrowRight, Check, ChevronDown, Lock,
   Timer, Bell, Calendar, Settings, Plus, Sun, Moon,
   Trash2, User as UserIcon, ChevronRight, Database, Play,
@@ -137,22 +135,10 @@ import {
   ListTodo, CheckSquare, Folder,
   ChevronsLeft, ChevronsRight,
   PanelLeftClose, Pin,
-  CalendarDays,
+  CalendarDays, Landmark,
   ShieldCheck, Power, FolderPlus,
   CheckCheck, BellOff, Settings2, Inbox
 } from 'lucide-react';
-
-import {
-  House as PhHouse,
-  Tray as PhTray,
-  CalendarDots as PhCalendar,
-  ChatCircleDots as PhChat,
-  FileText as PhFileText,
-  SquaresFour as PhSquaresFour,
-  Target as PhTarget,
-  Users as PhUsers,
-  Bank as PhBank,
-} from '@phosphor-icons/react';
 
 const checkIsDndActive = (settings: any) => {
   if (!settings) return false;
@@ -203,7 +189,7 @@ const getShortLabel = (label: string) => {
 };
 
 const DEFAULT_SIDEBAR_ORDER = [
-  'dashboard', 'tasks', 'inbox', 'finance', 'docs', 'team', 'calendar', 'chat'
+  'dashboard', 'tasks', 'inbox', 'finance', 'team', 'calendar', 'chat'
 ];
 
 const buildTaskCustomFields = (task: Partial<Task> | any) => {
@@ -439,7 +425,7 @@ export default function App() {
       try { cachedUser = cachedRaw ? JSON.parse(cachedRaw)?.user : null; } catch {}
 
       const isSuper = isApexaSuperAdmin(u.id);
-      const displayName = u.user_metadata?.full_name || u.user_metadata?.name || cachedUser?.name || u.email?.split('@')[0] || 'Upgen Champion';
+      const displayName = u.user_metadata?.full_name || u.user_metadata?.name || cachedUser?.name || u.email?.split('@')[0] || 'Costack Champion';
       const displayAvatar = u.user_metadata?.avatar_url || u.user_metadata?.avatar || cachedUser?.avatar || '';
       const userObj = {
         id: u.id,
@@ -727,7 +713,7 @@ export default function App() {
         }
       } catch (err) {
         console.error('Error syncing spaces/lists with Supabase:', err);
-        triggerToast('info', 'Đã lưu trên thiết bị', 'Không thể đồng bộ thay đổi Space lên máy chủ. Upgen sẽ giữ bản cục bộ để bạn không mất dữ liệu.');
+        triggerToast('info', 'Đã lưu trên thiết bị', 'Không thể đồng bộ thay đổi Space lên máy chủ. Costack sẽ giữ bản cục bộ để bạn không mất dữ liệu.');
       }
     }
   };
@@ -981,6 +967,7 @@ export default function App() {
 
       return {
         ...t,
+        workspaceId: taskWsId,
         spaceId,
         listId,
         assigneeIds: t.assigneeIds || (t.assigneeId ? [t.assigneeId] : [])
@@ -1191,7 +1178,6 @@ export default function App() {
 
   const [showAutomationModal, setShowAutomationModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
 
   // Reset category filter when search modal is opened/closed
   useEffect(() => {
@@ -1221,9 +1207,6 @@ export default function App() {
       } else if ((e.metaKey || e.ctrlKey) && e.key === '\\' && !isInputFocused) {
         e.preventDefault();
         setIsMainSidebarCollapsed(!isMainSidebarCollapsed);
-      } else if (e.key === '?' && !isInputFocused) {
-        e.preventDefault();
-        setShowKeyboardShortcuts(true);
       } else if (e.key === 'Escape' && isSearchOpen) {
         setIsSearchOpen(false);
       } else if (!isInputFocused && !e.metaKey && !e.ctrlKey && !e.altKey) {
@@ -1499,43 +1482,38 @@ export default function App() {
     const meta: Record<string, { label: string; icon: React.ComponentType<any>; count?: number; badge?: string; shortcut?: string; description?: string; disabled?: boolean; disabledTooltip?: string }> = {
       dashboard: { 
         label: t('homeOverview') || 'Home Overview', 
-        icon: PhHouse,
+        icon: LayoutDashboard,
         description: locale === 'vi' ? 'Tổng quan dự án & tiến độ chung' : 'Workspace overview & metrics',
       },
       inbox: { 
         label: t('inbox') || 'Inbox', 
-        icon: PhTray, 
+        icon: Inbox, 
         count: unreadNotificationsCount,
         description: locale === 'vi' ? 'Thông báo công việc & lời mời' : 'Notifications & updates',
       },
       tasks: { 
         label: t('space') || 'Space', 
-        icon: PhSquaresFour,
+        icon: LayoutGrid,
         description: locale === 'vi' ? 'Không gian làm việc & danh sách việc' : 'Spaces, lists & task tracking',
       },
       calendar: { 
         label: t('calendarView') || 'Calendar', 
-        icon: PhCalendar,
+        icon: CalendarDays,
         description: locale === 'vi' ? 'Lịch trình, mốc thời gian & deadline' : 'Calendar & milestone deadlines',
       },
       finance: { 
         label: locale === 'vi' ? 'Tài chính & Kế toán' : 'Finance & Accounting', 
-        icon: PhBank, 
+        icon: Landmark, 
         description: locale === 'vi' ? 'Thu chi, hóa đơn & báo cáo tài chính' : 'Finance invoicing & accounting',
-      },
-      docs: { 
-        label: t('docs') || 'Docs', 
-        icon: PhFileText,
-        description: locale === 'vi' ? 'Tài liệu kiến thức, quy trình & Wiki' : 'Collaborative documents & Wiki',
       },
       chat: { 
         label: t('chat') || 'Chat', 
-        icon: PhChat,
+        icon: MessageSquare,
         description: locale === 'vi' ? 'Kênh thảo luận & tin nhắn tức thời' : 'Channels & instant messaging',
       },
       team: { 
         label: locale === 'vi' ? 'Đội nhóm' : 'Team', 
-        icon: PhUsers,
+        icon: Users,
         description: locale === 'vi' ? 'Danh bạ thành viên & phân quyền' : 'Team directory & workspace roles',
       },
     };
@@ -1599,7 +1577,7 @@ export default function App() {
     const workspaceChannels = [
       { id: `${activeWorkspaceId}:general`, name: 'general', description: 'General discussion for the department', type: 'public' },
       { id: `${activeWorkspaceId}:project-planning`, name: 'project-planning', description: 'Project planning & KPI tracking', type: 'public' },
-      { id: `${activeWorkspaceId}:apexa-ai`, name: 'upgen-ai', description: 'Upgen AI support assistant online', type: 'public' },
+      { id: `${activeWorkspaceId}:apexa-ai`, name: 'costack-ai', description: 'Costack AI support assistant online', type: 'public' },
       { id: `${activeWorkspaceId}:design-review`, name: 'design-review', description: 'Design whiteboard reviews', type: 'public' }
     ];
     return workspaceChannels.filter(c => 
@@ -1951,9 +1929,9 @@ export default function App() {
   const activeTabRef = useRef(activeTab);
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
 
-  // Safety guard: prevent remaining on disabled Mini Apps tab
+  // Safety guard: prevent remaining on disabled Mini Apps or Docs tab
   useEffect(() => {
-    if (activeTab === 'miniapps') {
+    if (activeTab === 'miniapps' || activeTab === 'docs') {
       setActiveTab('tasks');
     }
   }, [activeTab, setActiveTab]);
@@ -1968,17 +1946,68 @@ export default function App() {
         (payload: any) => {
           const msg = payload.new as any;
           if (!msg) return;
-          // Skip own messages and AI messages
-          if (msg.sender_id === currentUser.id || msg.sender_id === 'apexa-ai') return;
-          // Skip if user is already viewing chat tab (ChatRoom handles its own display)
+          // Loại trừ triệt để tin nhắn của chính bản thân người dùng và AI
+          if (isSelfChatMessage(msg, currentUser)) return;
+          // Bỏ qua nếu đang xem tab Chat (ChatRoom sẽ tự xử lý thông báo kênh/inbox riêng)
           if (activeTabRef.current === 'chat') return;
 
-          const senderName = msg.sender_name || 'Người dùng';
+          const senderName = msg.sender_name || (locale === 'vi' ? 'Người dùng' : 'Team Member');
           const preview = msg.content
             ? msg.content.length > 60 ? msg.content.slice(0, 60) + '…' : msg.content
-            : msg.attachment ? '📎 Tệp đính kèm' : 'Tin nhắn mới';
+            : msg.attachment ? (locale === 'vi' ? '📎 Tệp đính kèm' : '📎 Attachment') : (locale === 'vi' ? 'Tin nhắn mới' : 'New message');
 
-          triggerToast('chat_message', `💬 ${senderName}`, preview);
+          let channelLabel = '';
+          if (msg.channel_id) {
+            if (msg.channel_id.includes(':dm-')) {
+              channelLabel = locale === 'vi' ? ' (Tin nhắn riêng)' : ' (Direct Message)';
+            } else {
+              const rawName = msg.channel_id.split(':').pop();
+              if (rawName) {
+                channelLabel = ` (#${rawName})`;
+              }
+            }
+          }
+
+          triggerToast('chat_message', `💬 ${senderName}${channelLabel}`, preview, {
+            action: {
+              label: locale === 'vi' ? 'Mở chat' : 'Open Chat',
+              onClick: () => {
+                if (msg.channel_id) {
+                  setInitialSelectedChannelId(msg.channel_id);
+                }
+                if (msg.workspace_id && msg.workspace_id !== activeWorkspaceId) {
+                  setActiveWorkspaceId(msg.workspace_id);
+                }
+                setActiveTab('chat');
+              }
+            }
+          });
+
+          // Hiển thị Desktop Notification của trình duyệt khi tab đang bị ẩn/blur
+          if (
+            typeof window !== 'undefined' &&
+            'Notification' in window &&
+            Notification.permission === 'granted' &&
+            (document.visibilityState !== 'visible' || !document.hasFocus())
+          ) {
+            try {
+              const notif = new Notification(`💬 ${senderName}${channelLabel}`, {
+                body: preview,
+                tag: `apexa-chat-${msg.channel_id || 'msg'}`,
+                icon: msg.sender_avatar || '/favicon.ico'
+              });
+              notif.onclick = () => {
+                window.focus();
+                if (msg.channel_id) {
+                  setInitialSelectedChannelId(msg.channel_id);
+                }
+                if (msg.workspace_id && msg.workspace_id !== activeWorkspaceId) {
+                  setActiveWorkspaceId(msg.workspace_id);
+                }
+                setActiveTab('chat');
+              };
+            } catch {}
+          }
         }
       )
       .subscribe();
@@ -1986,7 +2015,7 @@ export default function App() {
     return () => {
       supabase.removeChannel(sub);
     };
-  }, [currentUser, isOffline, triggerToast]);
+  }, [currentUser, isOffline, triggerToast, setInitialSelectedChannelId, setActiveWorkspaceId, setActiveTab, activeWorkspaceId, locale]);
 
   const accountPresenceStatus = isOffline
     ? 'offline'
@@ -2173,7 +2202,7 @@ export default function App() {
       setIsSidebarHovered(false);
     }
     addSyncLog(`Switched to: ${label}`);
-  }, [setActiveTab, setActiveSpaceId, setActiveListId, setIsMobileSidebarOpen, isMainSidebarCollapsed, addSyncLog, triggerToast, locale]);
+  }, [setActiveTab, setActiveSpaceId, setActiveListId, setIsMobileSidebarOpen, isMainSidebarCollapsed, addSyncLog]);
 
   const handleMoveZone = useCallback((zoneId: string, direction: 'up' | 'down') => {
     const index = sidebarZones.findIndex(z => z.id === zoneId);
@@ -2345,7 +2374,7 @@ export default function App() {
                         id: t.id,
                         title: t.title,
                         description: t.description,
-                        priority: t.priority,
+                        priority: t.priority || 'medium',
                         status: t.status,
                         assigneeId: t.assigneeId || null,
                         startDate: t.startDate || null,
@@ -2644,7 +2673,7 @@ export default function App() {
         // A. Load Team Members first to find user profile (or handle placeholder)
         const myMemberId = `user-${userId}`;
         const googleName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
-        const myName = googleName || currentUser?.name || session.user.email?.split('@')[0] || 'Upgen Champion';
+        const myName = googleName || currentUser?.name || session.user.email?.split('@')[0] || 'Costack Champion';
         const myEmail = currentUser?.email || session.user.email || '';
         const googleAvatar = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || session.user.user_metadata?.avatar || '';
         const cachedAvatar = currentUser?.avatar && !currentUser.avatar.includes('api.dicebear.com') ? currentUser.avatar : '';
@@ -3034,7 +3063,7 @@ export default function App() {
             id: t.id,
             title: t.title,
             description: t.description,
-            priority: t.priority as any,
+            priority: (t.priority as any) || 'medium',
             status: t.status as any,
             assigneeId: t.assigneeId || undefined,
             assigneeIds: getTaskAssigneeIds(t),
@@ -3365,7 +3394,7 @@ export default function App() {
                     id: t.id,
                     title: t.title,
                     description: t.description,
-                    priority: t.priority as any,
+                    priority: (t.priority as any) || 'medium',
                     status: t.status as any,
                     assigneeId: t.assigneeId || undefined,
                     assigneeIds: getTaskAssigneeIds(t),
@@ -4002,6 +4031,7 @@ export default function App() {
     const taskId = `task-${crypto.randomUUID()}`;
     const newTask = normalizeTaskCompletion({
       ...t,
+      priority: t.priority || 'medium',
       custom_fields: fieldValues,
       id: taskId,
       createdAt: new Date().toISOString(),
@@ -4029,7 +4059,7 @@ export default function App() {
             id: newTask.id,
             title: newTask.title,
             description: newTask.description,
-            priority: newTask.priority,
+            priority: newTask.priority || 'medium',
             status: newTask.status,
             assigneeId: newTask.assigneeId || null,
             startDate: newTask.startDate || null,
@@ -4055,7 +4085,16 @@ export default function App() {
 
           const { error } = await supabase.from('tasks').insert([payload]);
           
-          if (error) throw error;
+          if (error) {
+            const isPriorityError = error.message && error.message.includes('priority') && (error.message.includes('not-null') || error.message.includes('null value'));
+            if (isPriorityError && payload.priority !== 'medium') {
+              payload.priority = 'medium';
+              const { error: retryError } = await supabase.from('tasks').insert([payload]);
+              if (retryError) throw retryError;
+            } else {
+              throw error;
+            }
+          }
           addSyncLog(`Đã tạo công việc mới: "${newTask.title}"`, 'task');
         } else {
           throw new Error('No active session');
@@ -4069,7 +4108,7 @@ export default function App() {
       queueTask();
       addSyncLog(`Đã tạo công việc mới (Ngoại tuyến): "${newTask.title}"`, 'task');
     }
-  }, [currentUser, members, triggerToast, spaces, activeWorkspaceId, activeSpaceId, activeListId, setTasks, isOffline, addSyncLog, setOfflineTasksQueue, setOfflineDeletedTasks]);
+  }, [currentUser, members, triggerToast, activeWorkspaceId, activeSpaceId, activeListId, setTasks, isOffline, addSyncLog, setOfflineTasksQueue, setOfflineDeletedTasks]);
 
   const handleUpdateTask = useCallback(async (updated: Task) => {
     const currentTasks = useTaskStore.getState().tasks;
@@ -4128,12 +4167,30 @@ export default function App() {
 
     updated = normalizeTaskCompletion(updated, oldTask);
 
+    const resolvedPriority: Priority = updated.priority
+      || oldTask?.priority
+      || 'medium';
+
     const finalAssigneeIds = Array.isArray(updated.assigneeIds)
       ? updated.assigneeIds
       : (updated.assigneeId ? [updated.assigneeId] : []);
 
+    const resolvedWorkspaceId = updated.workspaceId
+      || oldTask?.workspaceId
+      || (updated.spaceId ? spaces.find(s => s.id === updated.spaceId)?.workspaceId : undefined)
+      || (oldTask?.spaceId ? spaces.find(s => s.id === oldTask.spaceId)?.workspaceId : undefined)
+      || activeWorkspaceId
+      || undefined;
+
+    const resolvedSpaceId = updated.spaceId !== undefined ? updated.spaceId : (oldTask?.spaceId || undefined);
+    const resolvedListId = updated.listId !== undefined ? updated.listId : (oldTask?.listId || undefined);
+
     updated = {
       ...updated,
+      priority: resolvedPriority,
+      workspaceId: resolvedWorkspaceId,
+      spaceId: resolvedSpaceId,
+      listId: resolvedListId,
       assigneeIds: finalAssigneeIds,
       assigneeId: finalAssigneeIds[0] || undefined,
       custom_fields: {
@@ -4153,37 +4210,62 @@ export default function App() {
         if (session?.user) {
           const payload: any = {
             title: updated.title,
-            description: updated.description,
-            priority: updated.priority,
+            description: updated.description || '',
+            priority: resolvedPriority,
             status: updated.status,
             assigneeId: updated.assigneeId || null,
             startDate: updated.startDate || null,
             dueDate: updated.dueDate || null,
-            subtasks: updated.subtasks || [],
-            progress: updated.progress || 0,
+            subtasks: Array.isArray(updated.subtasks) ? updated.subtasks : [],
+            progress: typeof updated.progress === 'number' ? updated.progress : 0,
             completedAt: updated.completedAt || null,
             hoursEstimate: updated.hoursEstimate || null,
-            hoursLogged: updated.hoursLogged || 0,
-            commentsCount: updated.commentsCount || 0,
-            tags: updated.tags || [],
-            isPinned: updated.isPinned || false,
-            comments: updated.comments || [],
-            workspace_id: updated.workspaceId || null,
-            space_id: updated.spaceId || null,
-            list_id: updated.listId || null,
+            hoursLogged: typeof updated.hoursLogged === 'number' ? updated.hoursLogged : 0,
+            commentsCount: typeof updated.commentsCount === 'number' ? updated.commentsCount : 0,
+            tags: Array.isArray(updated.tags) ? updated.tags : [],
+            isPinned: Boolean(updated.isPinned),
+            comments: Array.isArray(updated.comments) ? updated.comments : [],
             custom_fields: buildTaskCustomFields(updated),
             recurrence: updated.recurrence || null,
-            attachments: updated.attachments || []
+            attachments: Array.isArray(updated.attachments) ? updated.attachments : []
           };
+
+          if (resolvedWorkspaceId) {
+            payload.workspace_id = resolvedWorkspaceId;
+          }
+          if (resolvedSpaceId !== undefined) {
+            payload.space_id = resolvedSpaceId || null;
+          }
+          if (resolvedListId !== undefined) {
+            payload.list_id = resolvedListId || null;
+          }
 
           const { error } = await supabase.from('tasks').update(payload).eq('id', updated.id);
           
-          if (error) throw error;
+          if (error) {
+            const isWorkspaceError = payload.workspace_id && error.message && (error.message.includes('workspace_id') || error.message.includes('column') || error.message.includes('policy') || error.code === '42501');
+            const isPriorityError = error.message && error.message.includes('priority') && (error.message.includes('not-null') || error.message.includes('null value'));
+
+            if (isWorkspaceError || isPriorityError) {
+              const fallbackPayload = { ...payload };
+              if (isWorkspaceError) {
+                delete fallbackPayload.workspace_id;
+              }
+              if (isPriorityError) {
+                fallbackPayload.priority = 'medium';
+              }
+              const { error: retryError } = await supabase.from('tasks').update(fallbackPayload).eq('id', updated.id);
+              if (retryError) throw retryError;
+            } else {
+              throw error;
+            }
+          }
         } else {
-          throw new Error('No active session');
+          setOfflineTasksQueue(prev => ({ ...prev, [updated.id]: updated }));
         }
-      } catch (err) {
-        console.error('Task update sync failure:', err);
+      } catch (err: any) {
+        const errorMsg = err?.message || err?.error_description || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+        console.error('Task update sync failure:', errorMsg, err);
         setOfflineTasksQueue(prev => ({ ...prev, [updated.id]: updated }));
         triggerToast('info', 'Đã lưu trên thiết bị', 'Thay đổi công việc đang chờ đồng bộ. Hãy kết nối lại hoặc dùng Đồng bộ để thử lại.');
       }
@@ -4243,7 +4325,7 @@ export default function App() {
       });
       addSyncLog(`Đã hoàn thành chu kỳ, tạo lịch tiếp theo cho "${updated.title}" vào ngày ${nextDueDate} (đã bỏ lặp lại task cũ)`, 'task');
     }
-  }, [currentUser, members, triggerToast, addSyncLog, setTasks, isOffline, handleAddTask, setOfflineTasksQueue, setOfflineDeletedTasks]);
+  }, [currentUser, members, triggerToast, addSyncLog, setTasks, isOffline, handleAddTask, setOfflineTasksQueue, setOfflineDeletedTasks, spaces, activeWorkspaceId]);
 
   const handleRestoreTask = useCallback(async (id: string) => {
     const currentTasks = useTaskStore.getState().tasks;
@@ -4268,8 +4350,9 @@ export default function App() {
           const { error } = await supabase.from('tasks').update({ deleted_at: null }).eq('id', id);
           if (error) throw error;
         }
-      } catch (err) {
-        console.error('Task restore sync failure:', err);
+      } catch (err: any) {
+        const errorMsg = err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+        console.error('Task restore sync failure:', errorMsg, err);
       }
     }
   }, [triggerToast, addSyncLog, setTasks, isOffline, locale]);
@@ -4303,8 +4386,9 @@ export default function App() {
           const { error } = await supabase.from('tasks').delete().eq('id', id);
           if (error) throw error;
         }
-      } catch (err) {
-        console.error('Permanent task delete sync failure:', err);
+      } catch (err: any) {
+        const errorMsg = err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+        console.error('Permanent task delete sync failure:', errorMsg, err);
         setOfflineDeletedTasks(prev => Array.from(new Set([...prev, id])));
       }
     }
@@ -4342,10 +4426,11 @@ export default function App() {
           const { error } = await supabase.from('tasks').update({ deleted_at: nowIso }).eq('id', id);
           if (error) throw error;
         } else {
-          throw new Error('No active session');
+          setOfflineDeletedTasks(prev => Array.from(new Set([...prev, id])));
         }
-      } catch (err) {
-        console.error('Task soft delete sync failure:', err);
+      } catch (err: any) {
+        const errorMsg = err?.message || err?.error_description || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+        console.error('Task soft delete sync failure:', errorMsg, err);
         setOfflineDeletedTasks(prev => Array.from(new Set([...prev, id])));
         triggerToast('info', 'Đã lưu trên thiết bị', 'Thao tác chuyển thùng rác đang chờ đồng bộ lên máy chủ.');
       }
@@ -4379,8 +4464,9 @@ export default function App() {
           const { error } = await supabase.from('tasks').delete().in('id', idsToDelete);
           if (error) throw error;
         }
-      } catch (err) {
-        console.error('Empty trash sync failure:', err);
+      } catch (err: any) {
+        const errorMsg = err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+        console.error('Empty trash sync failure:', errorMsg, err);
         setOfflineDeletedTasks(prev => Array.from(new Set([...prev, ...idsToDelete])));
       }
     }
@@ -4782,7 +4868,7 @@ export default function App() {
             <Settings className="h-6 w-6 animate-[spin_8s_linear_infinite]" />
           </span>
           <p className="mt-6 text-[10px] font-black uppercase tracking-[0.25em] text-indigo-300">Scheduled maintenance</p>
-          <h1 className="mt-2 text-2xl font-black">Upgen đang được bảo trì</h1>
+          <h1 className="mt-2 text-2xl font-black">Costack đang được bảo trì</h1>
           <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-300">{runtimeConfig.maintenance.message}</p>
           <div className="mt-6 flex items-center justify-center gap-2 text-[10px] font-bold text-slate-500">
             <span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />
@@ -4811,7 +4897,7 @@ export default function App() {
           <div className="text-center space-y-2">
             <h2 className="text-2xl font-black text-slate-850 dark:text-slate-100 flex items-center justify-center gap-2">
               <Sparkles className="w-6 h-6 text-indigo-500" />
-              <span>Chào mừng bạn đến với Upgen!</span>
+              <span>Chào mừng bạn đến với Costack!</span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Hãy thiết lập không gian làm việc cá nhân để bắt đầu.
@@ -4905,8 +4991,8 @@ export default function App() {
             type="button" 
             onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
             aria-expanded={showWorkspaceMenu}
-            aria-label={currentWorkspace?.name || 'Upgen'}
-            title={`${currentWorkspace?.name || 'Upgen'} — ${locale === 'vi' ? 'Nhấp để đổi không gian làm việc' : 'Click to switch workspace'}`}
+            aria-label={currentWorkspace?.name || 'Costack'}
+            title={`${currentWorkspace?.name || 'Costack'} — ${locale === 'vi' ? 'Nhấp để đổi không gian làm việc' : 'Click to switch workspace'}`}
             className="group relative flex h-10 w-10 items-center justify-center rounded-[14px] border border-slate-200/90 dark:border-white/[0.08] bg-white dark:bg-white/[0.04] text-white font-black text-xs shadow-xs hover:scale-105 hover:border-blue-400 dark:hover:border-sky-400 active:scale-95 transition-all cursor-pointer overflow-hidden select-none"
           >
             <div 
@@ -4951,7 +5037,7 @@ export default function App() {
                   )}
                 </div>
                 <span className="font-sans font-extrabold text-slate-800 dark:text-white text-[12.5px] tracking-tight truncate flex-1">
-                  {currentWorkspace?.name || 'Upgen'}
+                  {currentWorkspace?.name || 'Costack'}
                 </span>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 group-hover:text-slate-700 dark:group-hover:text-white transition-transform duration-200 group-hover:translate-y-0.5 ml-1" />
@@ -5001,7 +5087,7 @@ export default function App() {
                 ? 'h-10 w-10 mx-auto justify-center p-0 rounded-[14px] border-sky-300/80 dark:border-sky-500/25 bg-sky-50/90 dark:bg-sky-500/10 text-sky-600 dark:text-sky-300 hover:scale-105 hover:bg-sky-100 dark:hover:bg-sky-500/20 shadow-xs' 
                 : 'h-[34px] w-full gap-2 px-2.5 py-1 border-sky-500/20 bg-sky-500/[0.05] text-sky-700 dark:text-sky-300 hover:border-sky-500/35 hover:bg-sky-500/[0.10] hover:text-sky-900 dark:hover:text-white shadow-2xs'
             }`}
-            title="Upgen Control Center (Admin)"
+            title="Costack Control Center (Admin)"
           >
             <div className={`relative flex shrink-0 items-center justify-center rounded-lg transition-all ${
               collapsed ? '' : 'h-5 w-5 text-sky-600 dark:text-sky-400'
@@ -5335,7 +5421,7 @@ export default function App() {
                     <div className="leading-tight min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="font-bold text-slate-900 dark:text-white text-[14px] truncate tracking-tight">
-                          {currentWorkspace?.name || 'Upgen'}
+                          {currentWorkspace?.name || 'Costack'}
                         </span>
                         <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0" title="Không gian đang hoạt động">
                           <Check className="w-2.5 h-2.5 stroke-[3]" />
@@ -5489,7 +5575,7 @@ export default function App() {
                 )}
               </div>
               <span className="font-extrabold text-slate-800 dark:text-slate-100 text-[11px] truncate">
-                {currentWorkspace?.name || 'Upgen'}
+                {currentWorkspace?.name || 'Costack'}
               </span>
             </button>
           </div>
@@ -5506,13 +5592,13 @@ export default function App() {
                 : undefined;
 
               const rawWsName = currentWorkspace?.name?.trim();
-              const wsName = rawWsName || 'Upgen';
+              const wsName = rawWsName || 'Costack';
 
               const getTabMeta = (tabId: string) => {
                 if (tabId === 'dashboard') {
                   return {
                     label: locale === 'vi' ? 'Tổng quan' : 'Dashboard',
-                    icon: PhHouse,
+                    icon: LayoutDashboard,
                   };
                 }
                 if (tabId === 'my-tasks') {
@@ -5524,19 +5610,19 @@ export default function App() {
                 if (tabId === 'tasks') {
                   return {
                     label: locale === 'vi' ? 'Không gian' : 'Spaces',
-                    icon: PhSquaresFour,
+                    icon: LayoutGrid,
                   };
                 }
                 if (tabId === 'inbox') {
                   return {
                     label: locale === 'vi' ? 'Hộp thư' : 'Inbox',
-                    icon: PhTray,
+                    icon: Inbox,
                   };
                 }
                 if (tabId === 'calendar') {
                   return {
                     label: locale === 'vi' ? 'Lịch trình' : 'Calendar',
-                    icon: PhCalendar,
+                    icon: CalendarDays,
                   };
                 }
                 if (tabId === 'analytics') {
@@ -5548,25 +5634,19 @@ export default function App() {
                 if (tabId === 'finance') {
                   return {
                     label: locale === 'vi' ? 'Tài chính' : 'Finance',
-                    icon: PhBank,
+                    icon: Landmark,
                   };
                 }
                 if (tabId === 'team') {
                   return {
                     label: locale === 'vi' ? 'Đội ngũ' : 'Team',
-                    icon: PhUsers,
+                    icon: Users,
                   };
                 }
                 if (tabId === 'chat') {
                   return {
                     label: locale === 'vi' ? 'Trò chuyện' : 'Chat',
-                    icon: PhChat,
-                  };
-                }
-                if (tabId === 'docs') {
-                  return {
-                    label: locale === 'vi' ? 'Tài liệu' : 'Docs',
-                    icon: PhFileText,
+                    icon: MessageSquare,
                   };
                 }
                 if (tabId === 'profile') {
@@ -5619,7 +5699,7 @@ export default function App() {
                   {/* Level 2 & Beyond */}
                   {activeTab === 'dashboard' ? (
                     <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-slate-900 dark:text-zinc-100 font-semibold text-[13px] bg-black/[0.03] dark:bg-white/[0.06]">
-                      <PhHouse className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
+                      <LayoutDashboard className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
                       <span>{locale === 'vi' ? 'Tổng quan' : 'Dashboard'}</span>
                     </div>
                   ) : (activeTab === 'tasks' || activeTab === 'my-tasks') ? (
@@ -6133,7 +6213,7 @@ export default function App() {
                           className="text-[10.5px] font-bold text-blue-600 hover:text-blue-700 dark:text-sky-400 hover:underline cursor-pointer inline-flex items-center gap-1.5"
                         >
                           <Inbox className="w-3.5 h-3.5" />
-                          <span>{locale === 'vi' ? 'Mở Hộp thư Upgen' : 'Open Inbox Hub'}</span>
+                          <span>{locale === 'vi' ? 'Mở Hộp thư Costack' : 'Open Inbox Hub'}</span>
                         </button>
                         <button
                           onClick={() => {
@@ -6269,7 +6349,7 @@ export default function App() {
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
                                 <span className="font-extrabold text-[12px] text-amber-950 dark:text-amber-100 truncate">
-                                  {locale === 'vi' ? 'Gói Upgen Pro' : 'Upgen Pro'}
+                                  {locale === 'vi' ? 'Gói Costack Pro' : 'Costack Pro'}
                                 </span>
                                 <span className="relative overflow-hidden inline-flex items-center gap-0.5 text-[7.5px] font-black uppercase bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 px-1.5 py-0.5 rounded-md shadow-xs border border-amber-300/80">
                                   <Sparkles className="w-2 h-2 text-amber-950" />
@@ -6372,24 +6452,6 @@ export default function App() {
                         </span>
                       </button>
 
-                      {/* Keyboard Shortcuts */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowKeyboardShortcuts(true);
-                          setShowStatusMenu(false);
-                          (window as any).playSystemSound?.('click');
-                        }}
-                        className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/70 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer group"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Keyboard className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 shrink-0 transition-colors" />
-                          <span>{locale === 'vi' ? 'Phím tắt nhanh' : 'Keyboard Shortcuts'}</span>
-                        </div>
-                        <kbd className="text-[9.5px] font-sans font-bold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-400 border border-slate-200/80 dark:border-zinc-700/80">
-                          ?
-                        </kbd>
-                      </button>
 
                       <div className="border-t border-slate-100 dark:border-zinc-800 my-1" />
 
@@ -6474,8 +6536,8 @@ export default function App() {
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-extrabold text-white">{currentWorkspace?.name || 'Upgen'}</p>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">Upgen workspace</p>
+                    <p className="truncate text-sm font-extrabold text-white">{currentWorkspace?.name || 'Costack'}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">Costack workspace</p>
                   </div>
                 </button>
                 <button
@@ -6598,7 +6660,7 @@ export default function App() {
         
 
         {(() => {
-          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'chat' || activeTab === 'docs' || activeTab === 'inbox' || activeTab === 'calendar' || activeTab === 'settings' || activeTab === 'finance';
+          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'chat' || activeTab === 'inbox' || activeTab === 'calendar' || activeTab === 'settings' || activeTab === 'finance';
           
           return (
             <main id="apexa-main-content" tabIndex={-1} className="apexa-main-canvas cu-content-area relative h-full w-full flex-1 overflow-hidden bg-white dark:bg-transparent">
@@ -6819,19 +6881,6 @@ export default function App() {
                     />
                   )}
 
-                  {activeTab === 'docs' && (
-                    <div className="w-full h-full">
-                      <DocumentHub
-                        docs={currentWorkspaceDocs}
-                        currentUser={currentUser}
-                        onAddDoc={handleAddDoc}
-                        onUpdateDoc={handleUpdateDoc}
-                        onDeleteDoc={handleDeleteDoc}
-                        isOffline={isOffline}
-                        onAddSyncLog={addSyncLog}
-                      />
-                    </div>
-                  )}
 
                   {activeTab === 'profile' && (
                     <ProfilePage
@@ -6892,7 +6941,7 @@ export default function App() {
                         await disconnectUserPresence();
                         await supabase.auth.signOut({ scope: 'local' });
                         updateCurrentUser(null);
-                        if (triggerToast) triggerToast('info', 'Signed Out', 'You have been signed out of Upgen OS.');
+                        if (triggerToast) triggerToast('info', 'Signed Out', 'You have been signed out of Costack OS.');
                       }}
                       triggerToast={triggerToast}
                       onSendWorkspaceInvites={handleSendWorkspaceInvites}
@@ -7514,11 +7563,16 @@ export default function App() {
         />
       )}
 
-      {showKeyboardShortcuts && (
-        <KeyboardShortcutsModal
-          isOpen={showKeyboardShortcuts}
-          onClose={() => setShowKeyboardShortcuts(false)}
-          locale={locale}
+      {showExportModal && (
+        <ExportDataModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tasks={tasks}
+          docs={currentWorkspaceDocs || docs}
+          members={members}
+          activeWorkspaceId={activeWorkspaceId}
+          addSyncLog={addSyncLog}
+          triggerToast={triggerToast}
         />
       )}
 

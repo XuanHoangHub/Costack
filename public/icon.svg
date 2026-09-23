@@ -1,24 +1,24 @@
-﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="upgenBlueBg" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="costackBlueBg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#3b82f6" />
       <stop offset="50%" stop-color="#2563eb" />
       <stop offset="100%" stop-color="#1d4ed8" />
     </linearGradient>
-    <linearGradient id="upgenGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="costackGlow" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.3" />
       <stop offset="100%" stop-color="#ffffff" stop-opacity="0.0" />
     </linearGradient>
   </defs>
 
   <!-- Squircle Base Canvas -->
-  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#upgenBlueBg)" />
-  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#upgenGlow)" />
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#costackBlueBg)" />
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#costackGlow)" />
   <rect x="24" y="24" width="464" height="464" rx="104" fill="none" stroke="#ffffff" stroke-width="4" stroke-opacity="0.3" />
 
-  <!-- Modern Upgen "U" Monogram -->
+  <!-- Modern Costack "C" Monogram -->
   <path
-    d="M 172 136 L 172 284 C 172 344 210 384 256 384 C 302 384 340 344 340 284 L 340 136 L 286 136 L 286 280 C 286 312 272 332 256 332 C 240 332 226 312 226 280 L 226 136 Z"
+    d="M 336 180 C 316 150 288 136 256 136 C 190 136 142 190 142 256 C 142 322 190 376 256 376 C 288 376 316 362 336 332 L 296 304 C 286 318 272 326 256 326 C 218 326 192 296 192 256 C 192 216 218 186 256 186 C 272 186 286 194 296 208 Z"
     fill="#ffffff"
   />
 </svg>

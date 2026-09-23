@@ -243,7 +243,7 @@ export function useAppActions() {
             id: newTask.id,
             title: newTask.title,
             description: newTask.description,
-            priority: newTask.priority,
+            priority: newTask.priority || 'medium',
             status: newTask.status,
             assigneeId: newTask.assigneeId || null,
             startDate: newTask.startDate || null,
@@ -294,7 +294,7 @@ export function useAppActions() {
         console.error('Task sync failure:', err);
       }
     }
-  }, [members, activeWorkspaceId, isOffline, setTasks, triggerToast, addSyncLog, currentUser, spaces]);
+  }, [members, activeWorkspaceId, workspaces, isOffline, setTasks, triggerToast, addSyncLog, currentUser, spaces]);
 
   const handleUpdateTask = useCallback(async (updated: Task) => {
     const oldTask = tasks.find(t => t.id === updated.id);
@@ -330,10 +330,12 @@ export function useAppActions() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
+          const oldTask = tasks.find(t => t.id === updated.id);
+          const resolvedPriority = updated.priority || oldTask?.priority || 'medium';
           const { error } = await supabase.from('tasks').update({
             title: updated.title,
             description: updated.description,
-            priority: updated.priority,
+            priority: resolvedPriority,
             status: updated.status,
             assigneeId: updated.assigneeId || null,
             startDate: updated.startDate || null,
@@ -358,8 +360,9 @@ export function useAppActions() {
           }).eq('id', updated.id);
           if (error) console.error('Supabase Task Update Error:', error.message || JSON.stringify(error));
         }
-      } catch (err) {
-        console.error('Task update sync failure:', err);
+      } catch (err: any) {
+        const errorMsg = err?.message || err?.error_description || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+        console.error('Task update sync failure:', errorMsg, err);
       }
     }
   }, [tasks, members, isOffline, setTasks, triggerToast, currentUser, addSyncLog]);
@@ -769,7 +772,7 @@ export function useAppActions() {
       let newInvite: WorkspaceInvitation = {
         id: inviteId,
         workspaceId: activeWsId,
-        workspaceName: currentWS?.name || 'Upgen Workspace',
+        workspaceName: currentWS?.name || 'Costack Workspace',
         email: cleanEmail,
         role: (role as any) || 'member',
         invitedBy: currentUser?.userId || currentUser?.id || 'admin',
@@ -1180,7 +1183,7 @@ export function useAppActions() {
     setActiveTab('tasks');
     triggerToast({ id: generateId(), type: 'success', title: 'Space Created! 🎉', message: `Đã tạo space "${newSpace.name}" thành công.`, duration: 4000 });
     addSyncLog(`Created new Space: "${newSpace.name}"`);
-  }, [activeWorkspaceId, spaces, currentUser?.isPremium, handleSaveSpaces, setActiveSpaceId, setActiveListId, setActiveTab, setShowPremiumModal, triggerToast, addSyncLog]);
+  }, [activeWorkspaceId, workspaces, spaces, currentUser?.isPremium, handleSaveSpaces, setActiveSpaceId, setActiveListId, setActiveTab, setShowPremiumModal, triggerToast, addSyncLog]);
 
   const handleDeleteSpace = useCallback((spaceId: string) => {
     const updated = spaces.filter(s => s.id !== spaceId);

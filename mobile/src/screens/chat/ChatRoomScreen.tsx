@@ -45,7 +45,7 @@ export const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({
   useEffect(() => {
     const unsub = subscribeToChat(channelId);
     return unsub;
-  }, [channelId]);
+  }, [channelId, subscribeToChat]);
 
   useEffect(() => {
     // Auto scroll to bottom
@@ -128,6 +128,7 @@ export const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({
                 <View
                   style={[
                     styles.bubble,
+                    isMe ? styles.myBubble : styles.otherBubble,
                     {
                       backgroundColor: isMe ? colors.primary : colors.surface,
                       borderColor: isMe ? colors.primary : colors.border,
@@ -287,6 +288,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 10,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  myBubble: {
+    borderTopRightRadius: 4,
+  },
+  otherBubble: {
+    borderTopLeftRadius: 4,
   },
   messageText: {
     fontSize: 14,

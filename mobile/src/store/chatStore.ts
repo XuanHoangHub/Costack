@@ -13,6 +13,8 @@ interface ChatState {
   setActiveChannelId: (id: string) => void;
   sendMessage: (channelId: string, content: string, senderName: string, senderAvatar?: string) => Promise<void>;
   addReaction: (channelId: string, messageId: string, emoji: string, userId: string) => Promise<void>;
+  createChannel: (name: string, description?: string, type?: 'public' | 'private') => Promise<ChatChannel>;
+  getOrCreateDirectMessageChannel: (targetUserId: string, targetUserName: string) => Promise<string>;
   fetchChannels: () => Promise<void>;
   fetchMessages: (channelId: string) => Promise<void>;
   subscribeToChannels: () => () => void;
@@ -81,6 +83,76 @@ export const useChatStore = create<ChatState>()(
         } catch (e) {
           console.log('Error fetching chat channels:', e);
         }
+      },
+
+      createChannel: async (name: string, description: string = '', type: 'public' | 'private' = 'public') => {
+        const workspaceId = useWorkspaceStore.getState().activeWorkspaceId;
+        const channelId = `ch-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        const newChan: ChatChannel = {
+          id: channelId,
+          name: name.trim().replace(/^#+/, ''),
+          description: description.trim(),
+          type,
+          workspaceId,
+        };
+
+        set((state) => ({
+          channels: [...state.channels, newChan],
+          activeChannelId: channelId,
+        }));
+
+        try {
+          await supabase.from('chat_channels').insert({
+            id: newChan.id,
+            name: newChan.name,
+            description: newChan.description,
+            type: newChan.type,
+            workspace_id: workspaceId,
+          });
+        } catch (e) {
+          console.log('Error creating channel in Supabase:', e);
+        }
+
+        return newChan;
+      },
+
+      getOrCreateDirectMessageChannel: async (targetUserId: string, targetUserName: string) => {
+        const workspaceId = useWorkspaceStore.getState().activeWorkspaceId || 'default';
+        const { data: { session } } = await supabase.auth.getSession();
+        const currentUserId = session?.user?.id || 'current_user';
+        const sortedIds = [currentUserId, targetUserId].sort();
+        const dmChannelId = `${workspaceId}:dm-${sortedIds[0]}-${sortedIds[1]}`;
+
+        const existing = get().channels.find((c) => c.id === dmChannelId);
+        if (!existing) {
+          const newChan: ChatChannel = {
+            id: dmChannelId,
+            name: targetUserName,
+            description: `Cuộc trò chuyện trực tiếp với ${targetUserName}`,
+            type: 'dm',
+            workspaceId,
+          };
+          set((state) => ({
+            channels: [newChan, ...state.channels],
+            activeChannelId: dmChannelId,
+          }));
+
+          try {
+            await supabase.from('chat_channels').insert({
+              id: dmChannelId,
+              name: targetUserName,
+              description: `Cuộc trò chuyện trực tiếp với ${targetUserName}`,
+              type: 'dm',
+              workspace_id: workspaceId,
+            });
+          } catch (e) {
+            // Already created or ignore
+          }
+        } else {
+          set({ activeChannelId: dmChannelId });
+        }
+
+        return dmChannelId;
       },
 
       fetchMessages: async (channelId: string) => {
@@ -157,8 +229,6 @@ export const useChatStore = create<ChatState>()(
         } catch (e) {
           console.log('Supabase insert chat message error:', e);
         }
-
-        // The PostgreSQL change feed is the single source of truth. It also reaches web clients.
       },
 
       addReaction: async (channelId, messageId, emoji, userId) => {

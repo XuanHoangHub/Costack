@@ -38,7 +38,7 @@ export const useMemberStore = create<MemberState>((set, get) => ({
           name: m.name || m.email?.split('@')[0] || 'Member',
           email: m.email || '',
           role: m.role === 'admin' || m.role === 'owner' ? 'admin' : 'member',
-          department: m.department || 'Đội ngũ Upgen',
+          department: m.department || 'Đội ngũ Costack',
           status: m.status === 'online' ? 'online' : m.status === 'busy' ? 'busy' : 'offline',
           avatar: m.avatar || undefined,
           phone: m.phone || undefined,

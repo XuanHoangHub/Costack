@@ -23,7 +23,7 @@ async function requestIsAdmin(request: Request) {
 
 export async function GET(request: Request) {
   const fallback: RuntimeConfig = {
-    maintenance: { enabled: false, message: 'Upgen đang được bảo trì. Vui lòng quay lại sau.' },
+    maintenance: { enabled: false, message: 'Costack đang được bảo trì. Vui lòng quay lại sau.' },
     registration: { enabled: true },
     runtime: { status: 'operational', statusMessage: 'Tất cả hệ thống hoạt động bình thường.' },
     isAdmin: false,

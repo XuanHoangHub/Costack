@@ -91,17 +91,14 @@ export const BottomTabNavigator: React.FC = () => {
                 focused && [
                   styles.activeIconWrap,
                   {
-                    backgroundColor: isDarkMode
-                      ? 'rgba(59, 130, 246, 0.16)'
-                      : 'rgba(37, 99, 235, 0.12)',
-                    borderColor: isDarkMode
-                      ? 'rgba(59, 130, 246, 0.35)'
-                      : 'rgba(37, 99, 235, 0.25)',
+                    backgroundColor: colors.primarySubtle,
+                    borderColor: `${colors.primary}45`,
                   },
                 ],
               ]}
             >
-              <Home size={20} color={focused ? colors.primaryLight || colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
+              <Home size={19} color={focused ? colors.primaryLight || colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
+              {focused && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}
             </View>
           ),
         }}
@@ -119,17 +116,14 @@ export const BottomTabNavigator: React.FC = () => {
                 focused && [
                   styles.activeIconWrap,
                   {
-                    backgroundColor: isDarkMode
-                      ? 'rgba(59, 130, 246, 0.16)'
-                      : 'rgba(37, 99, 235, 0.12)',
-                    borderColor: isDarkMode
-                      ? 'rgba(59, 130, 246, 0.35)'
-                      : 'rgba(37, 99, 235, 0.25)',
+                    backgroundColor: colors.primarySubtle,
+                    borderColor: `${colors.primary}45`,
                   },
                 ],
               ]}
             >
-              <CheckSquare size={20} color={focused ? colors.primaryLight || colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
+              <CheckSquare size={19} color={focused ? colors.primaryLight || colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
+              {focused && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}
             </View>
           ),
         }}
@@ -148,15 +142,14 @@ export const BottomTabNavigator: React.FC = () => {
                 focused && [
                   styles.activeIconWrap,
                   {
-                    backgroundColor: isDarkMode
-                      ? 'rgba(59, 130, 246, 0.24)'
-                      : 'rgba(37, 99, 235, 0.16)',
-                    borderColor: colors.primary,
+                    backgroundColor: colors.primarySubtle,
+                    borderColor: `${colors.primary}60`,
                   },
                 ],
               ]}
             >
-              <Layers size={21} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
+              <Layers size={20} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
+              {focused && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}
             </View>
           ),
         }}
@@ -174,17 +167,14 @@ export const BottomTabNavigator: React.FC = () => {
                 focused && [
                   styles.activeIconWrap,
                   {
-                    backgroundColor: isDarkMode
-                      ? 'rgba(59, 130, 246, 0.16)'
-                      : 'rgba(37, 99, 235, 0.12)',
-                    borderColor: isDarkMode
-                      ? 'rgba(59, 130, 246, 0.35)'
-                      : 'rgba(37, 99, 235, 0.25)',
+                    backgroundColor: colors.primarySubtle,
+                    borderColor: `${colors.primary}45`,
                   },
                 ],
               ]}
             >
-              <MessageSquare size={20} color={focused ? colors.primaryLight || colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
+              <MessageSquare size={19} color={focused ? colors.primaryLight || colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
+              {focused && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}
             </View>
           ),
         }}
@@ -212,17 +202,14 @@ export const BottomTabNavigator: React.FC = () => {
                 focused && [
                   styles.activeIconWrap,
                   {
-                    backgroundColor: isDarkMode
-                      ? 'rgba(59, 130, 246, 0.16)'
-                      : 'rgba(37, 99, 235, 0.12)',
-                    borderColor: isDarkMode
-                      ? 'rgba(59, 130, 246, 0.35)'
-                      : 'rgba(37, 99, 235, 0.25)',
+                    backgroundColor: colors.primarySubtle,
+                    borderColor: `${colors.primary}45`,
                   },
                 ],
               ]}
             >
-              <Menu size={20} color={focused ? colors.primaryLight || colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
+              <Menu size={19} color={focused ? colors.primaryLight || colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
+              {focused && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}
             </View>
           ),
         }}
@@ -234,16 +221,16 @@ export const BottomTabNavigator: React.FC = () => {
 const styles = StyleSheet.create({
   iconWrap: {
     width: 44,
-    height: 30,
+    height: 32,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
   activeIconWrap: {
     borderWidth: 1,
-    shadowColor: '#2563eb',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.18,
     shadowRadius: 6,
     elevation: 2,
   },
@@ -251,5 +238,12 @@ const styles = StyleSheet.create({
     width: 44,
     height: 32,
     borderRadius: 14,
+  },
+  activeDot: {
+    position: 'absolute',
+    bottom: -3,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
   },
 });

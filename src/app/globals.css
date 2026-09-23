@@ -608,21 +608,70 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur']:not(.modal-backdr
   box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.45);
 }
 
-/* Standard clean modal backdrop: clean dimming without frosted glass blur */
+/* Modern frosted modal backdrop: smooth glass blur with refined dark tint */
 .modal-backdrop,
 [data-modal-backdrop],
 .modal-backdrop-blur {
   background-color: rgba(15, 23, 42, 0.45) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  backdrop-filter: blur(10px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(1.2) !important;
 }
 
 .dark .modal-backdrop,
 .dark [data-modal-backdrop],
 .dark .modal-backdrop-blur {
   background-color: rgba(0, 0, 0, 0.65) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  backdrop-filter: blur(12px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(1.2) !important;
+}
+
+/* ── Modern Motion & Spring Easing Curves ── */
+:root {
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring-snappy: cubic-bezier(0.2, 0, 0, 1);
+  --ease-spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-fluid: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* Fluid interactive hover / active feedback */
+.interactive-lift {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s ease;
+}
+.interactive-lift:hover {
+  transform: translateY(-1.5px);
+}
+.interactive-lift:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.interactive-scale {
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s ease;
+}
+.interactive-scale:hover {
+  transform: scale(1.02);
+}
+.interactive-scale:active {
+  transform: scale(0.97);
+}
+
+/* Smooth glass shine effect */
+.glass-shine {
+  position: relative;
+  overflow: hidden;
+}
+.glass-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  transition: left 0.75s ease;
+  pointer-events: none;
+}
+.glass-shine:hover::after {
+  left: 150%;
 }
 
 /* Custom Interactive Animations & Visual Effects */
@@ -1537,6 +1586,42 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur']:not(.modal-backdr
 
 .glow-cyan {
   box-shadow: 0 0 25px -5px rgba(51, 209, 255, 0.35);
+}
+
+.tactile-press {
+  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tactile-press:active {
+  transform: scale(0.97);
+}
+
+.glass-sheet {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+}
+.dark .glass-sheet {
+  background: rgba(10, 11, 16, 0.85);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+}
+
+.card-bevel-edge {
+  position: relative;
+}
+.card-bevel-edge::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45) 25%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0.45) 75%, transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+.dark .card-bevel-edge::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08) 25%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.08) 75%, transparent);
 }
 
 .focus-ring-apexa:focus-visible {
@@ -2618,6 +2703,8 @@ input[type="checkbox"]:not(.sr-only):disabled {
   border-color: var(--space-border) !important;
   background: color-mix(in srgb, var(--space-surface) 76%, var(--space-canvas)) !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  height: fit-content !important;
+  max-height: calc(100vh - 190px);
 }
 
 .apexa-list-group {
@@ -3364,7 +3451,6 @@ input[type="checkbox"]:not(.sr-only):disabled {
 .dark .apexa-nav-item[aria-current="page"] .apexa-nav-item-icon {
   color: #38bdf8;
   background: transparent;
-  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.45));
 }
 
 .dark .apexa-nav-item[aria-current="page"] > span:not([class*="absolute"]) {

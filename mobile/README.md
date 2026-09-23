@@ -1,6 +1,6 @@
-# Upgen Mobile App (React Native + Expo)
+# Costack Mobile App (React Native + Expo)
 
-Ứng dụng di động chính thức của nền tảng **Upgen**, được xây dựng bằng **React Native + Expo (TypeScript)**, kết nối và dùng chung 100% cơ sở dữ liệu và xác thực với phiên bản Web qua **Supabase**.
+Ứng dụng di động chính thức của nền tảng **Costack**, được xây dựng bằng **React Native + Expo (TypeScript)**, kết nối và dùng chung 100% cơ sở dữ liệu và xác thực với phiên bản Web qua **Supabase**.
 
 ---
 
@@ -8,7 +8,7 @@
 
 1. **Trang chủ & Tổng quan (Dashboard)**:
    - Thống kê 4 ô nhanh: Hạn hôm nay, Quá hạn, Đang làm, Đã hoàn thành.
-   - Thẻ thông minh Upgen Brain AI (Smart Daily Briefing & Action Insight).
+   - Thẻ thông minh Costack Brain AI (Smart Daily Briefing & Action Insight).
    - Danh sách công việc gần đây và không gian làm việc.
    - Nút nổi FAB `+` tạo nhanh công việc với hiệu ứng nảy (spring physics).
 
@@ -39,7 +39,7 @@
    - Thống kê thu nhập và chi phí.
    - Lịch sử giao dịch và modal thêm khoản thu/chi nhanh.
 
-7. **Trợ lý trí tuệ nhân tạo (Upgen Brain AI Assistant)**:
+7. **Trợ lý trí tuệ nhân tạo (Costack Brain AI Assistant)**:
    - Màn hình trò chuyện AI chuyên biệt với các câu lệnh mẫu: Tóm tắt ngày, chia nhỏ việc, gợi ý thứ tự ưu tiên.
    - Kết nối với backend AI API.
 
@@ -48,7 +48,7 @@
    - Trạng thái hoạt động trực tuyến (Online presence).
 
 9. **Cài đặt & Giao diện cá nhân hóa**:
-    - Chuyển đổi Dark Mode / Light Mode đồng bộ với bảng màu Upgen Web (`#0c0e14`).
+    - Chuyển đổi Dark Mode / Light Mode đồng bộ với bảng màu Costack Web (`#0c0e14`).
     - Hỗ trợ song ngữ: Tiếng Việt và English.
     - Cập nhật hồ sơ cá nhân.
 

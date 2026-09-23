@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
+  Alert,
 } from 'react-native';
 import {
   Wallet,
@@ -14,13 +15,19 @@ import {
   ArrowDownLeft,
   Plus,
   X,
+  Landmark,
+  CreditCard,
+  Trash2,
+  Check,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import Toast from 'react-native-toast-message';
 import { useUiStore } from '../../store/uiStore';
 import { useFinanceStore } from '../../store/financeStore';
 import { useTranslation } from '../../locales';
 import { Header } from '../../components/common/Header';
 import { Button } from '../../components/common/Button';
+import { PressableScale } from '../../components/common/PressableScale';
 
 interface FinanceScreenProps {
   navigation: any;
@@ -32,22 +39,40 @@ export const FinanceScreen: React.FC<FinanceScreenProps> = ({ navigation }) => {
   const categories = useFinanceStore((s) => s.categories);
   const accounts = useFinanceStore((s) => s.accounts);
   const addTransaction = useFinanceStore((s) => s.addTransaction);
+  const deleteTransaction = useFinanceStore((s) => s.deleteTransaction);
+  const addAccount = useFinanceStore((s) => s.addAccount);
   const getTotalBalance = useFinanceStore((s) => s.getTotalBalance);
   const getTotalIncome = useFinanceStore((s) => s.getTotalIncome);
   const getTotalExpense = useFinanceStore((s) => s.getTotalExpense);
   const { t } = useTranslation();
 
+  // Modals state
   const [showModal, setShowModal] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
+
+  // Filter state
+  const [filterTab, setFilterTab] = useState<'all' | 'income' | 'expense'>('all');
+
+  // New Transaction form
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<'income' | 'expense'>('income');
   const [selectedCat, setSelectedCat] = useState('Dự án Khách hàng');
+  const [selectedAccountId, setSelectedAccountId] = useState('');
+
+  // New Account form
+  const [bankName, setBankName] = useState('');
+  const [accountNum, setAccountNum] = useState('');
+  const [initialBalance, setInitialBalance] = useState('');
+  const [accountColor, setAccountColor] = useState('#3b82f6');
 
   const totalBalance = getTotalBalance();
   const totalIncome = getTotalIncome();
   const totalExpense = getTotalExpense();
 
-  const handleAdd = () => {
+  const colorPresets = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+
+  const handleAdd = async () => {
     const num = parseFloat(amount.replace(/[^0-9]/g, ''));
     if (!title.trim() || isNaN(num) || num <= 0) return;
 
@@ -55,23 +80,108 @@ export const FinanceScreen: React.FC<FinanceScreenProps> = ({ navigation }) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {}
 
-    addTransaction({
-      title: title.trim(),
-      amount: num,
-      currency: 'VND',
-      type,
-      category: selectedCat,
-      status: 'completed',
-    });
+    try {
+      await addTransaction({
+        title: title.trim(),
+        amount: num,
+        currency: 'VND',
+        type,
+        category: selectedCat,
+        status: 'completed',
+        accountId: selectedAccountId || accounts[0]?.id,
+      });
 
-    setTitle('');
-    setAmount('');
-    setShowModal(false);
+      Toast.show({
+        type: 'success',
+        text1: 'Thành công',
+        text2: `Đã ghi nhận giao dịch ${type === 'income' ? 'thu' : 'chi'} ${formatCurrency(num)}.`,
+      });
+
+      setTitle('');
+      setAmount('');
+      setShowModal(false);
+    } catch (e: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Lỗi',
+        text2: e?.message || 'Không thể lưu giao dịch.',
+      });
+    }
+  };
+
+  const handleCreateAccount = async () => {
+    if (!bankName.trim() || !accountNum.trim()) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập tên ngân hàng và số tài khoản.');
+      return;
+    }
+    const balanceNum = parseFloat(initialBalance.replace(/[^0-9]/g, '')) || 0;
+
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {}
+
+    try {
+      await addAccount({
+        bank: bankName.trim(),
+        accountNumber: accountNum.trim(),
+        balance: balanceNum,
+        color: accountColor,
+        type: 'bank',
+      });
+
+      Toast.show({
+        type: 'success',
+        text1: 'Đã tạo tài khoản',
+        text2: `Tài khoản ${bankName.trim()} đã được thêm vào sổ quỹ.`,
+      });
+
+      setBankName('');
+      setAccountNum('');
+      setInitialBalance('');
+      setShowAccountModal(false);
+    } catch (e: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Lỗi',
+        text2: e?.message || 'Không thể tạo tài khoản mới.',
+      });
+    }
+  };
+
+  const handleDeleteTx = (txId: string, txTitle: string) => {
+    Alert.alert(
+      'Xóa giao dịch',
+      `Bạn có chắc chắn muốn xóa giao dịch "${txTitle}"? Số dư tài khoản sẽ tự động đồng bộ lại.`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            } catch {}
+            await deleteTransaction(txId);
+            Toast.show({
+              type: 'info',
+              text1: 'Đã xóa',
+              text2: 'Giao dịch đã được xóa thành công.',
+            });
+          },
+        },
+      ]
+    );
   };
 
   const formatCurrency = (val: number) => {
     return val.toLocaleString('vi-VN') + ' ₫';
   };
+
+  const filteredTransactions = transactions.filter((tx) => {
+    if (filterTab === 'income') return tx.type === 'income';
+    if (filterTab === 'expense') return tx.type === 'expense';
+    return true;
+  });
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -82,7 +192,12 @@ export const FinanceScreen: React.FC<FinanceScreenProps> = ({ navigation }) => {
         onBack={() => navigation.goBack()}
         rightAction={
           <TouchableOpacity
-            onPress={() => setShowModal(true)}
+            onPress={() => {
+              try {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              } catch {}
+              setShowModal(true);
+            }}
             style={[styles.addBtn, { backgroundColor: colors.primary }]}
           >
             <Plus size={18} color="#ffffff" />
@@ -90,12 +205,7 @@ export const FinanceScreen: React.FC<FinanceScreenProps> = ({ navigation }) => {
         }
       />
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {accounts.length > 0 && (
-          <View style={[styles.accountHint, { backgroundColor: colors.primarySubtle, borderColor: `${colors.primary}35` }]}>
-            <Text style={[styles.accountHintText, { color: colors.primaryText }]}>Ghi vào {accounts[0].bank} ••••{accounts[0].accountNumber.slice(-4)}</Text>
-          </View>
-        )}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Total Balance Card */}
         <View
           style={[
@@ -154,69 +264,216 @@ export const FinanceScreen: React.FC<FinanceScreenProps> = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Transactions List */}
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          {t.finance.recentTransactions}
-        </Text>
+        {/* Bank Accounts Section */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Tài khoản & Thẻ ({accounts.length})
+          </Text>
+          <TouchableOpacity
+            onPress={() => setShowAccountModal(true)}
+            style={styles.addAccountLink}
+          >
+            <Plus size={14} color={colors.primary} />
+            <Text style={[styles.addAccountLinkText, { color: colors.primary }]}>
+              Thêm tài khoản
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-        {accounts.length === 0 && (
-          <View style={[styles.setupHint, { backgroundColor: colors.warningSubtle, borderColor: `${colors.warning}40` }]}>
-            <Text style={[styles.setupHintTitle, { color: colors.warning }]}>Cần một tài khoản tài chính</Text>
-            <Text style={[styles.setupHintText, { color: colors.textSecondary }]}>Tạo tài khoản trong Finance Hub trên web để ghi thu chi chính xác và đồng bộ số dư.</Text>
-          </View>
-        )}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.accountsScroll}
+        >
+          {accounts.map((acc) => (
+            <View
+              key={acc.id}
+              style={[
+                styles.accountCard,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <View style={styles.accountTop}>
+                <View
+                  style={[
+                    styles.accountIconWrap,
+                    { backgroundColor: `${acc.color || colors.primary}20` },
+                  ]}
+                >
+                  <Landmark size={18} color={acc.color || colors.primary} />
+                </View>
+                <Text style={[styles.accountTypeBadge, { color: colors.textMuted }]}>
+                  ••••{acc.accountNumber.slice(-4)}
+                </Text>
+              </View>
+              <Text numberOfLines={1} style={[styles.accountBankName, { color: colors.textPrimary }]}>
+                {acc.bank}
+              </Text>
+              <Text style={[styles.accountBalance, { color: colors.primaryLight }]}>
+                {formatCurrency(acc.balance)}
+              </Text>
+            </View>
+          ))}
 
-        {transactions.map((tx) => (
-          <View
-            key={tx.id}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => setShowAccountModal(true)}
             style={[
-              styles.txItem,
+              styles.addAccountCard,
               {
-                backgroundColor: colors.surface,
+                backgroundColor: colors.surfaceSubtle,
                 borderColor: colors.border,
               },
             ]}
           >
-            <View
+            <Plus size={20} color={colors.textMuted} />
+            <Text style={[styles.addAccountText, { color: colors.textMuted }]}>
+              Thêm tài khoản
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+
+        {/* Transactions Section Header & Tabs */}
+        <View style={styles.txHeaderWrap}>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary, marginBottom: 0 }]}>
+            {t.finance.recentTransactions}
+          </Text>
+
+          {/* Filter Tabs: Tất cả, Thu, Chi */}
+          <View style={[styles.filterTabsWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <TouchableOpacity
+              onPress={() => setFilterTab('all')}
               style={[
-                styles.txIconBox,
+                styles.filterTabBtn,
+                filterTab === 'all' && { backgroundColor: colors.primary },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.filterTabText,
+                  { color: filterTab === 'all' ? '#ffffff' : colors.textSecondary },
+                ]}
+              >
+                Tất cả
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setFilterTab('income')}
+              style={[
+                styles.filterTabBtn,
+                filterTab === 'income' && { backgroundColor: colors.success },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.filterTabText,
+                  { color: filterTab === 'income' ? '#ffffff' : colors.textSecondary },
+                ]}
+              >
+                Thu
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setFilterTab('expense')}
+              style={[
+                styles.filterTabBtn,
+                filterTab === 'expense' && { backgroundColor: colors.danger },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.filterTabText,
+                  { color: filterTab === 'expense' ? '#ffffff' : colors.textSecondary },
+                ]}
+              >
+                Chi
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {filteredTransactions.length === 0 ? (
+          <View
+            style={[
+              styles.emptyWrap,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <CreditCard size={36} color={colors.textMuted} style={{ marginBottom: 10 }} />
+            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+              Chưa có giao dịch nào
+            </Text>
+            <Text style={[styles.emptySub, { color: colors.textMuted }]}>
+              Nhấn nút "+" phía trên để ghi nhận khoản thu hoặc chi đầu tiên.
+            </Text>
+          </View>
+        ) : (
+          filteredTransactions.map((tx) => (
+            <View
+              key={tx.id}
+              style={[
+                styles.txItem,
                 {
-                  backgroundColor:
-                    tx.type === 'income' ? colors.successSubtle : colors.dangerSubtle,
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
                 },
               ]}
             >
-              {tx.type === 'income' ? (
-                <ArrowDownLeft size={18} color={colors.success} />
-              ) : (
-                <ArrowUpRight size={18} color={colors.danger} />
-              )}
-            </View>
+              <View
+                style={[
+                  styles.txIconBox,
+                  {
+                    backgroundColor:
+                      tx.type === 'income' ? colors.successSubtle : colors.dangerSubtle,
+                  },
+                ]}
+              >
+                {tx.type === 'income' ? (
+                  <ArrowDownLeft size={18} color={colors.success} />
+                ) : (
+                  <ArrowUpRight size={18} color={colors.danger} />
+                )}
+              </View>
 
-            <View style={styles.txDetails}>
-              <Text style={[styles.txTitle, { color: colors.textPrimary }]}>
-                {tx.title}
-              </Text>
-              <Text style={[styles.txCat, { color: colors.textMuted }]}>
-                {tx.category} •{' '}
-                {new Date(tx.date).toLocaleDateString('vi-VN', {
-                  month: 'numeric',
-                  day: 'numeric',
-                })}
-              </Text>
-            </View>
+              <View style={styles.txDetails}>
+                <Text style={[styles.txTitle, { color: colors.textPrimary }]}>
+                  {tx.title}
+                </Text>
+                <Text style={[styles.txCat, { color: colors.textMuted }]}>
+                  {tx.category} •{' '}
+                  {new Date(tx.date).toLocaleDateString('vi-VN', {
+                    month: 'numeric',
+                    day: 'numeric',
+                  })}
+                </Text>
+              </View>
 
-            <Text
-              style={[
-                styles.txAmount,
-                { color: tx.type === 'income' ? colors.success : colors.danger },
-              ]}
-            >
-              {tx.type === 'income' ? '+' : '-'}
-              {formatCurrency(tx.amount)}
-            </Text>
-          </View>
-        ))}
+              <Text
+                style={[
+                  styles.txAmount,
+                  { color: tx.type === 'income' ? colors.success : colors.danger },
+                ]}
+              >
+                {tx.type === 'income' ? '+' : '-'}
+                {formatCurrency(tx.amount)}
+              </Text>
+
+              <TouchableOpacity
+                onPress={() => handleDeleteTx(tx.id, tx.title)}
+                style={styles.txDeleteBtn}
+              >
+                <Trash2 size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
+
+        <View style={{ height: 40 }} />
       </ScrollView>
 
       {/* Add Transaction Modal */}
@@ -279,6 +536,66 @@ export const FinanceScreen: React.FC<FinanceScreenProps> = ({ navigation }) => {
               </TouchableOpacity>
             </View>
 
+            {/* Account Selector if multiple accounts */}
+            {accounts.length > 1 && (
+              <View style={{ marginBottom: 12 }}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                  Tài khoản ghi nhận:
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
+                  {accounts.map((acc) => {
+                    const isSelected = (selectedAccountId || accounts[0]?.id) === acc.id;
+                    return (
+                      <TouchableOpacity
+                        key={acc.id}
+                        onPress={() => setSelectedAccountId(acc.id)}
+                        style={[
+                          styles.accountChip,
+                          {
+                            backgroundColor: isSelected ? `${colors.primary}25` : colors.surfaceSubtle,
+                            borderColor: isSelected ? colors.primary : colors.border,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.accountChipText, { color: isSelected ? colors.primaryLight : colors.textSecondary }]}>
+                          {acc.bank} (••••{acc.accountNumber.slice(-4)})
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Category Selector Chips */}
+            <View style={{ marginBottom: 12 }}>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                Danh mục:
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
+                {categories.map((cat) => {
+                  const isSelected = selectedCat === cat.name;
+                  return (
+                    <TouchableOpacity
+                      key={cat.id}
+                      onPress={() => setSelectedCat(cat.name)}
+                      style={[
+                        styles.catChip,
+                        {
+                          backgroundColor: isSelected ? `${cat.color}25` : colors.surfaceSubtle,
+                          borderColor: isSelected ? cat.color : colors.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.catChipText, { color: isSelected ? cat.color : colors.textSecondary }]}>
+                        {cat.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
             {/* Title Input */}
             <TextInput
               placeholder={t.finance.titlePlaceholder}
@@ -315,7 +632,106 @@ export const FinanceScreen: React.FC<FinanceScreenProps> = ({ navigation }) => {
             <Button
               title={t.finance.addTransaction}
               onPress={handleAdd}
-              style={{ marginTop: 12 }}
+              style={{ marginTop: 6 }}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add Bank Account Modal */}
+      <Modal visible={showAccountModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+                Thêm tài khoản ngân hàng / ví
+              </Text>
+              <TouchableOpacity onPress={() => setShowAccountModal(false)}>
+                <X size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              placeholder="Tên ngân hàng / Ví (VD: VPBank, Techcombank, Tiền mặt)..."
+              placeholderTextColor={colors.textPlaceholder}
+              value={bankName}
+              onChangeText={setBankName}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.surfaceSubtle,
+                  color: colors.textPrimary,
+                  borderColor: colors.border,
+                },
+              ]}
+            />
+
+            <TextInput
+              placeholder="Số tài khoản (VD: 88889999)..."
+              placeholderTextColor={colors.textPlaceholder}
+              keyboardType="numeric"
+              value={accountNum}
+              onChangeText={setAccountNum}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.surfaceSubtle,
+                  color: colors.textPrimary,
+                  borderColor: colors.border,
+                },
+              ]}
+            />
+
+            <TextInput
+              placeholder="Số dư ban đầu (VND, mặc định 0)..."
+              placeholderTextColor={colors.textPlaceholder}
+              keyboardType="numeric"
+              value={initialBalance}
+              onChangeText={setInitialBalance}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.surfaceSubtle,
+                  color: colors.textPrimary,
+                  borderColor: colors.border,
+                },
+              ]}
+            />
+
+            {/* Color Presets */}
+            <View style={{ marginBottom: 16 }}>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary, marginBottom: 8 }]}>
+                Màu sắc nhận diện:
+              </Text>
+              <View style={styles.colorRow}>
+                {colorPresets.map((c) => (
+                  <TouchableOpacity
+                    key={c}
+                    onPress={() => setAccountColor(c)}
+                    style={[
+                      styles.colorDot,
+                      { backgroundColor: c },
+                      accountColor === c && styles.colorDotActive,
+                    ]}
+                  >
+                    {accountColor === c && <Check size={12} color="#ffffff" />}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <Button
+              title="Lưu tài khoản"
+              onPress={handleCreateAccount}
+              style={{ marginTop: 6 }}
             />
           </View>
         </View>
@@ -339,16 +755,15 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   balanceCard: {
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1,
     padding: 18,
-    marginBottom: 20,
+    marginBottom: 18,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  accountHint: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1, marginBottom: 12 },
-  accountHintText: { fontSize: 12, fontWeight: '700' },
-  setupHint: { padding: 14, borderRadius: 16, borderWidth: 1, marginBottom: 12 },
-  setupHintTitle: { fontSize: 13, fontWeight: '800', marginBottom: 3 },
-  setupHintText: { fontSize: 12, lineHeight: 17 },
   balanceHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -359,9 +774,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   balanceValue: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '800',
     marginVertical: 12,
+    letterSpacing: -0.5,
+    fontVariant: ['tabular-nums'],
   },
   incomeExpenseRow: {
     flexDirection: 'row',
@@ -389,24 +806,140 @@ const styles = StyleSheet.create({
   incomeText: {
     fontSize: 13,
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   expenseText: {
     fontSize: 13,
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  addAccountLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  addAccountLinkText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  accountsScroll: {
+    gap: 10,
+    paddingBottom: 16,
+  },
+  accountCard: {
+    width: 150,
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    justifyContent: 'space-between',
+    height: 105,
+  },
+  accountTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  accountIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accountTypeBadge: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  accountBankName: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 6,
+  },
+  accountBalance: {
+    fontSize: 13,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  addAccountCard: {
+    width: 110,
+    height: 105,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  addAccountText: {
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  txHeaderWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 12,
+    marginTop: 6,
+  },
+  filterTabsWrap: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 2,
+    gap: 2,
+  },
+  filterTabBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  filterTabText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  emptyWrap: {
+    padding: 24,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  emptySub: {
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 18,
   },
   txItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     marginBottom: 8,
     gap: 12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   txIconBox: {
     width: 40,
@@ -429,6 +962,10 @@ const styles = StyleSheet.create({
   txAmount: {
     fontSize: 14,
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  txDeleteBtn: {
+    padding: 6,
   },
   modalOverlay: {
     flex: 1,
@@ -468,6 +1005,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
   input: {
     borderRadius: 12,
     borderWidth: 1,
@@ -475,5 +1016,42 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 14,
     marginBottom: 12,
+  },
+  catChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginRight: 8,
+  },
+  catChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  accountChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginRight: 8,
+  },
+  accountChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  colorRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  colorDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colorDotActive: {
+    borderWidth: 2,
+    borderColor: '#ffffff',
   },
 });

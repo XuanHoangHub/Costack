@@ -13,7 +13,7 @@ export default function GlobalError({
   return (
     <html lang="vi">
       <head>
-        <title>Khôi phục phiên làm việc · Upgen</title>
+        <title>Khôi phục phiên làm việc · Costack</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body style={{ margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif', background: '#05060b', color: '#f8fafc' }}>
@@ -47,7 +47,7 @@ export default function GlobalError({
             </div>
 
             <h1 style={{ fontSize: 26, fontWeight: 900, margin: '0 0 14px', color: '#ffffff', letterSpacing: '-0.02em', lineHeight: 1.3 }}>
-              Upgen đang khôi phục phiên làm việc
+              Costack đang khôi phục phiên làm việc
             </h1>
             <p style={{ color: '#cbd5e1', lineHeight: 1.6, fontSize: 14, margin: '0 auto 30px', maxWidth: 460 }}>
               Một gián đoạn tạm thời đã xảy ra trong tiến trình xử lý. Toàn bộ dữ liệu cục bộ của bạn đã được <strong style={{ color: '#38bdf8', whiteSpace: 'nowrap' }}>tự động lưu an toàn</strong>.

@@ -16,6 +16,8 @@ export const mapTaskRow = (row: any): Task => ({
   createdAt: row.created_at ?? row.createdAt ?? new Date().toISOString(),
   completedAt: row.completedAt ?? row.completed_at ?? undefined,
   deletedAt: row.deleted_at ?? undefined,
+  hoursEstimate: row.hours_estimate ?? row.hoursEstimate ?? undefined,
+  hoursLogged: row.hours_logged ?? row.hoursLogged ?? undefined,
   commentsCount: row.commentsCount ?? row.comments_count ?? (Array.isArray(row.comments) ? row.comments.length : 0),
   comments: Array.isArray(row.comments) ? row.comments : [],
   tags: Array.isArray(row.tags) ? row.tags : [],

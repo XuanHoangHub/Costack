@@ -131,3 +131,72 @@ test('offline completed tasks retain normalized completion metadata for synchron
   assert.equal(state.queue[created.id], created);
   assert.equal(state.inserts.length, 0);
 });
+
+test('tasks created without explicit priority default to medium and never pass null priority to database', async () => {
+  const { state, create } = createHarness();
+  await create({ ...task, priority: undefined });
+  assert.equal(state.tasks[0].priority, 'medium');
+  assert.equal(state.inserts[0].priority, 'medium');
+  assert.notEqual(state.inserts[0].priority, null);
+});
+
+const updateSource = appSource.slice(appSource.indexOf('  const handleUpdateTask = useCallback'), appSource.indexOf('  const handleRestoreTask = useCallback'));
+const updateJs = ts.transpileModule(`${updateSource}\nexports.updateTask = handleUpdateTask;`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+function createUpdateHarness({ existingTasks = [], fail = false, notNullError = false } = {}) {
+  const state = { tasks: [...existingTasks], queue: {}, updates: [] };
+  let notNullAttempts = 0;
+  const bindings = {
+    exports: {}, crypto: webcrypto, console: { error() {} },
+    useCallback: fn => fn, currentUser: { id: 'me' }, members: [], spaces,
+    activeWorkspaceId: 'w1', activeSpaceId: 'a', activeListId: 'a2', isOffline: false,
+    triggerToast() {}, addSyncLog() {}, isUserAssignedToTask: () => false,
+    getIncompleteBlockers: () => [],
+    resolveTaskLocation, normalizeTaskCompletion,
+    applyCustomFieldDefaults: fieldExports.applyCustomFieldDefaults,
+    validateTaskCustomFields: fieldExports.validateTaskCustomFields,
+    buildTaskCustomFields: task => task.custom_fields || {},
+    saveTaskReminder: () => {},
+    useSpaceStore: { getState: () => ({ spaces: spaces.map(s => ({ ...s, customFields: [] })) }) },
+    useTaskStore: { getState: () => ({ tasks: state.tasks }) },
+    setTasks: update => { state.tasks = update(state.tasks); },
+    setOfflineTasksQueue: update => { state.queue = update(state.queue); },
+    setOfflineDeletedTasks: () => {},
+    handleAddTask: async () => {},
+    supabase: {
+      auth: { getSession: async () => ({ data: { session: { user: { id: 'me' } } } }) },
+      from: () => ({
+        update: payload => ({
+          eq: async () => {
+            state.updates.push(payload);
+            if (notNullError && payload.priority === null) {
+              notNullAttempts++;
+              return { error: { message: 'null value in column "priority" of relation "tasks" violates not-null constraint' } };
+            }
+            return { error: fail ? { message: 'Network unavailable' } : null };
+          }
+        })
+      }),
+    },
+  };
+  vm.runInNewContext(updateJs, bindings);
+  return { state, update: bindings.exports.updateTask, getAttempts: () => notNullAttempts };
+}
+
+test('updating task with missing priority preserves old priority and never sends null', async () => {
+  const initialTask = { ...task, id: 'task-1', priority: 'high' };
+  const { state, update } = createUpdateHarness({ existingTasks: [initialTask] });
+  await update({ id: 'task-1', title: 'Updated title', status: 'inprogress' });
+  assert.equal(state.tasks[0].priority, 'high');
+  assert.equal(state.updates[0].priority, 'high');
+  assert.notEqual(state.updates[0].priority, null);
+});
+
+test('updating task with undefined priority when old task had no priority defaults safely to medium', async () => {
+  const initialTask = { ...task, id: 'task-2', priority: undefined };
+  const { state, update } = createUpdateHarness({ existingTasks: [initialTask] });
+  await update({ id: 'task-2', title: 'Updated title', status: 'completed' });
+  assert.equal(state.tasks[0].priority, 'medium');
+  assert.equal(state.updates[0].priority, 'medium');
+  assert.notEqual(state.updates[0].priority, null);
+});
+

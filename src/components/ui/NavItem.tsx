@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 import { useTranslation } from "@/contexts/TranslationContext";
 
 interface NavItemProps {
-  icon: React.ComponentType<{ size?: number; weight?: string; className?: string }>;
+  icon: React.ComponentType<{ size?: number; weight?: string; className?: string; strokeWidth?: number }>;
   label: string;
   shortLabel?: string;
   isActive?: boolean;
@@ -87,8 +87,8 @@ function NavItemComponent({
           ].join(" ")}
         >
           <Icon
-            size={18}
-            weight={effectiveIsActive ? "fill" : "regular"}
+            size={19}
+            strokeWidth={effectiveIsActive ? 2.1 : 1.85}
             className={`shrink-0 transition-transform duration-150 ${disabled ? '' : 'group-hover:scale-105'} ${effectiveIsActive ? 'text-blue-600 dark:text-sky-300' : ''}`}
           />
 
@@ -110,7 +110,7 @@ function NavItemComponent({
                       ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-sky-300'
                       : 'bg-slate-100 text-slate-600 dark:bg-white/[0.08] dark:text-slate-300'
                 }`}>
-                  <Icon size={14} weight={effectiveIsActive ? "fill" : "regular"} />
+                  <Icon size={14} strokeWidth={effectiveIsActive ? 2 : 1.8} />
                 </div>
                 <span className="font-bold text-xs text-slate-900 dark:text-white tracking-tight truncate">{label}</span>
               </div>
@@ -198,11 +198,11 @@ function NavItemComponent({
             ? "text-slate-400 dark:text-zinc-600"
             : effectiveIsActive
               ? "text-blue-600 dark:text-sky-300"
-              : "text-slate-400 group-hover:text-slate-700 dark:text-zinc-400 dark:group-hover:text-zinc-200 group-hover:scale-105",
+              : "text-slate-500 group-hover:text-slate-900 dark:text-zinc-400 dark:group-hover:text-zinc-100 group-hover:scale-105",
         ].join(" ")}>
           <Icon
-            size={16}
-            weight={effectiveIsActive ? "fill" : "regular"}
+            size={17}
+            strokeWidth={effectiveIsActive ? 2 : 1.8}
             className="shrink-0 transition-transform duration-150"
           />
         </div>

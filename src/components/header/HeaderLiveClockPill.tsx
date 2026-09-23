@@ -10,8 +10,6 @@ export const HeaderLiveClockPill = memo(function HeaderLiveClockPill() {
   const { locale } = useTranslation();
   const dateFormat = useUiStore((s) => s.dateFormat);
   const setDateFormat = useUiStore((s) => s.setDateFormat);
-  const uiDensity = useUiStore((s) => s.uiDensity);
-  const setUiDensity = useUiStore((s) => s.setUiDensity);
 
   const [isOpen, setIsOpen] = useState(false);
   const [now, setNow] = useState<Date>(() => new Date());
@@ -67,12 +65,12 @@ export const HeaderLiveClockPill = memo(function HeaderLiveClockPill() {
 
   const formattedDate = renderDateValue(dateFormat, now);
 
-  const dateFmtOptions: { id: 'short' | 'clock' | 'full' | 'vi' | 'numeric'; label: string; icon: typeof Calendar }[] = [
-    { id: 'short', label: locale === 'vi' ? 'Ngắn gọn' : 'Short', icon: Calendar },
-    { id: 'clock', label: locale === 'vi' ? 'Đồng hồ Realtime' : 'Live Clock', icon: CalendarClock },
-    { id: 'full', label: locale === 'vi' ? 'Chi tiết' : 'Full', icon: CalendarDays },
-    { id: 'vi', label: locale === 'vi' ? 'Chuẩn Việt Nam' : 'Vietnamese', icon: Languages },
-    { id: 'numeric', label: locale === 'vi' ? 'Số ISO' : 'ISO Numeric', icon: Hash },
+  const dateFmtOptions: { id: 'short' | 'clock' | 'full' | 'vi' | 'numeric'; icon: typeof Calendar }[] = [
+    { id: 'short', icon: Calendar },
+    { id: 'clock', icon: CalendarClock },
+    { id: 'full', icon: CalendarDays },
+    { id: 'vi', icon: Languages },
+    { id: 'numeric', icon: Hash },
   ];
 
   return (
@@ -115,7 +113,7 @@ export const HeaderLiveClockPill = memo(function HeaderLiveClockPill() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 4 }}
             transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute right-0 top-full mt-2 w-72 bg-white/98 dark:bg-[#121620]/98 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-[0_20px_45px_-10px_rgba(0,0,0,0.3)] p-3 z-50 text-left font-sans space-y-2.5 select-none"
+            className="absolute right-0 top-full mt-2 w-64 bg-white/98 dark:bg-[#121620]/98 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-[0_20px_45px_-10px_rgba(0,0,0,0.3)] p-2.5 z-50 text-left font-sans space-y-2 select-none"
           >
             {/* Header */}
             <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-white/[0.06]">
@@ -157,64 +155,26 @@ export const HeaderLiveClockPill = memo(function HeaderLiveClockPill() {
                         (window as any).playSystemSound?.('toggle');
                       }
                     }}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left transition-all cursor-pointer ${
+                    className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left transition-all cursor-pointer group ${
                       isSelected
                         ? 'bg-blue-500/10 text-blue-600 dark:text-sky-400 border border-blue-500/25 font-semibold'
                         : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-100/70 dark:hover:bg-white/[0.04] border border-transparent'
                     }`}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Icon className="w-3.5 h-3.5 shrink-0 opacity-70" />
-                      <div className="min-w-0">
-                        <div className="text-xs font-medium truncate">{fmt.label}</div>
-                        <div className="text-[9.5px] font-mono text-slate-400 dark:text-zinc-500 truncate">{renderDateValue(fmt.id, now)}</div>
-                      </div>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon className={`w-3.5 h-3.5 shrink-0 transition-colors ${
+                        isSelected ? 'text-blue-600 dark:text-sky-400' : 'text-slate-400 dark:text-zinc-400 group-hover:text-slate-600 dark:group-hover:text-zinc-200'
+                      }`} />
+                      <span className={`text-xs tabular-nums truncate ${
+                        isSelected ? 'font-semibold text-blue-600 dark:text-sky-400' : 'font-medium text-slate-700 dark:text-zinc-200'
+                      }`}>
+                        {renderDateValue(fmt.id, now)}
+                      </span>
                     </div>
                     {isSelected && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 shrink-0" />}
                   </button>
                 );
               })}
-            </div>
-
-            {/* Density toggle footer */}
-            <div className="pt-2 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between text-[10px]">
-              <span className="font-semibold text-slate-400 dark:text-zinc-500">
-                {locale === 'vi' ? 'Mật độ hiển thị:' : 'UI Density:'}
-              </span>
-              <div className="flex items-center gap-1 bg-slate-100 dark:bg-white/[0.06] p-0.5 rounded-lg">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUiDensity('comfortable');
-                    if (typeof window !== 'undefined') {
-                      (window as any).playSystemSound?.('toggle');
-                    }
-                  }}
-                  className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all cursor-pointer ${
-                    uiDensity === 'comfortable'
-                      ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-3xs font-semibold'
-                      : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800'
-                  }`}
-                >
-                  {locale === 'vi' ? 'Thoáng' : 'Comfortable'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUiDensity('compact');
-                    if (typeof window !== 'undefined') {
-                      (window as any).playSystemSound?.('toggle');
-                    }
-                  }}
-                  className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all cursor-pointer ${
-                    uiDensity === 'compact'
-                      ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-3xs font-semibold'
-                      : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800'
-                  }`}
-                >
-                  {locale === 'vi' ? 'Gọn' : 'Compact'}
-                </button>
-              </div>
             </div>
           </motion.div>
         )}

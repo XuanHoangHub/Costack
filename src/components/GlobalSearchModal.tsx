@@ -59,7 +59,7 @@ function Portal({ children }: { children: React.ReactNode }) {
   return createPortal(children, document.body);
 }
 
-export type SearchCategory = 'all' | 'tasks' | 'docs' | 'spaces' | 'channels' | 'members' | 'commands';
+export type SearchCategory = 'all' | 'tasks' | 'spaces' | 'channels' | 'members' | 'commands';
 
 const normalizeSearchText = (value: string) =>
   (value || '')
@@ -76,12 +76,12 @@ export interface GlobalSearchModalProps {
   searchCategory: SearchCategory;
   setSearchCategory: (cat: SearchCategory) => void;
   tasks: Task[];
-  docs: Document[];
+  docs?: Document[];
   spaces: Space[];
   members: UserType[];
   activeWorkspaceId: string;
   onSelectTask: (taskId: string) => void;
-  onSelectDoc: (docId: string) => void;
+  onSelectDoc?: (docId: string) => void;
   onSelectSpace: (spaceId: string) => void;
   onSelectChannel: (channelId: string) => void;
   onSelectMember?: (memberId: string) => void;
@@ -262,8 +262,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     {
       id: 'open-ai',
       name: '/ai',
-      label: isVietnamese ? 'Trợ lý AI Upgen Brain' : 'Launch Upgen Brain AI Assistant',
-      shortLabel: isVietnamese ? 'Trợ lý Upgen AI' : 'Upgen AI Brain',
+      label: isVietnamese ? 'Trợ lý AI Costack Brain' : 'Launch Costack Brain AI Assistant',
+      shortLabel: isVietnamese ? 'Trợ lý Costack AI' : 'Costack AI Brain',
       description: isVietnamese ? 'Hỏi AI, tóm tắt không gian, tạo PRD hoặc lập kế hoạch' : 'Ask AI, summarize workspace, generate tasks or PRDs',
       icon: Sparkles,
       badge: 'AI',
@@ -272,7 +272,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           const aiBtn = document.getElementById('btn_apexa_ai_float');
           if (aiBtn) aiBtn.click();
         }
-        addSyncLog(isVietnamese ? 'Lệnh: Kích hoạt Trợ lý AI Upgen Brain' : 'Command: Launched Upgen Brain AI Assistant');
+        addSyncLog(isVietnamese ? 'Lệnh: Kích hoạt Trợ lý AI Costack Brain' : 'Command: Launched Costack Brain AI Assistant');
       },
     },
     {
@@ -469,9 +469,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     if (searchCategory === 'all' || searchCategory === 'tasks') {
       filteredTasks.forEach(t => items.push({ type: 'task', data: t }));
     }
-    if (searchCategory === 'all' || searchCategory === 'docs') {
-      filteredDocs.forEach(d => items.push({ type: 'doc', data: d }));
-    }
     if (searchCategory === 'all' || searchCategory === 'spaces') {
       filteredSpaces.forEach(space => items.push({ type: 'space', data: space }));
     }
@@ -488,7 +485,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     searchCategory,
     isCommandMode,
     filteredTasks,
-    filteredDocs,
     filteredSpaces,
     filteredChannels,
     filteredMembers,
@@ -546,7 +542,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       }
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      const categories: SearchCategory[] = ['all', 'tasks', 'docs', 'spaces', 'channels', 'members', 'commands'];
+      const categories: SearchCategory[] = ['all', 'tasks', 'spaces', 'channels', 'members', 'commands'];
       const currentIndex = categories.indexOf(searchCategory);
       const nextCategory = categories[(currentIndex + 1) % categories.length];
       setSearchCategory(nextCategory);
@@ -565,7 +561,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       onSelectTask(item.data.id);
       addSyncLog(`Chuyển đến công việc: "${item.data.title}"`);
     } else if (item.type === 'doc') {
-      onSelectDoc(item.data.id);
+      onSelectDoc?.(item.data.id);
       addSyncLog(`Mở tài liệu: "${item.data.title}"`);
     } else if (item.type === 'space') {
       onSelectSpace(item.data.id);
@@ -649,7 +645,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               className="relative bg-white dark:bg-[#0a0b10] border border-slate-200/90 dark:border-white/10 rounded-2xl w-[min(95vw,760px)] max-sm:w-full max-sm:mx-2 overflow-hidden shadow-[0_24px_64px_rgba(15,23,42,0.18)] dark:shadow-[0_28px_72px_rgba(0,0,0,0.85)] flex flex-col max-h-[88dvh] z-10"
             >
           <h2 id="global-search-title" className="sr-only">
-            {isVietnamese ? 'Tìm kiếm toàn cục Upgen' : 'Upgen Global Search'}
+            {isVietnamese ? 'Tìm kiếm toàn cục Costack' : 'Costack Global Search'}
           </h2>
 
           {/* Search Input Bar (Hình 2 style) */}
@@ -703,10 +699,10 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                     const aiBtn = document.getElementById('btn_apexa_ai_float');
                     if (aiBtn) aiBtn.click();
                   }
-                  addSyncLog(isVietnamese ? `Hỏi AI: ${searchQuery || 'Trợ lý Upgen Brain'}` : `Ask AI: ${searchQuery || 'Upgen Brain'}`);
+                  addSyncLog(isVietnamese ? `Hỏi AI: ${searchQuery || 'Trợ lý Costack Brain'}` : `Ask AI: ${searchQuery || 'Costack Brain'}`);
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-500/15 to-purple-500/15 hover:from-pink-500/25 hover:to-purple-500/25 text-pink-600 dark:text-pink-400 border border-pink-300/40 dark:border-pink-500/30 text-xs font-bold transition-all shadow-2xs cursor-pointer group select-none"
-                title={isVietnamese ? "Mở Trợ lý AI Upgen Brain" : "Open Upgen Brain AI Assistant"}
+                title={isVietnamese ? "Mở Trợ lý AI Costack Brain" : "Open Costack Brain AI Assistant"}
               >
                 <span className="text-xs">🌸</span>
                 <span>Ask AI</span>
@@ -766,20 +762,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>{isVietnamese ? 'Công việc' : 'Tasks'}</span>
                 <span className="text-[10px] opacity-75">({filteredTasks.length})</span>
-              </button>
-
-              <button
-                onClick={() => setSearchCategory('docs')}
-                type="button"
-                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
-                  searchCategory === 'docs'
-                    ? 'bg-blue-600 text-white shadow-2xs font-bold'
-                    : 'bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-white/[0.1] border border-slate-200/80 dark:border-white/10'
-                }`}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>{isVietnamese ? 'Tài liệu' : 'Docs'}</span>
-                <span className="text-[10px] opacity-75">({filteredDocs.length})</span>
               </button>
 
               <button
@@ -999,7 +981,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                       {
                         id: 'ai',
                         query: '/ai',
-                        title: isVietnamese ? 'Trợ lý AI Upgen Brain' : 'Upgen Brain AI Assistant',
+                        title: isVietnamese ? 'Trợ lý AI Costack Brain' : 'Costack Brain AI Assistant',
                         desc: isVietnamese ? 'Hỏi đáp & hỗ trợ thông minh' : 'Smart insights & assistance',
                         icon: Sparkles,
                         color: 'bg-purple-50 text-purple-600 dark:bg-purple-950/70 dark:text-purple-400 border border-purple-200/50 dark:border-purple-900/40',
@@ -1010,7 +992,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                             const aiBtn = document.getElementById('btn_apexa_ai_float');
                             if (aiBtn) aiBtn.click();
                           }
-                          addSyncLog(isVietnamese ? 'Lệnh: Kích hoạt Trợ lý AI Upgen Brain' : 'Command: Launched Upgen Brain AI Assistant');
+                          addSyncLog(isVietnamese ? 'Lệnh: Kích hoạt Trợ lý AI Costack Brain' : 'Command: Launched Costack Brain AI Assistant');
                         }
                       },
                     ].map(card => {
@@ -1485,36 +1467,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             )}
           </div>
 
-          {/* Footer Guide */}
-          <div className="px-4 py-2.5 border-t border-slate-200/80 dark:border-white/[0.08] bg-slate-50/80 dark:bg-[#08090c]/90 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-zinc-400 shrink-0 select-none">
-            <div className="flex items-center gap-2.5 text-[11px]">
-              <span className="flex items-center gap-1.5">
-                <kbd className="px-1.5 py-0.5 rounded-md bg-white dark:bg-white/[0.08] border border-slate-200/90 dark:border-white/10 font-mono text-[9.5px] text-slate-700 dark:text-zinc-200 font-bold shadow-2xs">↑↓</kbd>
-                <span>{isVietnamese ? 'Điều hướng' : 'Navigate'}</span>
-              </span>
-              <span className="text-slate-300 dark:text-zinc-700">•</span>
-              <span className="flex items-center gap-1.5">
-                <kbd className="px-1.5 py-0.5 rounded-md bg-white dark:bg-white/[0.08] border border-slate-200/90 dark:border-white/10 font-mono text-[9.5px] text-slate-700 dark:text-zinc-200 font-bold shadow-2xs">↵</kbd>
-                <span>{isVietnamese ? 'Chọn' : 'Open'}</span>
-              </span>
-              <span className="text-slate-300 dark:text-zinc-700">•</span>
-              <span className="flex items-center gap-1.5">
-                <kbd className="px-1.5 py-0.5 rounded-md bg-white dark:bg-white/[0.08] border border-slate-200/90 dark:border-white/10 font-mono text-[9.5px] text-slate-700 dark:text-zinc-200 font-bold shadow-2xs">Tab</kbd>
-                <span>{isVietnamese ? 'Danh mục' : 'Category'}</span>
-              </span>
-              <span className="text-slate-300 dark:text-zinc-700">•</span>
-              <span className="flex items-center gap-1.5">
-                <kbd className="px-1.5 py-0.5 rounded-md bg-white dark:bg-white/[0.08] border border-slate-200/90 dark:border-white/10 font-mono text-[9.5px] text-slate-700 dark:text-zinc-200 font-bold shadow-2xs">Esc</kbd>
-                <span>{isVietnamese ? 'Đóng' : 'Exit'}</span>
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-zinc-400">
-              <span>{isVietnamese ? 'Gõ' : 'Type'}</span>
-              <kbd className="px-1.5 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/60 border border-purple-200/80 dark:border-purple-800/60 font-mono text-[9.5px] text-purple-600 dark:text-purple-400 font-bold shadow-2xs">/</kbd>
-              <span>{isVietnamese ? 'lệnh hệ thống' : 'for commands'}</span>
-            </div>
-          </div>
         </motion.div>
           </motion.div>
         )}

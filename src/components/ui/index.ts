@@ -62,5 +62,5 @@ export { MockupFrame } from "./MockupFrame";
 export { Toaster, toast } from "./Toast";
 
 // ── Brand Assets ──
-export { ApexaAiIcon, ApexaAiAvatar } from "../ApexaAiIcon";
-export { ApexaLogoIcon, ApexaBrand } from "../ApexaLogo";
+export { ApexaAiIcon, ApexaAiAvatar, CostackAiIcon, CostackAiAvatar } from "../ApexaAiIcon";
+export { ApexaLogoIcon, ApexaBrand, CostackLogoIcon, CostackBrand } from "../ApexaLogo";

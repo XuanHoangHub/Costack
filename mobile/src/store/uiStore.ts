@@ -1,16 +1,18 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { safeAsyncStorage } from '../api/storage';
-import { darkColors, lightColors, ThemeColors } from '../theme/colors';
+import { getThemeColors, AccentPreset, ThemeColors } from '../theme/colors';
 
 export type LanguageType = 'vi' | 'en';
 
 interface UiState {
   isDarkMode: boolean;
+  accentPreset: AccentPreset;
   language: LanguageType;
   colors: ThemeColors;
   toggleDarkMode: () => void;
   setDarkMode: (val: boolean) => void;
+  setAccentPreset: (preset: AccentPreset) => void;
   setLanguage: (lang: LanguageType) => void;
   getColors: () => ThemeColors;
 }
@@ -18,22 +20,28 @@ interface UiState {
 export const useUiStore = create<UiState>()(
   persist(
     (set, get) => ({
-      isDarkMode: true, // Default to sleek dark mode matching webapp
+      isDarkMode: true,
+      accentPreset: 'indigo',
       language: 'vi',
-      colors: darkColors,
+      colors: getThemeColors(true, 'indigo'),
       toggleDarkMode: () =>
         set((state) => {
           const next = !state.isDarkMode;
           return {
             isDarkMode: next,
-            colors: next ? darkColors : lightColors,
+            colors: getThemeColors(next, state.accentPreset),
           };
         }),
       setDarkMode: (val: boolean) =>
-        set({
+        set((state) => ({
           isDarkMode: val,
-          colors: val ? darkColors : lightColors,
-        }),
+          colors: getThemeColors(val, state.accentPreset),
+        })),
+      setAccentPreset: (preset: AccentPreset) =>
+        set((state) => ({
+          accentPreset: preset,
+          colors: getThemeColors(state.isDarkMode, preset),
+        })),
       setLanguage: (lang: LanguageType) => set({ language: lang }),
       getColors: () => get().colors,
     }),
@@ -42,11 +50,12 @@ export const useUiStore = create<UiState>()(
       storage: createJSONStorage(() => safeAsyncStorage),
       partialize: (state) => ({
         isDarkMode: state.isDarkMode,
+        accentPreset: state.accentPreset,
         language: state.language,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
-          state.colors = state.isDarkMode ? darkColors : lightColors;
+          state.colors = getThemeColors(state.isDarkMode ?? true, state.accentPreset ?? 'indigo');
         }
       },
     }

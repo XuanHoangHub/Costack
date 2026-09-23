@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ShieldCheck, Layers, Bot, Zap,
-  CheckCircle2, Circle, Star, FileText, Check
+  CheckCircle2, Circle, Star, MessageSquare, Check
 } from 'lucide-react';
 import { GsapCard3DTilt } from '@/components/animations';
 
@@ -13,7 +13,7 @@ export interface AuthStoryPanelProps {
   isVietnamese?: boolean;
 }
 
-type DemoTab = 'ai' | 'sprint' | 'docs';
+type DemoTab = 'ai' | 'sprint' | 'chat';
 
 export default function AuthStoryPanel({ isVietnamese = true }: AuthStoryPanelProps) {
   const [activeDemo, setActiveDemo] = useState<DemoTab>('sprint');
@@ -30,7 +30,7 @@ export default function AuthStoryPanel({ isVietnamese = true }: AuthStoryPanelPr
 
   const testimonials = isVietnamese ? [
     {
-      quote: 'Upgen giúp đội ngũ 35 kỹ sư cắt giảm 40% thời gian họp báo cáo. Mọi công việc và thời hạn đều rõ ràng.',
+      quote: 'Costack giúp đội ngũ 35 kỹ sư cắt giảm 40% thời gian họp báo cáo. Mọi công việc và thời hạn đều rõ ràng.',
       author: 'Phan Tuấn',
       role: 'CTO tại TechNova',
       metric: 'Tiết kiệm 6h/tuần',
@@ -55,7 +55,7 @@ export default function AuthStoryPanel({ isVietnamese = true }: AuthStoryPanelPr
     },
   ] : [
     {
-      quote: 'Upgen helped our 35 engineers cut progress sync meetings by 40%. Tasks, deadlines, and ownership are crystal clear.',
+      quote: 'Costack helped our 35 engineers cut progress sync meetings by 40%. Tasks, deadlines, and ownership are crystal clear.',
       author: 'Alex Phan',
       role: 'CTO at TechNova',
       metric: 'Saved 6h/week',
@@ -103,7 +103,7 @@ export default function AuthStoryPanel({ isVietnamese = true }: AuthStoryPanelPr
           </div>
           <div className="min-w-0">
             <div className="text-xl font-black tracking-tight text-slate-900 dark:text-white font-display leading-none">
-              Upgen<span className="text-blue-600 dark:text-cyan-400">.</span>
+              Costack<span className="text-blue-600 dark:text-cyan-400">.</span>
             </div>
             <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-cyan-300/80 pt-1 whitespace-nowrap">
               {isVietnamese ? 'Workspace cho Đội ngũ' : 'Workspace for Teams'}
@@ -177,14 +177,14 @@ export default function AuthStoryPanel({ isVietnamese = true }: AuthStoryPanelPr
             </button>
             <button
               type="button"
-              onClick={() => setActiveDemo('docs')}
+              onClick={() => setActiveDemo('chat')}
               className={`flex-1 py-1.5 px-2 rounded-lg transition-all text-center cursor-pointer ${
-                activeDemo === 'docs'
+                activeDemo === 'chat'
                   ? 'bg-white dark:bg-white/15 text-blue-600 dark:text-white shadow-xs font-black'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              {isVietnamese ? 'Tài liệu Docs' : 'Live Docs'}
+              {isVietnamese ? 'Kênh Chat' : 'Team Chat'}
             </button>
           </div>
 
@@ -252,7 +252,7 @@ export default function AuthStoryPanel({ isVietnamese = true }: AuthStoryPanelPr
                   >
                     <div className="flex items-center gap-2 text-[11px] font-bold text-purple-600 dark:text-purple-300">
                       <Bot className="w-3.5 h-3.5" />
-                      <span>Upgen AI Copilot</span>
+                      <span>Costack AI Copilot</span>
                       <span className="text-[9.5px] font-normal text-slate-400 ml-auto">1.2s</span>
                     </div>
                     <div className="p-2 rounded-xl bg-purple-50/60 dark:bg-purple-950/20 border border-purple-200/60 dark:border-purple-900/40 text-[11.5px] text-slate-700 dark:text-slate-300 leading-snug">
@@ -273,9 +273,9 @@ export default function AuthStoryPanel({ isVietnamese = true }: AuthStoryPanelPr
                   </motion.div>
                 )}
 
-                {activeDemo === 'docs' && (
+                {activeDemo === 'chat' && (
                   <motion.div
-                    key="demo-docs"
+                    key="demo-chat"
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -6 }}
@@ -284,20 +284,19 @@ export default function AuthStoryPanel({ isVietnamese = true }: AuthStoryPanelPr
                   >
                     <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400">
                       <span className="flex items-center gap-1.5">
-                        <FileText className="w-3.5 h-3.5 text-blue-500" />
-                        Product-Brief-v2.md
+                        <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
+                        #kế-hoạch-sprint
                       </span>
-                      <div className="flex items-center -space-x-1">
-                        <span className="w-4.5 h-4.5 rounded-full bg-blue-500 text-[9px] text-white flex items-center justify-center font-bold ring-1 ring-white">MA</span>
-                        <span className="w-4.5 h-4.5 rounded-full bg-purple-500 text-[9px] text-white flex items-center justify-center font-bold ring-1 ring-white">TN</span>
-                      </div>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
+                        Online
+                      </span>
                     </div>
-                    <div className="p-2 rounded-xl bg-slate-50/70 dark:bg-white/[0.03] border border-slate-200/70 dark:border-white/10 text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-mono">
-                      <span className="text-blue-600 font-bold"># Mục tiêu:</span> Đồng bộ công việc, tài liệu và AI trong một giao diện duy nhất...
+                    <div className="p-2 rounded-xl bg-slate-50/70 dark:bg-white/[0.03] border border-slate-200/70 dark:border-white/10 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                      <span className="text-blue-600 font-bold">Minh Anh:</span> {isVietnamese ? 'Sprint 4 đã sẵn sàng triển khai, test case đã pass 100%!' : 'Sprint 4 is ready to deploy, all test cases passed!'}
                     </div>
-                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
-                      {isVietnamese ? 'Minh Anh đang đồng biên tập theo thời gian thực' : 'Minh Anh is live co-editing'}
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
+                      {isVietnamese ? 'Tin nhắn tức thì & đồng bộ công việc trực tiếp' : 'Instant team messaging with live task sync'}
                     </p>
                   </motion.div>
                 )}

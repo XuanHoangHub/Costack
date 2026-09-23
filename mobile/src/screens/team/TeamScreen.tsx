@@ -8,14 +8,18 @@ import {
   RefreshControl,
   TextInput,
 } from 'react-native';
-import { Users, Mail, Share2, Shield, Circle, Search } from 'lucide-react-native';
+import { Users, Mail, Share2, Shield, Circle, Search, MessageSquare, UserPlus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useUiStore } from '../../store/uiStore';
 import { useMemberStore } from '../../store/memberStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { useChatStore } from '../../store/chatStore';
+import { User } from '../../types';
 import { Header } from '../../components/common/Header';
 import { Avatar } from '../../components/common/Avatar';
 import { Badge } from '../../components/common/Badge';
+import { InviteMemberModal } from '../../components/common/InviteMemberModal';
+import { MemberProfileModal } from '../../components/common/MemberProfileModal';
 
 interface TeamScreenProps {
   navigation: any;
@@ -33,12 +37,14 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ navigation }) => {
 
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<User | null>(null);
 
   useEffect(() => {
     fetchMembers();
     const unsub = subscribeToMembers();
     return unsub;
-  }, []);
+  }, [fetchMembers, subscribeToMembers]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -65,9 +71,20 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ navigation }) => {
 
   const handleShareInvite = () => {
     try {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {}
-    alert('Đã sao chép liên kết mời tham gia workspace!');
+    setShowInviteModal(true);
+  };
+
+  const handleDirectChat = async (memberId: string, memberName: string) => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
+    const dmId = await useChatStore.getState().getOrCreateDirectMessageChannel(memberId, memberName);
+    navigation.navigate('Chat', {
+      screen: 'ChatRoom',
+      params: { channelId: dmId, channelName: memberName },
+    });
   };
 
   return (
@@ -80,7 +97,7 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ navigation }) => {
         rightAction={
           <TouchableOpacity
             onPress={handleShareInvite}
-            style={[styles.shareBtn, { backgroundColor: colors.surface }]}
+            style={[styles.shareBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
           >
             <Share2 size={16} color={colors.primary} />
           </TouchableOpacity>
@@ -116,8 +133,15 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ navigation }) => {
         }
       >
         {filteredMembers.map((member) => (
-          <View
+          <TouchableOpacity
             key={member.id}
+            activeOpacity={0.7}
+            onPress={() => {
+              try {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              } catch {}
+              setSelectedMember(member);
+            }}
             style={[
               styles.memberCard,
               {
@@ -145,16 +169,46 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ navigation }) => {
               </View>
 
               <Text style={[styles.department, { color: colors.textSecondary }]}>
-                {member.department}
+                {member.department || 'Thành viên'}
               </Text>
 
               <Text style={[styles.email, { color: colors.textMuted }]}>
                 {member.email}
               </Text>
             </View>
-          </View>
+
+            {/* Direct Message Button */}
+            <TouchableOpacity
+              onPress={() => handleDirectChat(member.id, member.name)}
+              style={[
+                styles.chatBtn,
+                {
+                  backgroundColor: colors.primarySubtle,
+                  borderColor: `${colors.primary}35`,
+                },
+              ]}
+            >
+              <MessageSquare size={17} color={colors.primary} />
+            </TouchableOpacity>
+          </TouchableOpacity>
         ))}
+
+        <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Invite Member Modal */}
+      <InviteMemberModal
+        visible={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+      />
+
+      {/* Member Profile Modal */}
+      <MemberProfileModal
+        visible={!!selectedMember}
+        member={selectedMember}
+        onClose={() => setSelectedMember(null)}
+        onDirectMessage={handleDirectChat}
+      />
     </View>
   );
 };
@@ -166,7 +220,8 @@ const styles = StyleSheet.create({
   shareBtn: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 12,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -180,39 +235,51 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 18,
     borderWidth: 1,
-    gap: 14,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
   },
   memberInfo: {
     flex: 1,
+    marginLeft: 14,
+    marginRight: 8,
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
+    gap: 8,
+    marginBottom: 2,
   },
   name: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
   },
   department: {
-    fontSize: 13,
-    marginBottom: 4,
+    fontSize: 12,
+    marginBottom: 2,
   },
   email: {
-    fontSize: 12,
+    fontSize: 11,
+  },
+  chatBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 14,
     borderWidth: 1,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
-    padding: 0,
+    fontSize: 13,
   },
 });

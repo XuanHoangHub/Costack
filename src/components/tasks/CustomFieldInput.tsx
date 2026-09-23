@@ -13,15 +13,17 @@ interface Props {
   onChange: (value: unknown) => void;
   members?: User[];
   draft?: boolean;
+  variant?: 'form' | 'table';
 }
 
 /** One editor for task creation, task details and table cells. */
-export default function CustomFieldInput({ field, value, onChange, members = [], draft = false }: Props) {
+export default function CustomFieldInput({ field, value, onChange, members = [], draft = false, variant = 'form' }: Props) {
   const { locale } = useTranslation();
   const vi = locale === 'vi';
   const id = useId();
   const [pending, setPending] = useState<{ value: string; base: unknown } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isInlineEditing, setIsInlineEditing] = useState(false);
   const current = pending && pending.base === value ? pending.value : value;
   const inputClass = 'w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100';
   const commit = (next: unknown) => {
@@ -43,15 +45,44 @@ export default function CustomFieldInput({ field, value, onChange, members = [],
         const numeric = ['number', 'money', 'progress', 'progress_auto', 'progress_manual', 'rating', 'voting'].includes(field.type);
         if (commit(numeric && pending.value.trim() !== '' ? Number(pending.value) : pending.value)) setPending(null);
       }
+      if (variant === 'table') setIsInlineEditing(false);
     },
     onKeyDown: (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      if (event.key === 'Escape') { event.stopPropagation(); setPending(null); setError(null); }
-      if (event.key === 'Enter' && field.type !== 'textarea') { event.preventDefault(); event.currentTarget.blur(); }
+      if (event.key === 'Escape') { 
+        event.stopPropagation(); 
+        setPending(null); 
+        setError(null); 
+        if (variant === 'table') setIsInlineEditing(false);
+      }
+      if (event.key === 'Enter' && field.type !== 'textarea') { 
+        event.preventDefault(); 
+        event.currentTarget.blur(); 
+        if (variant === 'table') setIsInlineEditing(false);
+      }
     },
   };
   let control: React.ReactNode;
   if (field.type === 'checkbox') {
-    control = <label className="flex items-center gap-2 text-xs cursor-pointer select-none"><input aria-label={field.name} type="checkbox" checked={value === true || value === 'true'} onChange={event => commit(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500/20 accent-indigo-600 cursor-pointer" /><span>{field.checkboxLabel || (vi ? 'Đã chọn' : 'Checked')}</span></label>;
+    if (variant === 'table') {
+      control = (
+        <div className="flex items-center">
+          <input
+            aria-label={field.name}
+            type="checkbox"
+            checked={value === true || value === 'true'}
+            onChange={event => commit(event.target.checked)}
+            className="h-4 w-4 rounded border-slate-300 dark:border-zinc-700 text-blue-600 focus:ring-blue-500/20 accent-blue-600 cursor-pointer"
+          />
+        </div>
+      );
+    } else {
+      control = (
+        <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+          <input aria-label={field.name} type="checkbox" checked={value === true || value === 'true'} onChange={event => commit(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500/20 accent-indigo-600 cursor-pointer" />
+          <span>{field.checkboxLabel || (vi ? 'Đã chọn' : 'Checked')}</span>
+        </label>
+      );
+    }
   } else if (field.type === 'dropdown') {
     const options = fieldOptions(field);
     control = (
@@ -97,7 +128,24 @@ export default function CustomFieldInput({ field, value, onChange, members = [],
   } else if (field.type === 'button') {
     control = <button type="button" onClick={() => { if (field.buttonAction === 'open_url' && value) { window.open(String(value), '_blank'); } else { commit(new Date().toISOString()); } }} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all shadow-xs cursor-pointer active:scale-95"><Play size={12} className="fill-current" /><span>{field.buttonText || (vi ? 'Thực hiện' : 'Action')}</span></button>;
   } else if (field.type === 'location') {
-    control = <div className="relative flex items-center"><input {...editingProps} type="text" placeholder={field.placeholder || (vi ? 'Nhập địa chỉ…' : 'Enter location…')} className={`${inputClass} pl-7`} /><MapPin size={13} className="absolute left-2 text-rose-500 shrink-0 pointer-events-none" />{value ? <a href={`https://maps.google.com/?q=${encodeURIComponent(String(value))}`} target="_blank" rel="noopener noreferrer" className="absolute right-2 text-slate-400 hover:text-rose-500" title="Google Maps"><ExternalLink size={12} /></a> : null}</div>;
+    if (variant === 'table' && !isInlineEditing) {
+      const isEmpty = value == null || String(value).trim() === '';
+      control = (
+        <div
+          onClick={() => setIsInlineEditing(true)}
+          className="group/cell inline-flex items-center gap-1.5 min-h-[26px] max-w-full px-2 py-0.5 rounded-lg hover:bg-slate-100/70 dark:hover:bg-white/[0.04] cursor-pointer transition-colors"
+          title={vi ? 'Nhấp để chỉnh sửa' : 'Click to edit'}
+        >
+          <MapPin size={12} className="text-rose-500 shrink-0" />
+          <span className={`text-xs truncate ${isEmpty ? 'text-slate-300 dark:text-zinc-600 font-normal' : 'font-medium text-slate-800 dark:text-zinc-200'}`}>
+            {isEmpty ? '—' : String(value)}
+          </span>
+          {value ? <a href={`https://maps.google.com/?q=${encodeURIComponent(String(value))}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-slate-400 hover:text-rose-500" title="Google Maps"><ExternalLink size={11} /></a> : null}
+        </div>
+      );
+    } else {
+      control = <div className="relative flex items-center"><input autoFocus={variant === 'table'} {...editingProps} type="text" placeholder={field.placeholder || (vi ? 'Nhập địa chỉ…' : 'Enter location…')} className={`${inputClass} pl-7`} /><MapPin size={13} className="absolute left-2 text-rose-500 shrink-0 pointer-events-none" />{value ? <a href={`https://maps.google.com/?q=${encodeURIComponent(String(value))}`} target="_blank" rel="noopener noreferrer" className="absolute right-2 text-slate-400 hover:text-rose-500" title="Google Maps"><ExternalLink size={12} /></a> : null}</div>;
+    }
   } else if (field.type === 'formula' || field.type === 'rollup') {
     control = <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-mono border border-slate-200 dark:border-slate-700"><Calculator size={13} className="text-violet-500" /><span>{String(value || (vi ? 'Tự động tính' : 'Auto'))}</span></div>;
   } else if (field.type === 'signature') {
@@ -107,20 +155,74 @@ export default function CustomFieldInput({ field, value, onChange, members = [],
   } else if (field.type === 'files') {
     control = <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-600 dark:text-slate-300"><Paperclip size={13} className="text-indigo-500" /><span>{value ? `${String(value)} ${vi ? 'tệp' : 'files'}` : (vi ? 'Đính kèm tệp' : 'Attach file')}</span></div>;
   } else if (field.type === 'textarea') {
-    control = <textarea {...editingProps} rows={3} />;
+    if (variant === 'table' && !isInlineEditing) {
+      const isEmpty = value == null || String(value).trim() === '';
+      control = (
+        <div
+          onClick={() => setIsInlineEditing(true)}
+          className="group/cell inline-flex items-center min-h-[26px] max-w-full px-2 py-0.5 rounded-lg hover:bg-slate-100/70 dark:hover:bg-white/[0.04] cursor-pointer transition-colors"
+          title={vi ? 'Nhấp để chỉnh sửa' : 'Click to edit'}
+        >
+          <span className={`text-xs truncate max-w-[200px] ${isEmpty ? 'text-slate-300 dark:text-zinc-600 font-normal' : 'font-medium text-slate-800 dark:text-zinc-200'}`}>
+            {isEmpty ? '—' : String(value)}
+          </span>
+        </div>
+      );
+    } else {
+      control = <textarea autoFocus={variant === 'table'} {...editingProps} rows={variant === 'table' ? 2 : 3} />;
+    }
   } else {
     const isProgress = field.type === 'progress' || field.type === 'progress_auto' || field.type === 'progress_manual';
     const isUrl = field.type === 'url' || field.type === 'website';
     const numeric = ['number', 'money'].includes(field.type) || isProgress;
     const type = field.type === 'date' ? (field.includeTime ? 'datetime-local' : 'date') : numeric ? 'number' : field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : isUrl ? 'url' : 'text';
     const unit = field.type === 'money' ? field.currencySymbol || '₫' : isProgress || field.numberFormat === 'percent' ? '%' : field.numberUnit;
-    control = <div className="space-y-1"><div className="flex min-w-[100px] items-center gap-1.5">
-      {field.type === 'money' && field.currencyPosition === 'prefix' && <span className="text-xs text-slate-400 font-bold">{unit}</span>}
-      {isUrl && <Globe size={13} className="text-sky-500 shrink-0" />}
-      <input {...editingProps} type={type} min={isProgress ? 0 : field.numberMin} max={isProgress ? field.progressMax ?? 100 : field.numberMax} step={numeric ? field.numberPrecision != null ? 10 ** -field.numberPrecision : 'any' : undefined} />
-      {unit && !(field.type === 'money' && field.currencyPosition === 'prefix') && <span className="text-xs text-slate-400 font-bold">{unit}</span>}
-      {isUrl && value && !validateCustomField(field, value) ? <a href={String(value)} target="_blank" rel="noopener noreferrer" className="p-1 text-slate-400 hover:text-indigo-600 cursor-pointer" aria-label={vi ? 'Mở liên kết' : 'Open link'}><ExternalLink size={14} /></a> : null}
-    </div>{isProgress && <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden"><div className="bg-indigo-600 h-full rounded-full transition-all duration-300" style={{ width: `${Math.min(100, Math.max(0, Number(value) || 0))}%` }} /></div>}</div>;
+
+    if (variant === 'table' && !isInlineEditing) {
+      const isEmpty = value == null || String(value).trim() === '';
+      control = (
+        <div
+          onClick={() => setIsInlineEditing(true)}
+          className={`group/cell inline-flex items-center gap-1.5 min-h-[26px] max-w-full px-2 py-0.5 rounded-lg transition-all cursor-pointer ${
+            isEmpty
+              ? 'text-slate-400 dark:text-slate-500 hover:bg-slate-100/70 dark:hover:bg-white/[0.04]'
+              : 'text-slate-800 dark:text-zinc-200 hover:bg-slate-100/80 dark:hover:bg-white/[0.06]'
+          }`}
+          title={vi ? 'Nhấp để chỉnh sửa' : 'Click to edit'}
+        >
+          {isUrl && !isEmpty && <Globe size={12} className="text-sky-500 shrink-0" />}
+          {field.type === 'money' && !isEmpty && field.currencyPosition === 'prefix' && (
+            <span className="text-[11px] font-bold text-slate-400">{unit}</span>
+          )}
+          <span className={`text-xs truncate ${isEmpty ? 'text-slate-300 dark:text-zinc-600 font-normal' : 'font-medium'}`}>
+            {isEmpty ? '—' : String(value)}
+          </span>
+          {unit && !isEmpty && !(field.type === 'money' && field.currencyPosition === 'prefix') && (
+            <span className="text-[10px] text-slate-400 font-bold ml-0.5">{unit}</span>
+          )}
+          {isProgress && !isEmpty && (
+            <div className="w-12 bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden ml-1">
+              <div className="bg-blue-600 h-full rounded-full" style={{ width: `${Math.min(100, Math.max(0, Number(value) || 0))}%` }} />
+            </div>
+          )}
+        </div>
+      );
+    } else {
+      control = <div className="space-y-1"><div className="flex min-w-[100px] items-center gap-1.5">
+        {field.type === 'money' && field.currencyPosition === 'prefix' && <span className="text-xs text-slate-400 font-bold">{unit}</span>}
+        {isUrl && <Globe size={13} className="text-sky-500 shrink-0" />}
+        <input 
+          autoFocus={variant === 'table'} 
+          {...editingProps} 
+          type={type} 
+          min={isProgress ? 0 : field.numberMin} 
+          max={isProgress ? field.progressMax ?? 100 : field.numberMax} 
+          step={numeric ? field.numberPrecision != null ? 10 ** -field.numberPrecision : 'any' : undefined} 
+        />
+        {unit && !(field.type === 'money' && field.currencyPosition === 'prefix') && <span className="text-xs text-slate-400 font-bold">{unit}</span>}
+        {isUrl && value && !validateCustomField(field, value) ? <a href={String(value)} target="_blank" rel="noopener noreferrer" className="p-1 text-slate-400 hover:text-indigo-600 cursor-pointer" aria-label={vi ? 'Mở liên kết' : 'Open link'}><ExternalLink size={14} /></a> : null}
+      </div>{isProgress && <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden"><div className="bg-indigo-600 h-full rounded-full transition-all duration-300" style={{ width: `${Math.min(100, Math.max(0, Number(value) || 0))}%` }} /></div>}</div>;
+    }
   }
   return <div className="min-w-0">{control}{error && <p id={`${id}-error`} role="alert" className="mt-1 text-[11px] text-rose-600 dark:text-rose-400">{error}</p>}</div>;
 }

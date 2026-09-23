@@ -29,7 +29,6 @@ const VIEW_TRANSLATIONS: Record<string, { vi: string; en: string }> = {
   board: { vi: 'Bảng', en: 'Board' },
   table: { vi: 'Bảng dữ liệu', en: 'Table' },
   calendar: { vi: 'Lịch', en: 'Calendar' },
-  doc: { vi: 'Tài liệu', en: 'Docs' },
   gantt: { vi: 'Gantt', en: 'Gantt' },
   timeline: { vi: 'Dòng thời gian', en: 'Timeline' },
   dashboard: { vi: 'Bảng điều khiển', en: 'Dashboard' },
@@ -90,7 +89,6 @@ export const VIEW_ICON_MAP: Record<string, React.ElementType> = {
   overview: LayoutDashboard,
   list: ListTodo,
   board: Kanban,
-  doc: FileText,
   calendar: Calendar,
   table: Table2,
   gantt: GanttChart,
@@ -158,16 +156,6 @@ export const ALL_AVAILABLE_VIEWS = [
     isPro: false,
   },
   {
-    id: 'doc',
-    label: 'Tài liệu Wiki',
-    desc: 'Ghi chú văn bản, tài liệu dự án và cộng tác',
-    icon: FileText,
-    color: '#0284c7',
-    bg: 'rgba(2, 132, 199, 0.1)',
-    category: 'core',
-    isPro: false,
-  },
-  {
     id: 'gantt',
     label: 'Biểu đồ Gantt',
     desc: 'Lập kế hoạch tiến độ và quan hệ phụ thuộc',
@@ -229,7 +217,7 @@ export const ALL_AVAILABLE_VIEWS = [
   },
   {
     id: 'ai',
-    label: 'Trợ lý Upgen AI',
+    label: 'Trợ lý Costack AI',
     desc: 'Phân tích tự động, đề xuất ưu tiên và trợ giúp',
     icon: Bot,
     color: '#8b5cf6',
@@ -679,7 +667,7 @@ export default function SpaceViewTabBar({
       {canScrollLeft && (
         <button
           onClick={() => scroll('left')}
-          className="p-1 rounded-lg bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm transition-all cursor-pointer z-10 shrink-0"
+          className="p-1 rounded-lg bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm transition-all cursor-pointer z-10 shrink-0 tactile-press"
           title="Cuộn sang trái"
           aria-label="Cuộn sang trái"
         >
@@ -759,7 +747,7 @@ export default function SpaceViewTabBar({
                     tabButtons[nextIndex]?.click();
                   }}
                   onDoubleClick={() => handleStartRename(tab)}
-                  className={`apexa-space-view-tab relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-grab active:cursor-grabbing select-none shrink-0 ${
+                  className={`apexa-space-view-tab relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-grab active:cursor-grabbing select-none shrink-0 tactile-press ${
                     isActive
                       ? 'text-slate-900 dark:text-white font-bold'
                       : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.06]'
@@ -769,8 +757,8 @@ export default function SpaceViewTabBar({
                   {isActive && (
                     <motion.div
                       layoutId="activeSpaceViewTabPill"
-                      transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-                      className="apexa-space-tab-active absolute inset-0 bg-white dark:bg-zinc-800 rounded-lg shadow-[0_1.5px_4px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.4)] border border-slate-200/90 dark:border-white/10"
+                      transition={{ type: 'spring', stiffness: 480, damping: 32, mass: 0.8 }}
+                      className="apexa-space-tab-active absolute inset-0 bg-white dark:bg-zinc-800 rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.5)] border border-slate-200/90 dark:border-white/10 card-bevel-edge"
                     />
                   )}
 
@@ -816,11 +804,7 @@ export default function SpaceViewTabBar({
                         <Shield className="w-2.5 h-2.5 text-amber-500 shrink-0" />
                       </span>
                     )}
-                    {tab.settings.default && (
-                      <span title="Chế độ mặc định" className="flex items-center">
-                        <Star className="w-2.5 h-2.5 text-amber-400 fill-amber-400 shrink-0" />
-                      </span>
-                    )}
+
                     {isPro && !currentUser?.isPremium && (
                       <span className="text-[8px] font-extrabold tracking-wider bg-gradient-to-r from-amber-500 to-orange-500 text-white px-1 py-0.5 rounded leading-none shadow-3xs">
                         PRO
@@ -833,13 +817,15 @@ export default function SpaceViewTabBar({
                 <button
                   type="button"
                   onClick={e => handleTabContextMenu(e, tab.id)}
-                  className={`relative z-10 ml-0.5 p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-white/[0.08] transition-opacity cursor-pointer ${
-                    isActive ? 'opacity-70 hover:opacity-100' : 'opacity-0 group-hover/tab:opacity-100'
+                  className={`relative z-10 p-0.5 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-white/[0.08] transition-all duration-150 cursor-pointer overflow-hidden flex items-center justify-center ${
+                    contextMenu.show && contextMenu.tabId === tab.id
+                      ? 'opacity-100 w-5 ml-0.5'
+                      : 'opacity-0 w-0 pointer-events-none group-hover/tab:opacity-100 group-hover/tab:w-5 group-hover/tab:ml-0.5 group-hover/tab:pointer-events-auto'
                   }`}
                   title="Tùy chọn chế độ xem"
                   aria-label={`Tùy chọn cho chế độ xem ${tab.label}`}
                 >
-                  <MoreHorizontal className="w-3 h-3" />
+                  <MoreHorizontal className="w-3 h-3 shrink-0" />
                 </button>
               </div>
             );
@@ -853,7 +839,7 @@ export default function SpaceViewTabBar({
               ref={addBtnRef}
               type="button"
               onClick={handleToggleAddMenu}
-              className={`apexa-space-add-view flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`apexa-space-add-view flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer tactile-press ${
                 showAddMenu
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-white/80 dark:hover:bg-slate-800/60'
@@ -871,7 +857,7 @@ export default function SpaceViewTabBar({
       {canScrollRight && (
         <button
           onClick={() => scroll('right')}
-          className="p-1 rounded-lg bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm transition-all cursor-pointer z-10 shrink-0"
+          className="p-1 rounded-lg bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm transition-all cursor-pointer z-10 shrink-0 tactile-press"
           title="Cuộn sang phải"
           aria-label="Cuộn sang phải"
         >

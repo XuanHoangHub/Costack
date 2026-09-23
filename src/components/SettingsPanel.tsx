@@ -116,13 +116,31 @@ function SectionHeader({ eyebrow, title, description, action }: { eyebrow: strin
 
 function SettingsCard({ title, description, icon: Icon, children, tone = 'default', action }: { title: string; description?: string; icon?: React.ElementType; children: React.ReactNode; tone?: 'default' | 'danger'; action?: React.ReactNode }) {
   return (
-    <section className={`overflow-hidden rounded-2xl border bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:bg-slate-900 ${tone === 'danger' ? 'border-rose-200 dark:border-rose-900/60' : 'border-slate-200/80 dark:border-slate-800'}`}>
-      <div className={`flex items-center justify-between gap-3 border-b px-5 py-4 ${tone === 'danger' ? 'border-rose-100 bg-rose-50/50 dark:border-rose-900/40 dark:bg-rose-950/15' : 'border-slate-100 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-900'}`}>
-        <div className="flex items-start gap-3">
-          {Icon && <div className={`flex h-9 w-9 items-center justify-center rounded-xl shrink-0 ${tone === 'danger' ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400' : 'bg-sky-50 text-sky-500 dark:bg-sky-950/50 dark:text-sky-300'}`}><Icon className="h-4.5 w-4.5" /></div>}
-          <div>
-            <h3 className={`text-sm font-extrabold ${tone === 'danger' ? 'text-rose-700 dark:text-rose-300' : 'text-slate-900 dark:text-slate-100'}`}>{title}</h3>
-            {description && <p className="mt-0.5 text-xs leading-5 text-slate-500 dark:text-slate-400">{description}</p>}
+    <section className={`overflow-hidden rounded-2xl border transition-all ${
+      tone === 'danger' 
+        ? 'border-rose-200/80 bg-rose-500/[0.02] dark:border-rose-900/40 dark:bg-rose-950/10' 
+        : 'border-slate-200/70 bg-white/90 dark:border-slate-800/80 dark:bg-slate-900/70 shadow-3xs'
+    }`}>
+      <div className={`flex items-center justify-between gap-3 border-b px-5 py-4 ${
+        tone === 'danger' 
+          ? 'border-rose-100/80 dark:border-rose-900/30' 
+          : 'border-slate-100 dark:border-slate-800/60'
+      }`}>
+        <div className="flex items-center gap-3 min-w-0">
+          {Icon && (
+            <div className={`flex h-8 w-8 items-center justify-center rounded-xl shrink-0 ${
+              tone === 'danger' 
+                ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400' 
+                : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400'
+            }`}>
+              <Icon className="h-4 w-4" />
+            </div>
+          )}
+          <div className="min-w-0">
+            <h3 className={`text-sm font-bold truncate ${
+              tone === 'danger' ? 'text-rose-700 dark:text-rose-300' : 'text-slate-900 dark:text-slate-100'
+            }`}>{title}</h3>
+            {description && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 leading-snug">{description}</p>}
           </div>
         </div>
         {action && <div className="shrink-0">{action}</div>}
@@ -134,10 +152,10 @@ function SettingsCard({ title, description, icon: Icon, children, tone = 'defaul
 
 function SettingRow({ title, description, children, last = false }: { title: string; description: string; children: React.ReactNode; last?: boolean }) {
   return (
-    <div className={`flex items-center justify-between gap-4 py-4 w-full ${last ? '' : 'border-b border-slate-100 dark:border-slate-800/80'}`}>
+    <div className={`flex items-center justify-between gap-4 py-3.5 w-full ${last ? '' : 'border-b border-slate-100 dark:border-slate-800/60'}`}>
       <div className="min-w-0 flex-1 pr-4">
-        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{title}</p>
-        <p className="mt-0.5 text-xs leading-5 text-slate-500 dark:text-slate-400">{description}</p>
+        <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">{title}</p>
+        <p className="mt-0.5 text-[11px] sm:text-xs leading-5 text-slate-500 dark:text-slate-400">{description}</p>
       </div>
       <div className="shrink-0 flex items-center justify-end">{children}</div>
     </div>
@@ -172,7 +190,7 @@ export default function SettingsPanel({
       items: [
         { id: 'general', label: t('settingsGeneral') || (isVietnamese ? 'Không gian làm việc' : 'Workspace'), description: t('settingsGeneralDesc') || (isVietnamese ? 'Nhận diện và thương hiệu' : 'Identity and branding'), icon: BriefcaseBusiness },
         { id: 'people', label: t('settingsPeople') || (isVietnamese ? 'Thành viên' : 'Members'), description: t('settingsPeopleDesc') || (isVietnamese ? 'Thành viên và quyền truy cập' : 'Members and access permissions'), icon: UsersRound },
-        { id: 'ai_usage', label: t('settingsAi') || 'Apexa AI', description: t('settingsAiDesc') || (isVietnamese ? 'Cấu hình mô hình' : 'AI Copilot & model config'), icon: ApexaAiIcon },
+        { id: 'ai_usage', label: t('settingsAi') || 'Costack AI', description: t('settingsAiDesc') || (isVietnamese ? 'Cấu hình mô hình' : 'AI Copilot & model config'), icon: ApexaAiIcon },
         { id: 'audit_logs', label: t('settingsAuditLogs') || (isVietnamese ? 'Nhật ký hoạt động' : 'Activity Log'), description: t('settingsAuditLogsDesc') || (isVietnamese ? 'Sự kiện trong không gian' : 'Workspace events & history'), icon: FileClock },
         { id: 'data_export', label: t('settingsDataExport') || (isVietnamese ? 'Dữ liệu và lưu trữ' : 'Data & Storage'), description: t('settingsDataExportDesc') || (isVietnamese ? 'Xuất dữ liệu và bộ nhớ đệm' : 'Export data & storage'), icon: Database }
       ]
@@ -523,7 +541,7 @@ export default function SettingsPanel({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `apexa-tasks-${activeWorkspace?.name || 'workspace'}-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `costack-tasks-${activeWorkspace?.name || 'workspace'}-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
     triggerToast?.('success', isVietnamese ? 'Đã xuất tệp CSV' : 'CSV exported', isVietnamese ? `Đã xuất ${workspaceTasks.length} công việc ra tệp CSV.` : `Exported ${workspaceTasks.length} tasks to CSV.`);
@@ -552,7 +570,7 @@ export default function SettingsPanel({
     localStorage.setItem('apexa_ai_daily_briefing_enabled', String(aiDailyBriefingEnabled));
     localStorage.setItem('apexa_ai_daily_briefing_time', aiDailyBriefingTime);
     window.dispatchEvent(new Event('apexa-ai-settings-changed'));
-    onAddSyncLog?.(isVietnamese ? 'Đã cập nhật cấu hình Apexa AI' : 'Updated Apexa AI settings');
+    onAddSyncLog?.(isVietnamese ? 'Đã cập nhật cấu hình Costack AI' : 'Updated Costack AI settings');
     triggerToast?.('success', t('saveChanges') || 'Saved AI settings', isVietnamese ? 'Tùy chọn mô hình đã được lưu trên thiết bị này.' : 'Model preferences saved on this device.');
   };
 
@@ -569,7 +587,7 @@ export default function SettingsPanel({
         throw new Error(data.error || (isVietnamese ? 'Không thể xác minh dịch vụ AI hoặc mô hình đã chọn.' : 'Could not verify the AI service or selected model.'));
       }
       triggerToast?.('success', t('connectionSuccess') || 'Connected successfully', isVietnamese ? `Mô hình ${aiModel} đã kết nối và sẵn sàng hoạt động.` : `Model ${aiModel} is connected and ready.`);
-      onAddSyncLog?.(isVietnamese ? `Đã xác minh kết nối Apexa AI (${aiModel})` : `Verified Apexa AI connection (${aiModel})`);
+      onAddSyncLog?.(isVietnamese ? `Đã xác minh kết nối Costack AI (${aiModel})` : `Verified Costack AI connection (${aiModel})`);
     } catch (error) {
       triggerToast?.('error', t('connectionFailed') || 'Connection failed', error instanceof Error ? error.message : 'Could not connect to AI service.');
     } finally {
@@ -618,7 +636,7 @@ export default function SettingsPanel({
       if (file.size > 10 * 1024 * 1024) throw new Error(isVietnamese ? 'Tệp sao lưu vượt quá giới hạn 10MB.' : 'Backup file exceeds the 10MB limit.');
       const parsed = JSON.parse(await file.text());
       if (parsed?.format !== 'apexa-workspace-backup' || parsed?.version !== 1 || typeof parsed?.settings !== 'object') {
-        throw new Error(isVietnamese ? 'Tệp này không phải bản sao lưu Apexa hợp lệ.' : 'This is not a valid Apexa backup.');
+        throw new Error(isVietnamese ? 'Tệp này không phải bản sao lưu Costack hợp lệ.' : 'This is not a valid Costack backup.');
       }
       const settings = parsed.settings;
       if (['light', 'dark', 'system'].includes(settings.themePreference)) setThemePreference(settings.themePreference);
@@ -730,7 +748,7 @@ export default function SettingsPanel({
     setMfaError('');
     try {
       await Promise.all(mfaFactors.filter(factor => factor.status !== 'verified').map(factor => supabase.auth.mfa.unenroll({ factorId: factor.id })));
-      const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Apexa Authenticator' });
+      const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Costack Authenticator' });
       if (error) throw error;
 
       let qrDataUrl = data.totp.qr_code;
@@ -865,13 +883,29 @@ export default function SettingsPanel({
                   const Icon = item.icon;
                   const selected = item.id === activeTab;
                   return (
-                    <button key={item.id} type="button" onClick={() => setActiveTab(item.id)} className={`group flex shrink-0 md:w-full items-center gap-2 md:gap-3 rounded-xl px-3 py-2 md:py-2.5 text-left transition cursor-pointer ${selected ? 'bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 dark:ring-indigo-900/50' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100'}`}>
-                      <Icon className={`h-4 w-4 shrink-0 ${selected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'}`} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-xs font-extrabold">{item.label}</span>
+                    <button 
+                      key={item.id} 
+                      type="button" 
+                      onClick={() => setActiveTab(item.id)} 
+                      className={`relative group flex shrink-0 md:w-full items-center gap-2 md:gap-3 rounded-xl px-3 py-2 md:py-2.5 text-left transition-colors cursor-pointer select-none ${
+                        selected 
+                          ? 'text-indigo-700 dark:text-indigo-300 font-bold' 
+                          : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100/60 dark:hover:bg-slate-900/60'
+                      }`}
+                    >
+                      {selected && (
+                        <motion.div
+                          layoutId="settingsNavActivePill"
+                          transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                          className="absolute inset-0 rounded-xl bg-indigo-50 border border-indigo-100/90 dark:bg-indigo-950/40 dark:border-indigo-900/50 shadow-2xs pointer-events-none"
+                        />
+                      )}
+                      <Icon className={`relative z-10 h-4 w-4 shrink-0 transition-colors ${selected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'}`} />
+                      <span className="relative z-10 min-w-0 flex-1">
+                        <span className="block truncate text-xs font-bold">{item.label}</span>
                         <span className={`hidden md:block mt-0.5 truncate text-[10px] ${selected ? 'text-indigo-500/80 dark:text-indigo-400/70' : 'text-slate-400 dark:text-slate-500'}`}>{item.description}</span>
                       </span>
-                      <ChevronRight className={`hidden md:block h-3.5 w-3.5 ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-60'}`} />
+                      <ChevronRight className={`relative z-10 hidden md:block h-3.5 w-3.5 transition-opacity ${selected ? 'opacity-100 text-indigo-500' : 'opacity-0 group-hover:opacity-40'}`} />
                     </button>
                   );
                 })}
@@ -913,7 +947,7 @@ export default function SettingsPanel({
         </div>
 
         <AnimatePresence mode="wait">
-          <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.16 }} className="mx-auto max-w-5xl space-y-6 p-3 sm:p-5 md:p-7 lg:p-9 pb-16">
+          <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }} className="mx-auto max-w-5xl space-y-6 p-3 sm:p-5 md:p-7 lg:p-9 pb-16">
             {activeTab === 'general' && (
               <>
                 <SectionHeader 
@@ -1251,13 +1285,13 @@ export default function SettingsPanel({
                 <SectionHeader 
                   eyebrow={t('settingsPersonal') || (isVietnamese ? 'Cài đặt cá nhân' : 'Personal Settings')} 
                   title={t('appearanceAndTheme') || (isVietnamese ? 'Giao diện và trải nghiệm' : 'Appearance & Experience')} 
-                  description={t('appearanceAndThemeDesc') || (isVietnamese ? 'Điều chỉnh Apexa phù hợp với môi trường và cách tập trung của bạn.' : 'Tailor Apexa to your environment and focus preferences.')} 
+                  description={t('appearanceAndThemeDesc') || (isVietnamese ? 'Điều chỉnh Costack phù hợp với môi trường và cách tập trung của bạn.' : 'Tailor Costack to your environment and focus preferences.')} 
                 />
 
                 {/* 🌐 Language & Region Setting Card */}
                 <SettingsCard 
                   title={t('languageAndRegion') || (isVietnamese ? 'Ngôn ngữ & Khu vực' : 'Language & Region')} 
-                  description={t('languageAndRegionDesc') || (isVietnamese ? 'Chuyển đổi linh hoạt giữa Tiếng Việt và Tiếng Anh.' : 'Choose your preferred interface language for Apexa.')} 
+                  description={t('languageAndRegionDesc') || (isVietnamese ? 'Chuyển đổi linh hoạt giữa Tiếng Việt và Tiếng Anh.' : 'Choose your preferred interface language for Costack.')} 
                   icon={Globe2}
                 >
                   <LanguageDropdown variant="cards" />
@@ -1327,7 +1361,7 @@ export default function SettingsPanel({
                     </SettingRow>
                     <SettingRow
                       title={t('defaultStartupTab') || (isVietnamese ? 'Màn hình khởi động mặc định' : 'Default Startup Screen')}
-                      description={t('defaultStartupTabDesc') || (isVietnamese ? 'Chọn màn hình hiển thị đầu tiên khi bạn mở Apexa.' : 'Choose which screen opens by default when you launch Apexa.')}
+                      description={t('defaultStartupTabDesc') || (isVietnamese ? 'Chọn màn hình hiển thị đầu tiên khi bạn mở Costack.' : 'Choose which screen opens by default when you launch Costack.')}
                     >
                       <Select
                         value={defaultStartupTab}
@@ -1339,7 +1373,6 @@ export default function SettingsPanel({
                           { value: 'tasks', label: t('tasks') || (isVietnamese ? 'Công việc (Tasks)' : 'Tasks') },
                           { value: 'inbox', label: t('inbox') || (isVietnamese ? 'Hộp thư (Inbox)' : 'Inbox') },
                           { value: 'calendar', label: t('calendar') || (isVietnamese ? 'Lịch biểu (Calendar)' : 'Calendar') },
-                          { value: 'docs', label: t('docs') || (isVietnamese ? 'Tài liệu (Docs)' : 'Docs') },
                           { value: 'finance', label: t('finance') || (isVietnamese ? 'Tài chính (Finance)' : 'Finance') },
                           { value: 'chat', label: t('chat') || (isVietnamese ? 'Trò chuyện (Chat)' : 'Chat') },
                         ]}
@@ -1579,7 +1612,7 @@ export default function SettingsPanel({
               <>
                 <SectionHeader 
                   eyebrow={t('aiCopilotConfig') || (isVietnamese ? 'Lớp trí tuệ' : 'Intelligence Layer')} 
-                  title={t('aiCopilotConfig') || (isVietnamese ? 'Cấu hình Apexa AI' : 'Apexa AI Configuration')} 
+                  title={t('aiCopilotConfig') || (isVietnamese ? 'Cấu hình Costack AI' : 'Costack AI Configuration')} 
                   description={t('aiCopilotConfigDesc') || (isVietnamese ? 'Kiểm soát mô hình dùng để tóm tắt, tạo công việc và hỗ trợ năng suất.' : 'Control AI models for task creation, summarization and productivity reports.')} 
                   action={<div className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wide ${currentUser?.isPremium ? 'border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400' : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-400'}`}>{currentUser?.isPremium ? (isVietnamese ? 'Đã kích hoạt' : 'Active') : (isVietnamese ? 'Yêu cầu gói trả phí' : 'Paid plan required')}</div>} 
                 />
@@ -1590,16 +1623,16 @@ export default function SettingsPanel({
                       <Sparkles className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-sm font-black text-slate-900 dark:text-white">{isVietnamese ? 'AI được Apexa quản lý an toàn' : 'Secure, Apexa-managed AI'}</h3>
+                      <h3 className="text-sm font-black text-slate-900 dark:text-white">{isVietnamese ? 'AI được Costack quản lý an toàn' : 'Secure, Costack-managed AI'}</h3>
                       <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                        {isVietnamese ? 'Khóa nhà cung cấp chỉ tồn tại trên máy chủ. Apexa không nhận, lưu hoặc gửi khóa AI cá nhân từ trình duyệt của người dùng.' : 'Provider credentials stay on the server. Apexa never accepts, stores, or forwards personal AI keys from the browser.'}
+                        {isVietnamese ? 'Khóa nhà cung cấp chỉ tồn tại trên máy chủ. Costack không nhận, lưu hoặc gửi khóa AI cá nhân từ trình duyệt của người dùng.' : 'Provider credentials stay on the server. Costack never accepts, stores, or forwards personal AI keys from the browser.'}
                       </p>
                       {!currentUser?.isPremium && <button type="button" onClick={() => setShowPremiumModal(true)} className="mt-3 inline-flex h-9 items-center gap-2 rounded-xl bg-sky-600 px-4 text-xs font-extrabold text-white shadow-sm transition hover:bg-sky-700"><Sparkles className="h-3.5 w-3.5" />{isVietnamese ? 'Xem gói có AI' : 'View AI plans'}</button>}
                     </div>
                   </div>
                 </div>
 
-                <SettingsCard title={isVietnamese ? 'Môi trường Apexa AI' : 'Apexa AI Runtime'} description={isVietnamese ? 'Tùy chỉnh cách AI phản hồi trong phạm vi hạn mức của gói đăng ký.' : 'Customize AI responses within your subscription allowance.'} icon={Zap}>
+                <SettingsCard title={isVietnamese ? 'Môi trường Costack AI' : 'Costack AI Runtime'} description={isVietnamese ? 'Tùy chỉnh cách AI phản hồi trong phạm vi hạn mức của gói đăng ký.' : 'Customize AI responses within your subscription allowance.'} icon={Zap}>
                   <div className="space-y-5">
                     <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60">
                       <div className="min-w-0"><p className="text-xs font-extrabold text-slate-800 dark:text-slate-100">{isVietnamese ? 'Thông tin xác thực do máy chủ quản lý' : 'Server-managed credentials'}</p><p className="mt-0.5 text-[11px] leading-5 text-slate-500 dark:text-slate-400">{isVietnamese ? 'Không hỗ trợ khóa API cá nhân (BYOK).' : 'Personal API keys (BYOK) are not supported.'}</p></div>
@@ -1661,11 +1694,11 @@ export default function SettingsPanel({
                   </div>
                 </SettingsCard>
 
-                <SettingsCard title={t('dailyBriefingToggle') || (isVietnamese ? 'Bản tin công việc hằng ngày' : 'Daily Morning Briefing')} description={t('dailyBriefingToggleDesc') || (isVietnamese ? 'Cho phép Apexa Brain xem xét không gian và gửi một bản tin hành động mỗi ngày.' : 'Automatically analyze overdue and upcoming tasks each morning.')} icon={Brain}>
+                <SettingsCard title={t('dailyBriefingToggle') || (isVietnamese ? 'Bản tin công việc hằng ngày' : 'Daily Morning Briefing')} description={t('dailyBriefingToggleDesc') || (isVietnamese ? 'Cho phép Costack Brain xem xét không gian và gửi một bản tin hành động mỗi ngày.' : 'Automatically analyze overdue and upcoming tasks each morning.')} icon={Brain}>
                   <SettingRow title={t('dailyBriefingToggle') || (isVietnamese ? 'Bản tin AI hằng ngày' : 'Daily AI Briefing')} description={isVietnamese ? 'Rà soát việc quá hạn, đến hạn hôm nay, bị chặn và ưu tiên cao mỗi ngày một lần.' : 'Review overdue, due today, blocked and high priority tasks daily.'}>
                     <Toggle checked={aiDailyBriefingEnabled} onChange={setAiDailyBriefingEnabled} disabled={!currentUser?.isPremium} label="Daily AI Briefing" />
                   </SettingRow>
-                  <SettingRow title={t('briefingTime') || (isVietnamese ? 'Giờ gửi bản tin' : 'Briefing Time')} description={isVietnamese ? 'Nếu Apexa được mở muộn hơn, bản tin sẽ được gửi trong lần mở ứng dụng tiếp theo.' : 'If opened later, the briefing will show on next launch.'} last>
+                  <SettingRow title={t('briefingTime') || (isVietnamese ? 'Giờ gửi bản tin' : 'Briefing Time')} description={isVietnamese ? 'Nếu Costack được mở muộn hơn, bản tin sẽ được gửi trong lần mở ứng dụng tiếp theo.' : 'If opened later, the briefing will show on next launch.'} last>
                     <input type="time" value={aiDailyBriefingTime} disabled={!currentUser?.isPremium || !aiDailyBriefingEnabled} onChange={event => setAiDailyBriefingTime(event.target.value)} className={`${inputClass} w-36 disabled:opacity-50`} />
                   </SettingRow>
                 </SettingsCard>
@@ -1799,11 +1832,11 @@ export default function SettingsPanel({
                   title={t('securityAndSessions') || (isVietnamese ? 'Bảo mật và xác thực' : 'Security & Authentication')} 
                   description={t('securityAndSessionsDesc') || (isVietnamese ? 'Kiểm tra danh tính và trạng thái phiên đăng nhập của bạn.' : 'Review credentials, active sessions and account safeguards.')} 
                 />
-                <SettingsCard title={isVietnamese ? 'Tài khoản đang đăng nhập' : 'Active Account'} description={isVietnamese ? 'Danh tính Apexa và vai trò hiện tại của bạn.' : 'Your Apexa credentials and active role.'} icon={UserRoundCog}>
+                <SettingsCard title={isVietnamese ? 'Tài khoản đang đăng nhập' : 'Active Account'} description={isVietnamese ? 'Danh tính Costack và vai trò hiện tại của bạn.' : 'Your Costack credentials and active role.'} icon={UserRoundCog}>
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                     <SignedImage filePath={currentUser?.avatar || ''} alt={currentUser?.name || 'User'} className="h-14 w-14 overflow-hidden rounded-2xl" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-black text-slate-900 dark:text-white">{currentUser?.name || 'Apexa User'}</p>
+                      <p className="text-sm font-black text-slate-900 dark:text-white">{currentUser?.name || 'Costack User'}</p>
                       <p className="mt-1 text-xs text-slate-500">{currentUser?.email || 'No email set'}</p>
                     </div>
                     <span className="w-fit rounded-full bg-sky-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-sky-600 dark:bg-sky-950/40 dark:text-sky-400">
@@ -1812,7 +1845,7 @@ export default function SettingsPanel({
                   </div>
                 </SettingsCard>
 
-                <SettingsCard title={isVietnamese ? 'Đổi mật khẩu' : 'Change Password'} description={isVietnamese ? 'Dùng mật khẩu mạnh và không sử dụng lại từ dịch vụ khác.' : 'Use a strong password that is unique to Apexa.'} icon={KeyRound}>
+                <SettingsCard title={isVietnamese ? 'Đổi mật khẩu' : 'Change Password'} description={isVietnamese ? 'Dùng mật khẩu mạnh và không sử dụng lại từ dịch vụ khác.' : 'Use a strong password that is unique to Costack.'} icon={KeyRound}>
                   <form onSubmit={updatePassword} className="space-y-4">
                     <div className="grid gap-4 sm:grid-cols-3">
                       <label className="space-y-1.5">
@@ -2056,7 +2089,7 @@ export default function SettingsPanel({
                           <div>
                             <div className="flex items-center gap-2">
                               <h4 className="text-sm font-black text-emerald-950 dark:text-emerald-200">
-                                {verifiedMfaFactor.friendly_name || 'Apexa Authenticator'}
+                                {verifiedMfaFactor.friendly_name || 'Costack Authenticator'}
                               </h4>
                               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[9.5px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
                                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />

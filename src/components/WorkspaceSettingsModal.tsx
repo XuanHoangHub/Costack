@@ -101,7 +101,7 @@ export default function WorkspaceSettingsModal({
 
   // Theme presets
   const themePresets = [
-    { id: 'indigo', name: 'Upgen Blue (Default)', color: 'bg-blue-600', ring: 'ring-blue-500', hex: '#2563EB' },
+    { id: 'indigo', name: 'Costack Blue (Default)', color: 'bg-blue-600', ring: 'ring-blue-500', hex: '#2563EB' },
     { id: 'ocean', name: 'Ocean Sky', color: 'bg-sky-500', ring: 'ring-sky-500', hex: '#0ea5e9' },
     { id: 'forest', name: 'Forest Green', color: 'bg-emerald-500', ring: 'ring-emerald-500', hex: '#10b981' },
     { id: 'sunset', name: 'Sunset Pink', color: 'bg-rose-500', ring: 'ring-rose-500', hex: '#f43f5e' }

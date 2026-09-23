@@ -99,7 +99,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     forgotPassword: 'Quên mật khẩu?',
     remember: 'Ghi nhớ đăng nhập trên thiết bị này',
     rememberSubtitle: 'Duy trì phiên làm việc an toàn trong 30 ngày',
-    submitSignin: 'Đăng nhập vào Upgen',
+    submitSignin: 'Đăng nhập vào Costack',
     submitSignup: 'Tạo tài khoản',
     processing: 'Đang xử lý…',
     termsPrefix: 'Tôi đồng ý với ',
@@ -111,7 +111,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     backToSignin: 'Quay lại đăng nhập',
     securePortal: 'Cổng truy cập an toàn',
     forgotTitle: 'Khôi phục mật khẩu',
-    signupTitle: 'Bắt đầu với Upgen',
+    signupTitle: 'Bắt đầu với Costack',
     signinTitle: 'Chào mừng trở lại!',
     forgotDescription: 'Nhập địa chỉ email đã đăng ký để nhận liên kết đặt lại mật khẩu an toàn.',
     signupDescription: 'Tạo tài khoản để bắt đầu sắp xếp công việc hiệu quả.',
@@ -133,10 +133,10 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     forgotPassword: 'Forgot password?',
     remember: 'Stay signed in on this device',
     rememberSubtitle: 'Keep session securely active for 30 days',
-    submitSignin: 'Sign in to Upgen',
+    submitSignin: 'Sign in to Costack',
     submitSignup: 'Create account',
     processing: 'Processing…',
-    termsPrefix: 'I agree to Upgen’s ',
+    termsPrefix: 'I agree to Costack’s ',
     termsLink: 'Terms of Use',
     and: ' and ',
     privacyLink: 'Privacy Policy',
@@ -145,7 +145,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     backToSignin: 'Back to sign in',
     securePortal: 'Secure access portal',
     forgotTitle: 'Reset your password',
-    signupTitle: 'Get started with Upgen',
+    signupTitle: 'Get started with Costack',
     signinTitle: 'Welcome back!',
     forgotDescription: 'Enter your registered email address to receive a password reset link.',
     signupDescription: 'Create an account to start organizing your work efficiently.',
@@ -228,7 +228,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
         return;
       }
 
-      const displayName = metadata.full_name || metadata.name || metadata.display_name || userEmail.split('@')[0] || 'Upgen Champion';
+      const displayName = metadata.full_name || metadata.name || metadata.display_name || userEmail.split('@')[0] || 'Costack Champion';
       const shouldRemember = sessionStorage.getItem('apexa_oauth_remember_me') !== 'false';
       const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (assurance?.nextLevel === 'aal2' && assurance.currentLevel !== 'aal2') {
@@ -477,7 +477,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
         }
 
         const sessionUser = signUpData.user;
-        const displayName = sessionUser?.user_metadata?.name || name || sessionUser?.email?.split('@')[0] || 'Upgen Champion';
+        const displayName = sessionUser?.user_metadata?.name || name || sessionUser?.email?.split('@')[0] || 'Costack Champion';
         onLoginSuccess({
           id: sessionUser.id,
           name: displayName,
@@ -506,7 +506,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
           setMfaRememberMe(rememberMe);
           return;
         }
-        const displayName = sessionUser?.user_metadata?.name || sessionUser?.email?.split('@')[0] || 'Upgen Champion';
+        const displayName = sessionUser?.user_metadata?.name || sessionUser?.email?.split('@')[0] || 'Costack Champion';
 
         onLoginSuccess({
           id: sessionUser.id,
@@ -555,7 +555,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     try {
       const { error: verifyError } = await supabase.auth.mfa.verify({ factorId: mfaFactorId, challengeId: mfaChallengeId, code });
       if (verifyError) throw verifyError;
-      const displayName = mfaPendingUser.user_metadata?.name || mfaPendingUser.email?.split('@')[0] || 'Upgen Champion';
+      const displayName = mfaPendingUser.user_metadata?.name || mfaPendingUser.email?.split('@')[0] || 'Costack Champion';
       onLoginSuccess({
         id: mfaPendingUser.id,
         name: displayName,
@@ -685,7 +685,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                       <Zap className="w-4 h-4 fill-white" />
                     </div>
                     <span className="font-black text-slate-900 dark:text-white text-base tracking-tight font-display">
-                      Upgen<span className="text-blue-600 dark:text-cyan-400">.</span>
+                      Costack<span className="text-blue-600 dark:text-cyan-400">.</span>
                     </span>
                   </div>
 

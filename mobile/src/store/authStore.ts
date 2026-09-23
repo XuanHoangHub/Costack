@@ -55,7 +55,7 @@ export const useAuthStore = create<AuthState>()(
           if (session?.user) {
             const u = session.user;
             const googleName = u.user_metadata?.full_name || u.user_metadata?.name || '';
-            const emailName = u.email?.split('@')[0] || 'Upgen User';
+            const emailName = u.email?.split('@')[0] || 'Costack User';
             const name = googleName || emailName;
             const avatar = u.user_metadata?.avatar_url || u.user_metadata?.picture || '';
 

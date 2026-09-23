@@ -70,30 +70,30 @@ function Portal({ children }: { children: React.ReactNode }) {
 }
 
 export const ALL_FIELD_TYPES = [
-  { id: 'button', label: 'Nút bấm (Button)', labelEn: 'Button', icon: MousePointerClick, color: 'from-blue-600 to-indigo-600', desc: 'Thực thi hành động hoặc mở link tùy chỉnh' },
-  { id: 'checkbox', label: 'Hộp kiểm (Checkbox)', labelEn: 'Checkbox', icon: CheckSquare, color: 'from-emerald-500 to-teal-500', desc: 'Đánh dấu hoàn tất, có/không' },
-  { id: 'date', label: 'Ngày tháng (Date)', labelEn: 'Date', icon: Calendar, color: 'from-purple-500 to-pink-500', desc: 'Ngày hạn, mốc thời gian, lịch trình' },
-  { id: 'dropdown', label: 'Menu lựa chọn (Dropdown)', labelEn: 'Dropdown', icon: ChevronDown, color: 'from-amber-500 to-orange-500', desc: 'Chọn 1 giá trị từ danh sách màu sắc' },
-  { id: 'email', label: 'Email', labelEn: 'Email', icon: Mail, color: 'from-sky-500 to-blue-600', desc: 'Hòm thư điện tử kèm nút gửi mail' },
-  { id: 'files', label: 'Tệp đính kèm (Files)', labelEn: 'Files', icon: Paperclip, color: 'from-indigo-500 to-violet-500', desc: 'Tải lên tài liệu, hình ảnh hoặc hợp đồng' },
-  { id: 'formula', label: 'Công thức (Formula)', labelEn: 'Formula', icon: Calculator, color: 'from-violet-500 to-purple-600', desc: 'Tính toán giá trị tự động từ các trường' },
-  { id: 'labels', label: 'Nhãn phân loại (Labels)', labelEn: 'Labels', icon: Tag, color: 'from-rose-500 to-red-500', desc: 'Gắn nhiều nhãn/thẻ màu trực quan' },
-  { id: 'location', label: 'Địa điểm (Location)', labelEn: 'Location', icon: MapPin, color: 'from-red-500 to-rose-600', desc: 'Địa chỉ cụ thể, định vị chi nhánh' },
-  { id: 'money', label: 'Tiền tệ (Money)', labelEn: 'Money', icon: DollarSign, color: 'from-emerald-500 to-green-600', desc: 'Ngân sách, chi phí (VNĐ, USD, EUR)' },
-  { id: 'number', label: 'Con số (Number)', labelEn: 'Number', icon: Hash, color: 'from-indigo-500 to-purple-500', desc: 'Số nguyên, số thập phân, số lượng' },
-  { id: 'people', label: 'Người phụ trách (People)', labelEn: 'People', icon: Users, color: 'from-blue-500 to-cyan-500', desc: 'Gán một hoặc nhiều thành viên phụ trách' },
-  { id: 'phone', label: 'Số điện thoại (Phone)', labelEn: 'Phone', icon: Phone, color: 'from-teal-500 to-emerald-600', desc: 'Số liên hệ kèm nút gọi nhanh' },
-  { id: 'progress_auto', label: 'Tiến độ tự động (Progress Auto)', labelEn: 'Progress (Auto)', icon: Activity, color: 'from-cyan-500 to-blue-500', desc: 'Tự động tính % hoàn thành dựa trên subtask' },
-  { id: 'progress_manual', label: 'Tiến độ thủ công (Progress Manual)', labelEn: 'Progress (Manual)', icon: BarChart3, color: 'from-blue-500 to-indigo-500', desc: 'Thanh trượt % do người dùng nhập (0 - 100%)' },
-  { id: 'rating', label: 'Đánh giá (Rating)', labelEn: 'Rating', icon: Star, color: 'from-amber-400 to-yellow-500', desc: 'Xếp hạng độ ưu tiên, sao/tim/lửa' },
-  { id: 'relationship', label: 'Mối quan hệ (Relationship)', labelEn: 'Relationship', icon: GitFork, color: 'from-fuchsia-500 to-pink-600', desc: 'Liên kết tới các task trong Space khác' },
-  { id: 'rollup', label: 'Tổng hợp dữ liệu (Rollup)', labelEn: 'Rollup', icon: Layers, color: 'from-purple-600 to-indigo-600', desc: 'Tính tổng, trung bình từ các task liên kết' },
-  { id: 'signature', label: 'Chữ ký (Signature)', labelEn: 'Signature', icon: PenTool, color: 'from-slate-600 to-slate-800', desc: 'Xác nhận phê duyệt bằng chữ ký số' },
-  { id: 'tasks', label: 'Công việc liên kết (Tasks)', labelEn: 'Tasks', icon: CheckCircle2, color: 'from-green-500 to-emerald-600', desc: 'Liên kết chéo tới một hoặc nhiều task' },
-  { id: 'text', label: 'Văn bản ngắn (Text)', labelEn: 'Text', icon: AlignLeft, color: 'from-blue-500 to-indigo-500', desc: 'Chuỗi ký tự ngắn, tiêu đề, mã hiệu' },
-  { id: 'textarea', label: 'Văn bản dài (Text area)', labelEn: 'Text area', icon: FileText, color: 'from-emerald-500 to-teal-500', desc: 'Mô tả chi tiết, ghi chú nhiều dòng' },
-  { id: 'voting', label: 'Bình chọn (Voting)', labelEn: 'Voting', icon: ThumbsUp, color: 'from-pink-500 to-rose-500', desc: 'Bình chọn, biểu quyết ý kiến nhóm' },
-  { id: 'website', label: 'Trang web (Website)', labelEn: 'Website', icon: Globe, color: 'from-sky-500 to-indigo-500', desc: 'Địa chỉ URL website hoặc tài liệu trực tuyến' }
+  { id: 'button', label: 'Nút bấm', labelEn: 'Button', icon: MousePointerClick, color: 'from-blue-600 to-indigo-600', desc: 'Thực thi hành động hoặc mở liên kết tùy chỉnh', descEn: 'Trigger actions or open custom URLs' },
+  { id: 'checkbox', label: 'Hộp kiểm', labelEn: 'Checkbox', icon: CheckSquare, color: 'from-emerald-500 to-teal-500', desc: 'Đánh dấu hoàn tất, có/không hoặc bật/tắt', descEn: 'Simple true/false toggle for status tracking' },
+  { id: 'date', label: 'Ngày tháng', labelEn: 'Date', icon: Calendar, color: 'from-purple-500 to-pink-500', desc: 'Ngày hạn, mốc thời gian hoặc lịch trình', descEn: 'Pick dates, deadlines or scheduled times' },
+  { id: 'dropdown', label: 'Menu lựa chọn', labelEn: 'Dropdown', icon: ChevronDown, color: 'from-amber-500 to-orange-500', desc: 'Chọn 1 giá trị từ danh sách màu sắc', descEn: 'Select a single option from a colored list' },
+  { id: 'email', label: 'Email', labelEn: 'Email', icon: Mail, color: 'from-sky-500 to-blue-600', desc: 'Hòm thư điện tử kèm nút gửi mail', descEn: 'Valid email address with one-click compose' },
+  { id: 'files', label: 'Tệp đính kèm', labelEn: 'Files', icon: Paperclip, color: 'from-indigo-500 to-violet-500', desc: 'Tải lên tài liệu, hình ảnh hoặc hợp đồng', descEn: 'Attach documents, images or media files' },
+  { id: 'formula', label: 'Công thức', labelEn: 'Formula', icon: Calculator, color: 'from-violet-500 to-purple-600', desc: 'Tính toán giá trị tự động từ các trường', descEn: 'Calculate dynamic values from other fields' },
+  { id: 'labels', label: 'Nhãn phân loại', labelEn: 'Labels', icon: Tag, color: 'from-rose-500 to-red-500', desc: 'Gắn nhiều nhãn/thẻ màu trực quan', descEn: 'Tag items with multiple colored labels' },
+  { id: 'location', label: 'Địa điểm', labelEn: 'Location', icon: MapPin, color: 'from-red-500 to-rose-600', desc: 'Địa chỉ cụ thể, định vị chi nhánh hoặc bản đồ', descEn: 'Physical address with Google Maps integration' },
+  { id: 'money', label: 'Tiền tệ', labelEn: 'Money', icon: DollarSign, color: 'from-emerald-500 to-green-600', desc: 'Ngân sách, chi phí (VNĐ, USD, EUR)', descEn: 'Financial amounts with currency formatting' },
+  { id: 'number', label: 'Con số', labelEn: 'Number', icon: Hash, color: 'from-indigo-500 to-purple-500', desc: 'Số nguyên, số thập phân hoặc số lượng', descEn: 'Numeric values, decimals and quantities' },
+  { id: 'people', label: 'Người phụ trách', labelEn: 'People', icon: Users, color: 'from-blue-500 to-cyan-500', desc: 'Gán một hoặc nhiều thành viên phụ trách', descEn: 'Assign team members to collaborate' },
+  { id: 'phone', label: 'Số điện thoại', labelEn: 'Phone', icon: Phone, color: 'from-teal-500 to-emerald-600', desc: 'Số liên hệ kèm nút gọi nhanh', descEn: 'Phone numbers with direct calling support' },
+  { id: 'progress_auto', label: 'Tiến độ tự động', labelEn: 'Progress (Auto)', icon: Activity, color: 'from-cyan-500 to-blue-500', desc: 'Tự động tính % hoàn thành dựa trên subtask', descEn: 'Auto-calculate completion percentage from subtasks' },
+  { id: 'progress_manual', label: 'Tiến độ thủ công', labelEn: 'Progress (Manual)', icon: BarChart3, color: 'from-blue-500 to-indigo-500', desc: 'Thanh trượt % do người dùng nhập (0 - 100%)', descEn: 'Manual completion slider from 0% to 100%' },
+  { id: 'rating', label: 'Đánh giá', labelEn: 'Rating', icon: Star, color: 'from-amber-400 to-yellow-500', desc: 'Xếp hạng độ ưu tiên, sao/tim/lửa', descEn: 'Score priority using stars, hearts or flames' },
+  { id: 'relationship', label: 'Mối quan hệ', labelEn: 'Relationship', icon: GitFork, color: 'from-fuchsia-500 to-pink-600', desc: 'Liên kết tới các task trong Space khác', descEn: 'Link tasks to items in other workspaces' },
+  { id: 'rollup', label: 'Tổng hợp dữ liệu', labelEn: 'Rollup', icon: Layers, color: 'from-purple-600 to-indigo-600', desc: 'Tính tổng, trung bình từ các task liên kết', descEn: 'Aggregate data from related tasks (sum, avg)' },
+  { id: 'signature', label: 'Chữ ký', labelEn: 'Signature', icon: PenTool, color: 'from-slate-600 to-slate-800', desc: 'Xác nhận phê duyệt bằng chữ ký số', descEn: 'Sign-off and approval verification' },
+  { id: 'tasks', label: 'Công việc liên kết', labelEn: 'Tasks', icon: CheckCircle2, color: 'from-green-500 to-emerald-600', desc: 'Liên kết chéo tới một hoặc nhiều task', descEn: 'Cross-reference one or more tasks' },
+  { id: 'text', label: 'Văn bản ngắn', labelEn: 'Text', icon: AlignLeft, color: 'from-blue-500 to-indigo-500', desc: 'Chuỗi ký tự ngắn, tiêu đề hoặc mã hiệu', descEn: 'Short strings, titles, codes or names' },
+  { id: 'textarea', label: 'Văn bản dài', labelEn: 'Text area', icon: FileText, color: 'from-emerald-500 to-teal-500', desc: 'Mô tả chi tiết, ghi chú nhiều dòng', descEn: 'Multi-line notes and rich text descriptions' },
+  { id: 'voting', label: 'Bình chọn', labelEn: 'Voting', icon: ThumbsUp, color: 'from-pink-500 to-rose-500', desc: 'Bình chọn, biểu quyết ý kiến nhóm', descEn: 'Team poll and vote counter' },
+  { id: 'website', label: 'Trang web', labelEn: 'Website', icon: Globe, color: 'from-sky-500 to-indigo-500', desc: 'Địa chỉ URL website hoặc tài liệu trực tuyến', descEn: 'Web links, documentation and URLs' }
 ];
 
 export interface FieldSettingsModalProps {
@@ -410,7 +410,7 @@ export default function FieldSettingsModal({
                   {!config.isNew && <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">• {name || config.name}</span>}
                 </h3>
                 <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                  {isVietnamese ? currentTypeMeta.desc : currentTypeMeta.labelEn}
+                  {isVietnamese ? currentTypeMeta.desc : ((currentTypeMeta as any).descEn || currentTypeMeta.desc)}
                 </p>
               </div>
             </div>

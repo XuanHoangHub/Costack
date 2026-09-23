@@ -5,13 +5,13 @@ export class AiAccessError extends Error {
   readonly code = 'AI_PLAN_REQUIRED';
 
   constructor() {
-    super('Upgen AI chỉ dành cho tài khoản trả phí. Vui lòng nâng cấp gói để tiếp tục.');
+    super('Costack AI chỉ dành cho tài khoản trả phí. Vui lòng nâng cấp gói để tiếp tục.');
     this.name = 'AiAccessError';
   }
 }
 
 export const isAiAccessError = (error: unknown): error is AiAccessError =>
-  error instanceof AiAccessError || (error instanceof Error && (error.message.includes('Upgen AI chỉ dành cho tài khoản trả phí') || error.message.includes('Apexa AI chỉ dành cho tài khoản trả phí')));
+  error instanceof AiAccessError || (error instanceof Error && (error.message.includes('Costack AI chỉ dành cho tài khoản trả phí') || error.message.includes('Apexa AI chỉ dành cho tài khoản trả phí')));
 
 function requirePaidAiAccess() {
   if (typeof window === 'undefined') return;

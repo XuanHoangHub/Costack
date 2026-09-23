@@ -343,7 +343,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
             <span className="flex items-center gap-1.5 font-mono text-[11px]">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
               <span>
-                {l('Upgen Automations', 'Upgen Automations')}: {rules.filter(rule => rule.enabled).length}{' '}
+                {l('Costack Automations', 'Costack Automations')}: {rules.filter(rule => rule.enabled).length}{' '}
                 {l('quy tắc đang hoạt động', 'active')}
               </span>
             </span>

@@ -8,15 +8,16 @@ import {
   ChevronDown, Plus, Paperclip, X, MessageSquare, Check, Pin, Edit2, Tag, 
   MoreHorizontal, Play, Clock, AlertTriangle, Hourglass, Trash2, 
   CheckCircle2, ListChecks, Copy, ChevronsUpDown, Sparkles, Layers, Users, Calendar, Flag, Repeat, GripVertical, FolderInput, CircleDot,
-  Share2, Link2, Lock
+  Share2, Link2, Lock, Eye, EyeOff
 } from 'lucide-react';
-import { Task, TaskStatus, Priority, User, Workspace, Space } from '../../types';
+import { Task, TaskStatus, Priority, User, Workspace, Space, CustomFieldDefinition } from '../../types';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker, DropdownFieldSelect } from './TaskSelects';
 import { getTaskTeamIds } from '@/lib/teamStore';
 import { Select } from '../ui/Select';
 import { getStoredStatuses, getStoredPriorities, OptionConfig, getLocalizedOptionLabel, getColorOption } from '../../utils/fieldConfig';
 import { fireTaskCompleteConfetti } from '@/lib/confetti';
 import { playSuccessSound, playToggleSound } from '@/lib/soundEffects';
+import { isEmptyFieldValue } from '@/lib/customFields';
 
 const DraggableCast = Draggable as typeof Draggable;
 
@@ -66,6 +67,9 @@ interface TaskListViewProps {
   openDialog?: (config: any) => void;
   wrapText?: boolean;
   showEmptyStatuses?: boolean;
+  onToggleShowEmptyStatuses?: (show: boolean) => void;
+  customFields?: CustomFieldDefinition[];
+  visibleFields?: string[];
 }
 
 const TaskListView = React.memo(function TaskListView({
@@ -74,7 +78,8 @@ const TaskListView = React.memo(function TaskListView({
   isMultiSelectMode, onAddTask, setViewType, statuses,
   activeTimerTaskId = null, onStartGlobalTimer, onStopGlobalTimer, onReorderTasks,
   openPromptModal, openDialog,
-  wrapText = false, showEmptyStatuses = false
+  wrapText = false, showEmptyStatuses = false, onToggleShowEmptyStatuses,
+  customFields = [], visibleFields = []
 }: TaskListViewProps) {
   const { t, locale } = useTranslation();
   const isVietnamese = locale === 'vi';
@@ -746,13 +751,21 @@ const TaskListView = React.memo(function TaskListView({
                                                 onChange={e => setInlineEditTitle(e.target.value)}
                                                 onKeyDown={e => { if (e.key === 'Enter') submitInlineEdit(task); if (e.key === 'Escape') setInlineEditTaskId(null); }}
                                                 onBlur={() => submitInlineEdit(task)}
+                                                onClick={e => e.stopPropagation()}
+                                                onDoubleClick={e => e.stopPropagation()}
+                                                onFocus={e => e.target.select()}
                                                 className="w-full text-xs font-semibold text-slate-900 dark:text-slate-100 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-md px-2 py-0.5 outline-none focus:ring-1.5 focus:ring-indigo-500/30 focus:border-indigo-500/40 shadow-3xs" 
                                               />
                                             ) : (
                                               <div className="flex items-center justify-between min-w-0 gap-2" onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}>
                                                 <div className="flex flex-1 items-center gap-2 min-w-0 flex-wrap">
                                                   <span 
-                                                    onClick={() => {
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      if (!isDraggingRef.current) setSelectedTask(task);
+                                                    }}
+                                                    onDoubleClick={(e) => {
+                                                      e.stopPropagation();
                                                       setInlineEditTaskId(task.id);
                                                       setInlineEditTitle(task.title);
                                                     }}
@@ -761,7 +774,7 @@ const TaskListView = React.memo(function TaskListView({
                                                     } ${
                                                       task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500 font-normal' : 'text-slate-800 dark:text-slate-100'
                                                     }`}
-                                                    title={isVietnamese ? "Nhấp để đổi tên nhanh" : "Click to rename"}
+                                                    title={isVietnamese ? "Nhấp để xem chi tiết, nhấp đúp để đổi tên nhanh" : "Click to view details, double-click to rename"}
                                                   >
                                                     {task.title}
                                                   </span>
@@ -803,6 +816,45 @@ const TaskListView = React.memo(function TaskListView({
                                                       <span>{subtasksInfo.done}/{subtasksInfo.total}</span>
                                                     </span>
                                                   )}
+
+                                                  {/* Custom fields chips */}
+                                                  {(() => {
+                                                    if (!customFields || customFields.length === 0) return null;
+                                                    const filledFields = customFields.filter(f => {
+                                                      if (f.name === 'Kênh' || f.name === 'Platform') return false;
+                                                      if (visibleFields && visibleFields.length > 0 && !visibleFields.includes(f.id) && !visibleFields.includes(f.name)) return false;
+                                                      return !isEmptyFieldValue(task.custom_fields?.[f.name]);
+                                                    });
+                                                    if (filledFields.length === 0) return null;
+                                                    return (
+                                                      <div className="hidden xl:flex items-center gap-1.5 shrink-0 overflow-hidden max-w-[260px]">
+                                                        {filledFields.slice(0, 3).map(field => {
+                                                          const val = task.custom_fields?.[field.name];
+                                                          let display = String(val);
+                                                          if (field.type === 'checkbox') display = (val === true || val === 'true') ? '✓' : '—';
+                                                          else if (field.type === 'rating') display = `${val}★`;
+                                                          else if (field.type === 'progress') display = `${val}%`;
+                                                          else if (field.type === 'money') display = `${new Intl.NumberFormat(locale).format(Number(val))}${field.currencySymbol || '₫'}`;
+                                                          else if (Array.isArray(val)) display = val.join(', ');
+                                                          return (
+                                                            <span 
+                                                              key={field.id}
+                                                              className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md bg-indigo-50/70 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-900/30 truncate max-w-[96px] font-medium"
+                                                              title={`${field.name}: ${display}`}
+                                                            >
+                                                              <span className="text-[8px] font-bold text-indigo-500/70">{field.name}:</span>
+                                                              <span className="truncate">{display}</span>
+                                                            </span>
+                                                          );
+                                                        })}
+                                                        {filledFields.length > 3 && (
+                                                          <span className="text-[8.5px] font-bold text-slate-400 dark:text-slate-500" title={filledFields.slice(3).map(f => f.name).join(', ')}>
+                                                            +{filledFields.length - 3}
+                                                          </span>
+                                                        )}
+                                                      </div>
+                                                    );
+                                                  })()}
                                                 </div>
 
                                                 {/* Hover Action Shortcuts Toolbar */}
@@ -962,6 +1014,12 @@ const TaskListView = React.memo(function TaskListView({
                                             <StatusPillSelect value={task.status} onChange={newS => {
                                               onUpdateTask({ ...task, status: newS });
                                               onAddSyncLog(`Status "${task.title}" → ${newS}`);
+                                              if (newS === 'completed') {
+                                                fireTaskCompleteConfetti();
+                                                playSuccessSound();
+                                              } else {
+                                                playToggleSound();
+                                              }
                                             }} />
                                           </div>
 
@@ -1224,6 +1282,40 @@ const TaskListView = React.memo(function TaskListView({
               </div>
             );
           })}
+
+          {/* Hidden Empty Statuses Indicator Banner */}
+          {!showEmptyStatuses && (() => {
+            const hiddenEmptyCount = currentStatuses.filter(statusItem => {
+              const groupTasks = filteredTasks.filter(t => t.status === statusItem.id || t.status === statusItem.type);
+              const isFirstStatus = currentStatuses[0]?.id === statusItem.id;
+              return groupTasks.length === 0 && (filteredTasks.length > 0 || !isFirstStatus);
+            }).length;
+
+            if (hiddenEmptyCount <= 0) return null;
+
+            return (
+              <div className="flex items-center justify-between px-4 py-2.5 mt-2 rounded-xl bg-slate-50/80 dark:bg-zinc-800/30 border border-dashed border-slate-200/80 dark:border-zinc-700/50 text-xs text-slate-500 dark:text-zinc-400 transition-colors">
+                <div className="flex items-center gap-2">
+                  <EyeOff className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span>
+                    {isVietnamese 
+                      ? `Đang ẩn ${hiddenEmptyCount} nhóm trạng thái chưa có công việc` 
+                      : `Hiding ${hiddenEmptyCount} empty status groups`}
+                  </span>
+                </div>
+                {onToggleShowEmptyStatuses && (
+                  <button
+                    type="button"
+                    onClick={() => onToggleShowEmptyStatuses(true)}
+                    className="text-xs font-bold text-blue-600 dark:text-sky-400 hover:underline cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>{isVietnamese ? 'Hiện tất cả trạng thái' : 'Show all statuses'}</span>
+                  </button>
+                )}
+              </div>
+            );
+          })()}
         </div>
         {/* Quick Move Task Modal */}
         {movingTask && (

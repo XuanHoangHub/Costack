@@ -6,9 +6,11 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { Trash2, Save } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import Toast from 'react-native-toast-message';
 import { useUiStore } from '../../store/uiStore';
 import { useDocStore } from '../../store/docStore';
 import { Header } from '../../components/common/Header';
@@ -49,15 +51,38 @@ export const DocDetailScreen: React.FC<DocDetailScreenProps> = ({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {}
     updateDoc(doc.id, { title, content });
+    Toast.show({
+      type: 'success',
+      text1: 'Đã lưu',
+      text2: 'Tài liệu đã được cập nhật thành công.',
+    });
     navigation.goBack();
   };
 
   const handleDelete = () => {
-    try {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    } catch {}
-    deleteDoc(doc.id);
-    navigation.goBack();
+    Alert.alert(
+      'Xóa tài liệu',
+      `Bạn có chắc chắn muốn xóa tài liệu "${doc.title}" không? Hành động này không thể hoàn tác.`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: () => {
+            try {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            } catch {}
+            deleteDoc(doc.id);
+            Toast.show({
+              type: 'info',
+              text1: 'Đã xóa',
+              text2: 'Tài liệu đã được xóa.',
+            });
+            navigation.goBack();
+          },
+        },
+      ]
+    );
   };
 
   return (

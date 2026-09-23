@@ -111,7 +111,7 @@ export const LoginScreen: React.FC = () => {
     );
     pulse.start();
     return () => pulse.stop();
-  }, []);
+  }, [logoScaleAnim]);
 
   const triggerShake = () => {
     try {
@@ -139,7 +139,7 @@ export const LoginScreen: React.FC = () => {
         freeBadge: 'Miễn phí',
         signinTitle: 'Chào mừng trở lại!',
         signinSubtitle: 'Đăng nhập để tiếp tục làm việc trong không gian của bạn.',
-        signupTitle: 'Tạo tài khoản Upgen',
+        signupTitle: 'Tạo tài khoản Costack',
         signupSubtitle: 'Bắt đầu miễn phí để sắp xếp công việc và dự án hiệu quả.',
         forgotTitle: 'Khôi phục mật khẩu',
         forgotSubtitle: 'Nhập địa chỉ email đã đăng ký để nhận liên kết đặt lại mật khẩu.',
@@ -164,7 +164,7 @@ export const LoginScreen: React.FC = () => {
         submitReset: 'Gửi liên kết đặt lại mật khẩu',
         backToSignin: 'Quay lại đăng nhập',
         termsAgreement:
-          'Tôi đồng ý với Điều khoản sử dụng và Chính sách quyền riêng tư của Upgen.',
+          'Tôi đồng ý với Điều khoản sử dụng và Chính sách quyền riêng tư của Costack.',
         signinWithGoogle: 'Tiếp tục với Google',
         signinWithFacebook: 'Tiếp tục với Facebook',
         signupWithGoogle: 'Đăng ký nhanh với Google',
@@ -183,7 +183,7 @@ export const LoginScreen: React.FC = () => {
         freeBadge: 'Free',
         signinTitle: 'Welcome back!',
         signinSubtitle: 'Sign in to continue working in your workspace.',
-        signupTitle: 'Create Upgen Account',
+        signupTitle: 'Create Costack Account',
         signupSubtitle: 'Get started for free and organize your work & teams.',
         forgotTitle: 'Reset Password',
         forgotSubtitle: 'Enter your registered email address to receive a reset link.',
@@ -207,7 +207,7 @@ export const LoginScreen: React.FC = () => {
         submitSignup: 'Create Free Account',
         submitReset: 'Send Reset Link',
         backToSignin: 'Back to Sign In',
-        termsAgreement: 'I agree to Upgen’s Terms of Use and Privacy Policy.',
+        termsAgreement: 'I agree to Costack’s Terms of Use and Privacy Policy.',
         signinWithGoogle: 'Continue with Google',
         signinWithFacebook: 'Continue with Facebook',
         signupWithGoogle: 'Sign up with Google',
@@ -235,7 +235,7 @@ export const LoginScreen: React.FC = () => {
       friction: 8,
       tension: 120,
     }).start();
-  }, [strengthScore]);
+  }, [strengthScore, strengthAnim]);
 
   const strengthWidth = strengthAnim.interpolate({
     inputRange: [0, 1, 2, 3, 4],
@@ -528,7 +528,7 @@ export const LoginScreen: React.FC = () => {
       const { data, error: oauthErr } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: 'upgen://auth/callback',
+          redirectTo: 'costack://auth/callback',
           skipBrowserRedirect: false,
         },
       });
@@ -655,7 +655,7 @@ export const LoginScreen: React.FC = () => {
               <Zap size={30} color="#ffffff" />
             </LinearGradient>
           </Animated.View>
-          <Text style={[styles.brandTitle, { color: colors.textPrimary }]}>Upgen.</Text>
+          <Text style={[styles.brandTitle, { color: colors.textPrimary }]}>Costack.</Text>
           <Text style={[styles.brandSubtitle, { color: colors.primaryLight }]}>
             {isVietnamese ? 'Không gian cho công việc & Đội ngũ' : 'A space for work & Teams'}
           </Text>
@@ -1366,7 +1366,7 @@ export const LoginScreen: React.FC = () => {
         {/* Brand Footer */}
         <View style={styles.brandFooter}>
           <Text style={[styles.brandFooterText, { color: colors.textMuted }]}>
-            © {new Date().getFullYear()} Upgen Inc. All rights reserved.
+            © {new Date().getFullYear()} Costack Inc. All rights reserved.
           </Text>
         </View>
       </ScrollView>

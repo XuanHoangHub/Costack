@@ -24,7 +24,7 @@ export interface ApexaBrandProps {
 }
 
 /**
- * Upgen Brand Component (Typography wordmark only, logo removed)
+ * Costack Brand Component (Typography wordmark only, logo removed)
  */
 export function ApexaBrand({
   className = "",
@@ -46,10 +46,13 @@ export function ApexaBrand({
             : 'text-slate-900 dark:text-white'
         }`}
       >
-        Upgen
+        Costack
       </span>
     </div>
   );
 }
+
+export const CostackBrand = ApexaBrand;
+export const CostackLogoIcon = ApexaLogoIcon;
 
 export default ApexaLogoIcon;

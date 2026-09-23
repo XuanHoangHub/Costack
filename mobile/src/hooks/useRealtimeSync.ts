@@ -58,7 +58,7 @@ export const useRealtimeSync = () => {
     } finally {
       isHydratingRef.current = false;
     }
-  }, [fetchWorkspaces, fetchSpaces, fetchTasks, fetchDocs, fetchChannels, fetchTransactions]);
+  }, [fetchWorkspaces, fetchSpaces, fetchTasks, fetchDocs, fetchChannels, fetchMembers, fetchTransactions]);
 
   // 1. Authenticate Realtime & Initial Data Hydration
   useEffect(() => {

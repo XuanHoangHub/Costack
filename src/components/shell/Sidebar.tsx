@@ -69,7 +69,7 @@ export function Sidebar({
   collapsed,
   onToggleCollapse,
   navItems,
-  workspaceName = "Upgen",
+  workspaceName = "Costack",
   workspaceEmoji = "🚀",
   onWorkspaceClick,
   onSearchClick,
@@ -153,7 +153,7 @@ export function Sidebar({
             </Tooltip>
 
             {/* AI Brain Button */}
-            <Tooltip content="Upgen AI" side="right">
+            <Tooltip content="Costack AI" side="right">
               <button
                 type="button"
                 onClick={onAiClick}

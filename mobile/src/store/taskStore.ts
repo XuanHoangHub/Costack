@@ -10,6 +10,7 @@ export type TaskFilterType = 'all' | 'dueToday' | 'overdue' | 'highPriority' | '
 
 interface TaskState {
   tasks: Task[];
+  deletedTasks: Task[];
   filter: TaskFilterType;
   searchQuery: string;
   isLoading: boolean;
@@ -19,6 +20,10 @@ interface TaskState {
   addTask: (task: Partial<Task>) => Promise<Task>;
   updateTask: (task: Task) => Promise<void>;
   softDeleteTask: (id: string) => Promise<void>;
+  restoreTask: (id: string) => Promise<void>;
+  permanentDeleteTask: (id: string) => Promise<void>;
+  emptyTrash: () => Promise<void>;
+  fetchDeletedTasks: () => Promise<void>;
   toggleTaskStatus: (id: string) => Promise<void>;
   toggleSubtask: (taskId: string, subtaskId: string) => void;
   fetchTasksFromSupabase: () => Promise<void>;
@@ -41,6 +46,8 @@ export const DEFAULT_STARTER_TASKS: Task[] = [
     commentsCount: 0,
     comments: [],
     subtasks: [],
+    hoursEstimate: 4,
+    hoursLogged: 1,
   },
   {
     id: 'task-1786506727984',
@@ -57,6 +64,8 @@ export const DEFAULT_STARTER_TASKS: Task[] = [
     commentsCount: 0,
     comments: [],
     subtasks: [],
+    hoursEstimate: 8,
+    hoursLogged: 4,
   },
 ];
 
@@ -64,6 +73,7 @@ export const useTaskStore = create<TaskState>()(
   persist(
     (set, get) => ({
       tasks: DEFAULT_STARTER_TASKS,
+      deletedTasks: [],
       filter: 'all',
       searchQuery: '',
       isLoading: false,
@@ -91,6 +101,8 @@ export const useTaskStore = create<TaskState>()(
           spaceId: taskData.spaceId,
           listId: taskData.listId,
           comments: [],
+          hoursEstimate: taskData.hoursEstimate,
+          hoursLogged: taskData.hoursLogged,
         };
 
         // Optimistic UI update
@@ -103,7 +115,7 @@ export const useTaskStore = create<TaskState>()(
             id: newTask.id,
             title: newTask.title,
             description: newTask.description,
-            priority: newTask.priority,
+            priority: newTask.priority || 'medium',
             status: newTask.status,
             dueDate: newTask.dueDate || null,
             startDate: newTask.startDate || null,
@@ -119,6 +131,8 @@ export const useTaskStore = create<TaskState>()(
             workspace_id: activeWorkspaceId,
             space_id: newTask.spaceId || null,
             list_id: newTask.listId || null,
+            hours_estimate: newTask.hoursEstimate || null,
+            hours_logged: newTask.hoursLogged || null,
           };
 
           const { error } = await supabase.from('tasks').insert([payload]);
@@ -136,10 +150,10 @@ export const useTaskStore = create<TaskState>()(
         }));
 
         try {
-          const updatePayload = {
+          const updatePayload: any = {
             title: updated.title,
             description: updated.description,
-            priority: updated.priority,
+            priority: updated.priority || 'medium',
             status: updated.status,
             dueDate: updated.dueDate || null,
             startDate: updated.startDate || null,
@@ -153,6 +167,8 @@ export const useTaskStore = create<TaskState>()(
             tags: updated.tags || [],
             space_id: updated.spaceId || null,
             list_id: updated.listId || null,
+            hours_estimate: updated.hoursEstimate || null,
+            hours_logged: updated.hoursLogged || null,
           };
 
           const { error } = await supabase
@@ -167,8 +183,10 @@ export const useTaskStore = create<TaskState>()(
       },
 
       softDeleteTask: async (id) => {
+        const target = get().tasks.find((t) => t.id === id);
         set((state) => ({
           tasks: state.tasks.filter((t) => t.id !== id),
+          deletedTasks: target ? [{ ...target, deletedAt: new Date().toISOString() }, ...state.deletedTasks] : state.deletedTasks,
         }));
 
         try {
@@ -178,6 +196,69 @@ export const useTaskStore = create<TaskState>()(
             .eq('id', id);
         } catch (e) {
           console.log('Supabase delete task error:', e);
+        }
+      },
+
+      restoreTask: async (id) => {
+        const target = get().deletedTasks.find((t) => t.id === id);
+        if (!target) return;
+
+        const restored = { ...target, deletedAt: undefined };
+        set((state) => ({
+          deletedTasks: state.deletedTasks.filter((t) => t.id !== id),
+          tasks: [restored, ...state.tasks],
+        }));
+
+        try {
+          await supabase
+            .from('tasks')
+            .update({ deleted_at: null })
+            .eq('id', id);
+        } catch (e) {
+          console.log('Supabase restore task error:', e);
+        }
+      },
+
+      permanentDeleteTask: async (id) => {
+        set((state) => ({
+          deletedTasks: state.deletedTasks.filter((t) => t.id !== id),
+          tasks: state.tasks.filter((t) => t.id !== id),
+        }));
+
+        try {
+          await supabase.from('tasks').delete().eq('id', id);
+        } catch (e) {
+          console.log('Supabase permanent delete task error:', e);
+        }
+      },
+
+      emptyTrash: async () => {
+        const ids = get().deletedTasks.map((t) => t.id);
+        set({ deletedTasks: [] });
+
+        if (ids.length > 0) {
+          try {
+            await supabase.from('tasks').delete().in('id', ids);
+          } catch (e) {
+            console.log('Supabase empty trash error:', e);
+          }
+        }
+      },
+
+      fetchDeletedTasks: async () => {
+        try {
+          const { data, error } = await supabase
+            .from('tasks')
+            .select('*')
+            .not('deleted_at', 'is', null)
+            .order('deleted_at', { ascending: false })
+            .limit(50);
+
+          if (!error && data) {
+            set({ deletedTasks: data.map(mapTaskRow) });
+          }
+        } catch (e) {
+          console.log('Error fetching deleted tasks:', e);
         }
       },
 
@@ -280,6 +361,7 @@ export const useTaskStore = create<TaskState>()(
                 if (deletedId) {
                   set((state) => ({
                     tasks: state.tasks.filter((item) => item.id !== deletedId),
+                    deletedTasks: state.deletedTasks.filter((item) => item.id !== deletedId),
                   }));
                 }
               }

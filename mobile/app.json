@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "Upgen",
-    "slug": "upgen",
+    "name": "Costack",
+    "slug": "costack",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "upgen",
+    "scheme": "costack",
     "userInterfaceStyle": "automatic",
     "primaryColor": "#2563eb",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.upgen.mobile"
+      "bundleIdentifier": "com.costack.mobile"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +19,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.upgen.mobile",
+      "package": "com.costack.mobile",
       "predictiveBackGestureEnabled": false
     },
     "web": {

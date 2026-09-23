@@ -109,7 +109,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose, locale = 'en' 
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-500/20"><Command className="h-5 w-5" /></span>
                 <div>
-                  <h2 id="keyboard-shortcuts-title" className="text-sm font-black text-slate-900 dark:text-white">{vi ? 'Phím tắt Upgen' : 'Upgen keyboard shortcuts'}</h2>
+                  <h2 id="keyboard-shortcuts-title" className="text-sm font-black text-slate-900 dark:text-white">{vi ? 'Phím tắt Costack' : 'Costack keyboard shortcuts'}</h2>
                   <p className="mt-0.5 text-[10.5px] font-semibold text-slate-400">{vi ? 'Điều hướng nhanh, không rời bàn phím.' : 'Navigate your workspace without leaving the keyboard.'}</p>
                 </div>
               </div>

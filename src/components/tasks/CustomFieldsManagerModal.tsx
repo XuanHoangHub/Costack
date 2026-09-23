@@ -1,7 +1,8 @@
 "use client";
 
-import { validateFieldDefinition, migrateTaskCustomField, isEmptyFieldValue } from "@/lib/customFields";
+import { validateFieldDefinition, migrateTaskCustomField, isEmptyFieldValue, customFieldDefault } from "@/lib/customFields";
 import { getStoredColumnNames, saveColumnNames, saveStatuses, savePriorities, getStoredStatuses, getStoredPriorities } from "@/utils/fieldConfig";
+import { useSpaceStore } from "@/store/spaceStore";
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
@@ -81,35 +82,35 @@ export interface CustomFieldsManagerModalProps {
   anchorPosition?: { x: number; y: number } | null;
 }
 
-const FIELD_CATEGORY_META: Record<string, { category: 'popular' | 'metrics' | 'choices' | 'contact' | 'text' | 'advanced'; tags: string[] }> = {
-  button: { category: 'advanced', tags: ['Nút bấm', 'Thao tác', 'Action', 'Kích hoạt'] },
-  checkbox: { category: 'popular', tags: ['Có / Không', 'Checklist', 'Hoàn tất', 'Đánh dấu'] },
-  date: { category: 'popular', tags: ['Ngày hạn', 'Lịch trình', 'Kèm giờ', 'Deadline'] },
-  dropdown: { category: 'choices', tags: ['Chọn 1 giá trị', 'Màu sắc thẻ', 'Lọc dữ liệu', 'Menu'] },
-  email: { category: 'contact', tags: ['Hòm thư', 'Gửi email nhanh', 'Liên hệ'] },
-  files: { category: 'advanced', tags: ['Tài liệu', 'Đính kèm', 'Hình ảnh', 'PDF', 'Tệp tin'] },
-  formula: { category: 'advanced', tags: ['Công thức', 'Tính toán', 'Toán học', 'Tự động'] },
-  labels: { category: 'choices', tags: ['Nhiều nhãn/tags', 'Màu sắc', 'Đa lựa chọn', 'Phân loại'] },
-  location: { category: 'contact', tags: ['Địa chỉ', 'Bản đồ', 'Vị trí', 'Chi nhánh', 'Tọa độ'] },
-  money: { category: 'metrics', tags: ['VNĐ', 'USD', 'EUR', 'Chi phí', 'Ngân sách', 'Tiền tệ'] },
-  number: { category: 'metrics', tags: ['Số nguyên', 'Thập phân', 'Đơn vị', 'Số lượng'] },
-  people: { category: 'popular', tags: ['Phân công', 'Thành viên', 'Avatar', 'Người phụ trách'] },
-  phone: { category: 'contact', tags: ['Số điện thoại', 'Gọi nhanh', 'Liên lạc', 'Hotline'] },
-  progress_auto: { category: 'metrics', tags: ['Tiến độ tự động', 'Subtasks', 'Phần trăm', '% hoàn thành'] },
-  progress_manual: { category: 'metrics', tags: ['Tiến độ thủ công', 'Thanh trượt %', '0 - 100%'] },
-  rating: { category: 'metrics', tags: ['Sao ⭐', 'Tim ❤️', 'Lửa 🔥', 'Thang điểm', 'Đánh giá'] },
-  relationship: { category: 'advanced', tags: ['Mối quan hệ', 'Liên kết Space', 'Tham chiếu'] },
-  rollup: { category: 'advanced', tags: ['Tổng hợp', 'Sum', 'Average', 'Thống kê'] },
-  signature: { category: 'advanced', tags: ['Chữ ký', 'Ký tên', 'Phê duyệt', 'Xác thực'] },
-  tasks: { category: 'advanced', tags: ['Công việc liên kết', 'Tasks', 'Task chéo'] },
-  text: { category: 'text', tags: ['Tiêu đề', 'Mã hiệu', 'Ký tự ngắn', 'Văn bản'] },
-  textarea: { category: 'text', tags: ['Mô tả chi tiết', 'Ghi chú nhiều dòng', 'Nội dung'] },
-  voting: { category: 'metrics', tags: ['Bình chọn', 'Vote', 'Thích 👍', 'Biểu quyết'] },
-  website: { category: 'contact', tags: ['Website', 'Figma', 'GitHub', 'Liên kết', 'URL', 'Link'] },
+const FIELD_CATEGORY_META: Record<string, { category: 'popular' | 'metrics' | 'choices' | 'contact' | 'text' | 'advanced'; tags: string[]; tagsEn?: string[] }> = {
+  button: { category: 'advanced', tags: ['Nút bấm', 'Thao tác', 'Action', 'Kích hoạt'], tagsEn: ['Action', 'Automation', 'Webhook', 'Trigger'] },
+  checkbox: { category: 'popular', tags: ['Có / Không', 'Checklist', 'Hoàn tất', 'Đánh dấu'], tagsEn: ['Yes / No', 'Checklist', 'Done', 'Toggle'] },
+  date: { category: 'popular', tags: ['Ngày hạn', 'Lịch trình', 'Kèm giờ', 'Deadline'], tagsEn: ['Due date', 'Timeline', 'Time', 'Deadline'] },
+  dropdown: { category: 'choices', tags: ['Chọn 1 giá trị', 'Màu sắc thẻ', 'Lọc dữ liệu', 'Menu'], tagsEn: ['Single select', 'Color tag', 'Filter', 'Menu'] },
+  email: { category: 'contact', tags: ['Hòm thư', 'Gửi email nhanh', 'Liên hệ'], tagsEn: ['Inbox', 'Mailto', 'Contact', 'Email'] },
+  files: { category: 'advanced', tags: ['Tài liệu', 'Đính kèm', 'Hình ảnh', 'PDF', 'Tệp tin'], tagsEn: ['Documents', 'Attachment', 'Images', 'PDF'] },
+  formula: { category: 'advanced', tags: ['Công thức', 'Tính toán', 'Toán học', 'Tự động'], tagsEn: ['Formula', 'Calculate', 'Math', 'Automated'] },
+  labels: { category: 'choices', tags: ['Nhiều nhãn/tags', 'Màu sắc', 'Đa lựa chọn', 'Phân loại'], tagsEn: ['Multi-tags', 'Colors', 'Multi-select', 'Labels'] },
+  location: { category: 'contact', tags: ['Địa chỉ', 'Bản đồ', 'Vị trí', 'Chi nhánh', 'Tọa độ'], tagsEn: ['Address', 'Map', 'Location', 'Coordinates'] },
+  money: { category: 'metrics', tags: ['VNĐ', 'USD', 'EUR', 'Chi phí', 'Ngân sách', 'Tiền tệ'], tagsEn: ['VND', 'USD', 'EUR', 'Budget', 'Currency'] },
+  number: { category: 'metrics', tags: ['Số nguyên', 'Thập phân', 'Đơn vị', 'Số lượng'], tagsEn: ['Integer', 'Decimal', 'Unit', 'Quantity'] },
+  people: { category: 'popular', tags: ['Phân công', 'Thành viên', 'Avatar', 'Người phụ trách'], tagsEn: ['Assignee', 'Members', 'Avatar', 'Owner'] },
+  phone: { category: 'contact', tags: ['Số điện thoại', 'Gọi nhanh', 'Liên lạc', 'Hotline'], tagsEn: ['Phone', 'Call', 'Contact', 'Hotline'] },
+  progress_auto: { category: 'metrics', tags: ['Tiến độ tự động', 'Subtasks', 'Phần trăm', '% hoàn thành'], tagsEn: ['Auto progress', 'Subtasks', 'Percent', '% done'] },
+  progress_manual: { category: 'metrics', tags: ['Tiến độ thủ công', 'Thanh trượt %', '0 - 100%'], tagsEn: ['Manual progress', 'Slider %', '0 - 100%'] },
+  rating: { category: 'metrics', tags: ['Sao ⭐', 'Tim ❤️', 'Lửa 🔥', 'Thang điểm', 'Đánh giá'], tagsEn: ['Star ⭐', 'Heart ❤️', 'Fire 🔥', 'Rating'] },
+  relationship: { category: 'advanced', tags: ['Mối quan hệ', 'Liên kết Space', 'Tham chiếu'], tagsEn: ['Relations', 'Link Space', 'Reference'] },
+  rollup: { category: 'advanced', tags: ['Tổng hợp', 'Sum', 'Average', 'Thống kê'], tagsEn: ['Rollup', 'Sum', 'Average', 'Summary'] },
+  signature: { category: 'advanced', tags: ['Chữ ký', 'Ký tên', 'Phê duyệt', 'Xác thực'], tagsEn: ['Signature', 'Sign', 'Approval', 'Verify'] },
+  tasks: { category: 'advanced', tags: ['Công việc liên kết', 'Tasks', 'Task chéo'], tagsEn: ['Linked tasks', 'Tasks', 'Cross-task'] },
+  text: { category: 'text', tags: ['Tiêu đề', 'Mã hiệu', 'Ký tự ngắn', 'Văn bản'], tagsEn: ['Title', 'Identifier', 'Short text', 'Text'] },
+  textarea: { category: 'text', tags: ['Mô tả chi tiết', 'Ghi chú nhiều dòng', 'Nội dung'], tagsEn: ['Description', 'Multi-line notes', 'Content'] },
+  voting: { category: 'metrics', tags: ['Bình chọn', 'Vote', 'Thích 👍', 'Biểu quyết'], tagsEn: ['Voting', 'Vote', 'Like 👍', 'Poll'] },
+  website: { category: 'contact', tags: ['Website', 'Figma', 'GitHub', 'Liên kết', 'URL', 'Link'], tagsEn: ['Website', 'Figma', 'GitHub', 'URL', 'Link'] },
   // Backward compatibility aliases
-  progress: { category: 'metrics', tags: ['Thanh trượt %', 'Hoàn thành', '0 - 100%'] },
-  url: { category: 'contact', tags: ['Website', 'Figma', 'GitHub', 'Liên kết'] },
-  member: { category: 'popular', tags: ['Phân công', 'Thành viên', 'Avatar'] }
+  progress: { category: 'metrics', tags: ['Thanh trượt %', 'Hoàn thành', '0 - 100%'], tagsEn: ['Slider %', 'Completion', '0 - 100%'] },
+  url: { category: 'contact', tags: ['Website', 'Figma', 'GitHub', 'Liên kết'], tagsEn: ['Website', 'Figma', 'GitHub', 'Link'] },
+  member: { category: 'popular', tags: ['Phân công', 'Thành viên', 'Avatar'], tagsEn: ['Assignee', 'Members', 'Avatar'] }
 };
 
 export default function CustomFieldsManagerModal({
@@ -218,11 +219,16 @@ export default function CustomFieldsManagerModal({
 
       if (!search.trim()) return true;
       const q = search.toLowerCase();
+      const tags = meta?.tags || [];
+      const tagsEn = meta?.tagsEn || [];
+      const descEn = (f as any).descEn || '';
       return (
         f.label.toLowerCase().includes(q) ||
         f.labelEn.toLowerCase().includes(q) ||
         f.desc.toLowerCase().includes(q) ||
-        (meta?.tags && meta.tags.some(t => t.toLowerCase().includes(q)))
+        descEn.toLowerCase().includes(q) ||
+        tags.some(t => t.toLowerCase().includes(q)) ||
+        tagsEn.some(t => t.toLowerCase().includes(q))
       );
     });
   }, [search, selectedCategory]);
@@ -322,13 +328,52 @@ export default function CustomFieldsManagerModal({
       }
       const next = editingFieldConfig.isNew ? [...customFields, field] : customFields.map(item => item.id === field.id ? field : item);
       setCustomFields(next);
-      if (onSaveSpaces && activeSpace) onSaveSpaces(spaces.map(space => space.id === activeSpace.id ? { ...space, customFields: next } : space));
+      if (activeSpace) {
+        activeSpace.customFields = next;
+      }
+
+      const targetSpaceId = activeSpace?.id || 'default-space';
+      const currentStoreSpaces = useSpaceStore.getState().spaces;
+      const spaceInStore = currentStoreSpaces.find(s => s.id === targetSpaceId);
+      const updatedSpace = {
+        ...(spaceInStore || activeSpace || {}),
+        id: targetSpaceId,
+        customFields: next
+      };
+      useSpaceStore.getState().updateSpace(updatedSpace);
+
+      const existsInSpaces = spaces.some(s => s.id === targetSpaceId);
+      const updatedSpaces = existsInSpaces
+        ? spaces.map(s => s.id === targetSpaceId ? { ...s, customFields: next } : s)
+        : [...spaces, updatedSpace];
+
+      if (onSaveSpaces) {
+        onSaveSpaces(updatedSpaces);
+      }
+
       if (editingFieldConfig.isNew) {
         setVisibleFields([...new Set([...visibleFields, field.name])]);
+        // Update all tasks in this space so the new custom field is created and persisted in the database
+        const defaultValue = customFieldDefault(field);
+        tasks.forEach(task => {
+          if (!targetSpaceId || task.spaceId === targetSpaceId || !task.spaceId) {
+            const currentCustom = task.custom_fields || {};
+            if (currentCustom[field.name] === undefined) {
+              const nextTask = {
+                ...task,
+                custom_fields: {
+                  ...currentCustom,
+                  [field.name]: defaultValue ?? ''
+                }
+              };
+              onUpdateTask(nextTask);
+            }
+          }
+        });
       } else if (previous) {
         setVisibleFields(visibleFields.map(name => name === previous.name ? field.name : name));
         tasks.forEach(task => {
-          const nextTask = migrateTaskCustomField(task, activeSpace.id, previous, field);
+          const nextTask = migrateTaskCustomField(task, activeSpace?.id || targetSpaceId, previous, field);
           if (nextTask !== task) onUpdateTask(nextTask);
         });
       }
@@ -351,12 +396,26 @@ export default function CustomFieldsManagerModal({
     reordered[targetIndex] = temp;
 
     setCustomFields(reordered);
-    if (onSaveSpaces && spaces && activeSpace) {
-      const updatedSpace = {
-        ...activeSpace,
-        customFields: reordered
-      };
-      onSaveSpaces(spaces.map(s => s.id === activeSpace.id ? updatedSpace : s));
+    if (activeSpace) {
+      activeSpace.customFields = reordered;
+    }
+
+    const targetSpaceId = activeSpace?.id || 'default-space';
+    const currentStoreSpaces = useSpaceStore.getState().spaces;
+    const spaceInStore = currentStoreSpaces.find(s => s.id === targetSpaceId);
+    const updatedSpace = {
+      ...(spaceInStore || activeSpace || {}),
+      id: targetSpaceId,
+      customFields: reordered
+    };
+    useSpaceStore.getState().updateSpace(updatedSpace);
+
+    if (onSaveSpaces && spaces) {
+      const existsInSpaces = spaces.some(s => s.id === targetSpaceId);
+      const updatedSpaces = existsInSpaces
+        ? spaces.map(s => s.id === targetSpaceId ? { ...s, customFields: reordered } : s)
+        : [...spaces, updatedSpace];
+      onSaveSpaces(updatedSpaces);
     }
   };
 
@@ -365,21 +424,34 @@ export default function CustomFieldsManagerModal({
     const performDelete = () => {
       const updatedCustomFields = customFields.filter(f => f.name !== fieldName);
       setCustomFields(updatedCustomFields);
+      if (activeSpace) {
+        activeSpace.customFields = updatedCustomFields;
+      }
 
       if (visibleFields.includes(fieldName)) {
         setVisibleFields(visibleFields.filter(f => f !== fieldName));
       }
 
-      if (onSaveSpaces && spaces && activeSpace) {
-        const updatedSpace = {
-          ...activeSpace,
-          customFields: updatedCustomFields
-        };
-        onSaveSpaces(spaces.map(s => s.id === activeSpace.id ? updatedSpace : s));
+      const targetSpaceId = activeSpace?.id || 'default-space';
+      const currentStoreSpaces = useSpaceStore.getState().spaces;
+      const spaceInStore = currentStoreSpaces.find(s => s.id === targetSpaceId);
+      const updatedSpace = {
+        ...(spaceInStore || activeSpace || {}),
+        id: targetSpaceId,
+        customFields: updatedCustomFields
+      };
+      useSpaceStore.getState().updateSpace(updatedSpace);
+
+      if (onSaveSpaces && spaces) {
+        const existsInSpaces = spaces.some(s => s.id === targetSpaceId);
+        const updatedSpaces = existsInSpaces
+          ? spaces.map(s => s.id === targetSpaceId ? { ...s, customFields: updatedCustomFields } : s)
+          : [...spaces, updatedSpace];
+        onSaveSpaces(updatedSpaces);
       }
 
       tasks.forEach(t => {
-        if (t.spaceId === activeSpace.id && t.custom_fields && fieldName in t.custom_fields) {
+        if ((!targetSpaceId || t.spaceId === targetSpaceId || !t.spaceId) && t.custom_fields && fieldName in t.custom_fields) {
           const nextCustomFields = { ...t.custom_fields };
           delete nextCustomFields[fieldName];
           onUpdateTask({
@@ -389,6 +461,7 @@ export default function CustomFieldsManagerModal({
         }
       });
 
+      window.dispatchEvent(new Event('apexa-field-config-changed'));
       triggerToast?.('info', isVi ? 'Đã xóa trường' : 'Field Deleted', isVi ? `Đã xóa trường “${fieldName}” khỏi Space.` : `Field "${fieldName}" deleted.`);
     };
 
@@ -612,7 +685,7 @@ export default function CustomFieldsManagerModal({
                                 {isVi ? fc.label : fc.labelEn}
                               </div>
                               <div className="text-[10px] text-slate-400 dark:text-zinc-400 truncate">
-                                {isVi ? fc.desc : fc.labelEn}
+                                {isVi ? fc.desc : ((fc as any).descEn || fc.desc)}
                               </div>
                             </div>
                           </div>
@@ -942,14 +1015,14 @@ export default function CustomFieldsManagerModal({
                               {isVi ? fc.label : fc.labelEn}
                             </h3>
                             <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed line-clamp-2">
-                              {isVi ? fc.desc : fc.labelEn}
+                              {isVi ? fc.desc : ((fc as any).descEn || fc.desc)}
                             </p>
                           </div>
 
                           {/* Feature tags */}
-                          {isVi && meta?.tags && (
+                          {meta?.tags && (
                             <div className="flex flex-wrap gap-1 mt-3 pt-2.5 border-t border-slate-100 dark:border-white/[0.04]">
-                              {meta.tags.slice(0, 3).map((tag, idx) => (
+                              {(isVi ? meta.tags : (meta.tagsEn || meta.tags)).slice(0, 3).map((tag, idx) => (
                                 <span 
                                   key={idx} 
                                   className="text-[9.5px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-white/[0.04] px-1.5 py-0.5 rounded-md"

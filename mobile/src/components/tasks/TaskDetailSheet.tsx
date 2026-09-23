@@ -58,6 +58,50 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [newCommentText, setNewCommentText] = useState('');
 
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleVal, setTitleVal] = useState(task?.title || '');
+  const [isEditingDesc, setIsEditingDesc] = useState(false);
+  const [descVal, setDescVal] = useState(task?.description || '');
+  const [estHours, setEstHours] = useState(task?.hoursEstimate ? String(task.hoursEstimate) : '');
+  const [loggedHours, setLoggedHours] = useState(task?.hoursLogged ? String(task.hoursLogged) : '');
+
+  React.useEffect(() => {
+    if (task) {
+      setTitleVal(task.title || '');
+      setDescVal(task.description || '');
+      setEstHours(task.hoursEstimate ? String(task.hoursEstimate) : '');
+      setLoggedHours(task.hoursLogged ? String(task.hoursLogged) : '');
+      setIsEditingTitle(false);
+      setIsEditingDesc(false);
+    }
+  }, [task?.id, task?.title, task?.description, task?.hoursEstimate, task?.hoursLogged]);
+
+  const handleSaveTitle = async () => {
+    setIsEditingTitle(false);
+    if (!task || !titleVal.trim() || titleVal.trim() === task.title) return;
+    await updateTask({ ...task, title: titleVal.trim() });
+  };
+
+  const handleSaveDesc = async () => {
+    setIsEditingDesc(false);
+    if (!task || descVal.trim() === (task.description || '')) return;
+    await updateTask({ ...task, description: descVal.trim() });
+  };
+
+  const handleSaveEstHours = async (val: string) => {
+    setEstHours(val);
+    if (!task) return;
+    const num = parseFloat(val);
+    await updateTask({ ...task, hoursEstimate: isNaN(num) ? undefined : num });
+  };
+
+  const handleSaveLoggedHours = async (val: string) => {
+    setLoggedHours(val);
+    if (!task) return;
+    const num = parseFloat(val);
+    await updateTask({ ...task, hoursLogged: isNaN(num) ? undefined : num });
+  };
+
   if (!task) return null;
 
   const taskSpace = spaces.find((s) => s.id === task.spaceId);
@@ -259,17 +303,84 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
           </View>
 
           <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
-            {/* Task Title */}
-            <Text style={[styles.title, { color: colors.textPrimary }]}>
-              {task.title}
-            </Text>
+            {/* Task Title (Editable) */}
+            {isEditingTitle ? (
+              <TextInput
+                value={titleVal}
+                onChangeText={setTitleVal}
+                onBlur={handleSaveTitle}
+                onSubmitEditing={handleSaveTitle}
+                autoFocus
+                style={[
+                  styles.titleInput,
+                  { color: colors.textPrimary, borderColor: colors.primary, backgroundColor: colors.surfaceSubtle },
+                ]}
+              />
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setIsEditingTitle(true)}
+                style={styles.editableField}
+              >
+                <Text style={[styles.title, { color: colors.textPrimary }]}>
+                  {task.title}
+                </Text>
+              </TouchableOpacity>
+            )}
 
-            {/* Description */}
-            {task.description ? (
-              <Text style={[styles.description, { color: colors.textSecondary }]}>
-                {task.description}
-              </Text>
-            ) : null}
+            {/* Description (Editable) */}
+            {isEditingDesc ? (
+              <TextInput
+                value={descVal}
+                onChangeText={setDescVal}
+                onBlur={handleSaveDesc}
+                multiline
+                autoFocus
+                placeholder={t.tasks.descriptionPlaceholder}
+                placeholderTextColor={colors.textPlaceholder}
+                style={[
+                  styles.descInput,
+                  { color: colors.textPrimary, borderColor: colors.primary, backgroundColor: colors.surfaceSubtle },
+                ]}
+              />
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setIsEditingDesc(true)}
+                style={styles.editableField}
+              >
+                <Text style={[styles.description, { color: task.description ? colors.textSecondary : colors.textMuted }]}>
+                  {task.description || t.tasks.descriptionPlaceholder}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Estimated & Logged Hours Tracking */}
+            <View style={[styles.hoursCard, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
+              <View style={styles.hoursCol}>
+                <Text style={[styles.hoursLabel, { color: colors.textMuted }]}>{t.tasks.hoursEstimate}</Text>
+                <TextInput
+                  value={estHours}
+                  onChangeText={handleSaveEstHours}
+                  placeholder="0"
+                  keyboardType="numeric"
+                  placeholderTextColor={colors.textPlaceholder}
+                  style={[styles.hoursInput, { color: colors.textPrimary, borderColor: colors.border }]}
+                />
+              </View>
+              <View style={[styles.hoursDivider, { backgroundColor: colors.border }]} />
+              <View style={styles.hoursCol}>
+                <Text style={[styles.hoursLabel, { color: colors.textMuted }]}>{t.tasks.hoursLogged}</Text>
+                <TextInput
+                  value={loggedHours}
+                  onChangeText={handleSaveLoggedHours}
+                  placeholder="0"
+                  keyboardType="numeric"
+                  placeholderTextColor={colors.textPlaceholder}
+                  style={[styles.hoursInput, { color: colors.textPrimary, borderColor: colors.border }]}
+                />
+              </View>
+            </View>
 
             {/* Space & Due Date Indicator Pill */}
             <View style={styles.metaRow}>
@@ -926,5 +1037,62 @@ const styles = StyleSheet.create({
   tagChipText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  editableField: {
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  titleInput: {
+    fontSize: 18,
+    fontWeight: '700',
+    borderRadius: 10,
+    borderWidth: 1.5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 6,
+  },
+  descInput: {
+    fontSize: 14,
+    lineHeight: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minHeight: 64,
+    marginBottom: 8,
+  },
+  hoursCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 10,
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  hoursCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  hoursLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  hoursInput: {
+    fontSize: 15,
+    fontWeight: '700',
+    textAlign: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    minWidth: 64,
+  },
+  hoursDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 32,
+    marginHorizontal: 8,
   },
 });

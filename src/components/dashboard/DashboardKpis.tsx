@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Activity,
   Clock,
-  FileText,
   Users,
   ArrowUpRight,
   Sparkles
@@ -20,7 +19,7 @@ interface DashboardKpisProps {
   reviewTasks: number;
   totalLoggedHours: number;
   totalEstimatedHours: number;
-  docsCount: number;
+  docsCount?: number;
   membersCount: number;
   onlineMembersCount: number;
   completionPercentage: number;
@@ -92,10 +91,10 @@ export default function DashboardKpis({
     },
     {
       id: 'team',
-      title: locale === 'vi' ? 'Tài liệu & Đội ngũ' : 'Docs & Team',
-      value: docsCount.toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-US'),
-      subtitle: locale === 'vi' ? `${membersCount} thành viên · ${onlineMembersCount} trực tuyến` : `${membersCount} members · ${onlineMembersCount} online`,
-      icon: FileText,
+      title: locale === 'vi' ? 'Đội ngũ' : 'Team Members',
+      value: membersCount.toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-US'),
+      subtitle: locale === 'vi' ? `${onlineMembersCount} thành viên trực tuyến` : `${onlineMembersCount} online members`,
+      icon: Users,
       iconColor: 'text-cyan-600 dark:text-cyan-400',
       iconBg: 'bg-cyan-500/10 dark:bg-cyan-500/15 border border-cyan-500/20 dark:border-cyan-400/25 shadow-xs shadow-cyan-500/10',
       glowColor: 'bg-cyan-500/10 dark:bg-cyan-500/15',

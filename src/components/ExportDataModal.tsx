@@ -30,9 +30,10 @@ export interface ExportDataModalProps {
   isOpen: boolean;
   onClose: () => void;
   tasks: Task[];
-  docs: Document[];
+  docs?: Document[];
   members: User[];
   activeWorkspaceId: string;
+  customFields?: any[];
   addSyncLog?: (log: string) => void;
   triggerToast?: (type: any, title: string, message: string) => void;
 }
@@ -41,15 +42,16 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
   isOpen,
   onClose,
   tasks,
-  docs,
+  docs = [],
   members,
   activeWorkspaceId,
+  customFields = [],
   addSyncLog,
   triggerToast,
 }) => {
   const { localize: l, locale } = useTranslation();
   const [exportFormat, setExportFormat] = useState<'json' | 'csv' | 'report'>('json');
-  const [exportScope, setExportScope] = useState<'all' | 'tasks' | 'docs'>('all');
+  const [exportScope, setExportScope] = useState<'all' | 'tasks'>('all');
   const [isExporting, setIsExporting] = useState(false);
 
   const downloadFile = (filename: string, content: string, contentType: string) => {
@@ -71,40 +73,61 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
       try {
         const timestamp = new Date().toISOString().slice(0, 10);
 
+        // Collect all unique custom field names
+        const customFieldKeys = Array.from(
+          new Set([
+            ...(customFields || []).map((f: any) => f.name),
+            ...tasks.flatMap((t) => Object.keys(t.custom_fields || {}))
+          ])
+        ).filter(k => k && !['assigneeIds', 'teamIds', '__proto__', 'constructor', 'prototype'].includes(k));
+
         if (exportFormat === 'json') {
           const exportData = {
             version: '1.0',
             exportedAt: new Date().toISOString(),
             workspaceId: activeWorkspaceId,
-            tasks: exportScope === 'docs' ? [] : tasks,
-            docs: exportScope === 'tasks' ? [] : docs,
+            customFields: customFields,
+            tasks: tasks,
             members: members,
           };
           const jsonStr = JSON.stringify(exportData, null, 2);
-          downloadFile(`upgen_workspace_export_${timestamp}.json`, jsonStr, 'application/json');
+          downloadFile(`costack_workspace_export_${timestamp}.json`, jsonStr, 'application/json');
         } else if (exportFormat === 'csv') {
-          // Convert tasks to CSV
-          const headers = ['ID', 'Title', 'Status', 'Priority', 'Description', 'DueDate', 'AssigneeId', 'WorkspaceId'];
-          const rows = tasks.map((t) => [
-            `"${t.id}"`,
-            `"${(t.title || '').replace(/"/g, '""')}"`,
-            `"${t.status}"`,
-            `"${t.priority}"`,
-            `"${(t.description || '').replace(/"/g, '""')}"`,
-            `"${t.dueDate || ''}"`,
-            `"${t.assigneeId || ''}"`,
-            `"${(t as any).workspaceId || activeWorkspaceId}"`,
-          ]);
-          const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-          downloadFile(`upgen_tasks_${timestamp}.csv`, csvContent, 'text/csv;charset=utf-8;');
+          // Convert tasks to CSV with custom fields and UTF-8 BOM for Excel support
+          const headers = [
+            'ID', 'Title', 'Status', 'Priority', 'Description', 'DueDate', 'Assignee', 'WorkspaceId',
+            ...customFieldKeys.map(k => `"${k.replace(/"/g, '""')}"`)
+          ];
+          const rows = tasks.map((t) => {
+            const assigneeName = members.find(m => m.id === (t.assigneeIds?.[0] || t.assigneeId))?.name || t.assigneeId || '';
+            const baseCols = [
+              `"${t.id}"`,
+              `"${(t.title || '').replace(/"/g, '""')}"`,
+              `"${t.status}"`,
+              `"${t.priority}"`,
+              `"${(t.description || '').replace(/"/g, '""')}"`,
+              `"${t.dueDate || ''}"`,
+              `"${assigneeName.replace(/"/g, '""')}"`,
+              `"${(t as any).workspaceId || activeWorkspaceId}"`,
+            ];
+            const customCols = customFieldKeys.map(k => {
+              const val = t.custom_fields?.[k];
+              if (val == null) return '""';
+              const str = typeof val === 'object' ? JSON.stringify(val) : String(val);
+              return `"${str.replace(/"/g, '""')}"`;
+            });
+            return [...baseCols, ...customCols];
+          });
+          const csvContent = "\uFEFF" + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+          downloadFile(`costack_tasks_${timestamp}.csv`, csvContent, 'text/csv;charset=utf-8;');
         } else if (exportFormat === 'report') {
-          // Formatted HTML Executive Report
+          // Formatted HTML Executive Report with custom fields
           const reportHtml = `
 <!DOCTYPE html>
 <html lang="${locale === 'vi' ? 'vi-VN' : 'en-US'}">
 <head>
   <meta charset="utf-8">
-  <title>${l('Báo cáo tổng quan Upgen', 'Upgen Executive Report')} - ${timestamp}</title>
+  <title>${l('Báo cáo tổng quan Costack', 'Costack Executive Report')} - ${timestamp}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; color: #1e293b; background: #fff; }
     h1 { color: #4f46e5; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
@@ -119,10 +142,10 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
   </style>
 </head>
 <body>
-  <h1>${l('Báo cáo tổng quan không gian Upgen', 'Upgen Workspace Executive Report')}</h1>
+  <h1>${l('Báo cáo tổng quan không gian Costack', 'Costack Workspace Executive Report')}</h1>
   <p><strong>${l('Ngày tạo', 'Generated')}:</strong> ${new Date().toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-US')}</p>
   <p><strong>${l('Mã không gian', 'Workspace ID')}:</strong> ${activeWorkspaceId}</p>
-  <p><strong>${l('Công việc', 'Tasks')}:</strong> ${tasks.length} | <strong>${l('Tài liệu', 'Documents')}:</strong> ${docs.length} | <strong>${l('Thành viên', 'Members')}:</strong> ${members.length}</p>
+  <p><strong>${l('Công việc', 'Tasks')}:</strong> ${tasks.length} | <strong>${l('Thành viên', 'Members')}:</strong> ${members.length}</p>
 
   <h2>${l('Tổng quan công việc', 'Tasks overview')} (${tasks.length})</h2>
   <table>
@@ -131,46 +154,32 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
         <th>${l('Tiêu đề', 'Title')}</th>
         <th>${l('Trạng thái', 'Status')}</th>
         <th>${l('Ưu tiên', 'Priority')}</th>
+        <th>${l('Người phụ trách', 'Assignee')}</th>
         <th>${l('Hạn hoàn thành', 'Due date')}</th>
+        ${customFieldKeys.slice(0, 5).map(k => `<th>${k}</th>`).join('')}
       </tr>
     </thead>
     <tbody>
       ${tasks
         .map(
-          (t) => `
+          (t) => {
+            const assigneeName = members.find(m => m.id === (t.assigneeIds?.[0] || t.assigneeId))?.name || '—';
+            return `
         <tr>
-          <td>${t.title}</td>
+          <td><strong>${t.title}</strong></td>
           <td><span class="badge ${t.status}">${t.status}</span></td>
           <td><span class="badge ${t.priority}">${t.priority}</span></td>
+          <td>${assigneeName}</td>
           <td>${t.dueDate || 'N/A'}</td>
+          ${customFieldKeys.slice(0, 5).map(k => {
+            const val = t.custom_fields?.[k];
+            if (val == null || val === '') return '<td>—</td>';
+            const display = typeof val === 'object' ? JSON.stringify(val) : String(val);
+            return `<td>${display}</td>`;
+          }).join('')}
         </tr>
-      `
-        )
-        .join('')}
-    </tbody>
-  </table>
-
-  <h2>${l('Tổng quan tài liệu', 'Documents overview')} (${docs.length})</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>${l('Tiêu đề', 'Title')}</th>
-        <th>${l('Danh mục', 'Category')}</th>
-        <th>${l('Tác giả', 'Author')}</th>
-        <th>${l('Cập nhật lần cuối', 'Last updated')}</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${docs
-        .map(
-          (d) => `
-        <tr>
-          <td>${d.title}</td>
-          <td>${d.category}</td>
-          <td>${d.updatedBy}</td>
-          <td>${d.updatedAt}</td>
-        </tr>
-      `
+      `;
+          }
         )
         .join('')}
     </tbody>
@@ -178,7 +187,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
 </body>
 </html>
           `;
-          downloadFile(`upgen_executive_report_${timestamp}.html`, reportHtml, 'text/html');
+          downloadFile(`costack_executive_report_${timestamp}.html`, reportHtml, 'text/html');
         }
 
         addSyncLog?.(l(`Đã xuất dữ liệu không gian ở định dạng ${exportFormat.toUpperCase()}`, `Exported workspace data as ${exportFormat.toUpperCase()}`));
@@ -323,7 +332,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-transparent'
                   }`}
                 >
-                  {l('Tất cả', 'Everything')} ({tasks.length + docs.length})
+                  {l('Tất cả', 'Everything')}
                 </button>
                 <button
                   type="button"
@@ -336,17 +345,6 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
                 >
                   {l('Công việc', 'Tasks')} ({tasks.length})
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setExportScope('docs')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                    exportScope === 'docs'
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-transparent'
-                  }`}
-                >
-                  {l('Tài liệu', 'Documents')} ({docs.length})
-                </button>
               </div>
             </div>
 
@@ -357,12 +355,8 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
                 <span>{l('Tóm tắt bản xuất', 'Export summary')}</span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                {l('Đang chuẩn bị ', 'Preparing ')}
-                {exportScope === 'all'
-                  ? l(`${tasks.length} công việc và ${docs.length} tài liệu`, `${tasks.length} tasks and ${docs.length} documents`)
-                  : exportScope === 'tasks'
-                    ? l(`${tasks.length} công việc`, `${tasks.length} tasks`)
-                    : l(`${docs.length} tài liệu`, `${docs.length} documents`)}.
+                {l('Đang chuẩn bị xuất ', 'Preparing to export ')}
+                {l(`${tasks.length} công việc và dữ liệu không gian làm việc.`, `${tasks.length} tasks and workspace data.`)}
                 {l(' Tệp sẽ tự động được tải xuống.', ' The file will download automatically.')}
               </p>
             </div>

@@ -74,7 +74,7 @@ export default function DashboardAiReport({
       }
     } catch (err: any) {
       console.error(err);
-      setReportError(err.message || (locale === 'vi' ? 'Không thể kết nối Apexa AI. Vui lòng thử lại.' : 'Could not connect to Apexa AI. Please retry.'));
+      setReportError(err.message || (locale === 'vi' ? 'Không thể kết nối Costack AI. Vui lòng thử lại.' : 'Could not connect to Costack AI. Please retry.'));
     } finally {
       setIsGenerating(false);
     }

@@ -24,7 +24,7 @@ const defaultNotifications: NotificationItem[] = [
   {
     id: 'notif-2',
     title: 'Nhắc nhở hạn chót',
-    message: 'Công việc "Tích hợp trợ lý Upgen Brain AI" sắp đến hạn hoàn thành.',
+    message: 'Công việc "Tích hợp trợ lý Costack Brain AI" sắp đến hạn hoàn thành.',
     type: 'deadline',
     timestamp: new Date(Date.now() - 7200000).toISOString(),
     read: false,

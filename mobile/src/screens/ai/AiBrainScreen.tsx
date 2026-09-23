@@ -10,8 +10,9 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { Sparkles, Send, Bot, User, RefreshCw } from 'lucide-react-native';
+import { Sparkles, Send, Bot, User, RefreshCw, CheckSquare, Plus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import Toast from 'react-native-toast-message';
 import { useUiStore } from '../../store/uiStore';
 import { useTaskStore } from '../../store/taskStore';
 import { useTranslation } from '../../locales';
@@ -38,7 +39,7 @@ export const AiBrainScreen: React.FC<AiBrainScreenProps> = ({ navigation }) => {
     {
       id: 'welcome',
       role: 'ai',
-      text: '👋 Xin chào! Tôi là **Upgen Brain Assistant**. Tôi có thể giúp bạn lập kế hoạch, chia nhỏ đầu việc, tóm tắt tiến độ hoặc giải đáp thắc mắc công việc hôm nay.',
+      text: '👋 Xin chào! Tôi là **Costack Brain Assistant**. Tôi có thể giúp bạn lập kế hoạch, chia nhỏ đầu việc, tóm tắt tiến độ hoặc giải đáp thắc mắc công việc hôm nay.',
     },
   ]);
 
@@ -49,6 +50,28 @@ export const AiBrainScreen: React.FC<AiBrainScreenProps> = ({ navigation }) => {
       scrollRef.current?.scrollToEnd({ animated: true });
     }, 150);
   }, [messages.length]);
+
+  const handleCreateTaskFromAi = async (text: string) => {
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {}
+
+    const firstLine = text.split('\n')[0].replace(/[*#]/g, '').trim();
+    const title = firstLine.length > 55 ? firstLine.slice(0, 55) + '...' : firstLine || 'Nhiệm vụ từ gợi ý AI';
+
+    await useTaskStore.getState().addTask({
+      title,
+      description: text,
+      priority: 'medium',
+      status: 'todo',
+    });
+
+    Toast.show({
+      type: 'success',
+      text1: 'Đã tạo công việc',
+      text2: `"${title}" đã được thêm vào danh sách việc cần làm.`,
+    });
+  };
 
   const handleSendPrompt = async (promptText: string) => {
     if (!promptText.trim() || loading) return;
@@ -113,9 +136,10 @@ export const AiBrainScreen: React.FC<AiBrainScreenProps> = ({ navigation }) => {
   };
 
   const quickPrompts = [
-    t.ai.promptBriefing,
-    t.ai.promptBreakdown,
-    t.ai.promptPrioritize,
+    'Tóm tắt tiến độ công việc',
+    'Việc gấp cần giải quyết ngay',
+    'Lập kế hoạch tuần này',
+    'Gợi ý chia nhỏ đầu việc',
   ];
 
   return (
@@ -164,6 +188,7 @@ export const AiBrainScreen: React.FC<AiBrainScreenProps> = ({ navigation }) => {
               <View
                 style={[
                   styles.bubble,
+                  isAi ? styles.aiBubble : styles.userBubble,
                   {
                     backgroundColor: isAi ? colors.surface : colors.primary,
                     borderColor: isAi ? colors.border : colors.primary,
@@ -178,6 +203,26 @@ export const AiBrainScreen: React.FC<AiBrainScreenProps> = ({ navigation }) => {
                 >
                   {msg.text}
                 </Text>
+
+                {/* 1-tap "Tạo công việc từ gợi ý này" button on AI responses */}
+                {isAi && msg.id !== 'welcome' && (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => handleCreateTaskFromAi(msg.text)}
+                    style={[
+                      styles.createTaskFromAiBtn,
+                      {
+                        backgroundColor: `${colors.primary}15`,
+                        borderColor: `${colors.primary}40`,
+                      },
+                    ]}
+                  >
+                    <CheckSquare size={13} color={colors.primary} />
+                    <Text style={[styles.createTaskFromAiText, { color: colors.primary }]}>
+                      Tạo công việc từ gợi ý này
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           );
@@ -304,11 +349,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    maxWidth: '80%',
+    maxWidth: '82%',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  aiBubble: {
+    borderTopLeftRadius: 4,
+  },
+  userBubble: {
+    borderTopRightRadius: 4,
   },
   messageText: {
     fontSize: 14,
     lineHeight: 21,
+  },
+  createTaskFromAiBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+  },
+  createTaskFromAiText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   loadingRow: {
     flexDirection: 'row',

@@ -184,7 +184,7 @@ export default function TaskModal({
   const [title, setTitle] = useState(initialData?.title || '');
   const [description, setDescription] = useState(initialData?.description || '');
   const [status, setStatus] = useState<TaskStatus>(initialData?.status || 'todo');
-  const [priority, setPriority] = useState<Priority | undefined>(initialData ? initialData.priority : 'medium');
+  const [priority, setPriority] = useState<Priority | undefined>(initialData?.priority);
   const [assigneeIds, setAssigneeIds] = useState<string[]>(initialData?.assigneeIds?.length ? initialData.assigneeIds : initialData?.assigneeId ? [initialData.assigneeId] : []);
   const [teamIds, setTeamIds] = useState<string[]>(initialData?.teamIds?.length ? initialData.teamIds : initialData?.teamId ? [initialData.teamId] : (getTaskTeamIds(initialData) || []));
   const [spaceId, setSpaceId] = useState<string>(initialData?.spaceId || activeSpaceId || (spaces[0]?.id || ''));
@@ -263,7 +263,7 @@ export default function TaskModal({
     setTitle(initialData?.title || '');
     setDescription(initialData?.description || '');
     setStatus(initialData?.status || 'todo');
-    setPriority(initialData ? initialData.priority : 'medium');
+    setPriority(initialData?.priority);
     setAssigneeIds(initialData?.assigneeIds?.length ? initialData.assigneeIds : initialData?.assigneeId ? [initialData.assigneeId] : []);
     setTeamIds(initialData?.teamIds?.length ? initialData.teamIds : initialData?.teamId ? [initialData.teamId] : (getTaskTeamIds(initialData) || []));
     setSpaceId(nextSpaceId);
@@ -589,7 +589,7 @@ export default function TaskModal({
       setIsSaving(false);
     }
   }, [
-    title, description, status, priority, assigneeIds, spaceId, listId, startDate, dueDate,
+    title, description, status, priority, assigneeIds, teamIds, spaceId, listId, startDate, dueDate,
     tags, progress, hoursEstimate, hoursLogged, customFieldValues, subtasks, createAnother,
     onSave, onClose, isVietnamese, isPinned, isMilestone, reminder, recurrence, attachments,
     blockedByIds, initialData, activeWorkspaceId, isUploadingAttachment, activeSpaceCustomFields
@@ -815,7 +815,7 @@ export default function TaskModal({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onClick={requestClose}
-              className="fixed inset-0 modal-backdrop bg-black/40 dark:bg-black/75 backdrop-blur-xs cursor-pointer"
+              className="fixed inset-0 modal-backdrop bg-black/40 dark:bg-black/75 backdrop-blur-md cursor-pointer"
             />
 
             {/* ════════════════════════════════════════ */}
@@ -823,14 +823,14 @@ export default function TaskModal({
             {/* ════════════════════════════════════════ */}
             <motion.div
               key="task-modal-card"
-              initial={{ scale: 0.94, opacity: 0, y: 16 }}
+              initial={{ scale: 0.95, opacity: 0, y: 16 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.94, opacity: 0, y: 16 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+              exit={{ scale: 0.96, opacity: 0, y: 10 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 32 }}
           ref={createDialogRef}
           role="dialog" aria-modal="true" aria-label={isVietnamese ? (isEditMode ? 'Chỉnh sửa công việc' : 'Tạo công việc mới') : (isEditMode ? 'Edit task' : 'Create task')}
           className="task-create-studio relative z-10 w-full max-w-2xl bg-white dark:bg-[#0a0b10] border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] outline-none"
-          style={{ boxShadow: '0 20px 50px -12px rgba(0,0,0,0.3)' }}
+          style={{ boxShadow: '0 0 0 1px rgba(255,255,255,0.08) inset, 0 25px 60px -15px rgba(0,0,0,0.35)' }}
         >
           {/* Top Accent Bar */}
           <div className="task-create-accent" />

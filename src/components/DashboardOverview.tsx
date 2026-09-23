@@ -20,6 +20,7 @@ import {
   DashboardScope,
   DashboardRange,
   DashboardChartMode,
+  DashboardLayoutMode,
   DashboardWidgetKey,
   HealthFilterKey,
   DashboardOverviewProps,
@@ -98,10 +99,11 @@ function DashboardOverview({
 }: DashboardOverviewProps) {
   const { locale } = useTranslation();
 
-  // Scope & Filter States
+  // Scope, Filter & Layout States
   const [dashboardScope, setDashboardScope] = useState<DashboardScope>('workspace');
   const [dashboardRange, setDashboardRange] = useState<DashboardRange>(30);
   const [chartMode, setChartMode] = useState<DashboardChartMode>('area');
+  const [layoutMode, setLayoutMode] = useState<DashboardLayoutMode>('stacked');
   const [activeHealthFilter, setActiveHealthFilter] = useState<HealthFilterKey>('none');
   const [visibleWidgets, setVisibleWidgets] = useState<Record<DashboardWidgetKey, boolean>>(DEFAULT_DASHBOARD_WIDGETS);
   const [showQuickTaskModal, setShowQuickTaskModal] = useState(false);
@@ -114,11 +116,16 @@ function DashboardOverview({
       if (savedScope === 'workspace' || savedScope === 'mine') {
         setDashboardScope(savedScope);
       }
+      const savedLayout = localStorage.getItem('apexa_dashboard_layout_mode');
+      if (savedLayout === 'stacked' || savedLayout === 'vertical') {
+        setLayoutMode(savedLayout as DashboardLayoutMode);
+      }
       const savedPrefs = localStorage.getItem('apexa_dashboard_preferences');
       if (savedPrefs) {
         const parsed = JSON.parse(savedPrefs);
         if ([7, 30, 90].includes(parsed.range)) setDashboardRange(parsed.range);
         if (parsed.chartMode === 'area' || parsed.chartMode === 'bar') setChartMode(parsed.chartMode);
+        if (parsed.layoutMode === 'stacked' || parsed.layoutMode === 'vertical') setLayoutMode(parsed.layoutMode);
         if (parsed.widgets) {
           setVisibleWidgets({ ...DEFAULT_DASHBOARD_WIDGETS, ...parsed.widgets });
         }
@@ -129,16 +136,18 @@ function DashboardOverview({
   // Save Preferences to localStorage
   useEffect(() => {
     try {
+      localStorage.setItem('apexa_dashboard_layout_mode', layoutMode);
       localStorage.setItem(
         'apexa_dashboard_preferences',
         JSON.stringify({
           range: dashboardRange,
           chartMode,
+          layoutMode,
           widgets: visibleWidgets,
         })
       );
     } catch (e) {}
-  }, [dashboardRange, chartMode, visibleWidgets]);
+  }, [dashboardRange, chartMode, layoutMode, visibleWidgets]);
 
   // Current User Task Assignment Helper
   const currentUserIds = useMemo(() => {
@@ -193,6 +202,7 @@ function DashboardOverview({
   const resetDashboardPreferences = () => {
     setDashboardRange(30);
     setChartMode('area');
+    setLayoutMode('stacked');
     setVisibleWidgets(DEFAULT_DASHBOARD_WIDGETS);
     triggerToast?.(
       'success',
@@ -476,6 +486,8 @@ function DashboardOverview({
         onRangeChange={handleRangeChange}
         chartMode={chartMode}
         onChartModeChange={setChartMode}
+        layoutMode={layoutMode}
+        onLayoutModeChange={setLayoutMode}
         periodInsights={periodInsights}
         isPremium={currentUser?.isPremium}
         onUpgradePremium={onUpgradePremium}
@@ -502,109 +514,229 @@ function DashboardOverview({
         />
       )}
 
-      {/* 4. Task Health Strip */}
-      {visibleWidgets.health && metrics.total > 0 && (
-        <DashboardHealthBar
-          periodInsights={periodInsights}
-          activeHealthFilter={activeHealthFilter}
-          onSelectHealthFilter={setActiveHealthFilter}
-        />
-      )}
+      {/* 4. Content Area: Vertical Dual-Column vs Horizontal Stacked */}
+      {layoutMode === 'vertical' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 items-start">
+          {/* Main Action Column (8 cols): Focus Queue, Agenda, Charts, Milestones */}
+          <div className="lg:col-span-7 xl:col-span-8 space-y-5 sm:space-y-6">
+            {/* Priority Focus Queue */}
+            {visibleWidgets.focus && (
+              <DashboardFocusQueue
+                tasks={scopedTasks}
+                members={members}
+                onOpenTask={onOpenTask}
+                onNavigate={onNavigate}
+                activeHealthFilter={activeHealthFilter}
+                onClearHealthFilter={() => setActiveHealthFilter('none')}
+              />
+            )}
 
-      {/* 5. Priority Focus Queue */}
-      {visibleWidgets.focus && (
-        <DashboardFocusQueue
-          tasks={scopedTasks}
-          members={members}
-          onOpenTask={onOpenTask}
-          onNavigate={onNavigate}
-          activeHealthFilter={activeHealthFilter}
-          onClearHealthFilter={() => setActiveHealthFilter('none')}
-        />
-      )}
+            {/* Upcoming Agenda & Deadlines */}
+            {visibleWidgets.agenda && (
+              <DashboardUpcomingAgenda
+                tasks={scopedTasks}
+                members={members}
+                onOpenTask={onOpenTask}
+                onUpdateTask={onUpdateTask}
+                onNavigate={onNavigate}
+              />
+            )}
 
-      {/* 6. Upcoming Agenda & Deadlines */}
-      {visibleWidgets.agenda && (
-        <DashboardUpcomingAgenda
-          tasks={scopedTasks}
-          members={members}
-          onOpenTask={onOpenTask}
-          onUpdateTask={onUpdateTask}
-          onNavigate={onNavigate}
-        />
-      )}
+            {/* Performance Trends, Status Donut & Velocity */}
+            {visibleWidgets.charts && metrics.total > 0 && (
+              <DashboardCharts
+                weeklyData={weeklyData}
+                velocityData={velocityData}
+                memberEffortData={memberEffortData}
+                statusData={statusData}
+                dashboardRange={dashboardRange}
+                chartMode={chartMode}
+                totalTasks={metrics.total}
+                completionPercentage={completionPercentage}
+                isPremium={currentUser?.isPremium}
+                onUpgradePremium={onUpgradePremium}
+                showVelocity={visibleWidgets.velocity}
+              />
+            )}
 
-      {/* 7. Space & Milestones Progress */}
-      {visibleWidgets.milestones && spaces && spaces.length > 0 && (
-        <DashboardMilestones
-          tasks={baseScopedTasks}
-          spaces={spaces}
-          onNavigate={onNavigate}
-        />
-      )}
+            {/* Space & Milestones Progress */}
+            {visibleWidgets.milestones && spaces && spaces.length > 0 && (
+              <DashboardMilestones
+                tasks={baseScopedTasks}
+                spaces={spaces}
+                onNavigate={onNavigate}
+              />
+            )}
+          </div>
 
-      {/* 8. Performance Trends, Status Donut & Velocity */}
-      {visibleWidgets.charts && metrics.total > 0 && (
-        <DashboardCharts
-          weeklyData={weeklyData}
-          velocityData={velocityData}
-          memberEffortData={memberEffortData}
-          statusData={statusData}
-          dashboardRange={dashboardRange}
-          chartMode={chartMode}
-          totalTasks={metrics.total}
-          completionPercentage={completionPercentage}
-          isPremium={currentUser?.isPremium}
-          onUpgradePremium={onUpgradePremium}
-          showVelocity={visibleWidgets.velocity}
-        />
-      )}
+          {/* Secondary / Sidebar Column (4 cols): Health Pulse, Workload, Scratchpad, AI, Activity */}
+          <div className="lg:col-span-5 xl:col-span-4 space-y-5 sm:space-y-6">
+            {/* Task Health Pulse (Vertical Card Layout) */}
+            {visibleWidgets.health && metrics.total > 0 && (
+              <DashboardHealthBar
+                periodInsights={periodInsights}
+                activeHealthFilter={activeHealthFilter}
+                onSelectHealthFilter={setActiveHealthFilter}
+                layout="vertical"
+              />
+            )}
 
-      {/* 9. Team Workload & Capacity Matrix */}
-      {visibleWidgets.workload && members && members.length > 0 && (
-        <DashboardTeamWorkload
-          tasks={baseScopedTasks}
-          members={members}
-          onOpenTask={onOpenTask}
-          onNavigate={onNavigate}
-          selectedMemberId={selectedWorkloadMemberId}
-          onSelectMember={setSelectedWorkloadMemberId}
-        />
-      )}
+            {/* Team Workload & Capacity Matrix */}
+            {visibleWidgets.workload && members && members.length > 0 && (
+              <DashboardTeamWorkload
+                tasks={baseScopedTasks}
+                members={members}
+                onOpenTask={onOpenTask}
+                onNavigate={onNavigate}
+                selectedMemberId={selectedWorkloadMemberId}
+                onSelectMember={setSelectedWorkloadMemberId}
+              />
+            )}
 
-      {/* 10. Personal Scratchpad & Sticky Notes */}
-      {visibleWidgets.scratchpad && (
-        <DashboardScratchpad
-          onAddTask={onAddTask}
-          triggerToast={triggerToast}
-        />
-      )}
+            {/* Personal Scratchpad & Sticky Notes */}
+            {visibleWidgets.scratchpad && (
+              <DashboardScratchpad
+                onAddTask={onAddTask}
+                triggerToast={triggerToast}
+              />
+            )}
 
-      {/* 11. AI Smart Productivity Report */}
-      {visibleWidgets.ai && metrics.total > 0 && (
-        <div id="dashboard-ai-report-section">
-          <DashboardAiReport
-            tasks={scopedTasks}
-            members={members}
-            isPremium={currentUser?.isPremium}
-            onUpgradePremium={onUpgradePremium}
-            onAddSyncLog={onAddSyncLog}
-            triggerToast={triggerToast}
-            completedTasks={metrics.completed}
-            totalTasks={metrics.total}
-            totalLoggedHours={metrics.totalLogged}
-            totalEstimatedHours={metrics.totalEstimated}
-            assignedMemberCount={metrics.assignedMemberCount}
-          />
+            {/* AI Smart Productivity Report */}
+            {visibleWidgets.ai && metrics.total > 0 && (
+              <div id="dashboard-ai-report-section">
+                <DashboardAiReport
+                  tasks={scopedTasks}
+                  members={members}
+                  isPremium={currentUser?.isPremium}
+                  onUpgradePremium={onUpgradePremium}
+                  onAddSyncLog={onAddSyncLog}
+                  triggerToast={triggerToast}
+                  completedTasks={metrics.completed}
+                  totalTasks={metrics.total}
+                  totalLoggedHours={metrics.totalLogged}
+                  totalEstimatedHours={metrics.totalEstimated}
+                  assignedMemberCount={metrics.assignedMemberCount}
+                />
+              </div>
+            )}
+
+            {/* Recent Activity Feed */}
+            {visibleWidgets.activity && (
+              <DashboardActivityFeed
+                syncLogs={syncLogs}
+                onClearSyncLogs={onClearSyncLogs}
+              />
+            )}
+          </div>
         </div>
-      )}
+      ) : (
+        <>
+          {/* 4. Task Health Strip */}
+          {visibleWidgets.health && metrics.total > 0 && (
+            <DashboardHealthBar
+              periodInsights={periodInsights}
+              activeHealthFilter={activeHealthFilter}
+              onSelectHealthFilter={setActiveHealthFilter}
+              layout="horizontal"
+            />
+          )}
 
-      {/* 12. Recent Activity Feed */}
-      {visibleWidgets.activity && (
-        <DashboardActivityFeed
-          syncLogs={syncLogs}
-          onClearSyncLogs={onClearSyncLogs}
-        />
+          {/* 5. Priority Focus Queue */}
+          {visibleWidgets.focus && (
+            <DashboardFocusQueue
+              tasks={scopedTasks}
+              members={members}
+              onOpenTask={onOpenTask}
+              onNavigate={onNavigate}
+              activeHealthFilter={activeHealthFilter}
+              onClearHealthFilter={() => setActiveHealthFilter('none')}
+            />
+          )}
+
+          {/* 6. Upcoming Agenda & Deadlines */}
+          {visibleWidgets.agenda && (
+            <DashboardUpcomingAgenda
+              tasks={scopedTasks}
+              members={members}
+              onOpenTask={onOpenTask}
+              onUpdateTask={onUpdateTask}
+              onNavigate={onNavigate}
+            />
+          )}
+
+          {/* 7. Space & Milestones Progress */}
+          {visibleWidgets.milestones && spaces && spaces.length > 0 && (
+            <DashboardMilestones
+              tasks={baseScopedTasks}
+              spaces={spaces}
+              onNavigate={onNavigate}
+            />
+          )}
+
+          {/* 8. Performance Trends, Status Donut & Velocity */}
+          {visibleWidgets.charts && metrics.total > 0 && (
+            <DashboardCharts
+              weeklyData={weeklyData}
+              velocityData={velocityData}
+              memberEffortData={memberEffortData}
+              statusData={statusData}
+              dashboardRange={dashboardRange}
+              chartMode={chartMode}
+              totalTasks={metrics.total}
+              completionPercentage={completionPercentage}
+              isPremium={currentUser?.isPremium}
+              onUpgradePremium={onUpgradePremium}
+              showVelocity={visibleWidgets.velocity}
+            />
+          )}
+
+          {/* 9. Team Workload & Capacity Matrix */}
+          {visibleWidgets.workload && members && members.length > 0 && (
+            <DashboardTeamWorkload
+              tasks={baseScopedTasks}
+              members={members}
+              onOpenTask={onOpenTask}
+              onNavigate={onNavigate}
+              selectedMemberId={selectedWorkloadMemberId}
+              onSelectMember={setSelectedWorkloadMemberId}
+            />
+          )}
+
+          {/* 10. Personal Scratchpad & Sticky Notes */}
+          {visibleWidgets.scratchpad && (
+            <DashboardScratchpad
+              onAddTask={onAddTask}
+              triggerToast={triggerToast}
+            />
+          )}
+
+          {/* 11. AI Smart Productivity Report */}
+          {visibleWidgets.ai && metrics.total > 0 && (
+            <div id="dashboard-ai-report-section">
+              <DashboardAiReport
+                tasks={scopedTasks}
+                members={members}
+                isPremium={currentUser?.isPremium}
+                onUpgradePremium={onUpgradePremium}
+                onAddSyncLog={onAddSyncLog}
+                triggerToast={triggerToast}
+                completedTasks={metrics.completed}
+                totalTasks={metrics.total}
+                totalLoggedHours={metrics.totalLogged}
+                totalEstimatedHours={metrics.totalEstimated}
+                assignedMemberCount={metrics.assignedMemberCount}
+              />
+            </div>
+          )}
+
+          {/* 12. Recent Activity Feed */}
+          {visibleWidgets.activity && (
+            <DashboardActivityFeed
+              syncLogs={syncLogs}
+              onClearSyncLogs={onClearSyncLogs}
+            />
+          )}
+        </>
       )}
 
       {/* 13. Quick Task Creation Modal */}

@@ -68,7 +68,7 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
       );
       const { data, error: enrollError } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
-        friendlyName: 'Upgen Control Center',
+        friendlyName: 'Costack Control Center',
       });
       if (enrollError) throw enrollError;
       setFactorId(data.id);
@@ -156,7 +156,7 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
           <p className="mx-auto mt-2 max-w-md text-xs font-medium leading-relaxed text-slate-400">
             {l('Danh tính của bạn đã được xác nhận. Hãy nhập mã TOTP để nâng phiên hiện tại lên ', 'Your identity is confirmed. Enter a TOTP code to upgrade this session to ')}
             <strong className="text-indigo-300">AAL2</strong>
-            {l(' và mở Trung tâm điều khiển Upgen.', ' and open the Upgen Control Center.')}
+            {l(' và mở Trung tâm điều khiển Costack.', ' and open the Costack Control Center.')}
           </p>
         </div>
 
@@ -207,7 +207,7 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
             className="mt-7 grid gap-5 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 sm:grid-cols-[160px_1fr] sm:items-center"
           >
             <div className="rounded-2xl bg-white p-2.5 shadow-2xl ring-2 ring-indigo-500/20">
-              <img src={qrCode} alt={l('Mã QR TOTP của Upgen', 'Upgen TOTP QR code')} className="aspect-square w-full rounded-lg" />
+              <img src={qrCode} alt={l('Mã QR TOTP của Costack', 'Costack TOTP QR code')} className="aspect-square w-full rounded-lg" />
             </div>
             <div>
               <h2 className="text-sm font-black text-white">{l('1. Quét mã QR', '1. Scan the QR code')}</h2>

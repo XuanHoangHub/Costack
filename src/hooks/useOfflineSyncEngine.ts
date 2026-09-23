@@ -51,7 +51,7 @@ export function useOfflineSyncEngine() {
                       id: t.id,
                       title: t.title,
                       description: t.description,
-                      priority: t.priority,
+                      priority: t.priority || 'medium',
                       status: t.status,
                       assigneeId: t.assigneeId || null,
                       startDate: t.startDate || null,

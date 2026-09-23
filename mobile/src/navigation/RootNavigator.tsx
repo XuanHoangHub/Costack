@@ -20,7 +20,7 @@ export const RootNavigator: React.FC = () => {
 
   useEffect(() => {
     checkSession();
-  }, []);
+  }, [checkSession]);
 
   if (isLoading) {
     return (
@@ -42,7 +42,7 @@ export const RootNavigator: React.FC = () => {
         >
           <Zap size={32} color="#ffffff" />
         </LinearGradient>
-        <Text style={[styles.appName, { color: colors.textPrimary }]}>UPGEN OS</Text>
+        <Text style={[styles.appName, { color: colors.textPrimary }]}>COSTACK OS</Text>
         <Text style={[styles.tagline, { color: colors.textMuted }]}>
           Smart Workspace & Collaboration
         </Text>

@@ -28,11 +28,11 @@ const unlockedByPlan = {
   starter: [
     ['Không gian không giới hạn', 'Unlimited spaces'],
     ['Lịch và biểu đồ Gantt', 'Calendar & Gantt'],
-    ['Toàn bộ Upgen AI · 150 lượt/tháng', 'Full Upgen AI · 150 requests/month'],
+    ['Toàn bộ Costack AI · 150 lượt/tháng', 'Full Costack AI · 150 requests/month'],
     ['Tự động hóa cơ bản', 'Basic automations'],
   ],
   pro: [
-    ['Upgen AI · 2.000 lượt/tháng', 'Upgen AI · 2,000 requests/month'],
+    ['Costack AI · 2.000 lượt/tháng', 'Costack AI · 2,000 requests/month'],
     ['CRM, ERP và Tài chính', 'CRM, ERP & Finance'],
     ['Báo cáo nâng cao', 'Advanced reporting'],
     ['Theo dõi thời gian và KPI', 'Time tracking & KPI'],
@@ -57,9 +57,9 @@ export function PaymentSuccess({ checkout, receipt, planName, isVietnamese, onCl
 
   const downloadReceipt = useCallback(() => {
     const lines = isVietnamese ? [
-      'BIÊN NHẬN THANH TOÁN UPGEN',
+      'BIÊN NHẬN THANH TOÁN COSTACK',
       `Mã đơn: #${checkout.orderCode}`,
-      `Gói: Upgen ${planName}`,
+      `Gói: Costack ${planName}`,
       `Chu kỳ: ${checkout.cycle === 'yearly' ? '12 tháng' : '1 tháng'}`,
       `Số tiền: ${amount}`,
       `Thanh toán lúc: ${paidAt.toLocaleString(locale)}`,
@@ -68,9 +68,9 @@ export function PaymentSuccess({ checkout, receipt, planName, isVietnamese, onCl
       '',
       'Trạng thái: ĐÃ THANH TOÁN · GÓI ĐÃ KÍCH HOẠT',
     ] : [
-      'UPGEN PAYMENT RECEIPT',
+      'COSTACK PAYMENT RECEIPT',
       `Order: #${checkout.orderCode}`,
-      `Plan: Upgen ${planName}`,
+      `Plan: Costack ${planName}`,
       `Cycle: ${checkout.cycle === 'yearly' ? '12 months' : '1 month'}`,
       `Amount: ${amount}`,
       `Paid at: ${paidAt.toLocaleString(locale)}`,
@@ -83,7 +83,7 @@ export function PaymentSuccess({ checkout, receipt, planName, isVietnamese, onCl
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Upgen-receipt-${checkout.orderCode}.txt`;
+    link.download = `Costack-receipt-${checkout.orderCode}.txt`;
     link.click();
     URL.revokeObjectURL(url);
   }, [amount, checkout.cycle, checkout.orderCode, isVietnamese, locale, paidAt, periodEnd, planName, receipt?.reference]);
@@ -117,8 +117,8 @@ export function PaymentSuccess({ checkout, receipt, planName, isVietnamese, onCl
         </h2>
         <p className="mt-2 max-w-xl text-center text-sm font-medium leading-relaxed text-slate-500 dark:text-slate-400">
           {isVietnamese
-            ? `Gói Upgen ${planName} đã được kích hoạt. Mọi quyền lợi mới đã sẵn sàng trên tài khoản của bạn.`
-            : `Upgen ${planName} is active. Your new plan benefits are ready on this account.`}
+            ? `Gói Costack ${planName} đã được kích hoạt. Mọi quyền lợi mới đã sẵn sàng trên tài khoản của bạn.`
+            : `Costack ${planName} is active. Your new plan benefits are ready on this account.`}
         </p>
 
         <div className="mt-8 grid w-full gap-4 lg:grid-cols-[1.05fr_.95fr]">
@@ -134,7 +134,7 @@ export function PaymentSuccess({ checkout, receipt, planName, isVietnamese, onCl
             </div>
             <div className="p-5 sm:p-6">
               <div className="rounded-2xl bg-gradient-to-br from-slate-950 via-indigo-950 to-indigo-900 p-5 text-white">
-                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-300">Upgen {planName}</div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-300">Costack {planName}</div>
                 <div className="mt-1 text-3xl font-black tracking-tight">{amount}</div>
                 <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-300">
                   <CalendarCheck2 className="h-3.5 w-3.5 text-emerald-400" />
@@ -180,7 +180,7 @@ export function PaymentSuccess({ checkout, receipt, planName, isVietnamese, onCl
 
         <button type="button" onClick={onClose} className="mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 px-7 text-sm font-black text-white shadow-lg shadow-indigo-500/25 transition hover:-translate-y-0.5 hover:shadow-xl">
           <FileCheck2 className="h-4 w-4" />
-          {isVietnamese ? 'Bắt đầu sử dụng Upgen' : 'Start using Upgen'}
+          {isVietnamese ? 'Bắt đầu sử dụng Costack' : 'Start using Costack'}
           <ArrowRight className="h-4 w-4" />
         </button>
       </div>

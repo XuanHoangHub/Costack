@@ -205,7 +205,7 @@ export default function ManageSpacesModal({
                               if (e.key === 'Escape') setEditingSpaceId(null);
                             }}
                             autoFocus
-                            className="text-xs font-semibold px-2 py-1 rounded-md border border-blue-500 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:outline-none"
+                            className="text-xs font-semibold px-2.5 py-1 rounded-md border border-blue-500/50 dark:border-sky-400/50 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white outline-none shadow-xs ring-2 ring-blue-500/20 dark:ring-sky-400/20 transition-all selection:bg-blue-600 selection:text-white"
                           />
                           <button
                             type="button"

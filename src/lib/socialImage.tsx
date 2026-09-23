@@ -36,7 +36,7 @@ export function createSocialImage() {
             U
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ fontSize: 34, fontWeight: 900, letterSpacing: -1 }}>Upgen</div>
+            <div style={{ fontSize: 34, fontWeight: 900, letterSpacing: -1 }}>Costack</div>
             <div style={{ marginTop: 4, fontSize: 18, color: '#a5b4fc' }}>AI Productivity Workspace</div>
           </div>
         </div>
@@ -46,7 +46,7 @@ export function createSocialImage() {
             Công việc, tài liệu và vận hành trong một workspace.
           </div>
           <div style={{ marginTop: 28, fontSize: 26, lineHeight: 1.4, color: '#cbd5e1' }}>
-            Tasks · Smart Docs · Realtime Chat · CRM · Finance · Upgen Brain AI
+            Tasks · Smart Docs · Realtime Chat · CRM · Finance · Costack Brain AI
           </div>
         </div>
 

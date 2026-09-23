@@ -8,7 +8,7 @@ interface UiState {
   isMainSidebarCollapsed: boolean;
   isSearchOpen: boolean;
   searchQuery: string;
-  searchCategory: 'all' | 'tasks' | 'docs' | 'spaces' | 'channels' | 'members' | 'commands';
+  searchCategory: 'all' | 'tasks' | 'spaces' | 'channels' | 'members' | 'commands';
   isOffline: boolean;
   syncing: boolean;
   syncProgress: number;
@@ -77,7 +77,7 @@ interface UiState {
   setIsMainSidebarCollapsed: (collapsed: boolean) => void;
   setIsSearchOpen: (open: boolean) => void;
   setSearchQuery: (query: string) => void;
-  setSearchCategory: (category: 'all' | 'tasks' | 'docs' | 'spaces' | 'channels' | 'members' | 'commands') => void;
+  setSearchCategory: (category: 'all' | 'tasks' | 'spaces' | 'channels' | 'members' | 'commands') => void;
   setIsOffline: (offline: boolean) => void;
   setSyncing: (syncing: boolean) => void;
   setSyncProgress: (progress: number | ((prev: number) => number)) => void;
@@ -146,10 +146,10 @@ export interface SidebarZone {
   isCollapsed?: boolean;
 }
 
-export const REMOVED_MODULE_IDS = new Set(['goals', 'planner', 'whiteboard', 'base', 'crm', 'erp']);
+export const REMOVED_MODULE_IDS = new Set(['goals', 'planner', 'whiteboard', 'base', 'crm', 'erp', 'docs']);
 
 export const DEFAULT_SIDEBAR_ORDER: string[] = [
-  'dashboard', 'tasks', 'inbox', 'finance', 'docs', 'team', 'calendar', 'chat'
+  'dashboard', 'tasks', 'inbox', 'finance', 'team', 'calendar', 'chat'
 ];
 
 export const useUiStore = create<UiState>()(

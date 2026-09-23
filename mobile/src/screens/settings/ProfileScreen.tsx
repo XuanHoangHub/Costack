@@ -57,53 +57,61 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         onBack={() => navigation.goBack()}
       />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.avatarSection}>
-          <Avatar
-            name={name || 'User'}
-            url={currentUser?.avatar}
-            size={80}
-            online={true}
-          />
+          <View style={styles.avatarWrap}>
+            <Avatar
+              name={name || 'User'}
+              url={currentUser?.avatar}
+              size={84}
+              online={true}
+            />
+          </View>
+          <Text style={[styles.userName, { color: colors.textPrimary }]}>
+            {name || 'Thành viên'}
+          </Text>
           <Text style={[styles.emailText, { color: colors.textMuted }]}>
             {currentUser?.email}
           </Text>
         </View>
 
-        <Input
-          label="Họ và tên"
-          value={name}
-          onChangeText={setName}
-          placeholder="Nhập tên của bạn..."
-        />
+        <View style={[styles.cardSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Input
+            label="Họ và tên"
+            value={name}
+            onChangeText={setName}
+            placeholder="Nhập tên của bạn..."
+          />
 
-        <Input
-          label="Trạng thái cá nhân"
-          value={statusMessage}
-          onChangeText={setStatusMessage}
-          placeholder="Ví dụ: Đang bận làm việc 🚀"
-        />
+          <Input
+            label="Trạng thái cá nhân"
+            value={statusMessage}
+            onChangeText={setStatusMessage}
+            placeholder="Ví dụ: Đang bận làm việc 🚀"
+          />
 
-        <Input
-          label="Phòng ban / Vị trí"
-          value={department}
-          onChangeText={setDepartment}
-          placeholder="Ví dụ: Kỹ thuật, Marketing..."
-        />
+          <Input
+            label="Phòng ban / Vị trí"
+            value={department}
+            onChangeText={setDepartment}
+            placeholder="Ví dụ: Kỹ thuật, Marketing..."
+          />
 
-        <Input
-          label="Số điện thoại"
-          value={phone}
-          onChangeText={setPhone}
-          placeholder="0912..."
-          keyboardType="phone-pad"
-        />
+          <Input
+            label="Số điện thoại"
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="0912..."
+            keyboardType="phone-pad"
+          />
+        </View>
 
         <Button
           title={t.common.save}
           onPress={handleSave}
-          style={{ marginTop: 16 }}
+          style={{ marginTop: 20 }}
         />
+        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
@@ -114,14 +122,33 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 20,
+    padding: 16,
   },
   avatarSection: {
     alignItems: 'center',
-    marginVertical: 20,
+    marginVertical: 16,
+  },
+  avatarWrap: {
+    position: 'relative',
+    marginBottom: 10,
+  },
+  userName: {
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.3,
   },
   emailText: {
     fontSize: 13,
-    marginTop: 10,
+    marginTop: 3,
+  },
+  cardSection: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 18,
+    gap: 14,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
   },
 });

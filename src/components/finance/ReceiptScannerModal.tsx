@@ -143,7 +143,7 @@ export function ReceiptScannerModal({
       const base64Data = await compressImageFile(file);
       setImagePreview(base64Data);
 
-      setScanStep(l("Apexa AI (Gemini Vision) đang phân tích hóa đơn…", "Apexa AI (Gemini Vision) is analyzing the receipt…"));
+      setScanStep(l("Costack AI (Gemini Vision) đang phân tích hóa đơn…", "Costack AI (Gemini Vision) is analyzing the receipt…"));
       const categoryNames = categories.map((c) => c.name);
 
       const response = await callAiApi("/api/ai/receipt-scan", {

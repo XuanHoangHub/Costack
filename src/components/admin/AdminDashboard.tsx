@@ -446,7 +446,7 @@ export default function AdminDashboard() {
               <ShieldCheck className="h-7 w-7 animate-pulse" />
             </span>
           </div>
-          <p className="text-xs font-black uppercase tracking-[0.25em] text-indigo-300">Upgen Control Center</p>
+          <p className="text-xs font-black uppercase tracking-[0.25em] text-indigo-300">Costack Control Center</p>
           <p className="mt-1 text-[11px] text-slate-500">Đang xác minh quyền quản trị…</p>
         </div>
       </div>
@@ -466,10 +466,10 @@ export default function AdminDashboard() {
             <LockKeyhole className="h-7 w-7" />
           </span>
           <p className="mt-6 text-[10px] font-black uppercase tracking-[0.22em] text-rose-300">Zero-Trust Access Control</p>
-          <p className="text-xs font-black uppercase tracking-[0.25em] text-indigo-300">Upgen Control Center</p>
+          <p className="text-xs font-black uppercase tracking-[0.25em] text-indigo-300">Costack Control Center</p>
           <h1 className="mt-2 text-2xl font-black">{signedOut ? 'Đăng nhập phiên quản trị' : 'Yêu cầu quyền truy cập'}</h1>
           <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-300">
-            {signedOut ? 'Đăng nhập bằng tài khoản quản trị được chỉ định để mở Upgen Control Center.' : 'Phiên hiện tại không đáp ứng UID quản trị duy nhất và mức xác thực AAL2 bắt buộc. Không có dữ liệu quản trị nào được cấp.'}
+            {signedOut ? 'Đăng nhập bằng tài khoản quản trị được chỉ định để mở Costack Control Center.' : 'Phiên hiện tại không đáp ứng UID quản trị duy nhất và mức xác thực AAL2 bắt buộc. Không có dữ liệu quản trị nào được cấp.'}
           </p>
           {error && <p className="mt-4 rounded-xl bg-rose-500/10 px-4 py-3 text-xs text-rose-200 border border-rose-500/20">{error}</p>}
           <button onClick={() => router.push('/')} className="mt-6 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-white px-5 py-3 text-xs font-black text-slate-950 transition hover:bg-slate-100">
@@ -494,7 +494,7 @@ export default function AdminDashboard() {
             </span>
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-black tracking-tight text-slate-900 dark:text-white">Upgen Control</p>
+            <p className="text-sm font-black tracking-tight text-slate-900 dark:text-white">Costack Control</p>
             <p className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-400">Security Center</p>
           </div>
         </div>

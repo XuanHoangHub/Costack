@@ -420,21 +420,22 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            className="absolute inset-0 modal-backdrop bg-black/40 dark:bg-black/75 backdrop-blur-xs cursor-pointer" 
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 modal-backdrop bg-black/40 dark:bg-black/75 backdrop-blur-md cursor-pointer" 
             onClick={onClose} 
           />
 
         <motion.div
           key="member-profile-card"
-          initial={{ opacity: 0, scale: 0.94, y: 16 }}
+          initial={{ opacity: 0, scale: 0.95, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.94, y: 16 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+          exit={{ opacity: 0, scale: 0.96, y: 10 }}
+          transition={{ type: 'spring', stiffness: 420, damping: 32 }}
           role="dialog"
           aria-modal="true"
           aria-labelledby="member-profile-title"
-          className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-[32px] shadow-2xl border border-slate-200 dark:border-zinc-800 overflow-hidden z-10 flex flex-col max-h-[90vh] text-slate-800 dark:text-slate-100"
+          className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-[32px] shadow-2xl border border-slate-200/80 dark:border-white/10 overflow-hidden z-10 flex flex-col max-h-[90vh] text-slate-800 dark:text-slate-100"
+          style={{ boxShadow: '0 0 0 1px rgba(255,255,255,0.08) inset, 0 25px 60px -15px rgba(0,0,0,0.35)' }}
         >
           {/* Header Banner (Custom image or Mesh gradient) */}
           <div 
@@ -757,101 +758,109 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
 
           {/* Modal Body Scrollable */}
           <div className="p-6 sm:p-8 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
-            {/* Bento Stat Cards Strip */}
-            <div className="grid grid-cols-3 gap-3 sm:gap-4">
-              {/* Card 1: Assigned Tasks */}
-              <div className="p-4 rounded-[22px] bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-left space-y-1 relative overflow-hidden group shadow-2xs">
+            {/* Unified Stats Ribbon */}
+            <div className="grid grid-cols-3 divide-x divide-slate-200/60 dark:divide-slate-800/80 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800/70 p-2.5 sm:p-3 text-left">
+              {/* Stat 1: Assigned Tasks */}
+              <div className="px-2 sm:px-3 py-1 space-y-0.5 min-w-0">
                 <div className="flex items-center justify-between text-indigo-500 dark:text-indigo-400">
-                  <FolderKanban className="w-4 h-4" />
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600/80 dark:text-indigo-400/80">
-                    {inProgressTasksCount > 0 ? `${inProgressTasksCount} ${locale === 'vi' ? 'đang làm' : 'active'}` : ''}
+                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate">
+                    {locale === 'vi' ? 'Công việc' : 'Assigned'}
                   </span>
+                  <FolderKanban className="w-3.5 h-3.5 shrink-0 opacity-80" />
                 </div>
-                <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white block tracking-tight">
-                  {assignedTasks.length}
-                </span>
-                <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400 block truncate">
-                  {locale === 'vi' ? 'Công việc được giao' : 'Assigned tasks'}
-                </span>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                    {assignedTasks.length}
+                  </span>
+                  {inProgressTasksCount > 0 && (
+                    <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hidden sm:inline">
+                      ({inProgressTasksCount})
+                    </span>
+                  )}
+                </div>
               </div>
 
-              {/* Card 2: Completed Tasks */}
-              <div className="p-4 rounded-[22px] bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-left space-y-1 relative overflow-hidden group shadow-2xs">
+              {/* Stat 2: Completed Tasks */}
+              <div className="px-2 sm:px-3 py-1 space-y-0.5 min-w-0">
                 <div className="flex items-center justify-between text-emerald-500 dark:text-emerald-400">
-                  <CheckCircle2 className="w-4 h-4" />
+                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate">
+                    {locale === 'vi' ? 'Hoàn thành' : 'Completed'}
+                  </span>
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                    {completedTasksCount}
+                  </span>
                   {assignedTasks.length > 0 && (
-                    <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                      {completionRate}%
+                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                      ({completionRate}%)
                     </span>
                   )}
                 </div>
-                <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white block tracking-tight">
-                  {completedTasksCount}
-                </span>
-                <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400 block truncate">
-                  {locale === 'vi' ? 'Đã hoàn thành' : 'Completed'}
-                </span>
               </div>
 
-              {/* Card 3: Logged Hours */}
-              <div className="p-4 rounded-[22px] bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-left space-y-1 relative overflow-hidden group shadow-2xs">
+              {/* Stat 3: Logged Hours */}
+              <div className="px-2 sm:px-3 py-1 space-y-0.5 min-w-0">
                 <div className="flex items-center justify-between text-amber-500 dark:text-amber-400">
-                  <Clock className="w-4 h-4" />
+                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate">
+                    {locale === 'vi' ? 'Giờ đã làm' : 'Logged'}
+                  </span>
+                  <Clock className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                    {totalHoursLogged}h
+                  </span>
                   {totalHoursEstimate > 0 && (
-                    <span className="text-[10px] font-extrabold text-amber-600/80 dark:text-amber-400/80">
-                      /{totalHoursEstimate}h {locale === 'vi' ? 'dự kiến' : 'est'}
+                    <span className="text-[10px] font-bold text-amber-600/80 dark:text-amber-400/80 hidden sm:inline">
+                      (/{totalHoursEstimate}h)
                     </span>
                   )}
                 </div>
-                <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white block tracking-tight">
-                  {totalHoursLogged}h
-                </span>
-                <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400 block truncate">
-                  {locale === 'vi' ? 'Giờ đã làm' : 'Logged hours'}
-                </span>
               </div>
             </div>
 
             {/* Profile Info Details List */}
-            <div className="space-y-3 p-5 rounded-[24px] bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800/80 text-xs shadow-2xs">
-              <div className="flex items-center justify-between py-1.5 border-b border-slate-200/50 dark:border-slate-700/40 text-left">
-                <span className="font-bold text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-indigo-500" />
+            <div className="divide-y divide-slate-100 dark:divide-slate-800/60 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800/60 px-4 py-0.5 text-xs shadow-2xs">
+              <div className="flex items-center justify-between py-2.5 text-left">
+                <span className="font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                  <Briefcase className="w-3.5 h-3.5 text-indigo-500" />
                   <span>{locale === 'vi' ? 'Phòng ban / Chuyên môn' : 'Department / Specialty'}</span>
                 </span>
-                <span className="font-extrabold text-slate-800 dark:text-slate-100">
+                <span className="font-bold text-slate-800 dark:text-slate-200">
                   {member.department || (locale === 'vi' ? 'Chưa cập nhật' : 'Not specified')}
                 </span>
               </div>
 
               {member.phone && (
-                <div className="flex items-center justify-between py-1.5 border-b border-slate-200/50 dark:border-slate-700/40 text-left">
-                  <span className="font-bold text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-emerald-500" />
+                <div className="flex items-center justify-between py-2.5 text-left">
+                  <span className="font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                    <Phone className="w-3.5 h-3.5 text-emerald-500" />
                     <span>{locale === 'vi' ? 'Số điện thoại' : 'Phone'}</span>
                   </span>
-                  <a href={`tel:${member.phone}`} className="font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline">
+                  <a href={`tel:${member.phone}`} className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
                     {member.phone}
                   </a>
                 </div>
               )}
 
-              <div className="flex items-center justify-between py-1.5 border-b border-slate-200/50 dark:border-slate-700/40 text-left">
-                <span className="font-bold text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-amber-500" />
+              <div className="flex items-center justify-between py-2.5 text-left">
+                <span className="font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                  <Calendar className="w-3.5 h-3.5 text-amber-500" />
                   <span>{locale === 'vi' ? 'Ngày tham gia' : 'Joined Date'}</span>
                 </span>
-                <span className="font-extrabold text-slate-800 dark:text-slate-100">
+                <span className="font-bold text-slate-800 dark:text-slate-200">
                   {member.joinedDate || '2026'}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between py-1.5 text-left">
-                <span className="font-bold text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-purple-500" />
+              <div className="flex items-center justify-between py-2.5 text-left">
+                <span className="font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                  <Activity className="w-3.5 h-3.5 text-purple-500" />
                   <span>{locale === 'vi' ? 'Truy cập gần nhất' : 'Last Active'}</span>
                 </span>
-                <span className="font-extrabold text-slate-800 dark:text-slate-100">
+                <span className="font-bold text-slate-800 dark:text-slate-200">
                   {resolvedStatus === 'online' ? (locale === 'vi' ? 'Đang hoạt động' : 'Active now') : formatLastSeen(member.lastSeenAt)}
                 </span>
               </div>
@@ -859,11 +868,11 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
 
             {/* Short Bio */}
             {member.bio && (
-              <div className="space-y-2 text-left">
-                <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              <div className="space-y-1.5 text-left">
+                <h4 className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                   {locale === 'vi' ? 'Giới thiệu bản thân' : 'Biography'}
                 </h4>
-                <div className="p-4 rounded-[22px] bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/50 text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border-l-4 border-l-indigo-500 shadow-2xs">
+                <div className="px-4 py-3 rounded-2xl bg-slate-50/80 dark:bg-slate-900/40 border-l-2 border-indigo-500 text-xs text-slate-600 dark:text-slate-300 leading-relaxed italic">
                   "{member.bio}"
                 </div>
               </div>
@@ -927,12 +936,12 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
                       <div
                         key={task.id}
                         onClick={() => {
-                          if (onSelectTask) {
+                           if (onSelectTask) {
                             onClose();
                             onSelectTask(task);
                           }
                         }}
-                        className="p-3.5 rounded-[20px] border border-slate-200/70 dark:border-slate-800/80 bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-indigo-400/50 transition-all flex items-center justify-between cursor-pointer group shadow-2xs hover:shadow-sm"
+                        className="p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800/70 bg-slate-50/50 dark:bg-slate-900/40 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 hover:border-indigo-300/50 dark:hover:border-indigo-700/50 transition-all flex items-center justify-between cursor-pointer group"
                       >
                         <div className="flex items-center gap-3 min-w-0 pr-3">
                           <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition-colors ${

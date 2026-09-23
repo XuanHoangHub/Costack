@@ -837,7 +837,7 @@ function ProfilePage({
     try {
       // Clean up any unverified factors first
       await Promise.all(mfaFactors.filter(factor => factor.status !== 'verified').map(factor => supabase.auth.mfa.unenroll({ factorId: factor.id })));
-      const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Upgen Authenticator' });
+      const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Costack Authenticator' });
       if (error) throw error;
       setMfaEnrollment({ factorId: data.id, qrCode: data.totp.qr_code, secret: data.totp.secret });
       setMfaCode('');
@@ -1466,7 +1466,7 @@ function ProfilePage({
                     {locale === 'vi' ? 'Gói dịch vụ' : 'Account Tier'}
                   </span>
                   <span className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-                    {currentUser.isPremium ? 'Upgen Premium Pro' : (locale === 'vi' ? 'Gói Miễn Phí (Free Tier)' : 'Free Tier')}
+                    {currentUser.isPremium ? 'Costack Premium Pro' : (locale === 'vi' ? 'Gói Miễn Phí (Free Tier)' : 'Free Tier')}
                   </span>
                 </div>
                 <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20">

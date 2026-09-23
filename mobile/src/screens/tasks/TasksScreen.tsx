@@ -6,9 +6,22 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Modal,
 } from 'react-native';
-import { List, Columns3, Calendar as CalendarIcon, Plus, Search, X } from 'lucide-react-native';
+import {
+  List,
+  Columns3,
+  Calendar as CalendarIcon,
+  Plus,
+  Search,
+  X,
+  Trash2,
+  RotateCcw,
+  Download,
+  Table as TableIcon,
+} from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import Toast from 'react-native-toast-message';
 import { useUiStore } from '../../store/uiStore';
 import { useTaskStore } from '../../store/taskStore';
 import { useSpaceStore } from '../../store/spaceStore';
@@ -24,19 +37,30 @@ import { TaskFilterBar } from '../../components/tasks/TaskFilterBar';
 import { TaskCard } from '../../components/tasks/TaskCard';
 import { KanbanView } from '../../components/tasks/KanbanView';
 import { CalendarAgendaView } from '../../components/tasks/CalendarAgendaView';
+import { TaskTableView } from '../../components/tasks/TaskTableView';
 import { TaskDetailSheet } from '../../components/tasks/TaskDetailSheet';
 import { TaskCreateModal } from '../../components/tasks/TaskCreateModal';
 import { FloatingActionButton } from '../../components/common/FloatingActionButton';
-import Toast from 'react-native-toast-message';
-import { SkeletonCard } from '../../components/common/SkeletonLoader';
+import { GlobalSearchModal } from '../../components/common/GlobalSearchModal';
+import { ExportDataModal } from '../../components/common/ExportDataModal';
 
-export const TasksScreen: React.FC = () => {
+interface TasksScreenProps {
+  navigation?: any;
+}
+
+export const TasksScreen: React.FC<TasksScreenProps> = ({ navigation }) => {
   const colors = useUiStore((s) => s.getColors());
   const tasks = useTaskStore((s) => s.tasks);
+  const deletedTasks = useTaskStore((s) => s.deletedTasks);
   const filter = useTaskStore((s) => s.filter);
   const searchQuery = useTaskStore((s) => s.searchQuery);
   const setSearchQuery = useTaskStore((s) => s.setSearchQuery);
   const fetchTasks = useTaskStore((s) => s.fetchTasksFromSupabase);
+  const fetchDeletedTasks = useTaskStore((s) => s.fetchDeletedTasks);
+  const restoreTask = useTaskStore((s) => s.restoreTask);
+  const permanentDeleteTask = useTaskStore((s) => s.permanentDeleteTask);
+  const emptyTrash = useTaskStore((s) => s.emptyTrash);
+
   const spaces = useSpaceStore((s) => s.spaces);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const activeSpaceId = useSpaceStore((s) => s.activeSpaceId);
@@ -49,9 +73,12 @@ export const TasksScreen: React.FC = () => {
   const currentSpace = spaces.find((s) => s.id === activeSpaceId);
   const currentList = currentSpace?.lists?.find((l) => l.id === activeListId);
 
-  const [viewMode, setViewMode] = useState<'list' | 'board' | 'calendar'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'board' | 'calendar' | 'table'>('list');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showTrashModal, setShowTrashModal] = useState(false);
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
 
@@ -74,11 +101,19 @@ export const TasksScreen: React.FC = () => {
     });
   };
 
-  const handleModeChange = (mode: 'list' | 'board' | 'calendar') => {
+  const handleModeChange = (mode: 'list' | 'board' | 'calendar' | 'table') => {
     try {
-      Haptics.selectionAsync();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {}
     setViewMode(mode);
+  };
+
+  const handleOpenTrash = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
+    await fetchDeletedTasks();
+    setShowTrashModal(true);
   };
 
   // Filter tasks
@@ -138,14 +173,33 @@ export const TasksScreen: React.FC = () => {
         rightAction={
           <View style={styles.headerActions}>
             <TouchableOpacity
-              onPress={() => setShowSearch(!showSearch)}
-              style={[styles.modeBtn, { backgroundColor: colors.surface }]}
+              onPress={() => setShowGlobalSearch(true)}
+              style={[styles.modeBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
             >
-              <Search size={18} color={showSearch ? colors.primary : colors.textSecondary} />
+              <Search size={17} color={colors.primary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleOpenTrash}
+              style={[styles.modeBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            >
+              <Trash2 size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                try {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                } catch {}
+                setShowExportModal(true);
+              }}
+              style={[styles.modeBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            >
+              <Download size={16} color={colors.textSecondary} />
             </TouchableOpacity>
 
             {/* View Switcher: List vs Board vs Calendar */}
-            <View style={[styles.segmentedWrap, { backgroundColor: colors.surface }]}>
+            <View style={[styles.segmentedWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <TouchableOpacity
                 onPress={() => handleModeChange('list')}
                 style={[
@@ -158,6 +212,7 @@ export const TasksScreen: React.FC = () => {
                   color={viewMode === 'list' ? '#ffffff' : colors.textSecondary}
                 />
               </TouchableOpacity>
+
               <TouchableOpacity
                 onPress={() => handleModeChange('board')}
                 style={[
@@ -170,6 +225,7 @@ export const TasksScreen: React.FC = () => {
                   color={viewMode === 'board' ? '#ffffff' : colors.textSecondary}
                 />
               </TouchableOpacity>
+
               <TouchableOpacity
                 onPress={() => handleModeChange('calendar')}
                 style={[
@@ -182,29 +238,23 @@ export const TasksScreen: React.FC = () => {
                   color={viewMode === 'calendar' ? '#ffffff' : colors.textSecondary}
                 />
               </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => handleModeChange('table')}
+                style={[
+                  styles.segmentBtn,
+                  viewMode === 'table' && { backgroundColor: colors.primary },
+                ]}
+              >
+                <TableIcon
+                  size={15}
+                  color={viewMode === 'table' ? '#ffffff' : colors.textSecondary}
+                />
+              </TouchableOpacity>
             </View>
           </View>
         }
       />
-
-      {/* Search Input (Collapsible) */}
-      {showSearch && (
-        <View style={styles.searchBar}>
-          <Input
-            placeholder={t.common.search}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            autoFocus
-            rightIcon={
-              searchQuery ? (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <X size={16} color={colors.textMuted} />
-                </TouchableOpacity>
-              ) : undefined
-            }
-          />
-        </View>
-      )}
 
       {/* Space and Lists Filter Bar */}
       <SpaceFilterBar />
@@ -249,34 +299,25 @@ export const TasksScreen: React.FC = () => {
               </Text>
             </View>
           </View>
+
           <TouchableOpacity
             onPress={() => {
-              try {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              } catch {}
               setActiveSpaceId(null);
               setActiveListId(null);
             }}
             style={styles.clearSpaceBtn}
           >
-            <Text style={[styles.clearSpaceText, { color: colors.textMuted }]}>
-              Xem tất cả
-            </Text>
-            <X size={12} color={colors.textMuted} />
+            <Text style={[styles.clearSpaceText, { color: colors.textMuted }]}>Tất cả</Text>
+            <X size={14} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Filter Pills Bar */}
+      {/* Task Category Filter Bar (All, Due Today, Overdue, etc.) */}
       <TaskFilterBar />
 
-      {/* Main View: List, Board or Calendar */}
-      {viewMode === 'calendar' ? (
-        <CalendarAgendaView
-          tasks={filteredTasks}
-          onTaskPress={(task) => setSelectedTask(task)}
-        />
-      ) : viewMode === 'list' ? (
+      {/* Views rendering */}
+      {viewMode === 'list' ? (
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
@@ -288,28 +329,22 @@ export const TasksScreen: React.FC = () => {
             />
           }
         >
-          {refreshing ? (
-            <>
-              <SkeletonCard />
-              <SkeletonCard />
-              <SkeletonCard />
-            </>
-          ) : filteredTasks.length > 0 ? (
-            filteredTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onPress={() => setSelectedTask(task)}
-              />
-            ))
-          ) : (
+          {filteredTasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              onPress={() => setSelectedTask(task)}
+            />
+          ))}
+
+          {filteredTasks.length === 0 && (
             <View
               style={[
                 styles.emptyWrap,
                 { backgroundColor: colors.surface, borderColor: colors.border },
               ]}
             >
-              <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
                 {t.tasks.noTasks}
               </Text>
             </View>
@@ -317,6 +352,16 @@ export const TasksScreen: React.FC = () => {
 
           <View style={{ height: 100 }} />
         </ScrollView>
+      ) : viewMode === 'calendar' ? (
+        <CalendarAgendaView
+          tasks={filteredTasks}
+          onTaskPress={(task) => setSelectedTask(task)}
+        />
+      ) : viewMode === 'table' ? (
+        <TaskTableView
+          tasks={filteredTasks}
+          onSelectTask={(task) => setSelectedTask(task)}
+        />
       ) : (
         <KanbanView
           tasks={filteredTasks}
@@ -340,6 +385,109 @@ export const TasksScreen: React.FC = () => {
         visible={!!selectedTask}
         onClose={() => setSelectedTask(null)}
       />
+
+      {/* Trash Bin Modal */}
+      <Modal visible={showTrashModal} animationType="slide" transparent onRequestClose={() => setShowTrashModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Trash2 size={20} color={colors.danger} />
+                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>{t.tasks.trash}</Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {deletedTasks.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      emptyTrash();
+                      Toast.show({ type: 'info', text1: 'Đã dọn sạch thùng rác' });
+                    }}
+                    style={[styles.emptyTrashBtn, { backgroundColor: colors.dangerSubtle }]}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.danger }}>
+                      {t.tasks.emptyTrash}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={() => setShowTrashModal(false)} style={styles.closeBtn}>
+                  <X size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <ScrollView style={{ paddingHorizontal: 16, paddingTop: 10 }} showsVerticalScrollIndicator={false}>
+              {deletedTasks.length > 0 ? (
+                deletedTasks.map((dTask) => (
+                  <View
+                    key={dTask.id}
+                    style={[styles.trashRow, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text numberOfLines={1} style={[styles.trashTaskTitle, { color: colors.textPrimary }]}>
+                        {dTask.title}
+                      </Text>
+                      <Text style={[styles.trashDate, { color: colors.textMuted }]}>
+                        {dTask.deletedAt ? `Đã xóa: ${new Date(dTask.deletedAt).toLocaleDateString('vi-VN')}` : 'Đã xóa'}
+                      </Text>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          try {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          } catch {}
+                          restoreTask(dTask.id);
+                          Toast.show({ type: 'success', text1: 'Đã khôi phục công việc' });
+                        }}
+                        style={[styles.trashActionBtn, { backgroundColor: colors.primarySubtle }]}
+                      >
+                        <RotateCcw size={15} color={colors.primary} />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={() => {
+                          try {
+                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                          } catch {}
+                          permanentDeleteTask(dTask.id);
+                        }}
+                        style={[styles.trashActionBtn, { backgroundColor: colors.dangerSubtle }]}
+                      >
+                        <Trash2 size={15} color={colors.danger} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.trashEmptyWrap}>
+                  <Trash2 size={36} color={colors.textMuted} />
+                  <Text style={[styles.trashEmptyText, { color: colors.textMuted }]}>{t.tasks.trashEmpty}</Text>
+                </View>
+              )}
+              <View style={{ height: 40 }} />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Global Search Modal */}
+      {showGlobalSearch && (
+        <GlobalSearchModal
+          visible={showGlobalSearch}
+          onClose={() => setShowGlobalSearch(false)}
+          navigation={navigation}
+          onOpenTask={(task) => setSelectedTask(task)}
+          onOpenCreateTask={() => setShowCreateModal(true)}
+        />
+      )}
+
+      {/* Export Data Modal */}
+      <ExportDataModal
+        visible={showExportModal}
+        onClose={() => setShowExportModal(false)}
+      />
     </View>
   );
 };
@@ -356,25 +504,24 @@ const styles = StyleSheet.create({
   modeBtn: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 12,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   segmentedWrap: {
     flexDirection: 'row',
-    borderRadius: 10,
-    padding: 2,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 3,
+    gap: 2,
   },
   segmentBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 30,
+    height: 30,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  searchBar: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
   },
   listContent: {
     paddingHorizontal: 16,
@@ -432,5 +579,70 @@ const styles = StyleSheet.create({
   clearSpaceText: {
     fontSize: 11,
     fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    maxHeight: '80%',
+    paddingBottom: 24,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  emptyTrashBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  trashRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 8,
+    gap: 10,
+  },
+  trashTaskTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  trashDate: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  trashActionBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trashEmptyWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    gap: 10,
+  },
+  trashEmptyText: {
+    fontSize: 13,
   },
 });

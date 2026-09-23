@@ -8,8 +8,11 @@ import { FinanceScreen } from '../screens/finance/FinanceScreen';
 import { AiBrainScreen } from '../screens/ai/AiBrainScreen';
 import { TeamScreen } from '../screens/team/TeamScreen';
 import { SpacesScreen } from '../screens/spaces/SpacesScreen';
-
 import { InboxScreen } from '../screens/inbox/InboxScreen';
+import { AnalyticsScreen } from '../screens/analytics/AnalyticsScreen';
+import { CalendarScreen } from '../screens/calendar/CalendarScreen';
+import { TimerScreen } from '../screens/timer/TimerScreen';
+import { WhiteboardScreen } from '../screens/whiteboard/WhiteboardScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -17,6 +20,10 @@ export const MoreStackNavigator: React.FC = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="Analytics" component={AnalyticsScreen} />
+      <Stack.Screen name="Calendar" component={CalendarScreen} />
+      <Stack.Screen name="Timer" component={TimerScreen} />
+      <Stack.Screen name="Whiteboard" component={WhiteboardScreen} />
       <Stack.Screen name="Inbox" component={InboxScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="Docs" component={DocsScreen} />

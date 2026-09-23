@@ -11,16 +11,20 @@ import {
   RotateCcw,
   LockKeyhole,
   Check,
-  Plus
+  Plus,
+  Rows2,
+  Columns2
 } from 'lucide-react';
 import { useTranslation } from '@/contexts/TranslationContext';
-import type { DashboardRange, DashboardChartMode, DashboardWidgetKey, PeriodInsights } from './types';
+import type { DashboardRange, DashboardChartMode, DashboardLayoutMode, DashboardWidgetKey, PeriodInsights } from './types';
 
 interface DashboardControlsProps {
   range: DashboardRange;
   onRangeChange: (range: DashboardRange) => void;
   chartMode: DashboardChartMode;
   onChartModeChange: (mode: DashboardChartMode) => void;
+  layoutMode: DashboardLayoutMode;
+  onLayoutModeChange: (mode: DashboardLayoutMode) => void;
   periodInsights: PeriodInsights;
   isPremium?: boolean;
   onUpgradePremium?: () => void;
@@ -36,6 +40,8 @@ export default function DashboardControls({
   onRangeChange,
   chartMode,
   onChartModeChange,
+  layoutMode,
+  onLayoutModeChange,
   periodInsights,
   isPremium,
   onUpgradePremium,
@@ -118,9 +124,33 @@ export default function DashboardControls({
 
       </div>
 
-      {/* Right controls: Chart toggle, Export CSV, Pro Upgrade, Customizer */}
+      {/* Right controls: Layout switcher, Chart toggle, Export CSV, Pro Upgrade, Customizer */}
       <div className="flex flex-wrap items-center gap-2">
         
+        {/* Layout mode switcher */}
+        <div className="apexa-segmented-capsule" role="group" aria-label="Dashboard layout">
+          <button
+            type="button"
+            data-active={layoutMode === 'stacked'}
+            onClick={() => onLayoutModeChange('stacked')}
+            className="apexa-segmented-pill flex items-center gap-1.5"
+            title={locale === 'vi' ? 'Bố cục ngang (Toàn màn hình)' : 'Horizontal Stacked Layout'}
+          >
+            <Rows2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{locale === 'vi' ? 'Ngang' : 'Horizontal'}</span>
+          </button>
+          <button
+            type="button"
+            data-active={layoutMode === 'vertical'}
+            onClick={() => onLayoutModeChange('vertical')}
+            className="apexa-segmented-pill flex items-center gap-1.5"
+            title={locale === 'vi' ? 'Bố cục dọc (2 Cột thông minh)' : 'Vertical 2-Column Layout'}
+          >
+            <Columns2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{locale === 'vi' ? 'Dọc' : 'Vertical'}</span>
+          </button>
+        </div>
+
         {/* Chart mode switcher */}
         <div className="apexa-segmented-capsule">
           <button
@@ -203,7 +233,7 @@ export default function DashboardControls({
                     {locale === 'vi' ? 'Bố cục Dashboard' : 'Dashboard Layout'}
                   </h4>
                   <p className="text-[10px] text-slate-400">
-                    {locale === 'vi' ? 'Bật hoặc ẩn các khu vực nội dung' : 'Show or hide dashboard sections'}
+                    {locale === 'vi' ? 'Chọn kiểu bố cục & bật tắt khu vực' : 'Choose layout style & sections'}
                   </p>
                 </div>
                 <button
@@ -214,6 +244,39 @@ export default function DashboardControls({
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
                 </button>
+              </div>
+
+              {/* Layout mode choice */}
+              <div className="mb-3 pb-3 border-b border-slate-100 dark:border-slate-800/80">
+                <div className="text-[10px] font-bold text-slate-400 dark:text-zinc-400 uppercase tracking-wider mb-2">
+                  {locale === 'vi' ? 'Kiểu hiển thị bố cục' : 'Display Layout Style'}
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => onLayoutModeChange('stacked')}
+                    className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                      layoutMode === 'stacked'
+                        ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-sky-300 shadow-2xs'
+                        : 'border-slate-200/80 dark:border-white/[0.08] text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-white/[0.04]'
+                    }`}
+                  >
+                    <Rows2 className="h-3.5 w-3.5" />
+                    <span>{locale === 'vi' ? 'Ngang (Chuẩn)' : 'Horizontal'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onLayoutModeChange('vertical')}
+                    className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                      layoutMode === 'vertical'
+                        ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-sky-300 shadow-2xs'
+                        : 'border-slate-200/80 dark:border-white/[0.08] text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-white/[0.04]'
+                    }`}
+                  >
+                    <Columns2 className="h-3.5 w-3.5" />
+                    <span>{locale === 'vi' ? 'Dọc (2 Cột)' : 'Vertical'}</span>
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-1">

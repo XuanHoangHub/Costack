@@ -20,6 +20,15 @@ import {
   LogOut,
   Shield,
   Briefcase,
+  BarChart2,
+  Calendar,
+  Timer,
+  Crown,
+  Palette,
+  Check,
+  Zap,
+  Download,
+  PenTool,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useUiStore } from '../../store/uiStore';
@@ -29,6 +38,10 @@ import { useTranslation } from '../../locales';
 import { Header } from '../../components/common/Header';
 import { Avatar } from '../../components/common/Avatar';
 import { WorkspaceSwitcherModal } from '../../components/common/WorkspaceSwitcherModal';
+import { PricingModal } from '../../components/common/PricingModal';
+import { ExportDataModal } from '../../components/common/ExportDataModal';
+import { AutomationRulesModal } from '../../components/common/AutomationRulesModal';
+import { AccentPreset } from '../../theme/colors';
 
 interface SettingsScreenProps {
   navigation: any;
@@ -40,15 +53,34 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
   const toggleDarkMode = useUiStore((s) => s.toggleDarkMode);
   const language = useUiStore((s) => s.language);
   const setLanguage = useUiStore((s) => s.setLanguage);
+  const accentPreset = useUiStore((s) => s.accentPreset);
+  const setAccentPreset = useUiStore((s) => s.setAccentPreset);
 
   const workspaces = useWorkspaceStore((s) => s.workspaces);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) || workspaces[0];
   const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showAutomationsModal, setShowAutomationsModal] = useState(false);
 
   const currentUser = useAuthStore((s) => s.currentUser);
   const signOut = useAuthStore((s) => s.signOut);
   const { t } = useTranslation();
+
+  const presets: { id: AccentPreset; name: string; color: string }[] = [
+    { id: 'indigo', name: 'Indigo', color: '#3b82f6' },
+    { id: 'ocean', name: 'Đại dương', color: '#0284c7' },
+    { id: 'forest', name: 'Ngọc lục', color: '#10b981' },
+    { id: 'sunset', name: 'Hoàng hôn', color: '#f43f5e' },
+  ];
+
+  const handleSelectAccent = (id: AccentPreset) => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
+    setAccentPreset(id);
+  };
 
   const handleToggleTheme = () => {
     try {
@@ -99,7 +131,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
               {currentUser?.name || 'Thành viên'}
             </Text>
             <Text style={[styles.profileEmail, { color: colors.textMuted }]}>
-              {currentUser?.email || 'user@apexa.app'}
+              {currentUser?.email || 'user@costack.app'}
             </Text>
             <Text style={[styles.profileStatus, { color: colors.primary }]}>
               {currentUser?.statusMessage || 'Đang hoạt động'}
@@ -132,9 +164,60 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
                   Không gian làm việc (Workspaces)
                 </Text>
                 <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>
-                  {activeWorkspace?.name || 'Upgen'} • {workspaces.length} không gian
+                  {activeWorkspace?.name || 'Costack'} • {workspaces.length} không gian
                 </Text>
               </View>
+            </View>
+            <ChevronRight size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Analytics')}
+            style={styles.menuItem}
+          >
+            <View style={styles.menuLeft}>
+              <View style={[styles.menuIconBox, { backgroundColor: `${colors.primary}20` }]}>
+                <BarChart2 size={18} color={colors.primary} />
+              </View>
+              <Text style={[styles.menuLabel, { color: colors.textPrimary }]}>
+                Báo cáo & Phân tích (Analytics)
+              </Text>
+            </View>
+            <ChevronRight size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Calendar')}
+            style={styles.menuItem}
+          >
+            <View style={styles.menuLeft}>
+              <View style={[styles.menuIconBox, { backgroundColor: `${colors.info}20` }]}>
+                <Calendar size={18} color={colors.info} />
+              </View>
+              <Text style={[styles.menuLabel, { color: colors.textPrimary }]}>
+                Lịch làm việc (Calendar)
+              </Text>
+            </View>
+            <ChevronRight size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Timer')}
+            style={styles.menuItem}
+          >
+            <View style={styles.menuLeft}>
+              <View style={[styles.menuIconBox, { backgroundColor: `${colors.inprogress}20` }]}>
+                <Timer size={18} color={colors.inprogress} />
+              </View>
+              <Text style={[styles.menuLabel, { color: colors.textPrimary }]}>
+                Đồng hồ Pomodoro
+              </Text>
             </View>
             <ChevronRight size={18} color={colors.textMuted} />
           </TouchableOpacity>
@@ -151,6 +234,23 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
               </View>
               <Text style={[styles.menuLabel, { color: colors.textPrimary }]}>
                 {t.settings.docsHub}
+              </Text>
+            </View>
+            <ChevronRight size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Whiteboard')}
+            style={styles.menuItem}
+          >
+            <View style={styles.menuLeft}>
+              <View style={[styles.menuIconBox, { backgroundColor: `${colors.accentCyan}20` }]}>
+                <PenTool size={18} color={colors.accentCyan} />
+              </View>
+              <Text style={[styles.menuLabel, { color: colors.textPrimary }]}>
+                Bảng vẽ & Ý tưởng (Whiteboard)
               </Text>
             </View>
             <ChevronRight size={18} color={colors.textMuted} />
@@ -207,7 +307,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
             <ChevronRight size={18} color={colors.textMuted} />
           </TouchableOpacity>
 
-
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
           <TouchableOpacity
@@ -221,6 +320,28 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
               <Text style={[styles.menuLabel, { color: colors.textPrimary }]}>
                 {t.settings.teamDirectory}
               </Text>
+            </View>
+            <ChevronRight size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          <TouchableOpacity
+            onPress={() => setShowPricingModal(true)}
+            style={styles.menuItem}
+          >
+            <View style={styles.menuLeft}>
+              <View style={[styles.menuIconBox, { backgroundColor: `${colors.warning}25` }]}>
+                <Crown size={18} color={colors.warning} />
+              </View>
+              <View>
+                <Text style={[styles.menuLabel, { color: colors.textPrimary, fontWeight: '700' }]}>
+                  Gói dịch vụ & Nâng cấp VIP
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.warning, marginTop: 1 }}>
+                  Mở khóa tính năng Không giới hạn
+                </Text>
+              </View>
             </View>
             <ChevronRight size={18} color={colors.textMuted} />
           </TouchableOpacity>
@@ -274,6 +395,121 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
               {language === 'vi' ? 'Tiếng Việt' : 'English'}
             </Text>
           </TouchableOpacity>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          {/* Accent Color Presets */}
+          <View style={styles.accentSection}>
+            <View style={[styles.menuLeft, { marginBottom: 12 }]}>
+              <View style={[styles.menuIconBox, { backgroundColor: `${colors.primary}20` }]}>
+                <Palette size={18} color={colors.primary} />
+              </View>
+              <View>
+                <Text style={[styles.menuLabel, { color: colors.textPrimary }]}>
+                  Màu chủ đạo (Accent Color)
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>
+                  Tùy chỉnh tông màu nhận diện thương hiệu
+                </Text>
+              </View>
+            </View>
+            <View style={styles.accentGrid}>
+              {presets.map((p) => {
+                const isSelected = accentPreset === p.id;
+                return (
+                  <TouchableOpacity
+                    key={p.id}
+                    activeOpacity={0.7}
+                    onPress={() => handleSelectAccent(p.id)}
+                    style={[
+                      styles.accentChip,
+                      {
+                        backgroundColor: colors.surfaceHover,
+                        borderColor: isSelected ? p.color : colors.border,
+                      },
+                      isSelected && { backgroundColor: `${p.color}15` },
+                    ]}
+                  >
+                    <View style={[styles.accentDot, { backgroundColor: p.color }]}>
+                      {isSelected && <Check size={10} color="#ffffff" strokeWidth={3} />}
+                    </View>
+                    <Text
+                      style={[
+                        styles.accentName,
+                        { color: isSelected ? p.color : colors.textSecondary },
+                      ]}
+                    >
+                      {p.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+
+        {/* Data & Automations Section */}
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          Dữ liệu & Tự động hóa
+        </Text>
+
+        <View
+          style={[
+            styles.menuGroup,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={() => {
+              try {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              } catch {}
+              setShowAutomationsModal(true);
+            }}
+            style={styles.menuItem}
+          >
+            <View style={styles.menuLeft}>
+              <View style={[styles.menuIconBox, { backgroundColor: `${colors.primary}20` }]}>
+                <Zap size={18} color={colors.primary} />
+              </View>
+              <View>
+                <Text style={[styles.menuLabel, { color: colors.textPrimary }]}>
+                  Quy tắc tự động hóa (Automations)
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>
+                  Tự động ghi nhật ký, gửi thông báo khi hoàn thành task
+                </Text>
+              </View>
+            </View>
+            <ChevronRight size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          <TouchableOpacity
+            onPress={() => {
+              try {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              } catch {}
+              setShowExportModal(true);
+            }}
+            style={styles.menuItem}
+          >
+            <View style={styles.menuLeft}>
+              <View style={[styles.menuIconBox, { backgroundColor: `${colors.inprogress}20` }]}>
+                <Download size={18} color={colors.inprogress} />
+              </View>
+              <View>
+                <Text style={[styles.menuLabel, { color: colors.textPrimary }]}>
+                  Xuất dữ liệu dự án (Export Data)
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>
+                  Xuất định dạng CSV / Excel hoặc JSON sao lưu
+                </Text>
+              </View>
+            </View>
+            <ChevronRight size={18} color={colors.textMuted} />
+          </TouchableOpacity>
         </View>
 
         {/* Log Out */}
@@ -294,7 +530,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
         </TouchableOpacity>
 
         <Text style={[styles.versionText, { color: colors.textMuted }]}>
-          Upgen Mobile • Version 1.0.0
+          Costack Mobile • Version 1.0.0
         </Text>
 
         <View style={{ height: 40 }} />
@@ -303,6 +539,21 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
       <WorkspaceSwitcherModal
         visible={showWorkspaceModal}
         onClose={() => setShowWorkspaceModal(false)}
+      />
+
+      <PricingModal
+        visible={showPricingModal}
+        onClose={() => setShowPricingModal(false)}
+      />
+
+      <ExportDataModal
+        visible={showExportModal}
+        onClose={() => setShowExportModal(false)}
+      />
+
+      <AutomationRulesModal
+        visible={showAutomationsModal}
+        onClose={() => setShowAutomationsModal(false)}
       />
     </View>
   );
@@ -403,5 +654,35 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     marginTop: 20,
+  },
+  accentSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  accentGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  accentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+  },
+  accentDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accentName: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

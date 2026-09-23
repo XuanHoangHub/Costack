@@ -125,7 +125,9 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const cur = value && STANDARD_PRIORITY_META[value] ? STANDARD_PRIORITY_META[value] : null;
+  const normalizedValue = (value as string) === 'normal' ? 'medium' : value;
+  const isEmpty = !normalizedValue || (normalizedValue as string) === 'none';
+  const cur = !isEmpty && normalizedValue && STANDARD_PRIORITY_META[normalizedValue as Priority] ? STANDARD_PRIORITY_META[normalizedValue as Priority] : null;
 
   const priorityOptions: Array<{ id: Priority; label: string; config: typeof STANDARD_PRIORITY_META[Priority] }> = [
     { id: 'urgent', label: locale === 'vi' ? 'Khẩn cấp' : 'Urgent', config: STANDARD_PRIORITY_META.urgent },
@@ -137,11 +139,11 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
   const dropdownContent = (
     <motion.div 
       ref={dropdownRef}
-      initial={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }} 
+      initial={{ opacity: 0, y: openUpward ? 6 : -6, scale: 0.96 }} 
       animate={{ opacity: 1, y: 0, scale: 1 }} 
-      exit={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }} 
-      transition={{ duration: 0.12 }}
-      className="p-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/15 w-48"
+      exit={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.96 }} 
+      transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+      className="p-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-[0_12px_40px_-6px_rgba(0,0,0,0.18)] dark:shadow-[0_12px_40px_-6px_rgba(0,0,0,0.6)] w-48"
       style={{
         position: 'fixed',
         zIndex: 9999,
@@ -158,19 +160,19 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
         type="button" 
         onClick={() => { onChange(undefined); setOpen(false); }}
         className={`w-full flex items-center gap-2.5 px-2.5 py-2 text-left text-xs font-semibold rounded-xl cursor-pointer transition-all ${
-          !value 
+          isEmpty 
             ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-bold' 
             : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
         }`}
       >
         <Minus className="w-3.5 h-3.5 text-slate-400 shrink-0" />
         <span className="flex-1">{locale === 'vi' ? 'Không có (Trống)' : 'None (Empty)'}</span>
-        {!value && <Check className="w-3.5 h-3.5 ml-auto text-slate-600 dark:text-slate-300 stroke-[2.5]" />}
+        {isEmpty && <Check className="w-3.5 h-3.5 ml-auto text-slate-600 dark:text-slate-300 stroke-[2.5]" />}
       </button>
 
       {/* Priority Options */}
       {priorityOptions.map(p => {
-        const isSelected = value === p.id;
+        const isSelected = !isEmpty && normalizedValue === p.id;
         return (
           <button 
             key={p.id} 
@@ -314,11 +316,11 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
   const dropdownContent = (
     <motion.div 
       ref={dropdownRef}
-      initial={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }} 
+      initial={{ opacity: 0, y: openUpward ? 6 : -6, scale: 0.96 }} 
       animate={{ opacity: 1, y: 0, scale: 1 }} 
-      exit={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }} 
-      transition={{ duration: 0.12 }}
-      className="p-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/15 w-48"
+      exit={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.96 }} 
+      transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+      className="p-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-[0_12px_40px_-6px_rgba(0,0,0,0.18)] dark:shadow-[0_12px_40px_-6px_rgba(0,0,0,0.6)] w-48"
       style={{
         position: 'fixed',
         zIndex: 9999,

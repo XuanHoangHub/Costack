@@ -25,6 +25,13 @@ import {
   Layers,
   ArrowRight,
   Zap,
+  Search,
+  Bell,
+  BarChart2,
+  CalendarDays,
+  Timer as TimerIcon,
+  Crown,
+  PenTool,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -33,6 +40,8 @@ import { useAuthStore } from '../../store/authStore';
 import { useTaskStore } from '../../store/taskStore';
 import { useSpaceStore } from '../../store/spaceStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { usePomodoroStore } from '../../store/pomodoroStore';
+import { useNotificationStore } from '../../store/notificationStore';
 import { useTranslation } from '../../locales';
 import { Task } from '../../types';
 import { Avatar } from '../../components/common/Avatar';
@@ -40,6 +49,8 @@ import { TaskCard } from '../../components/tasks/TaskCard';
 import { TaskDetailSheet } from '../../components/tasks/TaskDetailSheet';
 import { TaskCreateModal } from '../../components/tasks/TaskCreateModal';
 import { WorkspaceSwitcherModal } from '../../components/common/WorkspaceSwitcherModal';
+import { GlobalSearchModal } from '../../components/common/GlobalSearchModal';
+import { PricingModal } from '../../components/common/PricingModal';
 import { RenderSpaceIcon } from '../../components/common/RenderSpaceIcon';
 import { FloatingActionButton } from '../../components/common/FloatingActionButton';
 import { PressableScale } from '../../components/common/PressableScale';
@@ -61,12 +72,22 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
   const setActiveListId = useSpaceStore((s) => s.setActiveListId);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const workspaces = useWorkspaceStore((s) => s.workspaces);
+  const pomodoro = usePomodoroStore();
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
   const { t } = useTranslation();
 
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showPricingModal, setShowPricingModal] = useState(false);
+
+  const formatTimerTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const activeWorkspace =
     workspaces.find((w) => w.id === activeWorkspaceId) || workspaces[0];
@@ -143,38 +164,86 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
           </View>
         </View>
 
-        <TouchableOpacity
-          onPress={() => setShowWorkspaceModal(true)}
-          style={[
-            styles.workspaceChip,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          {activeWorkspace?.logoUrl ? (
-            <Image
-              source={{ uri: activeWorkspace.logoUrl }}
-              style={styles.chipLogo}
-              contentFit="cover"
-              transition={200}
-            />
-          ) : (
-            <View style={[styles.chipInitial, { backgroundColor: colors.primary }]}>
-              <Text style={styles.chipInitialText}>
-                {activeWorkspace?.initial || (activeWorkspace?.name ? activeWorkspace.name.charAt(0).toUpperCase() : 'W')}
-              </Text>
-            </View>
-          )}
-          <Text
-            numberOfLines={1}
-            style={[styles.workspaceName, { color: colors.textPrimary }]}
+        <View style={styles.topRightActions}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              try {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              } catch {}
+              setShowSearchModal(true);
+            }}
+            style={[
+              styles.searchIconButton,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
           >
-            {activeWorkspace?.name || 'Upgen'}
-          </Text>
-          <ChevronDown size={12} color={colors.textMuted} />
-        </TouchableOpacity>
+            <Search size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              try {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              } catch {}
+              navigation.navigate('More', { screen: 'Inbox' });
+            }}
+            style={[
+              styles.searchIconButton,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                position: 'relative',
+              },
+            ]}
+          >
+            <Bell size={18} color={colors.textSecondary} />
+            {unreadCount > 0 && (
+              <View style={[styles.bellBadge, { backgroundColor: colors.danger }]}>
+                <Text style={styles.bellBadgeText}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setShowWorkspaceModal(true)}
+            style={[
+              styles.workspaceChip,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            {activeWorkspace?.logoUrl ? (
+              <Image
+                source={{ uri: activeWorkspace.logoUrl }}
+                style={styles.chipLogo}
+                contentFit="cover"
+                transition={200}
+              />
+            ) : (
+              <View style={[styles.chipInitial, { backgroundColor: colors.primary }]}>
+                <Text style={styles.chipInitialText}>
+                  {activeWorkspace?.initial || (activeWorkspace?.name ? activeWorkspace.name.charAt(0).toUpperCase() : 'W')}
+                </Text>
+              </View>
+            )}
+            <Text
+              numberOfLines={1}
+              style={[styles.workspaceName, { color: colors.textPrimary }]}
+            >
+              {activeWorkspace?.name || 'Costack'}
+            </Text>
+            <ChevronDown size={12} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -341,6 +410,30 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
             </PressableScale>
 
             <PressableScale
+              onPress={() => navigation.navigate('More', { screen: 'Analytics' })}
+              style={[styles.shortcutBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            >
+              <BarChart2 size={16} color={colors.primary} />
+              <Text style={[styles.shortcutText, { color: colors.textPrimary }]}>Phân tích</Text>
+            </PressableScale>
+
+            <PressableScale
+              onPress={() => navigation.navigate('More', { screen: 'Calendar' })}
+              style={[styles.shortcutBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            >
+              <CalendarDays size={16} color={colors.info} />
+              <Text style={[styles.shortcutText, { color: colors.textPrimary }]}>Lịch việc</Text>
+            </PressableScale>
+
+            <PressableScale
+              onPress={() => navigation.navigate('More', { screen: 'Timer' })}
+              style={[styles.shortcutBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            >
+              <TimerIcon size={16} color={colors.inprogress} />
+              <Text style={[styles.shortcutText, { color: colors.textPrimary }]}>Pomodoro</Text>
+            </PressableScale>
+
+            <PressableScale
               onPress={() => navigation.navigate('Spaces')}
               style={[styles.shortcutBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
             >
@@ -363,10 +456,26 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
               <FileText size={16} color={colors.info} />
               <Text style={[styles.shortcutText, { color: colors.textPrimary }]}>Tài liệu</Text>
             </PressableScale>
+
+            <PressableScale
+              onPress={() => navigation.navigate('More', { screen: 'Whiteboard' })}
+              style={[styles.shortcutBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            >
+              <PenTool size={16} color={colors.accentCyan} />
+              <Text style={[styles.shortcutText, { color: colors.textPrimary }]}>Bảng vẽ</Text>
+            </PressableScale>
+
+            <PressableScale
+              onPress={() => setShowPricingModal(true)}
+              style={[styles.shortcutBtn, { backgroundColor: `${colors.warning}15`, borderColor: `${colors.warning}40` }]}
+            >
+              <Crown size={16} color={colors.warning} />
+              <Text style={[styles.shortcutText, { color: colors.warning, fontWeight: '700' }]}>Gói VIP</Text>
+            </PressableScale>
           </ScrollView>
         </View>
 
-        {/* Upgen AI Smart Intelligence Card (Replaces Pomodoro with Modern Webapp Accent) */}
+        {/* Costack AI Smart Intelligence Card (Replaces Pomodoro with Modern Webapp Accent) */}
         <PressableScale
           activeScale={0.97}
           onPress={() => navigation.navigate('More', { screen: 'AiBrain' })}
@@ -391,7 +500,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Text style={[styles.aiBriefingTitle, { color: colors.textPrimary }]}>
-                    Upgen Brain AI
+                    Costack Brain AI
                   </Text>
                   <View style={[styles.aiPillBadge, { backgroundColor: `${colors.accentCyan}20` }]}>
                     <Text style={[styles.aiPillText, { color: colors.accentCyan }]}>
@@ -410,6 +519,67 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
               <ArrowRight size={16} color={colors.primary} />
             </View>
           </LinearGradient>
+        </PressableScale>
+
+        {/* Pomodoro Focus Mini Card */}
+        <PressableScale
+          activeScale={0.97}
+          onPress={() => navigation.navigate('More', { screen: 'Timer' })}
+          style={[
+            styles.pomodoroCard,
+            {
+              backgroundColor: colors.surface,
+              borderColor: pomodoro.isActive ? colors.primary : colors.border,
+            },
+          ]}
+        >
+          <View style={styles.pomodoroLeft}>
+            <View
+              style={[
+                styles.pomodoroIconWrap,
+                {
+                  backgroundColor: pomodoro.isActive ? `${colors.primary}25` : `${colors.primary}12`,
+                },
+              ]}
+            >
+              <TimerIcon size={20} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[styles.pomodoroTitle, { color: colors.textPrimary }]}>
+                  {pomodoro.mode === 'work' ? 'Tập trung Pomodoro' : 'Giải lao Pomodoro'}
+                </Text>
+                {pomodoro.isActive ? (
+                  <View style={[styles.liveBadge, { backgroundColor: `${colors.success}20` }]}>
+                    <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
+                    <Text style={[styles.liveText, { color: colors.success }]}>Đang chạy</Text>
+                  </View>
+                ) : (
+                  <View style={[styles.cycleBadge, { backgroundColor: colors.surfaceHover }]}>
+                    <Text style={[styles.cycleText, { color: colors.textSecondary }]}>
+                      Chu kỳ {pomodoro.completedCycles}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text style={[styles.pomodoroSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                {pomodoro.isActive
+                  ? 'Chạm để mở đồng hồ & quản lý chu kỳ'
+                  : 'Bắt đầu phiên làm việc sâu để tăng năng suất'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.pomodoroRight}>
+            <Text
+              style={[
+                styles.pomodoroTimerText,
+                { color: pomodoro.isActive ? colors.primaryLight : colors.textPrimary },
+              ]}
+            >
+              {formatTimerTime(pomodoro.timeLeft)}
+            </Text>
+            <ChevronRight size={16} color={colors.textMuted} />
+          </View>
         </PressableScale>
 
         {/* Spaces Overview Section */}
@@ -509,6 +679,40 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
           </PressableScale>
         )}
 
+        {/* VIP / Pro Upgrade Banner */}
+        <PressableScale
+          activeScale={0.98}
+          onPress={() => setShowPricingModal(true)}
+          style={[styles.proBanner, { borderColor: `${colors.warning}40` }]}
+        >
+          <LinearGradient
+            colors={['rgba(245, 158, 11, 0.14)', 'rgba(234, 88, 12, 0.05)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.proBannerGradient}
+          >
+            <View style={styles.proBannerLeft}>
+              <View style={[styles.proIconBadge, { backgroundColor: 'rgba(245, 158, 11, 0.22)' }]}>
+                <Crown size={20} color={colors.warning} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[styles.proBannerTitle, { color: colors.textPrimary }]}>
+                    Nâng cấp Costack Pro
+                  </Text>
+                  <View style={[styles.vipTag, { backgroundColor: colors.warning }]}>
+                    <Text style={styles.vipTagText}>VIP</Text>
+                  </View>
+                </View>
+                <Text style={[styles.proBannerSub, { color: colors.textSecondary }]}>
+                  AI Brain không giới hạn, phân tích hiệu suất và quản lý tài chính chuyên sâu.
+                </Text>
+              </View>
+            </View>
+            <ArrowRight size={16} color={colors.warning} />
+          </LinearGradient>
+        </PressableScale>
+
         {/* Recent Tasks Header */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
@@ -573,6 +777,21 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
         visible={!!selectedTask}
         onClose={() => setSelectedTask(null)}
       />
+
+      {/* Global Search Modal */}
+      <GlobalSearchModal
+        visible={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        navigation={navigation}
+        onOpenTask={(task) => setSelectedTask(task)}
+        onOpenCreateTask={() => setShowCreateModal(true)}
+      />
+
+      {/* Pricing Modal */}
+      <PricingModal
+        visible={showPricingModal}
+        onClose={() => setShowPricingModal(false)}
+      />
     </View>
   );
 };
@@ -603,6 +822,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: -0.3,
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  bellBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '800',
   },
   workspaceChip: {
     flexDirection: 'row',
@@ -691,6 +926,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     padding: 14,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 2,
   },
   statHeader: {
     flexDirection: 'row',
@@ -713,6 +952,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 8,
     letterSpacing: -0.5,
+    fontVariant: ['tabular-nums'],
   },
   shortcutsWrap: {
     marginBottom: 16,
@@ -860,5 +1100,130 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 12,
     marginBottom: 8,
+  },
+  topRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pomodoroCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pomodoroLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  pomodoroIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pomodoroTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  pomodoroSub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  liveText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  cycleBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  cycleText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  pomodoroRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 12,
+  },
+  pomodoroTimerText: {
+    fontSize: 16,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  proBanner: {
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  proBannerGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+  },
+  proBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  proIconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  proBannerTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  vipTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  vipTagText: {
+    color: '#000000',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  proBannerSub: {
+    fontSize: 11,
+    marginTop: 2,
+    lineHeight: 15,
   },
 });

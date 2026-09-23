@@ -61,7 +61,7 @@ export function useSupabaseSync() {
               if (finalWorkspaces.length === 0 && !hasSeededWS) {
                 const initialWorkspaces = [
                   { id: 'w1', name: 'Personal', theme: 'indigo', initial: 'P', user_id: userId },
-                  { id: 'w2', name: 'Upgen Team OS', theme: 'ocean', initial: 'U', user_id: userId },
+                  { id: 'w2', name: 'Costack Team OS', theme: 'ocean', initial: 'U', user_id: userId },
                   { id: 'w3', name: 'Product Launch', theme: 'sunset', initial: 'L', user_id: userId }
                 ];
                 const { data: seededWorkspaces } = await supabase.from('workspaces').insert(initialWorkspaces).select();
@@ -249,7 +249,7 @@ export function useSupabaseSync() {
             id: t.id,
             title: t.title,
             description: t.description,
-            priority: t.priority as any,
+            priority: (t.priority as any) || 'medium',
             status: t.status as any,
             assigneeId: t.assigneeId || undefined,
             startDate: t.startDate || undefined,
@@ -563,7 +563,7 @@ export function useSupabaseSync() {
                   id: t.id,
                   title: t.title,
                   description: t.description,
-                  priority: t.priority as any,
+                  priority: (t.priority as any) || 'medium',
                   status: t.status as any,
                   assigneeId: t.assigneeId || undefined,
                   startDate: t.startDate || undefined,

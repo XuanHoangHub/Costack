@@ -10,7 +10,7 @@ import type { Space, Task, User, Workspace } from '@/types';
 const SpacePage = dynamic(() => import('@/components/SpacePage'), { ssr: false });
 const InboxView = dynamic(() => import('@/components/InboxView'), { ssr: false });
 
-const workspace: Workspace = { id: 'ui-preview', name: 'Upgen Studio', theme: 'blue', initial: 'U' };
+const workspace: Workspace = { id: 'ui-preview', name: 'Costack Studio', theme: 'blue', initial: 'U' };
 const members: User[] = [
   { id: 'preview-1', name: 'Minh Anh', email: 'minhanh@example.com', avatar: '', role: 'admin', status: 'online' },
   { id: 'preview-2', name: 'Quang Huy', email: 'quanghuy@example.com', avatar: '', role: 'member', status: 'online' },
@@ -56,7 +56,7 @@ export default function UiPreview() {
   const currentUser = { ...members[0], isPremium: false };
   return <div className="apexa-app-shell apexa-design-system fixed inset-0 flex flex-col overflow-hidden">
     <header className="apexa-app-header flex shrink-0 items-center">
-      <div className={`apexa-header-sidebar hidden h-full shrink-0 items-center gap-3 px-4 md:flex ${collapsed ? 'w-[64px]' : 'w-[232px]'}`}><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-blue-600 font-semibold text-white">U</span>{!collapsed && <span className="text-sm font-semibold">Upgen Studio</span>}</div>
+      <div className={`apexa-header-sidebar hidden h-full shrink-0 items-center gap-3 px-4 md:flex ${collapsed ? 'w-[64px]' : 'w-[232px]'}`}><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-blue-600 font-semibold text-white">U</span>{!collapsed && <span className="text-sm font-semibold">Costack Studio</span>}</div>
       <div className="flex min-w-0 flex-1 items-center justify-between gap-4 px-4"><div className="flex min-w-0 items-center gap-3"><button aria-label="Mở điều hướng" onClick={() => setDrawer(true)} className="p-2 md:hidden"><Menu size={20} /></button><span className="hidden text-sm text-slate-500 sm:inline">Workspace</span><ChevronRight size={14} className="hidden text-slate-400 sm:block" /><span className="truncate text-sm font-medium">{navigation.find(item => item.id === view)?.label}</span></div><div className="flex items-center gap-3"><span className="hidden rounded-md border border-slate-200 px-2 py-1 text-[11px] text-slate-500 sm:block">Dữ liệu mẫu · Chỉ lưu trong bản xem trước</span><button aria-label={dark ? 'Giao diện sáng' : 'Giao diện tối'} onClick={() => setDark(value => !value)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 dark:border-slate-700">{dark ? <Sun size={17} /> : <Moon size={17} />}</button></div></div>
     </header>
     <div className="flex min-h-0 flex-1">

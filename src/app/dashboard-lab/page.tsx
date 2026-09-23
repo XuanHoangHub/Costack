@@ -67,7 +67,7 @@ export default function DashboardLabPage() {
         syncLogs={[]}
         isOffline={false}
         isSynced
-        workspaceName="Upgen Product"
+        workspaceName="Costack Product"
         onNavigate={() => {}}
         onOpenTask={() => {}}
         onToggleOffline={() => {}}

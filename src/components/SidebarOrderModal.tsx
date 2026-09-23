@@ -86,11 +86,6 @@ export function SidebarOrderModal({
         icon: Landmark,
         description: isVi ? 'Thu chi, hóa đơn & báo cáo tài chính' : 'Finance invoicing & accounting',
       },
-      docs: {
-        label: t('docs') || (isVi ? 'Tài liệu' : 'Docs'),
-        icon: FileText,
-        description: isVi ? 'Tài liệu kiến thức, quy trình & Wiki' : 'Collaborative documents & Wiki',
-      },
       chat: {
         label: t('chat') || (isVi ? 'Trò chuyện' : 'Chat'),
         icon: MessageSquare,

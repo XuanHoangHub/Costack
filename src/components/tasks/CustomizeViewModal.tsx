@@ -221,10 +221,15 @@ export default function CustomizeViewModal({
             <div className="space-y-1">
               {matchesSearch('Show empty statuses') && (
                 <div className="flex items-center justify-between py-2 px-2 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition-colors">
-                  <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                    {isVi ? 'Hiện trạng thái trống' : 'Show empty statuses'}
-                  </span>
-                  <label className="relative inline-flex items-center cursor-pointer">
+                  <div className="pr-3">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300 block">
+                      {isVi ? 'Hiện trạng thái trống (chưa có công việc)' : 'Show empty statuses'}
+                    </span>
+                    <span className="text-[10.5px] text-slate-400 dark:text-zinc-500 leading-tight block mt-0.5">
+                      {isVi ? 'Tắt tùy chọn này để chỉ hiển thị các trạng thái đang có công việc' : 'Turn off to only show statuses that contain tasks'}
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
                     <input
                       type="checkbox"
                       checked={showEmptyStatuses}

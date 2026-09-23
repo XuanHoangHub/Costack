@@ -212,12 +212,30 @@ export default function TaskTableView({
       }
     }
 
+    const menuWidth = 240;
+    const margin = 12;
+    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+
+    let menuX = rect.left;
+    if (rect.left + menuWidth > viewportWidth - margin) {
+      menuX = Math.max(margin, rect.right - menuWidth);
+    }
+    menuX = Math.min(menuX, viewportWidth - menuWidth - margin);
+    menuX = Math.max(margin, menuX);
+
+    const estimatedHeight = 280;
+    let menuY = rect.bottom + 4;
+    if (menuY + estimatedHeight > viewportHeight - margin) {
+      menuY = Math.max(margin, rect.top - estimatedHeight);
+    }
+
     setActiveMenu({
       fieldId,
       fieldName: isStandard ? (columnNames[fieldId] || fieldId) : (customFields.find(cf => cf.id === fieldId)?.name || fieldId),
       fieldType,
-      x: rect.left,
-      y: rect.bottom,
+      x: menuX,
+      y: menuY,
       isStandard
     });
   };
@@ -760,6 +778,8 @@ export default function TaskTableView({
                         }}
                         onBlur={() => submitInlineEdit(task)}
                         onClick={e => e.stopPropagation()}
+                        onDoubleClick={e => e.stopPropagation()}
+                        onFocus={e => e.target.select()}
                         className="text-[13px] font-semibold text-slate-900 dark:text-slate-100 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-md px-2 py-0.5 outline-none focus:ring-1.5 focus:ring-indigo-500/30 focus:border-indigo-500/40 shadow-3xs w-full max-w-[280px]" 
                       />
                     ) : (
@@ -993,6 +1013,7 @@ export default function TaskTableView({
                     <td key={cf.id} className="h-11 px-3.5 text-left border-b border-slate-200/50 dark:border-white/[0.04]" onClick={e => e.stopPropagation()}>
                       <CustomFieldInput members={members}
                         field={cf}
+                        variant="table"
                         value={val}
                         onChange={newVal => {
                           const updated = { ...(task.custom_fields || {}), [cf.name]: newVal };
@@ -1126,6 +1147,7 @@ export default function TaskTableView({
                 <td key={cf.id} className="h-11 px-3.5 border-b border-indigo-200/60 dark:border-indigo-900/40 align-middle">
                   <CustomFieldInput members={members}
                     field={cf}
+                    variant="table"
                     draft
                     value={applyCustomFieldDefaults(customFields, draftCustomFields)[cf.name]}
                     onChange={newVal => setDraftCustomFields(prev => ({ ...prev, [cf.name]: newVal }))}
@@ -1180,10 +1202,6 @@ export default function TaskTableView({
                 <div className="flex items-center gap-2.5">
                   <span className="text-xs font-semibold text-slate-500 group-hover:text-indigo-600 dark:text-slate-400 dark:group-hover:text-indigo-300 transition-colors">
                     {t('addNewTask') || (locale === 'vi' ? 'Thêm công việc mới...' : 'Add a new task...')}
-                  </span>
-                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium text-slate-400 dark:text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-100 dark:bg-white/[0.06] border border-slate-200/70 dark:border-white/10">
-                    <Plus className="w-2.5 h-2.5" />
-                    <span>{t('clickToAdd') || (locale === 'vi' ? 'Nhấp để thêm' : 'Click to add')}</span>
                   </span>
                 </div>
               </td>
@@ -1246,32 +1264,12 @@ export default function TaskTableView({
       </table>
       </div>
 
-      {sortedTasks.length > 0 && (
-        <div className="sticky bottom-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-2 bg-slate-50/90 dark:bg-[#050609]/95 backdrop-blur-md text-[11px] font-medium border-t border-slate-200/70 dark:border-white/[0.07] text-slate-500 dark:text-slate-400 select-none">
-          <div className="flex items-center gap-3">
-            <span className="font-semibold text-slate-700 dark:text-slate-300">{sortedTasks.length} {locale === 'vi' ? 'công việc' : sortedTasks.length === 1 ? 'task' : 'tasks'}</span>
-            <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-            <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              {completedTaskCount} {locale === 'vi' ? 'hoàn thành' : 'completed'}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={onOpenFieldsPanel}
-            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            {locale === 'vi' ? 'Tùy chỉnh cột' : 'Customize columns'}
-          </button>
-        </div>
-      )}
 
       {activeMenu && (
         <Portal>
           <div className="fixed inset-0 z-[190] cursor-default" onClick={() => setActiveMenu(null)} />
           <div 
-            className="fixed z-[200] w-[230px] bg-white dark:bg-[#0a0b10] border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-2xl p-1.5 font-sans text-xs select-none backdrop-blur-xl ring-1 ring-black/5 dark:ring-white/5 animate-fadeIn"
+            className="fixed z-[200] w-[230px] max-w-[calc(100vw-24px)] bg-white dark:bg-[#0a0b10] border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-2xl p-1.5 font-sans text-xs select-none backdrop-blur-xl ring-1 ring-black/5 dark:ring-white/5 animate-fadeIn"
             style={{ top: activeMenu.y, left: activeMenu.x }}
           >
             {/* Sort options (where applicable) */}

@@ -804,7 +804,7 @@ export default function ProductivityHub({
       setReportText(
         locale === 'vi'
           ? `### Báo Cáo Hiệu Năng Vận Hành
-Lỗi khi liên hệ Apexa AI. Vui lòng thử lại hoặc kiểm tra gói đăng ký và kết nối mạng.
+Lỗi khi liên hệ Costack AI. Vui lòng thử lại hoặc kiểm tra gói đăng ký và kết nối mạng.
 
 **Các thông số ghi nhận nhanh:**
 - **Tổng số việc đang vận hành**: ${tasks.length}
@@ -813,7 +813,7 @@ Lỗi khi liên hệ Apexa AI. Vui lòng thử lại hoặc kiểm tra gói đă
 - **Đồng hồ ước tính**: ${tasks.reduce((acc, t) => acc + (t.hoursEstimate || 0), 0)} giờ
 - **Thời gian đã thực hiện**: ${tasks.reduce((acc, t) => acc + (t.hoursLogged || 0), 0)} giờ.`
           : `### Operations Performance Report
-Error contacting Apexa AI. Please retry or check your subscription and network connection.
+Error contacting Costack AI. Please retry or check your subscription and network connection.
 
 **Metrics overview:**
 - **Total active tasks**: ${tasks.length}

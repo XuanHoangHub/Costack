@@ -1,4 +1,4 @@
-# Apexa — Production readiness checklist
+# Costack — Production readiness checklist
 
 
 Checklist này là cổng phát hành, không phải tài liệu marketing. Mỗi mục phải được xác nhận trên đúng project Supabase, domain và kênh PayOS production.
@@ -15,7 +15,7 @@ Checklist này là cổng phát hành, không phải tài liệu marketing. Mỗ
 
 - [ ] Tạo và commit baseline migration cho toàn bộ schema lõi còn thiếu.
 - [ ] `supabase db reset` dựng được database trống mà không cần chạy SQL thủ công ngoài thư mục migration.
-- [ ] `npm run audit:schema` nhận diện đủ các bảng ứng dụng bằng publishable/anon key.
+- [x] `npm run audit:schema` nhận diện đủ các bảng ứng dụng bằng publishable/anon key (44 bảng).
 - [ ] Supabase Security Advisor không còn cảnh báo RLS/policy/function search path chưa xử lý.
 - [ ] Thử quyền anon, user A, user B, workspace admin và service role; user không đọc/ghi được dữ liệu workspace khác.
 - [ ] Storage bucket và policy được kiểm thử với file riêng tư, URL hết hạn và giới hạn loại/kích thước file.

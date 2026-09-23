@@ -9,8 +9,9 @@ import {
   RefreshControl,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
-import { Folder, List, ChevronRight, Plus, X, ArrowRight, Layers } from 'lucide-react-native';
+import { Folder, List, ChevronRight, Plus, X, ArrowRight, Layers, Trash2, PlusCircle } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useUiStore } from '../../store/uiStore';
 import { useSpaceStore } from '../../store/spaceStore';
@@ -49,6 +50,9 @@ export const SpacesScreen: React.FC<SpacesScreenProps> = ({ navigation }) => {
   const spaces = useSpaceStore((s) => s.spaces);
   const tasks = useTaskStore((s) => s.tasks);
   const addSpace = useSpaceStore((s) => s.addSpace);
+  const deleteSpace = useSpaceStore((s) => s.deleteSpace);
+  const addList = useSpaceStore((s) => s.addList);
+  const deleteList = useSpaceStore((s) => s.deleteList);
   const fetchSpaces = useSpaceStore((s) => s.fetchSpacesFromSupabase);
   const setActiveSpaceId = useSpaceStore((s) => s.setActiveSpaceId);
   const setActiveListId = useSpaceStore((s) => s.setActiveListId);
@@ -60,6 +64,12 @@ export const SpacesScreen: React.FC<SpacesScreenProps> = ({ navigation }) => {
   const [selectedEmoji, setSelectedEmoji] = useState('Rocket:indigo');
   const [initialListName, setInitialListName] = useState('Công việc chung');
   const [loading, setLoading] = useState(false);
+
+  // Add list modal state
+  const [showAddListModal, setShowAddListModal] = useState(false);
+  const [targetSpaceIdForList, setTargetSpaceIdForList] = useState<string | null>(null);
+  const [newListName, setNewListName] = useState('');
+  const [addingList, setAddingList] = useState(false);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -122,6 +132,76 @@ export const SpacesScreen: React.FC<SpacesScreenProps> = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAddListToSpace = async () => {
+    if (!targetSpaceIdForList || !newListName.trim()) return;
+    setAddingList(true);
+    try {
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch {}
+      await addList(targetSpaceIdForList, newListName.trim());
+      Toast.show({
+        type: 'success',
+        text1: 'Đã thêm danh sách',
+        text2: `Danh sách "${newListName.trim()}" đã được tạo thành công.`,
+      });
+      setNewListName('');
+      setShowAddListModal(false);
+    } finally {
+      setAddingList(false);
+    }
+  };
+
+  const handleDeleteSpace = (spaceId: string, name: string) => {
+    Alert.alert(
+      'Xóa không gian',
+      `Bạn có chắc chắn muốn xóa không gian "${name}"? Toàn bộ danh sách bên trong sẽ bị xóa.`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            } catch {}
+            await deleteSpace(spaceId);
+            Toast.show({
+              type: 'success',
+              text1: 'Đã xóa không gian',
+              text2: `Không gian "${name}" đã được xóa.`,
+            });
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteList = (spaceId: string, listId: string, listName: string) => {
+    Alert.alert(
+      'Xóa danh sách',
+      `Bạn có chắc chắn muốn xóa danh sách "${listName}"?`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            } catch {}
+            await deleteList(spaceId, listId);
+            Toast.show({
+              type: 'success',
+              text1: 'Đã xóa danh sách',
+              text2: `Danh sách "${listName}" đã được xóa.`,
+            });
+          },
+        },
+      ]
+    );
   };
 
   const currentSpaces = spaces.filter((s) => !activeWorkspaceId || s.workspaceId === activeWorkspaceId);
@@ -187,7 +267,15 @@ export const SpacesScreen: React.FC<SpacesScreenProps> = ({ navigation }) => {
                     {sp.lists?.length || 0} danh sách • {spTasks.length} công việc
                   </Text>
                 </View>
-                <ChevronRight size={18} color={colors.textMuted} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <TouchableOpacity
+                    onPress={() => handleDeleteSpace(sp.id, sp.name)}
+                    style={{ padding: 6 }}
+                  >
+                    <Trash2 size={16} color={colors.textMuted} />
+                  </TouchableOpacity>
+                  <ChevronRight size={18} color={colors.textMuted} />
+                </View>
               </TouchableOpacity>
 
               {/* Space Lists */}
@@ -223,7 +311,12 @@ export const SpacesScreen: React.FC<SpacesScreenProps> = ({ navigation }) => {
                               {listTasks.length}
                             </Text>
                           </View>
-                          <ChevronRight size={15} color={colors.textMuted} />
+                          <TouchableOpacity
+                            onPress={() => handleDeleteList(sp.id, l.id, l.name)}
+                            style={{ padding: 4 }}
+                          >
+                            <X size={13} color={colors.textMuted} />
+                          </TouchableOpacity>
                         </View>
                       </TouchableOpacity>
                     );
@@ -231,17 +324,35 @@ export const SpacesScreen: React.FC<SpacesScreenProps> = ({ navigation }) => {
                 </View>
               ) : null}
 
-              {/* Quick Action: Enter Space */}
-              <TouchableOpacity
-                activeOpacity={0.75}
-                onPress={() => handleSelectList(sp.id, null)}
-                style={[styles.viewAllTasksBtn, { backgroundColor: `${spColor}12` }]}
-              >
-                <Text style={[styles.viewAllTasksText, { color: spColor }]}>
-                  Vào không gian ({spTasks.length} công việc)
-                </Text>
-                <ArrowRight size={14} color={spColor} />
-              </TouchableOpacity>
+              {/* Space Action Buttons */}
+              <View style={styles.spaceBottomActionRow}>
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  onPress={() => {
+                    setTargetSpaceIdForList(sp.id);
+                    setNewListName('');
+                    setShowAddListModal(true);
+                  }}
+                  style={[
+                    styles.addListBtn,
+                    { backgroundColor: colors.surfaceHover, borderColor: colors.border },
+                  ]}
+                >
+                  <PlusCircle size={14} color={spColor} />
+                  <Text style={[styles.addListBtnText, { color: spColor }]}>Thêm danh sách</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  onPress={() => handleSelectList(sp.id, null)}
+                  style={[styles.viewAllTasksBtn, { backgroundColor: `${spColor}12` }]}
+                >
+                  <Text style={[styles.viewAllTasksText, { color: spColor }]}>
+                    Vào ({spTasks.length})
+                  </Text>
+                  <ArrowRight size={14} color={spColor} />
+                </TouchableOpacity>
+              </View>
             </View>
           );
         })}
@@ -358,6 +469,58 @@ export const SpacesScreen: React.FC<SpacesScreenProps> = ({ navigation }) => {
                 />
               </View>
             </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Modal Add List to Space */}
+      <Modal
+        visible={showAddListModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowAddListModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <View
+            style={[
+              styles.modalSheet,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+                Thêm danh sách mới
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowAddListModal(false)}
+                style={[styles.modalClose, { backgroundColor: colors.surfaceHover }]}
+              >
+                <X size={18} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ padding: 20, gap: 14 }}>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                Tên danh sách
+              </Text>
+              <Input
+                placeholder="VD: Cần xử lý gấp, Lưu trữ, Bug fix..."
+                value={newListName}
+                onChangeText={setNewListName}
+                autoFocus
+              />
+
+              <Button
+                title={addingList ? 'Đang thêm...' : 'Tạo danh sách'}
+                onPress={handleAddListToSpace}
+                loading={addingList}
+                disabled={!newListName.trim()}
+                style={{ marginTop: 8 }}
+              />
+            </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -529,5 +692,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     marginRight: 8,
+  },
+  spaceBottomActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  addListBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  addListBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

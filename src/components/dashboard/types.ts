@@ -3,6 +3,7 @@ import { Task, User, SyncLog, Document } from '@/types';
 export type DashboardScope = 'workspace' | 'mine';
 export type DashboardRange = 7 | 30 | 90;
 export type DashboardChartMode = 'area' | 'bar';
+export type DashboardLayoutMode = 'stacked' | 'vertical';
 export type DashboardWidgetKey = 
   | 'focus' 
   | 'kpis' 
@@ -21,6 +22,7 @@ export type HealthFilterKey = 'none' | 'at_risk' | 'due_soon' | 'unassigned' | '
 export interface DashboardPreferences {
   range: DashboardRange;
   chartMode: DashboardChartMode;
+  layoutMode?: DashboardLayoutMode;
   widgets: Record<DashboardWidgetKey, boolean>;
 }
 

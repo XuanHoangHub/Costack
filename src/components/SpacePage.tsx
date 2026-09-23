@@ -3,8 +3,9 @@
 import CustomFieldsManagerModal from "./tasks/CustomFieldsManagerModal";
 import CustomizeViewModal from "./tasks/CustomizeViewModal";
 import { matchesCustomFieldFilter } from "@/lib/customFields";
+import { useSpaceStore } from '@/store/spaceStore';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Task, TaskStatus, Priority, User, Space, Document, SyncLog, Workspace, TaskAttachment, ShareRole, ShareTargetType } from '../types';
@@ -31,7 +32,7 @@ import {
   Folder, FolderOpen, FolderInput, Share2, ChevronRight, Star, Eye, ChevronsLeft, FileText, GanttChart, HelpCircle, EyeOff, Check, Cog, User as UserIcon, RefreshCw,
   Activity, Users, Brain, Map as MapIcon, Pencil, Link as LinkIcon, Droplet, Zap, Copy, Archive, Phone,
   Flag, Lock, Shield, Rocket, BarChart3, Bookmark, ArrowDownAZ, ArrowUpAZ, ArrowUpNarrowWide, ArrowDownWideNarrow, GripVertical, CheckCircle2,
-  Paperclip, Settings2, Flame, Layers, Palette
+  Paperclip, Settings2, Flame, Layers, Palette, ZoomIn, ZoomOut
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Select } from './ui/Select';
@@ -54,7 +55,6 @@ const TaskGanttView = dynamic(() => import('./tasks/TaskGanttView'), { ssr: fals
 const TaskDetailsPanel = dynamic(() => import('./tasks/TaskDetailsPanel'), { ssr: false });
 const Whiteboard = dynamic(() => import('./Whiteboard'), { ssr: false });
 const CalendarView = dynamic(() => import('./CalendarView'), { ssr: false });
-const DocumentHub = dynamic(() => import('./DocumentHub'), { ssr: false });
 const TeamDirectory = dynamic(() => import('./TeamDirectory'), { ssr: false });
 const DashboardOverview = dynamic(() => import('./DashboardOverview'), { ssr: false });
 const ShareSettingsModal = dynamic(() => import('./ShareSettingsModal'), { ssr: false });
@@ -320,6 +320,139 @@ export default function SpacePage({
     return isCreator || isPublic;
   }, [activeWorkspace, currentUser]);
 
+  // Inline Space Rename on Double Click (Scoped by location: 'sidebar' vs 'header')
+  const [editingSpace, setEditingSpace] = useState<{ id: string; location: 'sidebar' | 'header' } | null>(null);
+  const [editingSpaceName, setEditingSpaceName] = useState<string>('');
+  const sidebarSpaceRenameInputRef = useRef<HTMLInputElement>(null);
+  const headerSpaceRenameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingSpace?.location === 'sidebar' && sidebarSpaceRenameInputRef.current) {
+      sidebarSpaceRenameInputRef.current.focus();
+      sidebarSpaceRenameInputRef.current.select();
+    } else if (editingSpace?.location === 'header' && headerSpaceRenameInputRef.current) {
+      headerSpaceRenameInputRef.current.focus();
+      headerSpaceRenameInputRef.current.select();
+    }
+  }, [editingSpace]);
+
+  const handleSaveSpaceRename = useCallback((spaceId: string) => {
+    const trimmed = editingSpaceName.trim();
+    const targetSpace = spaces.find(s => s.id === spaceId);
+    if (targetSpace && trimmed && trimmed !== targetSpace.name) {
+      const updated = spaces.map(s => s.id === spaceId ? { ...s, name: trimmed } : s);
+      onSaveSpaces?.(updated);
+      onAddSyncLog(`Renamed Space "${targetSpace.name}" to "${trimmed}"`);
+      triggerToast?.('success', 'Đã đổi tên', `Đã đổi tên không gian thành "${trimmed}"`);
+    }
+    setEditingSpace(null);
+  }, [editingSpaceName, spaces, onSaveSpaces, onAddSyncLog, triggerToast]);
+
+  const handleStartSpaceRename = useCallback((space: Space, location: 'sidebar' | 'header', e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!canEditSpace(space)) {
+      triggerToast?.('error', 'Không có quyền', 'Bạn không có quyền đổi tên không gian này.');
+      return;
+    }
+    setEditingSpace({ id: space.id, location });
+    setEditingSpaceName(space.name);
+  }, [canEditSpace, triggerToast]);
+
+  // Inline Folder Rename on Double Click (Scoped by location: 'sidebar' vs 'header')
+  const [editingFolder, setEditingFolder] = useState<{ id: string; spaceId: string; location: 'sidebar' | 'header' } | null>(null);
+  const [editingFolderName, setEditingFolderName] = useState<string>('');
+  const sidebarFolderRenameInputRef = useRef<HTMLInputElement>(null);
+  const headerFolderRenameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingFolder?.location === 'sidebar' && sidebarFolderRenameInputRef.current) {
+      sidebarFolderRenameInputRef.current.focus();
+      sidebarFolderRenameInputRef.current.select();
+    } else if (editingFolder?.location === 'header' && headerFolderRenameInputRef.current) {
+      headerFolderRenameInputRef.current.focus();
+      headerFolderRenameInputRef.current.select();
+    }
+  }, [editingFolder]);
+
+  const handleSaveFolderRename = useCallback((spaceId: string, folderId: string) => {
+    const trimmed = editingFolderName.trim();
+    const targetSpace = spaces.find(s => s.id === spaceId);
+    const targetFolder = targetSpace?.folders?.find(f => f.id === folderId);
+    if (targetSpace && targetFolder && trimmed && trimmed !== targetFolder.name) {
+      const updated = spaces.map(s => {
+        if (s.id === spaceId) {
+          return {
+            ...s,
+            folders: s.folders?.map(f => f.id === folderId ? { ...f, name: trimmed } : f) || []
+          };
+        }
+        return s;
+      });
+      onSaveSpaces?.(updated);
+      onAddSyncLog(`Renamed Folder to "${trimmed}"`);
+      triggerToast?.('success', 'Đã đổi tên', `Đã đổi tên thư mục thành "${trimmed}"`);
+    }
+    setEditingFolder(null);
+  }, [editingFolderName, spaces, onSaveSpaces, onAddSyncLog, triggerToast]);
+
+  const handleStartFolderRename = useCallback((spaceId: string, folder: { id: string; name: string }, location: 'sidebar' | 'header', e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setEditingFolder({ id: folder.id, spaceId, location });
+    setEditingFolderName(folder.name);
+  }, []);
+
+  // Inline List Rename on Double Click
+  const [editingList, setEditingList] = useState<{ id: string; spaceId: string; location?: 'sidebar' | 'header' } | null>(null);
+  const [editingListName, setEditingListName] = useState<string>('');
+  const sidebarListRenameInputRef = useRef<HTMLInputElement>(null);
+  const headerListRenameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingList?.location === 'header' && headerListRenameInputRef.current) {
+      headerListRenameInputRef.current.focus();
+      headerListRenameInputRef.current.select();
+    } else if (editingList && sidebarListRenameInputRef.current) {
+      sidebarListRenameInputRef.current.focus();
+      sidebarListRenameInputRef.current.select();
+    }
+  }, [editingList]);
+
+  const handleSaveListRename = useCallback((spaceId: string, listId: string) => {
+    const trimmed = editingListName.trim();
+    const targetSpace = spaces.find(s => s.id === spaceId);
+    const targetList = targetSpace?.lists?.find(l => l.id === listId);
+    if (targetSpace && targetList && trimmed && trimmed !== targetList.name) {
+      const updated = spaces.map(s => {
+        if (s.id === spaceId) {
+          return {
+            ...s,
+            lists: s.lists?.map(l => l.id === listId ? { ...l, name: trimmed } : l) || []
+          };
+        }
+        return s;
+      });
+      onSaveSpaces?.(updated);
+      onAddSyncLog(`Renamed List "${targetList.name}" to "${trimmed}"`);
+      triggerToast?.('success', 'Đã đổi tên', `Đã đổi tên danh sách thành "${trimmed}"`);
+    }
+    setEditingList(null);
+  }, [editingListName, spaces, onSaveSpaces, onAddSyncLog, triggerToast]);
+
+  const handleStartListRename = useCallback((spaceId: string, list: { id: string; name: string }, location: 'sidebar' | 'header' = 'sidebar', e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setEditingList({ id: list.id, spaceId, location });
+    setEditingListName(list.name);
+  }, []);
+
   const hasListAccess = React.useCallback((space: Space, list: any) => {
     if (!hasSpaceAccess(space)) return false;
     const cleanCurrentUserId = currentUser?.id;
@@ -570,10 +703,27 @@ export default function SpacePage({
     if (activeViewProtectedRef.current) return notifyProtectedView();
     const nextFields = typeof action === 'function' ? action(customFields) : action;
     setCustomFields(nextFields);
-    if (onSaveSpaces && activeSpaceId) {
-      onSaveSpaces(spaces.map(space => space.id === activeSpaceId
-        ? { ...space, customFields: nextFields }
-        : space));
+    if (activeSpace) {
+      activeSpace.customFields = nextFields;
+    }
+    const targetSpaceId = activeSpaceId || activeSpace?.id;
+    if (targetSpaceId) {
+      const currentStoreSpaces = useSpaceStore.getState().spaces;
+      const spaceInStore = currentStoreSpaces.find(s => s.id === targetSpaceId);
+      const updatedSpace = {
+        ...(spaceInStore || activeSpace || {}),
+        id: targetSpaceId,
+        customFields: nextFields
+      };
+      useSpaceStore.getState().updateSpace(updatedSpace);
+
+      if (onSaveSpaces) {
+        const existsInSpaces = spaces.some(space => space.id === targetSpaceId);
+        const updatedSpaces = existsInSpaces
+          ? spaces.map(space => space.id === targetSpaceId ? { ...space, customFields: nextFields } : space)
+          : [...spaces, updatedSpace];
+        onSaveSpaces(updatedSpaces);
+      }
     }
   };
 
@@ -582,10 +732,23 @@ export default function SpacePage({
     const fields = activeSpace.customFields || [];
     const names = fields.map(field => field.name);
     const previous = previousFieldScope.current;
-    setCustomFields(fields);
+    setCustomFields(prev => {
+      const prevNames = prev.map(p => p.name);
+      if (names.length === prevNames.length && names.every((n, i) => n === prevNames[i])) {
+        return prev;
+      }
+      const activeMap = new Map(fields.map(f => [f.name, f]));
+      prev.forEach(p => {
+        if (!activeMap.has(p.name)) {
+          activeMap.set(p.name, p);
+        }
+      });
+      return Array.from(activeMap.values());
+    });
     setVisibleFields(visible => {
       const standard = ['title', 'status', 'priority', 'assignee', 'dueDate', 'startDate'];
-      const retained = visible.filter(name => standard.includes(name) || names.includes(name));
+      const currentKnownNames = new Set([...names, ...customFields.map(cf => cf.name)]);
+      const retained = visible.filter(name => standard.includes(name) || currentKnownNames.has(name));
       const added = names.filter(name => previous.id !== activeSpace.id || !previous.names.includes(name));
       return [...new Set([...retained, ...added])];
     });
@@ -723,7 +886,10 @@ export default function SpacePage({
   const [formTaskDesc, setFormTaskDesc] = useState('');
   const [formTaskPriority, setFormTaskPriority] = useState<Priority>('medium');
   const [formTaskAssigneeId, setFormTaskAssigneeId] = useState('');
+  const [formCustomValues, setFormCustomValues] = useState<Record<string, any>>({});
   const [formSubmitting, setFormSubmitting] = useState(false);
+  const [mindmapCollapsedLists, setMindmapCollapsedLists] = useState<Record<string, boolean>>({});
+  const [mindmapZoom, setMindmapZoom] = useState<number>(100);
   const fileImportInputRef = useRef<HTMLInputElement>(null);
   const [templatesModalOpen, setTemplatesModalOpen] = useState(false);
 
@@ -930,12 +1096,12 @@ export default function SpacePage({
       });
       
       onAddSyncLog(`AI generated ${generatedItems.length} tasks from prompt: "${aiPromptInput.trim()}"`);
-      triggerToast?.('success', 'Upgen AI', `Đã tạo ${generatedItems.length} công việc vào danh sách.`);
+      triggerToast?.('success', 'Costack AI', `Đã tạo ${generatedItems.length} công việc vào danh sách.`);
       setAiPromptInput('');
       setActiveView('list');
     } catch (err) {
       console.error('Error generating tasks with AI:', err);
-      triggerToast?.('error', 'Upgen AI', 'Không thể tạo công việc tự động. Vui lòng thử lại.');
+      triggerToast?.('error', 'Costack AI', 'Không thể tạo công việc tự động. Vui lòng thử lại.');
     } finally {
       setIsAiGeneratingTasks(false);
     }
@@ -1075,7 +1241,8 @@ export default function SpacePage({
         listId: targetListId,
         workspaceId: activeWorkspaceId || activeSpace.workspaceId,
         subtasks: [],
-        tags: ['Form-Submission']
+        tags: ['Form-Submission'],
+        custom_fields: { ...formCustomValues }
       });
       
       triggerToast?.('success', 'Đã gửi biểu mẫu', `Yêu cầu "${formTaskTitle.trim()}" đã được thêm vào danh sách công việc.`);
@@ -1083,6 +1250,7 @@ export default function SpacePage({
       setFormTaskTitle('');
       setFormTaskDesc('');
       setFormTaskPriority('medium');
+      setFormCustomValues({});
     } catch (err) {
       console.error('Error submitting form task:', err);
       triggerToast?.('error', 'Lỗi', 'Không thể gửi biểu mẫu. Vui lòng thử lại.');
@@ -1808,7 +1976,6 @@ export default function SpacePage({
     { id: 'list', label: 'Danh sách', desc: 'Theo dõi công việc theo nhóm', icon: List, color: '#7c828d', bg: 'rgba(124, 130, 141, 0.08)' },
     { id: 'gantt', label: 'Biểu đồ Gantt', desc: 'Lập kế hoạch phụ thuộc và thời gian', icon: GanttChart, color: '#f04438', bg: 'rgba(240, 68, 56, 0.08)' },
     { id: 'calendar', label: 'Lịch', desc: 'Lên lịch và phân công công việc', icon: Calendar, color: '#ff5f5f', bg: 'rgba(255, 95, 95, 0.08)' },
-    { id: 'doc', label: 'Tài liệu Wiki', desc: 'Cộng tác và ghi lại kiến thức', icon: FileText, color: '#1570ef', bg: 'rgba(21, 112, 239, 0.08)' },
     { id: 'board', label: 'Bảng Kanban', desc: 'Di chuyển công việc giữa các cột', icon: Kanban, color: '#2563EB', bg: 'rgba(37, 99, 235, 0.08)' },
     { id: 'dashboard', label: 'Bảng điều khiển', desc: 'Theo dõi số liệu và tiến độ', icon: SlidersHorizontal, color: '#ee46bc', bg: 'rgba(238, 70, 188, 0.08)' },
     { id: 'table', label: 'Bảng dữ liệu', desc: 'Quản lý dữ liệu theo cột', icon: Table, color: '#12b76a', bg: 'rgba(18, 183, 106, 0.08)' },
@@ -2678,7 +2845,37 @@ export default function SpacePage({
                               </div>
                             )}
                           </EmojiIconPicker>
-                          <span className="truncate text-[12.5px] font-semibold tracking-tight">{space.name}</span>
+                          {editingSpace?.id === space.id && editingSpace.location === 'sidebar' ? (
+                            <input
+                              ref={sidebarSpaceRenameInputRef}
+                              type="text"
+                              value={editingSpaceName}
+                              onChange={(e) => setEditingSpaceName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleSaveSpaceRename(space.id);
+                                } else if (e.key === 'Escape') {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setEditingSpace(null);
+                                }
+                              }}
+                              onBlur={() => handleSaveSpaceRename(space.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              onDoubleClick={(e) => e.stopPropagation()}
+                                className="h-[26px] min-w-0 flex-1 rounded-md bg-white dark:bg-zinc-800 px-2.5 py-0.5 text-xs font-semibold text-slate-900 dark:text-white border border-blue-500/50 dark:border-sky-400/50 outline-none shadow-xs ring-2 ring-blue-500/20 dark:ring-sky-400/20 transition-all selection:bg-blue-600 selection:text-white"
+                            />
+                          ) : (
+                            <span 
+                              className="truncate text-[12.5px] font-semibold tracking-tight cursor-pointer"
+                              title={locale === 'vi' ? 'Nhấp đúp để đổi tên nhanh' : 'Double click to rename'}
+                              onDoubleClick={(e) => handleStartSpaceRename(space, 'sidebar', e)}
+                            >
+                              {space.name}
+                            </span>
+                          )}
                           {space.isFavorite && <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-500" />}
                           {space.isHidden && <EyeOff className="h-3 w-3 shrink-0 text-slate-400" />}
                           {space.isArchived && <Archive className="h-3 w-3 shrink-0 text-slate-400" />}
@@ -2765,13 +2962,43 @@ export default function SpacePage({
                                     setExpandedFolders(prev => ({ ...prev, [folder.id]: !isFolderOpen }));
                                   }}
                                 >
-                                  <div className="flex items-center gap-1.5 min-w-0">
+                                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
                                     {isFolderOpen ? (
                                       <FolderOpen className="w-3.5 h-3.5 shrink-0" style={{ color: resolveFolderColor(folder.color) }} />
                                     ) : (
                                       <Folder className="w-3.5 h-3.5 shrink-0" style={{ color: resolveFolderColor(folder.color) }} />
                                     )}
-                                    <span className="truncate text-[12px]">{folder.name}</span>
+                                    {editingFolder?.id === folder.id && editingFolder.location === 'sidebar' ? (
+                                      <input
+                                        ref={sidebarFolderRenameInputRef}
+                                        type="text"
+                                        value={editingFolderName}
+                                        onChange={(e) => setEditingFolderName(e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleSaveFolderRename(space.id, folder.id);
+                                          } else if (e.key === 'Escape') {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setEditingFolder(null);
+                                          }
+                                        }}
+                                        onBlur={() => handleSaveFolderRename(space.id, folder.id)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onDoubleClick={(e) => e.stopPropagation()}
+                                        className="h-[26px] min-w-0 flex-1 rounded-md bg-white dark:bg-zinc-800 px-2.5 py-0.5 text-xs font-semibold text-slate-900 dark:text-white border border-blue-500/50 dark:border-sky-400/50 outline-none shadow-xs ring-2 ring-blue-500/20 dark:ring-sky-400/20 transition-all selection:bg-blue-600 selection:text-white"
+                                      />
+                                    ) : (
+                                      <span 
+                                        className="truncate text-[12px] cursor-pointer"
+                                        title={locale === 'vi' ? 'Nhấp đúp để đổi tên nhanh' : 'Double click to rename'}
+                                        onDoubleClick={(e) => handleStartFolderRename(space.id, folder, 'sidebar', e)}
+                                      >
+                                        {folder.name}
+                                      </span>
+                                    )}
                                     {folder.isArchived && (
                                       <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[8px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25 shrink-0 ml-1">
                                         <Archive className="w-2.5 h-2.5" />
@@ -2874,15 +3101,45 @@ export default function SpacePage({
                                             }`}>
                                               <List className="h-3.5 w-3.5 stroke-[2]" />
                                             </div>
-                                            <span className="truncate text-[12px]">{list.name}</span>
-                                            {list.isArchived && (
-                                              <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[8px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25 shrink-0 ml-1">
-                                                <Archive className="w-2.5 h-2.5" />
-                                                Lưu trữ
-                                              </span>
-                                            )}
-                                            {list.isPrivate && <Lock className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500 shrink-0 ml-0.5" />}
-                                          </div>
+                                             {editingList?.id === list.id && editingList.location !== 'header' ? (
+                                               <input
+                                                 ref={sidebarListRenameInputRef}
+                                                 type="text"
+                                                 value={editingListName}
+                                                 onChange={(e) => setEditingListName(e.target.value)}
+                                                 onKeyDown={(e) => {
+                                                   if (e.key === 'Enter') {
+                                                     e.preventDefault();
+                                                     e.stopPropagation();
+                                                     handleSaveListRename(space.id, list.id);
+                                                   } else if (e.key === 'Escape') {
+                                                     e.preventDefault();
+                                                     e.stopPropagation();
+                                                     setEditingList(null);
+                                                   }
+                                                 }}
+                                                 onBlur={() => handleSaveListRename(space.id, list.id)}
+                                                 onClick={(e) => e.stopPropagation()}
+                                                 onDoubleClick={(e) => e.stopPropagation()}
+                                                 className="h-[26px] min-w-0 flex-1 rounded-md bg-white dark:bg-zinc-800 px-2.5 py-0.5 text-xs font-semibold text-slate-900 dark:text-white border border-blue-500/50 dark:border-sky-400/50 outline-none shadow-xs ring-2 ring-blue-500/20 dark:ring-sky-400/20 transition-all selection:bg-blue-600 selection:text-white"
+                                               />
+                                             ) : (
+                                               <span 
+                                                 className="truncate text-[12px] cursor-pointer"
+                                                 title={locale === 'vi' ? 'Nhấp đúp để đổi tên nhanh' : 'Double click to rename'}
+                                                 onDoubleClick={(e) => handleStartListRename(space.id, list, 'sidebar', e)}
+                                               >
+                                                 {list.name}
+                                               </span>
+                                             )}
+                                             {list.isArchived && (
+                                               <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[8px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25 shrink-0 ml-1">
+                                                 <Archive className="w-2.5 h-2.5" />
+                                                 Lưu trữ
+                                               </span>
+                                             )}
+                                             {list.isPrivate && <Lock className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500 shrink-0 ml-0.5" />}
+                                           </div>
                                           
                                           {/* Task count or hover actions */}
                                           <div className="flex items-center gap-0.5 shrink-0">
@@ -2953,21 +3210,6 @@ export default function SpacePage({
                                       );
                                     })}
 
-                                    {folderDocs.map(doc => (
-                                      <button
-                                        key={doc.id}
-                                        onClick={() => {
-                                          if (setActiveSpaceId) setActiveSpaceId(space.id);
-                                          if (setActiveListId) setActiveListId(null);
-                                          setActiveView('doc');
-                                        }}
-                                        className="w-full flex items-center gap-2 h-[30px] px-2 rounded-lg text-xs font-medium text-slate-600 dark:text-zinc-300 hover:bg-slate-100/70 hover:text-slate-900 dark:hover:bg-white/[0.04] dark:hover:text-white text-left cursor-pointer transition-all"
-                                      >
-                                        <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                        <span className="truncate text-[12px]">{doc.title}</span>
-                                      </button>
-                                    ))}
-
                                     {folderWhiteboards.map(wb => (
                                       <button
                                         key={wb.id}
@@ -3029,7 +3271,37 @@ export default function SpacePage({
                                   }`}>
                                     <List className="h-3.5 w-3.5 stroke-[2]" />
                                   </div>
-                                  <span className="truncate text-[12px]">{list.name}</span>
+                                  {editingList?.id === list.id && editingList.location !== 'header' ? (
+                                    <input
+                                      ref={sidebarListRenameInputRef}
+                                      type="text"
+                                      value={editingListName}
+                                      onChange={(e) => setEditingListName(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handleSaveListRename(space.id, list.id);
+                                        } else if (e.key === 'Escape') {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          setEditingList(null);
+                                        }
+                                      }}
+                                      onBlur={() => handleSaveListRename(space.id, list.id)}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onDoubleClick={(e) => e.stopPropagation()}
+                                      className="h-[26px] min-w-0 flex-1 rounded-md bg-white dark:bg-zinc-800 px-2.5 py-0.5 text-xs font-semibold text-slate-900 dark:text-white border border-blue-500/50 dark:border-sky-400/50 outline-none shadow-xs ring-2 ring-blue-500/20 dark:ring-sky-400/20 transition-all selection:bg-blue-600 selection:text-white"
+                                    />
+                                  ) : (
+                                    <span 
+                                      className="truncate text-[12px] cursor-pointer"
+                                      title={locale === 'vi' ? 'Nhấp đúp để đổi tên nhanh' : 'Double click to rename'}
+                                      onDoubleClick={(e) => handleStartListRename(space.id, list, 'sidebar', e)}
+                                    >
+                                      {list.name}
+                                    </span>
+                                  )}
                                   {list.isArchived && (
                                     <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[8px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25 shrink-0 ml-1">
                                       <Archive className="w-2.5 h-2.5" />
@@ -3107,22 +3379,6 @@ export default function SpacePage({
                               </div>
                             );
                           })}
-
-                          {/* Render direct Docs */}
-                          {allDocs?.filter(d => d.spaceId === space.id && !d.folderId).map(doc => (
-                            <button
-                              key={doc.id}
-                              onClick={() => {
-                                if (setActiveSpaceId) setActiveSpaceId(space.id);
-                                if (setActiveListId) setActiveListId(null);
-                                setActiveView('doc');
-                              }}
-                              className="w-full flex items-center gap-2 h-[30px] px-2 rounded-lg text-xs font-medium text-slate-600 dark:text-zinc-300 hover:bg-slate-100/70 hover:text-slate-900 dark:hover:bg-white/[0.04] dark:hover:text-white text-left cursor-pointer transition-all"
-                            >
-                              <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                              <span className="truncate text-[12px]">{doc.title}</span>
-                            </button>
-                          ))}
 
                           {/* Render direct Whiteboards */}
                           {space.whiteboards?.filter(w => !w.folderId).map(wb => (
@@ -3290,12 +3546,12 @@ export default function SpacePage({
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 shrink-0">
                 {activeSpaceId === null ? (
                   <div className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/25 dark:bg-amber-400/20 dark:text-amber-400 shadow-3xs">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/25 dark:bg-amber-400/20 dark:text-amber-400 shadow-xs">
                       <Star className="h-3.5 w-3.5 fill-current" />
                     </span>
-                    <span className="text-slate-900 dark:text-white font-black text-sm">{t('allTasks')}</span>
-                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-zinc-400">
-                      {filteredTasks.length} {locale === 'vi' ? 'việc' : 'tasks'}
+                    <span className="text-slate-900 dark:text-zinc-100 font-bold text-sm tracking-tight">{t('allTasks')}</span>
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/[0.08] text-slate-600 dark:text-zinc-300 border border-slate-200/70 dark:border-white/[0.08] shadow-3xs">
+                      {filteredTasks.length} {locale === 'vi' ? 'việc' : filteredTasks.length === 1 ? 'task' : 'tasks'}
                     </span>
                   </div>
                 ) : (
@@ -3306,15 +3562,41 @@ export default function SpacePage({
                       value={activeSpace.emoji || 'Folder'}
                       onChange={(newIcon) => updateSpaceProperties(activeSpace.id, { emoji: newIcon }, 'Đã cập nhật biểu tượng không gian.')}
                     />
-                    <div 
-                      onClick={() => {
-                        if (setActiveListId) setActiveListId(null);
-                        setActiveView('overview');
-                      }}
-                      className="flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors"
-                    >
-                      <span className="text-slate-850 dark:text-slate-200 font-extrabold">{activeSpace.name}</span>
-                    </div>
+                    {editingSpace?.id === activeSpace.id && editingSpace.location === 'header' ? (
+                      <input
+                        ref={headerSpaceRenameInputRef}
+                        type="text"
+                        value={editingSpaceName}
+                        onChange={(e) => setEditingSpaceName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleSaveSpaceRename(activeSpace.id);
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setEditingSpace(null);
+                          }
+                        }}
+                        onBlur={() => handleSaveSpaceRename(activeSpace.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => e.stopPropagation()}
+                        className="h-7 w-44 rounded-md bg-white dark:bg-zinc-800 px-2.5 py-0.5 text-xs font-bold text-slate-900 dark:text-white border border-blue-500/50 dark:border-sky-400/50 outline-none shadow-xs ring-2 ring-blue-500/20 dark:ring-sky-400/20 transition-all selection:bg-blue-600 selection:text-white"
+                      />
+                    ) : (
+                      <div 
+                        onClick={() => {
+                          if (setActiveListId) setActiveListId(null);
+                          setActiveView('overview');
+                        }}
+                        onDoubleClick={(e) => handleStartSpaceRename(activeSpace, 'header', e)}
+                        className="flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors"
+                        title={locale === 'vi' ? 'Nhấp đúp để đổi tên nhanh' : 'Double click to rename'}
+                      >
+                        <span className="text-slate-850 dark:text-slate-200 font-extrabold">{activeSpace.name}</span>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -3329,7 +3611,37 @@ export default function SpacePage({
                         <span className="text-slate-300 dark:text-zinc-700 mx-0.5 font-normal">/</span>
                         <div className="flex items-center gap-1 text-slate-550 dark:text-slate-400">
                           <Folder className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                          <span className="truncate">{folder.name}</span>
+                          {editingFolder?.id === folder.id && editingFolder.location === 'header' ? (
+                            <input
+                              ref={headerFolderRenameInputRef}
+                              type="text"
+                              value={editingFolderName}
+                              onChange={(e) => setEditingFolderName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleSaveFolderRename(activeSpace.id, folder.id);
+                                } else if (e.key === 'Escape') {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setEditingFolder(null);
+                                }
+                              }}
+                              onBlur={() => handleSaveFolderRename(activeSpace.id, folder.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              onDoubleClick={(e) => e.stopPropagation()}
+                              className="h-7 w-40 rounded-md bg-white dark:bg-zinc-800 px-2.5 py-0.5 text-xs font-semibold text-slate-900 dark:text-white border border-blue-500/50 dark:border-sky-400/50 outline-none shadow-xs ring-2 ring-blue-500/20 dark:ring-sky-400/20 transition-all selection:bg-blue-600 selection:text-white"
+                            />
+                          ) : (
+                            <span 
+                              className="truncate cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
+                              title={locale === 'vi' ? 'Nhấp đúp để đổi tên nhanh' : 'Double click to rename'}
+                              onDoubleClick={(e) => handleStartFolderRename(activeSpace.id, folder, 'header', e)}
+                            >
+                              {folder.name}
+                            </span>
+                          )}
                         </div>
                       </>
                     );
@@ -3346,16 +3658,48 @@ export default function SpacePage({
                         <span className="text-slate-300 dark:text-zinc-700 mx-0.5 font-normal">/</span>
                         
                         <div className="relative flex items-center" ref={breadcrumbBtnRef}>
-                          <button
-                            type="button"
-                            onClick={toggleBreadcrumbNav}
-                            className="flex items-center gap-1.5 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors py-1 px-2 rounded-lg text-slate-800 dark:text-zinc-200"
-                            title="Chuyển danh sách / Tùy chọn"
-                          >
-                            <List className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span className="text-slate-800 dark:text-zinc-200 font-bold text-xs max-w-[140px] sm:max-w-[220px] truncate">{currentList.name}</span>
-                            <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${showBreadcrumbNav ? 'rotate-180' : ''}`} />
-                          </button>
+                          {editingList?.id === currentList.id && editingList.location === 'header' ? (
+                            <div className="flex items-center gap-1.5 py-0.5 px-1 rounded-lg">
+                              <List className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <input
+                                ref={headerListRenameInputRef}
+                                type="text"
+                                value={editingListName}
+                                onChange={(e) => setEditingListName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleSaveListRename(activeSpace.id, currentList.id);
+                                  } else if (e.key === 'Escape') {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setEditingList(null);
+                                  }
+                                }}
+                                onBlur={() => handleSaveListRename(activeSpace.id, currentList.id)}
+                                onClick={(e) => e.stopPropagation()}
+                                onDoubleClick={(e) => e.stopPropagation()}
+                                className="h-7 w-40 rounded-md bg-white dark:bg-zinc-800 px-2.5 py-0.5 text-xs font-bold text-slate-900 dark:text-white border border-blue-500/50 dark:border-sky-400/50 outline-none shadow-xs ring-2 ring-blue-500/20 dark:ring-sky-400/20 transition-all selection:bg-blue-600 selection:text-white"
+                              />
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={toggleBreadcrumbNav}
+                              className="flex items-center gap-1.5 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors py-1 px-2 rounded-lg text-slate-800 dark:text-zinc-200"
+                              title={locale === 'vi' ? 'Chuyển danh sách / Nhấp đúp để đổi tên nhanh' : 'Switch list / Double-click to rename'}
+                            >
+                              <List className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span 
+                                onDoubleClick={(e) => handleStartListRename(activeSpace.id, currentList, 'header', e)}
+                                className="text-slate-800 dark:text-zinc-200 font-bold text-xs max-w-[140px] sm:max-w-[220px] truncate"
+                              >
+                                {currentList.name}
+                              </span>
+                              <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${showBreadcrumbNav ? 'rotate-180' : ''}`} />
+                            </button>
+                          )}
 
                           {/* Interactive Breadcrumb Dropdown Navigator */}
                           <AnimatePresence>
@@ -3479,17 +3823,18 @@ export default function SpacePage({
 
               </div>
 
-              {/* Star Button */}
+              {/* Star Favorite Button */}
               <button 
+                type="button"
                 onClick={() => toggleSpaceFavorite(activeSpace)}
-                className="p-1 text-slate-400 hover:text-amber-500 rounded-md transition-colors cursor-pointer shrink-0"
-                title={activeSpace.isFavorite ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'}
-                aria-label={activeSpace.isFavorite ? 'Bỏ Space khỏi yêu thích' : 'Thêm Space vào yêu thích'}
+                className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-white/[0.06] rounded-lg transition-all cursor-pointer shrink-0 active:scale-90"
+                title={activeSpace?.isFavorite ? (locale === 'vi' ? 'Bỏ yêu thích' : 'Remove from favorites') : (locale === 'vi' ? 'Thêm vào yêu thích' : 'Add to favorites')}
+                aria-label={activeSpace?.isFavorite ? 'Bỏ Space khỏi yêu thích' : 'Thêm Space vào yêu thích'}
               >
-                <Star className={`w-3.5 h-3.5 ${activeSpace.isFavorite ? 'fill-amber-500 text-amber-500' : ''}`} />
+                <Star className={`w-3.5 h-3.5 transition-transform duration-150 ${activeSpace?.isFavorite ? 'fill-amber-500 text-amber-500 scale-105' : 'hover:scale-110'}`} />
               </button>
 
-              <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 shrink-0 mx-0.5" />
+              <div className="w-px h-4.5 bg-slate-200/90 dark:bg-zinc-800 shrink-0 mx-1" />
 
               {/* Modern View Switcher Tabs Bar */}
               <div className="apexa-space-view-switcher">
@@ -3579,12 +3924,12 @@ export default function SpacePage({
 
       {/* ── Filter / Sorter Bar (Seamless & Gentle Workspace Toolbar) ── */}
       {isTaskWorkspaceView && (
-        <div className="apexa-space-filterbar shrink-0 border-b border-slate-200/60 dark:border-white/[0.06] px-3 sm:px-6 py-1.5 flex items-center justify-between gap-2.5 bg-white/80 dark:bg-[#050508]/90 backdrop-blur-md min-h-[42px] overflow-x-auto no-scrollbar" role="search" aria-label={locale === 'vi' ? 'Tìm kiếm và lọc công việc' : 'Search and filter tasks'}>
+        <div className="apexa-space-filterbar shrink-0 border-b border-slate-200/60 dark:border-white/[0.06] px-3 sm:px-5 py-1 flex items-center justify-between gap-2 bg-white/80 dark:bg-[#050508]/90 backdrop-blur-md min-h-[38px] overflow-x-auto no-scrollbar" role="search" aria-label={locale === 'vi' ? 'Tìm kiếm và lọc công việc' : 'Search and filter tasks'}>
           
           {/* Left section: Search + (if Board view) Group & Swimlane */}
           <div className="flex items-center gap-2 shrink-0">
             {/* Search task input */}
-            <div className="group flex items-center gap-2 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 focus-within:border-blue-500 dark:focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-500/20 shadow-3xs rounded-xl px-2.5 py-1 w-36 sm:w-44 lg:w-52 transition-all h-8">
+            <div className="group flex items-center gap-1.5 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 focus-within:border-blue-500 dark:focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-500/20 shadow-3xs rounded-xl px-2.5 py-0.5 w-32 sm:w-40 lg:w-48 transition-all h-7.5">
               <Search className="w-3.5 h-3.5 text-slate-400 group-focus-within:text-indigo-500 dark:group-focus-within:text-indigo-400 transition-colors shrink-0" />
               <input 
                 type="text" 
@@ -3613,7 +3958,7 @@ export default function SpacePage({
                 <div className="h-4 w-px bg-slate-200 dark:bg-white/10 hidden sm:block" />
 
                 {/* Group By Selector */}
-                <div className="flex items-center gap-1 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 rounded-xl px-2.5 shadow-3xs h-8 transition-colors">
+                <div className="flex items-center gap-1 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 rounded-xl px-2 shadow-3xs h-7.5 transition-colors">
                   <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-semibold hidden md:inline shrink-0">
                     {locale === 'vi' ? 'Nhóm:' : 'Group:'}
                   </span>
@@ -3637,7 +3982,7 @@ export default function SpacePage({
                 </div>
 
                 {/* Swimlane Selector */}
-                <div className="flex items-center gap-1 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 rounded-xl px-2.5 shadow-3xs h-8 transition-colors">
+                <div className="flex items-center gap-1 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 rounded-xl px-2 shadow-3xs h-7.5 transition-colors">
                   <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-semibold hidden md:inline shrink-0">
                     {locale === 'vi' ? 'Làn bơi:' : 'Swimlane:'}
                   </span>
@@ -3655,6 +4000,35 @@ export default function SpacePage({
                     ]}
                   />
                 </div>
+              </>
+            )}
+
+            {/* List View Specific Controls (Quick Empty Statuses Toggle) */}
+            {activeView === 'list' && (
+              <>
+                <div className="h-4 w-px bg-slate-200 dark:bg-white/10 hidden sm:block" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !showEmptyStatuses;
+                    setShowEmptyStatuses(next);
+                    triggerToast?.('info', 'Chế độ xem', next ? (locale === 'vi' ? 'Đang hiển thị tất cả trạng thái' : 'Showing all statuses') : (locale === 'vi' ? 'Đã ẩn các trạng thái chưa có công việc' : 'Hidden empty statuses'));
+                  }}
+                  className={`h-7.5 px-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-3xs ${
+                    !showEmptyStatuses
+                      ? 'bg-blue-50/90 dark:bg-blue-500/15 border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-300 font-bold'
+                      : 'bg-slate-50/90 dark:bg-white/[0.04] border-slate-200/80 dark:border-white/[0.08] text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                  title={locale === 'vi'
+                    ? (showEmptyStatuses ? 'Đang hiện nhóm trạng thái trống — Nhấp để ẩn các trạng thái chưa có việc' : 'Đang ẩn các trạng thái chưa có việc — Nhấp để hiện tất cả')
+                    : (showEmptyStatuses ? 'Showing empty statuses — Click to hide' : 'Hiding empty statuses — Click to show all')
+                  }
+                >
+                  {showEmptyStatuses ? <Eye className="w-3.5 h-3.5 shrink-0" /> : <EyeOff className="w-3.5 h-3.5 shrink-0" />}
+                  <span className="hidden md:inline">
+                    {locale === 'vi' ? (showEmptyStatuses ? 'Hiện nhóm trống' : 'Ẩn nhóm trống') : (showEmptyStatuses ? 'Empty: Show' : 'Empty: Hide')}
+                  </span>
+                </button>
               </>
             )}
           </div>
@@ -3676,33 +4050,34 @@ export default function SpacePage({
           )}
 
           {/* Right section: Filters, Sorter, Card Size/Covers, AI, Add Board */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             {/* Customize View Button (ClickUp style) */}
             <button 
               type="button"
               onClick={() => setShowCustomizeViewModal(true)}
-              className={`h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`h-7.5 px-2 sm:px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                 showCustomizeViewModal
                   ? 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200/60 dark:border-indigo-500/30 shadow-2xs'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-white/5'
               }`}
               title={locale === 'vi' ? 'Tùy chỉnh chế độ xem (Bảng, Danh sách, Kanban, Gantt)' : 'Customize view'}
             >
-              <Sliders className="w-3.5 h-3.5" />
-              <span>{locale === 'vi' ? 'Tùy chỉnh' : 'Customize'}</span>
+              <Sliders className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">{locale === 'vi' ? 'Tùy chỉnh' : 'Customize'}</span>
             </button>
 
             {/* Filter Drawer Toggle */}
             <button 
               onClick={() => setShowFilters(!showFilters)}
-              className={`h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`h-7.5 px-2 sm:px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                 showFilters || activeFilterCount > 0
                   ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-300 font-bold border border-blue-200/60 dark:border-blue-500/30 shadow-2xs'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-white/5'
               }`}
+              title={locale === 'vi' ? 'Bộ lọc công việc' : (t('filter') || 'Filter')}
             >
-              <Filter className="w-3.5 h-3.5" />
-              <span>{locale === 'vi' ? 'Bộ lọc' : (t('filter') || 'Filter')}</span>
+              <Filter className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">{locale === 'vi' ? 'Bộ lọc' : (t('filter') || 'Filter')}</span>
               {activeFilterCount > 0 && (
                 <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[8.5px] font-black flex items-center justify-center">
                   {activeFilterCount}
@@ -3716,14 +4091,15 @@ export default function SpacePage({
                 <button
                   type="button"
                   onClick={() => setIsSortMenuOpen(!isSortMenuOpen)}
-                  className={`h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`h-7.5 px-2 sm:px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                     sortBy !== 'manual'
                       ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 font-bold border border-blue-200/60 dark:border-blue-500/30 shadow-2xs'
                       : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-white/5'
                   }`}
+                  title={locale === 'vi' ? 'Sắp xếp công việc' : 'Sort'}
                 >
-                  <SlidersHorizontal className="w-3.5 h-3.5" />
-                  <span>{locale === 'vi' ? 'Sắp xếp' : 'Sort'}</span>
+                  <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
+                  <span className="hidden sm:inline">{locale === 'vi' ? 'Sắp xếp' : 'Sort'}</span>
                   <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${isSortMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
               </div>
@@ -3929,10 +4305,10 @@ export default function SpacePage({
                 fetchAiPriority();
               }}
               title={locale === 'vi' ? 'Ưu tiên do AI đề xuất' : 'AI Priority Suggestions'}
-              className="h-8 px-2.5 rounded-lg text-xs font-semibold text-blue-600 dark:text-sky-300 hover:bg-blue-50/80 dark:hover:bg-sky-500/15 cursor-pointer flex items-center gap-1.5 transition-colors border border-transparent hover:border-blue-200/50 dark:hover:border-sky-500/30"
+              className="h-7.5 px-2 sm:px-2.5 rounded-lg text-xs font-semibold text-blue-600 dark:text-sky-300 hover:bg-blue-50/80 dark:hover:bg-sky-500/15 cursor-pointer flex items-center gap-1.5 transition-colors border border-transparent hover:border-blue-200/50 dark:hover:border-sky-500/30 shrink-0"
             >
-              <Bot className="w-3.5 h-3.5" />
-              <span>{locale === 'vi' ? 'Gợi ý AI' : 'AI Priority'}</span>
+              <Bot className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden md:inline">{locale === 'vi' ? 'Gợi ý AI' : 'AI Priority'}</span>
             </button>
 
             {/* Pomodoro Focus indicator */}
@@ -4170,9 +4546,17 @@ export default function SpacePage({
 
       {/* ── Active Module Rendering Body Section ── */}
       <section className={`apexa-space-content flex-1 select-none scrollbar-none bg-white dark:bg-[var(--cu-bg)] flex flex-col ${activeView === 'board' ? 'overflow-hidden min-h-0' : 'overflow-y-auto'}`} aria-label="Không gian làm việc" data-view={activeView}>
-        
-        {/* Render Overview Dashboard */}
-        {activeView === 'overview' && (
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={activeView}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+            className={`w-full h-full flex flex-col flex-1 ${activeView === 'board' ? 'overflow-hidden min-h-0' : ''}`}
+          >
+            {/* Render Overview Dashboard */}
+            {activeView === 'overview' && (
           <SpaceOverviewTab 
             space={activeSpace}
             tasks={tasks}
@@ -4266,6 +4650,9 @@ export default function SpacePage({
             spaces={spaces}
             wrapText={wrapText}
             showEmptyStatuses={showEmptyStatuses}
+            onToggleShowEmptyStatuses={setShowEmptyStatuses}
+            customFields={customFields}
+            visibleFields={visibleFields}
             onReorderTasks={(orderedIds) => {
               if (onUpdateTaskOrder && activeWorkspaceId) {
                 onUpdateTaskOrder(activeWorkspaceId, orderedIds);
@@ -4385,33 +4772,6 @@ export default function SpacePage({
           />
         )}
 
-        {/* Integrate Document Hub Module */}
-        {activeView === 'doc' && (
-          <DocumentHub 
-            docs={allDocs.filter(d => activeSpaceId ? d.spaceId === activeSpaceId : d.workspaceId === activeWorkspaceId)}
-            currentUser={currentUser}
-            onAddDoc={onAddDoc || (() => {})}
-            onUpdateDoc={onUpdateDoc || (() => {})}
-            onDeleteDoc={onDeleteDoc || (() => {})}
-            isOffline={isOffline}
-            onAddSyncLog={onAddSyncLog}
-            initialSelectedDocId={initialSpaceDocId}
-            onClearInitialSelectedDocId={() => setInitialSpaceDocId(null)}
-            spaceId={activeSpaceId}
-            folderId={activeFolderId || null}
-            onCreateTaskFromDoc={(title, description, documentId) => onAddTask({
-              title,
-              description,
-              priority: 'medium',
-              status: 'todo',
-              subtasks: [],
-              tags: ['docs'],
-              isPinned: false,
-              relationships: { docs: [documentId] }
-            })}
-          />
-        )}
-
         {/* Integrate Team Directory Module */}
         {activeView === 'team' && (
           <TeamDirectory 
@@ -4503,37 +4863,262 @@ export default function SpacePage({
 
         {/* Mind Map View */}
         {activeView === 'mindmap' && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-3xs space-y-4">
-            <h3 className="text-sm font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
-              <Brain className="w-5 h-5 text-pink-500" />
-              <span>Chế độ sơ đồ tư duy</span>
-            </h3>
-            <div className="p-8 border border-slate-150 dark:border-slate-850 rounded-2xl bg-slate-50/20 dark:bg-slate-950/10 flex flex-col items-center space-y-4">
-              <div className="px-4 py-2 bg-indigo-500 text-white rounded-xl font-bold text-xs shadow-sm">
-                {activeSpace.name}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-3xs space-y-6">
+            {/* Mindmap header & toolbar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <Brain className="w-5 h-5 text-pink-500" />
+                  <span>{locale === 'vi' ? 'Sơ đồ tư duy công việc (Mindmap)' : 'Task Mindmap Tree'}</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {locale === 'vi'
+                    ? 'Trực quan hóa cấu trúc dự án từ Không gian → Danh sách → Công việc theo sơ đồ phân nhánh tương tác.'
+                    : 'Visualize project hierarchy from Space → Lists → Tasks with interactive branching.'}
+                </p>
               </div>
-              <div className="w-0.5 h-6 bg-slate-300 dark:bg-slate-700" />
-              <div className="grid grid-cols-1 gap-4 w-full sm:grid-cols-2 lg:grid-cols-3">
-                {activeSpace.lists.map(list => (
-                  <div key={list.id} className="flex flex-col items-center">
-                    <div className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold text-slate-750 dark:text-slate-300 shadow-3xs w-full text-center truncate">
-                      {list.name}
-                    </div>
-                    <div className="mt-2 w-full space-y-1 border-l-2 border-indigo-100 pl-2 dark:border-indigo-900/40">
-                      {filteredTasks.filter(task => task.listId === list.id).slice(0, 6).map(task => (
-                        <button key={task.id} type="button" onClick={() => setSelectedTask(task)}
-                          className="block w-full truncate rounded-lg bg-slate-50 px-2 py-1 text-left text-[9px] font-semibold text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 dark:bg-slate-950/50 dark:text-slate-400 dark:hover:bg-indigo-950/30 dark:hover:text-indigo-300">
-                          {task.title}
-                        </button>
-                      ))}
-                      {filteredTasks.filter(task => task.listId === list.id).length === 0 && (
-                        <p className="px-2 py-1 text-[9px] italic text-slate-400">Chưa có công việc</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
+
+              <div className="flex items-center gap-2">
+                {/* Zoom controls */}
+                <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-0.5 text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setMindmapZoom(z => Math.max(60, z - 10))}
+                    className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 transition-all cursor-pointer"
+                    title={locale === 'vi' ? 'Thu nhỏ' : 'Zoom out'}
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <span className="px-2 text-[11px] font-bold text-slate-500 tabular-nums">{mindmapZoom}%</span>
+                  <button
+                    type="button"
+                    onClick={() => setMindmapZoom(z => Math.min(150, z + 10))}
+                    className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 transition-all cursor-pointer"
+                    title={locale === 'vi' ? 'Phóng to' : 'Zoom in'}
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMindmapZoom(100)}
+                    className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 transition-all cursor-pointer ml-0.5"
+                    title={locale === 'vi' ? 'Đặt lại kích thước' : 'Reset zoom'}
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Expand / Collapse All */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allCollapsed = activeSpace.lists.every(l => mindmapCollapsedLists[l.id]);
+                    const next: Record<string, boolean> = {};
+                    if (!allCollapsed) {
+                      activeSpace.lists.forEach(l => { next[l.id] = true; });
+                    }
+                    setMindmapCollapsedLists(next);
+                  }}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                >
+                  {activeSpace.lists.every(l => mindmapCollapsedLists[l.id])
+                    ? (locale === 'vi' ? 'Mở rộng tất cả' : 'Expand all')
+                    : (locale === 'vi' ? 'Thu gọn tất cả' : 'Collapse all')}
+                </button>
               </div>
             </div>
+
+            {/* Mindmap Interactive Tree Canvas */}
+            {(() => {
+              const totalTasksCount = filteredTasks.length;
+              const completedTasksCount = filteredTasks.filter(t => t.status === 'completed').length;
+              const spaceProgressPercent = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
+
+              return (
+                <div className="overflow-x-auto overflow-y-auto max-h-[750px] p-6 bg-slate-50/40 dark:bg-slate-950/30 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 select-none">
+                  <div 
+                    className="min-w-max flex items-center gap-12 transition-transform duration-200 origin-top-left py-6 px-2"
+                    style={{ transform: `scale(${mindmapZoom / 100})` }}
+                  >
+                    {/* ROOT: Space Node */}
+                    <div className="relative shrink-0">
+                      <div className="w-64 bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 text-white p-4 rounded-2xl shadow-md border border-indigo-400/30 flex flex-col gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-lg shrink-0">
+                            {renderSpaceIcon((activeSpace as any).icon || activeSpace.emoji, "w-5 h-5 text-white")}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="text-[10px] uppercase font-black tracking-wider text-indigo-200 block">
+                              {locale === 'vi' ? 'Không gian' : 'Space'}
+                            </span>
+                            <h4 className="text-sm font-black truncate text-white">{activeSpace.name}</h4>
+                          </div>
+                        </div>
+
+                        {/* Space Stats */}
+                        <div className="pt-2 border-t border-white/15 text-[11px] space-y-1.5">
+                          <div className="flex items-center justify-between text-indigo-100 font-semibold">
+                            <span>{completedTasksCount}/{totalTasksCount} {locale === 'vi' ? 'hoàn thành' : 'done'}</span>
+                            <span className="font-bold tabular-nums">{spaceProgressPercent}%</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-black/25 rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-400 rounded-full transition-all duration-500" style={{ width: `${spaceProgressPercent}%` }} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right connector pill */}
+                      <div className="absolute top-1/2 -right-3.5 -translate-y-1/2 w-7 h-7 rounded-full bg-indigo-600 border-2 border-white dark:border-slate-900 flex items-center justify-center text-[10.5px] font-bold text-white shadow-sm z-10" title={`${activeSpace.lists.length} ${locale === 'vi' ? 'danh sách' : 'lists'}`}>
+                        {activeSpace.lists.length}
+                      </div>
+                    </div>
+
+                    {/* STEM & BRANCHES (Lists) */}
+                    <div className="flex flex-col gap-6 relative">
+                      {activeSpace.lists.map((list) => {
+                        const listTasks = filteredTasks.filter(task => task.listId === list.id);
+                        const isCollapsed = mindmapCollapsedLists[list.id];
+                        const listCompleted = listTasks.filter(t => t.status === 'completed').length;
+                        const listPercent = listTasks.length > 0 ? Math.round((listCompleted / listTasks.length) * 100) : 0;
+
+                        return (
+                          <div key={list.id} className="flex items-center gap-8 relative">
+                            {/* Branch connector line from root */}
+                            <div className="w-8 h-0.5 bg-indigo-200 dark:bg-indigo-900/60 shrink-0" />
+
+                            {/* LIST NODE */}
+                            <div className="w-60 shrink-0 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl p-3 shadow-xs hover:border-indigo-400 dark:hover:border-indigo-600 transition-all flex flex-col gap-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: (list as any).color || '#6366f1' }} />
+                                  <span className="text-xs font-black text-slate-800 dark:text-slate-100 truncate" title={list.name}>
+                                    {list.name}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md">
+                                    {listTasks.length}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setMindmapCollapsedLists(prev => ({ ...prev, [list.id]: !prev[list.id] }))}
+                                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                                    title={isCollapsed ? (locale === 'vi' ? 'Mở rộng' : 'Expand') : (locale === 'vi' ? 'Thu gọn' : 'Collapse')}
+                                  >
+                                    <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-200 ${isCollapsed ? '' : 'rotate-90'}`} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Mini progress bar */}
+                              <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                                <div className="flex-1 h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                  <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${listPercent}%` }} />
+                                </div>
+                                <span className="font-semibold tabular-nums">{listPercent}%</span>
+                              </div>
+
+                              {/* Quick add task button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (openPromptModal) {
+                                    openPromptModal({
+                                      type: 'task',
+                                      title: locale === 'vi' ? 'Thêm công việc vào danh sách' : 'Add task to list',
+                                      subtitle: `${list.name}`,
+                                      placeholder: locale === 'vi' ? 'Nhập tên công việc...' : 'Enter task title...',
+                                      confirmText: locale === 'vi' ? 'Tạo việc' : 'Create',
+                                      onConfirm: (val: string) => {
+                                        if (val?.trim()) {
+                                          guardedAddTask({
+                                            title: val.trim(),
+                                            description: '',
+                                            subtasks: [],
+                                            status: 'todo',
+                                            priority: 'medium',
+                                            listId: list.id,
+                                            spaceId: activeSpace.id,
+                                            workspaceId: activeWorkspaceId || activeSpace.workspaceId
+                                          });
+                                        }
+                                      }
+                                    });
+                                  }
+                                }}
+                                className="w-full text-[10px] font-bold text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 py-1 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-lg flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                              >
+                                <Plus className="w-3 h-3" />
+                                <span>{locale === 'vi' ? 'Thêm việc' : 'Add task'}</span>
+                              </button>
+                            </div>
+
+                            {/* LEAF NODES: Tasks */}
+                            {!isCollapsed && (
+                              <div className="flex items-center gap-6">
+                                <div className="w-6 h-0.5 bg-slate-200 dark:bg-slate-800 shrink-0" />
+
+                                <div className="flex flex-col gap-2 min-w-[240px] max-w-sm">
+                                  {listTasks.length === 0 ? (
+                                    <div className="p-3 bg-slate-50/60 dark:bg-slate-900/40 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-center">
+                                      <span className="text-[11px] italic text-slate-400">
+                                        {locale === 'vi' ? 'Chưa có công việc nào' : 'No tasks in this list'}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    listTasks.map(task => {
+                                      const statusColor = task.status === 'completed' ? 'bg-emerald-500'
+                                        : task.status === 'review' ? 'bg-cyan-500'
+                                        : task.status === 'inprogress' ? 'bg-amber-500' : 'bg-slate-400';
+                                      const priorityColor = task.priority === 'urgent' ? 'text-rose-600 bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/30'
+                                        : task.priority === 'high' ? 'text-amber-600 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/30'
+                                        : 'text-slate-500 bg-slate-100 dark:bg-slate-800 border-slate-200/50 dark:border-slate-700/50';
+                                      const assignee = members.find(m => m.id === (task.assigneeIds?.[0] || task.assigneeId));
+                                      return (
+                                        <div
+                                          key={task.id}
+                                          onClick={() => setSelectedTask(task)}
+                                          className="group bg-white dark:bg-slate-900 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 border border-slate-200/70 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600 rounded-xl p-2.5 shadow-3xs hover:shadow-xs transition-all cursor-pointer flex items-center justify-between gap-3"
+                                        >
+                                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                                            <span className={`w-2 h-2 rounded-full shrink-0 ${statusColor}`} />
+                                            <span className={`text-xs font-bold text-slate-800 dark:text-slate-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors ${task.status === 'completed' ? 'line-through opacity-60' : ''}`}>
+                                              {task.title}
+                                            </span>
+                                          </div>
+
+                                          <div className="flex items-center gap-1.5 shrink-0">
+                                            {task.priority && (
+                                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${priorityColor}`}>
+                                                {task.priority}
+                                              </span>
+                                            )}
+                                            {assignee && (
+                                              <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold text-[9px] flex items-center justify-center" title={assignee.name}>
+                                                {assignee.name.slice(0, 1).toUpperCase()}
+                                              </div>
+                                            )}
+                                            {task.dueDate && (
+                                              <span className="text-[9px] font-semibold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                                                {task.dueDate.slice(5)}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -4622,6 +5207,79 @@ export default function SpacePage({
                 </div>
               </div>
 
+              {/* Dynamic Space Custom Fields in Form */}
+              {customFields && customFields.length > 0 && (
+                <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Sliders className="w-4 h-4 text-indigo-500" />
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                      {locale === 'vi' ? 'Thông tin bổ sung (Trường tùy chỉnh)' : 'Additional Custom Fields'}
+                    </h4>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {customFields.map(field => {
+                      const val = formCustomValues[field.name] ?? '';
+                      return (
+                        <div key={field.id} className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700 dark:text-slate-200 block">
+                            {field.name}
+                            {field.isRequired && <span className="text-rose-500 ml-0.5">*</span>}
+                          </label>
+                          {field.type === 'checkbox' ? (
+                            <label className="flex items-center gap-2 cursor-pointer mt-1 select-none">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(val)}
+                                onChange={e => setFormCustomValues(prev => ({ ...prev, [field.name]: e.target.checked }))}
+                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                              />
+                              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                                {locale === 'vi' ? 'Bật / Kích hoạt' : 'Enable / Yes'}
+                              </span>
+                            </label>
+                          ) : field.type === 'dropdown' ? (
+                            <select
+                              value={String(val)}
+                              onChange={e => setFormCustomValues(prev => ({ ...prev, [field.name]: e.target.value }))}
+                              className="w-full bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500"
+                            >
+                              <option value="">{locale === 'vi' ? '-- Chọn lựa chọn --' : '-- Select option --'}</option>
+                              {((field.options || []) as any[]).map((opt: any) => {
+                                const optLabel = typeof opt === 'string' ? opt : opt?.label || String(opt);
+                                return <option key={optLabel} value={optLabel}>{optLabel}</option>;
+                              })}
+                            </select>
+                          ) : field.type === 'date' ? (
+                            <input
+                              type="date"
+                              value={String(val)}
+                              onChange={e => setFormCustomValues(prev => ({ ...prev, [field.name]: e.target.value }))}
+                              className="w-full bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500"
+                            />
+                          ) : (field.type === 'number' || field.type === 'money' || field.type === 'progress' || field.type === 'rating') ? (
+                            <input
+                              type="number"
+                              value={val}
+                              placeholder={field.type === 'money' ? (field.currencySymbol || '₫') : field.type === 'progress' ? '0-100%' : '0'}
+                              onChange={e => setFormCustomValues(prev => ({ ...prev, [field.name]: e.target.value === '' ? '' : Number(e.target.value) }))}
+                              className="w-full bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500"
+                            />
+                          ) : (
+                            <input
+                              type="text"
+                              value={String(val)}
+                              onChange={e => setFormCustomValues(prev => ({ ...prev, [field.name]: e.target.value }))}
+                              placeholder={`${field.name}...`}
+                              className="w-full bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500"
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="pt-2 flex justify-end gap-3">
                 <button
                   type="submit"
@@ -4693,10 +5351,10 @@ export default function SpacePage({
               </div>
               <div>
                 <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  Trình tạo quy trình & công việc bằng Upgen AI
+                  Trình tạo quy trình & công việc bằng Costack AI
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Mô tả mục tiêu của bạn, Upgen AI sẽ tự động phân tích và sinh danh sách các công việc cụ thể vào Space.
+                  Mô tả mục tiêu của bạn, Costack AI sẽ tự động phân tích và sinh danh sách các công việc cụ thể vào Space.
                 </p>
               </div>
             </div>
@@ -4742,13 +5400,14 @@ export default function SpacePage({
                   className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Sparkles className="w-4 h-4 animate-spin" style={{ animationDuration: isAiGeneratingTasks ? '1s' : '0s' }} />
-                  <span>{isAiGeneratingTasks ? 'Upgen AI đang tạo công việc...' : 'Tạo công việc ngay'}</span>
+                  <span>{isAiGeneratingTasks ? 'Costack AI đang tạo công việc...' : 'Tạo công việc ngay'}</span>
                 </button>
               </div>
             </div>
           </div>
         )}
-
+          </motion.div>
+        </AnimatePresence>
       </section>
 
       {/* Task Detail Drawer Panel */}
@@ -4805,7 +5464,7 @@ export default function SpacePage({
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 50, opacity: 0, scale: 0.97 }}
             transition={{ type: 'spring', damping: 28, stiffness: 340 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/95 dark:bg-[#08090d]/95 backdrop-blur-md border border-slate-200/90 dark:border-white/12 shadow-[0_12px_36px_-6px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_48px_-8px_rgba(0,0,0,0.6)] max-w-[95vw] overflow-x-auto scrollbar-none select-none text-xs"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-white/92 dark:bg-[#08090d]/92 backdrop-blur-xl border border-slate-200/90 dark:border-white/15 shadow-[0_18px_48px_-6px_rgba(0,0,0,0.18)] dark:shadow-[0_24px_64px_-8px_rgba(0,0,0,0.85)] max-w-[95vw] overflow-x-auto scrollbar-none select-none text-xs card-bevel-edge ring-1 ring-black/5 dark:ring-white/[0.08]"
           >
             {/* Selection Count */}
             <div className="flex items-center gap-1.5 pl-0.5 pr-1.5 shrink-0">
@@ -4823,7 +5482,7 @@ export default function SpacePage({
             <div className="flex items-center gap-1 shrink-0">
               <button
                 onClick={handleBulkComplete}
-                className="px-2.5 py-1.5 rounded-lg text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors active:scale-95 shrink-0"
+                className="px-2.5 py-1.5 rounded-lg text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors tactile-press shrink-0"
                 title={t('markComplete') || "Hoàn thành"}
               >
                 <Check className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -4832,7 +5491,7 @@ export default function SpacePage({
 
               <button
                 onClick={handleBulkDuplicate}
-                className="px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors active:scale-95 shrink-0"
+                className="px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors tactile-press shrink-0"
                 title={t('duplicate') || "Nhân bản"}
               >
                 <Copy className="w-3.5 h-3.5" />
@@ -4847,7 +5506,7 @@ export default function SpacePage({
                   setBulkMoveListId(activeListId || sp?.lists?.[0]?.id || '');
                   setShowBulkMoveModal(true);
                 }}
-                className="px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors active:scale-95 shrink-0"
+                className="px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors tactile-press shrink-0"
                 title={t('moveTo') || "Di chuyển"}
               >
                 <FolderInput className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
@@ -4872,7 +5531,7 @@ export default function SpacePage({
             {/* Delete */}
             <button
               onClick={handleBulkDelete}
-              className="px-2.5 py-1.5 rounded-lg text-rose-600 hover:text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 shrink-0 active:scale-95"
+              className="px-2.5 py-1.5 rounded-lg text-rose-600 hover:text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 shrink-0 tactile-press"
               title={t('deleteSelected') || "Xóa"}
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -4882,7 +5541,7 @@ export default function SpacePage({
             {/* Dismiss */}
             <button
               onClick={() => setSelectedTaskIds([])}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] cursor-pointer transition-colors shrink-0 active:scale-95"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] cursor-pointer transition-colors shrink-0 tactile-press"
               title={t('deselectAll') || "Bỏ chọn"}
             >
               <X className="w-3.5 h-3.5" />
@@ -5056,7 +5715,7 @@ export default function SpacePage({
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-                    <span>Upgen AI Triage</span>
+                    <span>Costack AI Triage</span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/40">
                       Gemini 2.5
                     </span>
@@ -5078,7 +5737,7 @@ export default function SpacePage({
             {loadingAiPriority ? (
               <div className="text-center py-14 space-y-3 my-auto">
                 <RefreshCw className="w-9 h-9 text-indigo-500 animate-spin mx-auto" />
-                <p className="text-xs text-slate-700 dark:text-slate-200 font-bold">Upgen AI đang phân tích toàn bộ công việc...</p>
+                <p className="text-xs text-slate-700 dark:text-slate-200 font-bold">Costack AI đang phân tích toàn bộ công việc...</p>
                 <p className="text-[11px] text-slate-400">Đối chiếu hạn chót, mô tả, độ phức tạp và tính phụ thuộc</p>
               </div>
             ) : (
@@ -7042,8 +7701,8 @@ export default function SpacePage({
         isOpen={showFieldsPanel}
         onClose={() => { setShowFieldsPanel(false); setFieldsPanelAnchor(null); }}
         visibleFields={visibleFields} setVisibleFields={setVisibleFields}
-        customFields={customFields} setCustomFields={setCustomFields}
-        tasks={tasks.filter(task => task.spaceId === activeSpace.id)} onUpdateTask={guardedUpdateTask}
+        customFields={customFields} setCustomFields={persistCustomFields}
+        tasks={tasks.filter(task => !activeSpace.id || task.spaceId === activeSpace.id || !task.spaceId)} onUpdateTask={guardedUpdateTask}
         activeSpace={activeSpace} spaces={spaces} onSaveSpaces={onSaveSpaces}
         openDialog={triggerConfirm} triggerToast={triggerToast}
         anchorPosition={fieldsPanelAnchor}

@@ -50,7 +50,7 @@ async function requireUser(request: Request) {
   const accessToken = authorization.slice(7).trim();
   const { data, error } = await client.auth.getUser(accessToken);
   if (error || !data.user) {
-    throw new CalendarHttpError(401, 'Your Upgen session is invalid or expired.', 'APEXA_SESSION_REQUIRED');
+    throw new CalendarHttpError(401, 'Your Costack session is invalid or expired.', 'APEXA_SESSION_REQUIRED');
   }
 }
 

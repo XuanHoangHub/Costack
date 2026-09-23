@@ -10,7 +10,9 @@ interface FinanceState {
   categories: FinanceCategory[];
   accounts: FinanceAccount[];
   fetchTransactionsFromSupabase: (workspaceId?: string) => Promise<void>;
-  addTransaction: (t: Omit<FinanceTransaction, 'id' | 'date'>) => Promise<void>;
+  addTransaction: (t: Omit<FinanceTransaction, 'id' | 'date'> & { accountId?: string }) => Promise<void>;
+  deleteTransaction: (id: string) => Promise<void>;
+  addAccount: (acc: { bank: string; accountNumber: string; balance?: number; color?: string; type?: string }) => Promise<void>;
   subscribeToFinance: (workspaceId?: string) => () => void;
   getTotalBalance: () => number;
   getTotalIncome: () => number;
@@ -92,13 +94,35 @@ export const useFinanceStore = create<FinanceState>()(
         try {
           const { data: { session } } = await supabase.auth.getSession();
           const workspaceId = t.workspaceId || useWorkspaceStore.getState().activeWorkspaceId;
-          const account = get().accounts[0];
-          if (!session?.user || !workspaceId || !account) {
-            throw new Error('Hãy tạo hoặc chọn một tài khoản tài chính trên Web trước khi ghi giao dịch.');
+          if (!session?.user || !workspaceId) {
+            throw new Error('Bạn cần đăng nhập để ghi giao dịch.');
           }
+
+          let targetAccountId = t.accountId || get().accounts[0]?.id;
+          if (!targetAccountId) {
+            // Auto-provision a default account so transaction is never blocked
+            const { data: newAcc, error: createAccErr } = await supabase
+              .from('finance_accounts')
+              .insert({
+                workspace_id: workspaceId,
+                bank: 'Tài khoản chính (VPBank)',
+                account_number: '8888',
+                branch: 'Hà Nội',
+                account_type: 'bank',
+                balance: 0,
+                color: '#3b82f6',
+                created_by: session.user.id,
+              })
+              .select('id,bank,account_number,balance,color')
+              .single();
+
+            if (createAccErr) throw createAccErr;
+            targetAccountId = newAcc.id;
+          }
+
           const { error } = await supabase.rpc('record_finance_transaction', {
             p_workspace_id: workspaceId,
-            p_account_id: account.id,
+            p_account_id: targetAccountId,
             p_code: `MB-${Date.now().toString().slice(-9)}`,
             p_transaction_type: t.type,
             p_category: t.category,
@@ -115,6 +139,48 @@ export const useFinanceStore = create<FinanceState>()(
           await get().fetchTransactionsFromSupabase(workspaceId);
         } catch (e) {
           console.warn('Error saving transaction to Supabase:', e);
+          throw e;
+        }
+      },
+
+      deleteTransaction: async (id: string) => {
+        try {
+          set((state) => ({
+            transactions: state.transactions.filter((tx) => tx.id !== id),
+          }));
+          const { error } = await supabase
+            .from('finance_transactions')
+            .delete()
+            .eq('id', id);
+          if (error) throw error;
+          const currentWs = useWorkspaceStore.getState().activeWorkspaceId;
+          await get().fetchTransactionsFromSupabase(currentWs);
+        } catch (e) {
+          console.warn('Error deleting transaction from Supabase:', e);
+        }
+      },
+
+      addAccount: async (acc) => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const workspaceId = useWorkspaceStore.getState().activeWorkspaceId;
+          if (!session?.user || !workspaceId) return;
+
+          const { error } = await supabase.from('finance_accounts').insert({
+            workspace_id: workspaceId,
+            bank: acc.bank.trim(),
+            account_number: acc.accountNumber.trim(),
+            branch: 'Hà Nội',
+            account_type: acc.type || 'bank',
+            balance: acc.balance || 0,
+            color: acc.color || '#3b82f6',
+            created_by: session.user.id,
+          });
+          if (error) throw error;
+          await get().fetchTransactionsFromSupabase(workspaceId);
+        } catch (e) {
+          console.warn('Error adding account to Supabase:', e);
+          throw e;
         }
       },
 

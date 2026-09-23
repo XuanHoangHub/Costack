@@ -2,6 +2,7 @@
 
 import CustomFieldInput from "./CustomFieldInput";
 import { RESERVED_FIELD_NAMES, isEmptyFieldValue } from "@/lib/customFields";
+import { useSpaceStore } from '@/store/spaceStore';
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -19,6 +20,8 @@ import { wouldCreateDependencyCycle } from '../../lib/taskRelationships';
 import { callAiApi } from '@/lib/aiClient';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { saveTaskReminder, ReminderOption } from '@/lib/notificationManager';
+import { fireTaskCompleteConfetti } from '@/lib/confetti';
+import { playSuccessSound, playToggleSound } from '@/lib/soundEffects';
 import {
   Boxes,
   Layers3,
@@ -233,32 +236,48 @@ export default function TaskDetailsPanel({
 
   // Layout styles mapping
   const overlayClass = 
-    modalLayout === 'modal' ? 'fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 md:p-6 bg-slate-950/40 dark:bg-black/55 transition-all duration-200 cursor-pointer' :
-    modalLayout === 'fullscreen' ? 'fixed inset-0 z-[100] flex items-stretch justify-stretch p-0 bg-slate-950/40 transition-all duration-200' :
-    'fixed inset-0 z-[100] flex items-stretch justify-end p-0 bg-slate-950/20 dark:bg-black/35 transition-all duration-200 cursor-pointer';
+    modalLayout === 'modal' ? 'fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 md:p-6 bg-slate-950/45 dark:bg-black/60 backdrop-blur-md backdrop-saturate-150 transition-all duration-200 cursor-pointer' :
+    modalLayout === 'fullscreen' ? 'fixed inset-0 z-[100] flex items-stretch justify-stretch p-0 bg-slate-950/40 backdrop-blur-xs transition-all duration-200' :
+    'fixed inset-0 z-[100] flex items-stretch justify-end p-0 bg-slate-950/25 dark:bg-black/40 backdrop-blur-sm transition-all duration-200 cursor-pointer';
 
   const panelClass =
-    modalLayout === 'modal' ? 'relative w-full sm:w-[92vw] max-w-[1240px] h-full sm:h-[88vh] sm:max-h-[920px] bg-white dark:bg-[var(--cu-surface)] border-none sm:border border-slate-200/90 dark:border-slate-800/80 rounded-none sm:rounded-[26px] flex flex-col overflow-hidden shadow-[0_28px_85px_rgba(15,23,42,0.22)] dark:shadow-[0_32px_96px_rgba(0,0,0,0.55)] ring-1 ring-black/5 dark:ring-white/[0.05] pointer-events-auto cursor-default outline-none focus:outline-none ring-0' :
+    modalLayout === 'modal' ? 'relative w-full sm:w-[92vw] max-w-[1240px] h-full sm:h-[88vh] sm:max-h-[920px] bg-white dark:bg-[var(--cu-surface)] border-none sm:border border-slate-200/90 dark:border-slate-800/80 rounded-none sm:rounded-[26px] flex flex-col overflow-hidden card-bevel-edge shadow-[0_32px_96px_-12px_rgba(15,23,42,0.28)] dark:shadow-[0_36px_100px_-12px_rgba(0,0,0,0.7)] ring-1 ring-black/5 dark:ring-white/[0.05] pointer-events-auto cursor-default outline-none focus:outline-none ring-0' :
     modalLayout === 'fullscreen' ? 'relative w-full h-full bg-white dark:bg-[var(--cu-bg)] flex flex-col overflow-hidden shadow-2xl pointer-events-auto cursor-default outline-none focus:outline-none ring-0' :
-    `relative w-full ${isSidebarExpanded ? 'max-w-[1100px] xl:max-w-[80vw]' : 'max-w-[680px] lg:max-w-[740px]'} h-full bg-white dark:bg-[var(--cu-surface)] border-l border-slate-200/90 dark:border-slate-800/80 rounded-none sm:rounded-l-[26px] flex flex-col overflow-hidden shadow-[-20px_0_60px_rgba(15,23,42,0.2)] dark:shadow-[-20px_0_60px_rgba(0,0,0,0.5)] pointer-events-auto cursor-default outline-none focus:outline-none ring-0`;
+    `relative w-full ${isSidebarExpanded ? 'max-w-[1100px] xl:max-w-[80vw]' : 'max-w-[680px] lg:max-w-[740px]'} h-full bg-white dark:bg-[var(--cu-surface)] border-l border-slate-200/90 dark:border-slate-800/80 rounded-none sm:rounded-l-[26px] flex flex-col overflow-hidden shadow-[-24px_0_70px_rgba(15,23,42,0.25)] dark:shadow-[-24px_0_70px_rgba(0,0,0,0.7)] pointer-events-auto cursor-default outline-none focus:outline-none ring-0`;
 
   const panelAnimation: any =
     modalLayout === 'modal' ? {
-      initial: { scale: 0.96, opacity: 0, y: 14 },
+      initial: { scale: 0.95, opacity: 0, y: 12 },
       animate: { scale: 1, opacity: 1, y: 0 },
-      exit: { scale: 0.96, opacity: 0, y: 10 },
-      transition: { type: 'spring', damping: 28, stiffness: 320 }
+      exit: { scale: 0.96, opacity: 0, y: 8 },
+      transition: { type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }
     } : modalLayout === 'fullscreen' ? {
       initial: { scale: 0.99, opacity: 0 },
       animate: { scale: 1, opacity: 1 },
       exit: { scale: 0.99, opacity: 0 },
-      transition: { duration: 0.16, ease: 'easeOut' }
+      transition: { duration: 0.16, ease: [0.16, 1, 0.3, 1] }
     } : {
-      initial: { x: '100%', opacity: 0.9 },
+      initial: { x: '100%', opacity: 0.85 },
       animate: { x: 0, opacity: 1 },
-      exit: { x: '100%', opacity: 0.9 },
-      transition: { type: 'spring', damping: 32, stiffness: 320 }
+      exit: { x: '100%', opacity: 0.85 },
+      transition: { type: 'spring', damping: 32, stiffness: 340, mass: 0.85 }
     };
+
+  const handleStatusChange = (newStatus: TaskStatus) => {
+    onUpdateTask({ ...task, status: newStatus });
+    onAddSyncLog(`Status → ${newStatus}`);
+    if (newStatus === 'completed') {
+      fireTaskCompleteConfetti();
+      playSuccessSound();
+    } else {
+      playToggleSound();
+    }
+  };
+
+  const handleToggleCompletion = () => {
+    const nextStatus = task.status === 'completed' ? 'todo' : 'completed';
+    handleStatusChange(nextStatus as TaskStatus);
+  };
   const [showAssigneesDropdown, setShowAssigneesDropdown] = useState(false);
   const [showSpaceDropdown, setShowSpaceDropdown] = useState(false);
   const [showListDropdown, setShowListDropdown] = useState(false);
@@ -497,7 +516,7 @@ export default function TaskDetailsPanel({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [editingTitle, task.title, showSharePopover, showLogTimeModal, layoutMenuOpen, onClose, showAssigneesDropdown, showBlockedByDropdown, showBlocksDropdown, showLinkDocDropdown, showLinkTaskDropdown, showMoreMenu, showSpaceDropdown, showTagsDropdown, togglePropertiesSidebar]);
+  }, [editingTitle, task.title, showSharePopover, showLogTimeModal, layoutMenuOpen, onClose, showAssigneesDropdown, showBlockedByDropdown, showBlocksDropdown, showLinkDocDropdown, showLinkTaskDropdown, showListDropdown, showMoreMenu, showMoveModal, showSpaceDropdown, showTagsDropdown, togglePropertiesSidebar]);
 
   const saveTitle = () => {
     if (titleValue.trim() && titleValue !== task.title) {
@@ -955,14 +974,10 @@ export default function TaskDetailsPanel({
               <CircleDot className="w-3.5 h-3.5 text-slate-400" /> {isVietnamese ? 'Trạng thái' : 'Status'}
             </span>
             <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
-              <StatusPillSelect value={task.status} onChange={s => { onUpdateTask({ ...task, status: s }); onAddSyncLog(`Status → ${s}`); }} />
+              <StatusPillSelect value={task.status} onChange={handleStatusChange} />
               <button type="button"
-                onClick={() => {
-                  const next = task.status === 'completed' ? 'todo' : 'completed';
-                  onUpdateTask({ ...task, status: next as TaskStatus });
-                  onAddSyncLog(`Status → ${next}`);
-                }}
-                className={`p-1 rounded-lg border cursor-pointer transition-all ${task.status === 'completed' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400' : 'bg-white border-slate-200 text-slate-400 hover:text-emerald-500 dark:bg-slate-900 dark:border-slate-800'}`}
+                onClick={handleToggleCompletion}
+                className={`p-1 rounded-lg border cursor-pointer transition-all tactile-press ${task.status === 'completed' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400' : 'bg-white border-slate-200 text-slate-400 hover:text-emerald-500 dark:bg-slate-900 dark:border-slate-800'}`}
                 title={task.status === 'completed' ? (isVietnamese ? 'Đánh dấu chưa hoàn thành' : 'Mark incomplete') : (isVietnamese ? 'Đánh dấu hoàn thành' : 'Mark complete')}>
                 <Check className="w-3.5 h-3.5" />
               </button>
@@ -1470,15 +1485,37 @@ export default function TaskDetailsPanel({
                   <button 
                     type="button" 
                     onClick={() => {
-                      if (!newFieldName.trim()) return;
-                      if (RESERVED_FIELD_NAMES.has(newFieldName.trim()) || Object.keys(task.custom_fields || {}).some(key => key.toLowerCase() === newFieldName.trim().toLowerCase()) || activeSpaceFieldDefinitions.some(field => field.name.toLowerCase() === newFieldName.trim().toLowerCase())) {
-                        triggerToast?.('info', isVietnamese ? 'Tên trường đã được sử dụng' : 'Field name is already in use', newFieldName.trim());
+                      const trimmedName = newFieldName.trim();
+                      if (!trimmedName) return;
+                      if (RESERVED_FIELD_NAMES.has(trimmedName) || Object.keys(task.custom_fields || {}).some(key => key.toLowerCase() === trimmedName.toLowerCase()) || activeSpaceFieldDefinitions.some(field => field.name.toLowerCase() === trimmedName.toLowerCase())) {
+                        triggerToast?.('info', isVietnamese ? 'Tên trường đã được sử dụng' : 'Field name is already in use', trimmedName);
                         return;
                       }
-                      const updated = { ...(task.custom_fields || {}), [newFieldName.trim()]: newFieldValue.trim() };
+                      const updated = { ...(task.custom_fields || {}), [trimmedName]: newFieldValue.trim() };
                       onUpdateTask({ ...task, custom_fields: updated });
-                      if (triggerToast) triggerToast('success', 'Field Added', `Added custom field "${newFieldName.trim()}"`);
-                      onAddSyncLog(`Added custom field "${newFieldName.trim()}"`);
+
+                      // Ensure field definition is also saved to the space
+                      const targetSpaceId = task.spaceId || spaces[0]?.id;
+                      if (targetSpaceId) {
+                        const currentSpaces = useSpaceStore.getState().spaces;
+                        const targetSpace = currentSpaces.find(s => s.id === targetSpaceId);
+                        if (targetSpace) {
+                          const existingFields = targetSpace.customFields || [];
+                          if (!existingFields.some(f => f.name.toLowerCase() === trimmedName.toLowerCase())) {
+                            const newDef = { id: `cf-${Date.now()}`, name: trimmedName, type: 'text' as const };
+                            useSpaceStore.getState().updateSpace({
+                              ...targetSpace,
+                              customFields: [...existingFields, newDef]
+                            });
+                            if (typeof window !== 'undefined') {
+                              window.dispatchEvent(new Event('apexa-field-config-changed'));
+                            }
+                          }
+                        }
+                      }
+
+                      if (triggerToast) triggerToast('success', 'Field Added', `Added custom field "${trimmedName}"`);
+                      onAddSyncLog(`Added custom field "${trimmedName}"`);
                       setNewFieldName('');
                       setNewFieldValue('');
                       setShowAddCustomField(false);
@@ -2094,7 +2131,7 @@ export default function TaskDetailsPanel({
               <Sparkles className="w-3 h-3" />
             </div>
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-xs font-black text-slate-900 dark:text-white shrink-0 tracking-tight">Upgen Brain AI</span>
+              <span className="text-xs font-black text-slate-900 dark:text-white shrink-0 tracking-tight">Costack Brain AI</span>
               <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate hidden sm:inline">• {isVietnamese ? 'Trợ lý phân tích & copilot công việc' : 'Smart task copilot'}</span>
             </div>
           </div>
@@ -2183,14 +2220,14 @@ export default function TaskDetailsPanel({
                         handleAiQuery();
                       }
                     }}
-                    placeholder="Đặt câu hỏi hoặc yêu cầu Upgen Brain hỗ trợ công việc này…"
+                    placeholder="Đặt câu hỏi hoặc yêu cầu Costack Brain hỗ trợ công việc này…"
                     className="flex-1 bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-none px-2 text-xs font-medium text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
                   />
                   <button
                     type="button"
                     onClick={() => handleAiQuery()}
                     disabled={!aiPrompt.trim() || aiGeneratingResponse}
-                    aria-label="Gửi câu hỏi đến Upgen Brain"
+                    aria-label="Gửi câu hỏi đến Costack Brain"
                     className="h-7 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shrink-0 shadow-2xs"
                   >
                     {aiGeneratingResponse ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
@@ -3024,14 +3061,9 @@ export default function TaskDetailsPanel({
                       aria-pressed={task.status === 'completed'}
                       onClick={(e) => {
                         e.stopPropagation();
-                        const newStatus = task.status === 'completed' ? 'todo' : 'completed';
-                        onUpdateTask({ ...task, status: newStatus as TaskStatus });
-                        onAddSyncLog(`Toggled completion of task "${task.title}" to: ${newStatus}`);
-                        if (typeof window !== 'undefined') {
-                          (window as any).playSystemSound?.('toggle');
-                        }
+                        handleToggleCompletion();
                       }}
-                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all hover:scale-105 mt-1 shadow-2xs ${
+                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all tactile-press hover:scale-105 active:scale-95 mt-1 shadow-2xs ${
                         task.status === 'completed'
                           ? 'border-emerald-500 bg-emerald-500 text-white ring-4 ring-emerald-500/15 animate-pulse-once'
                           : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-transparent hover:border-emerald-500 hover:text-emerald-500'
@@ -3099,10 +3131,7 @@ export default function TaskDetailsPanel({
                       <div className="flex items-center gap-1.5 flex-1 min-w-0">
                         <StatusPillSelect
                           value={task.status}
-                          onChange={s => {
-                            onUpdateTask({ ...task, status: s });
-                            onAddSyncLog(`Status → ${s}`);
-                          }}
+                          onChange={handleStatusChange}
                         />
                         <button
                           type="button"
@@ -3110,22 +3139,17 @@ export default function TaskDetailsPanel({
                             const flow: TaskStatus[] = ['todo', 'inprogress', 'review', 'completed'];
                             const idx = flow.indexOf(task.status);
                             const next = flow[(idx + 1) % flow.length];
-                            onUpdateTask({ ...task, status: next });
-                            onAddSyncLog(`Status → ${next}`);
+                            handleStatusChange(next);
                           }}
-                          className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/[0.08] text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 transition-colors cursor-pointer"
+                          className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/[0.08] text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 transition-colors cursor-pointer tactile-press"
                           title={isVietnamese ? "Chuyển trạng thái kế tiếp" : "Next status"}
                         >
                           <ChevronRight className="w-3.5 h-3.5" />
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
-                            const next = task.status === 'completed' ? 'todo' : 'completed';
-                            onUpdateTask({ ...task, status: next });
-                            onAddSyncLog(`Status → ${next}`);
-                          }}
-                          className={`p-1 rounded-md border transition-all cursor-pointer ${
+                          onClick={handleToggleCompletion}
+                          className={`p-1 rounded-md border transition-all cursor-pointer tactile-press ${
                             task.status === 'completed' 
                               ? 'bg-emerald-50 border-emerald-300 text-emerald-600 dark:bg-emerald-950/40 dark:border-emerald-700 dark:text-emerald-400' 
                               : 'border-slate-200 dark:border-zinc-700 text-slate-400 hover:text-emerald-500'

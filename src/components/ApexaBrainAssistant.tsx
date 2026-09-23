@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Sparkles, Brain, Bot, Send, X, FileText, CheckSquare, 
+  Sparkles, Brain, Bot, Send, X, CheckSquare, 
   TrendingUp, AlertTriangle, Users, ArrowRight, Check, Play, HelpCircle, Loader2,
   Mic, MicOff, Globe, Volume2, VolumeX, Copy, RotateCcw, ChevronDown, Calendar,
   Flame, Trash2, Plus, Search, Clock, Sparkle, ExternalLink
@@ -90,7 +90,7 @@ export const QUICK_PROMPTS = [
 
 interface ApexaBrainAssistantProps {
   tasks: Task[];
-  documents: Document[];
+  documents?: Document[];
   members: User[];
   isOffline: boolean;
   onUpdateTask: (updatedTask: Task) => void;
@@ -98,11 +98,11 @@ interface ApexaBrainAssistantProps {
   onAddSyncLog: (action: string) => void;
 }
 
-type TabType = 'query' | 'summarize' | 'subtasks' | 'generate-tasks';
+type TabType = 'query' | 'subtasks' | 'generate-tasks';
 
 export default function ApexaBrainAssistant({
   tasks,
-  documents,
+  documents = [],
   members,
   isOffline,
   onUpdateTask,
@@ -280,11 +280,6 @@ export default function ApexaBrainAssistant({
       }
     }
   };
-  
-  // Tab 2 Summarize states
-  const [selectedDocId, setSelectedDocId] = useState<string>(documents[0]?.id || '');
-  const [docSummary, setDocSummary] = useState<string>('');
-  const [docSearchQuery, setDocSearchQuery] = useState('');
 
   // Tab 3 Subtask states
   const [selectedTaskId, setSelectedTaskId] = useState<string>(tasks[0]?.id || '');
@@ -304,7 +299,7 @@ export default function ApexaBrainAssistant({
     if (responseEndRef.current) {
       responseEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
-  }, [chatHistory, responseText, docSummary, loading, suggestedSubtasks, generatedTasks]);
+  }, [chatHistory, responseText, loading, suggestedSubtasks, generatedTasks]);
 
   // Clear Chat History
   const handleClearChat = () => {
@@ -339,8 +334,8 @@ export default function ApexaBrainAssistant({
       setTimeout(() => {
         setLoading(false);
         const offlineText = locale === 'vi' 
-          ? "⚠️ **Ngoại tuyến**: Upgen AI không thể kết nối tới máy chủ Gemini do không có kết nối mạng. Vui lòng bật lại mạng hoặc đồng bộ để tiếp tục truy vấn trực tuyến!"
-          : "⚠️ **Offline**: Upgen AI cannot connect to Gemini AI servers at this time. Please enable network connection to resume online queries!";
+          ? "⚠️ **Ngoại tuyến**: Costack AI không thể kết nối tới máy chủ Gemini do không có kết nối mạng. Vui lòng bật lại mạng hoặc đồng bộ để tiếp tục truy vấn trực tuyến!"
+          : "⚠️ **Offline**: Costack AI cannot connect to Gemini AI servers at this time. Please enable network connection to resume online queries!";
         const offlineMsg: AiChatMessage = {
           id: `ai-${Date.now()}`,
           sender: 'assistant',
@@ -367,7 +362,7 @@ export default function ApexaBrainAssistant({
       const data = await res.json();
       if (data.success && data.text) {
         setIsAiFallbackActive(false);
-        onAddSyncLog(`Asked Upgen AI: "${finalQuery.slice(0, 20)}..."`);
+        onAddSyncLog(`Asked Costack AI: "${finalQuery.slice(0, 20)}..."`);
         
         const urgentCount = tasks.filter(t => t.priority === 'urgent' || t.priority === 'high').length;
         const followUps = locale === 'vi' ? [
@@ -409,14 +404,14 @@ Dựa trên dữ liệu hiện tại trong không gian làm việc của bạn:
 - ⚠️ **Ưu tiên khẩn cấp/cao**: **${urgentTasks.length}** việc (${urgentTasks.slice(0, 2).map(t => `"${t.title}"`).join(', ')}${urgentTasks.length > 2 ? '...' : ''}).
 - 👥 **Nhân sự tham gia**: **${members.length}** thành viên trong dự án.
 
-*Gợi ý: Upgen AI hỗ trợ Gemini trực tuyến khi kết nối mạng và tài khoản hoạt động ổn định.*` : `### Task Progress Analysis (Local Fallback)
+*Gợi ý: Costack AI hỗ trợ Gemini trực tuyến khi kết nối mạng và tài khoản hoạt động ổn định.*` : `### Task Progress Analysis (Local Fallback)
 Based on current workspace data:
 - 📊 **Completion Rate**: **${completedCount}/${tasks.length}** tasks (${tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0}%).
 - ⏳ **In Progress**: **${inProgressCount}** tasks.
 - ⚠️ **High / Urgent Priority**: **${urgentTasks.length}** tasks.
 - 👥 **Assigned Members**: **${members.length}** active contributors.
 
-*Hint: Upgen AI works best with active network and paid tier.*`;
+*Hint: Costack AI works best with active network and paid tier.*`;
 
       const aiFallbackMessage: AiChatMessage = {
         id: `ai-${Date.now()}`,
@@ -429,60 +424,6 @@ Based on current workspace data:
 
       setChatHistory(prev => [...prev, aiFallbackMessage]);
       setResponseText(fallbackText);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle Document Summarization
-  const handleSummarizeDoc = async (type: 'summarize' | 'points' | 'actions') => {
-    const doc = documents.find(d => d.id === selectedDocId);
-    if (!doc) return;
-
-    setLoading(true);
-    setDocSummary('');
-
-    if (isOffline) {
-      setTimeout(() => {
-        setLoading(false);
-        setDocSummary(locale === 'vi' ? "⚠️ Ngoại tuyến: Không thể tóm tắt tài liệu khi không có kết nối mạng." : "⚠️ Offline: Cannot summarize document due to no network connection.");
-      }, 700);
-      return;
-    }
-
-    let actionPrompt = "summarize";
-    if (type === 'points') actionPrompt = "improve";
-    if (type === 'actions') actionPrompt = "expand";
-
-    try {
-      const res = await callAiApi('/api/ai/document', {
-        title: doc.title,
-        content: doc.content,
-        action: actionPrompt
-      });
-
-      const data = await res.json();
-      if (data.success && data.text) {
-        setDocSummary(data.text);
-        setIsAiFallbackActive(false);
-        onAddSyncLog(`Upgen AI analyzed document: "${doc.title}"`);
-      } else {
-        throw new Error(data.error);
-      }
-    } catch (err) {
-      if (isAiAccessError(err)) return;
-      setIsAiFallbackActive(true);
-      let fallbackText = `### ${locale === 'vi' ? 'Phân tích tài liệu' : 'Document Analysis'}: ${doc.title}\n\n`;
-      if (type === 'summarize') {
-        fallbackText += locale === 'vi'
-          ? `- **Tóm tắt ngắn gọn**: Tài liệu đưa ra các tiêu chuẩn vận hành và hướng dẫn kiến trúc nền tảng.\n- **Từ khóa chính**: Năng suất, Đồng bộ hóa, Quy trình làm việc hiện đại.`
-          : `- **Concise Summary**: The document outlines platform architecture guidelines and operations streamlining.\n- **Keywords**: Productivity, Synchronization, Modern Workflows.`;
-      } else {
-        fallbackText += locale === 'vi'
-          ? `- **Điểm cải tiến**: Sắp xếp lại mức độ ưu tiên bằng bảng Kanban trực quan.\n- **Hành động đề xuất**: Kích hoạt kế hoạch sprint tuần và chạy kiểm thử tự động.`
-          : `- **Improvements**: Re-organize priorities using Kanban boards.\n- **Proposed Actions**: Activate weekly sprint plans and run offline synchronization.`;
-      }
-      setDocSummary(fallbackText);
     } finally {
       setLoading(false);
     }
@@ -523,7 +464,7 @@ Based on current workspace data:
       if (data.subtasks && data.subtasks.length > 0) {
         setSuggestedSubtasks(data.subtasks);
         setIsAiFallbackActive(false);
-        onAddSyncLog(`Upgen AI suggested ${data.subtasks.length} subtasks for: "${task.title}"`);
+        onAddSyncLog(`Costack AI suggested ${data.subtasks.length} subtasks for: "${task.title}"`);
       } else {
         throw new Error("Zero list");
       }
@@ -620,7 +561,7 @@ Based on current workspace data:
             subtasks: locale === 'vi' ? ["Viết unit tests", "Sửa lỗi giao diện", "Triển khai bản cập nhật"] : ["Write unit tests", "Fix CSS/JS bugs", "Deploy live update"]
           }
         ]);
-        onAddSyncLog(`Upgen AI planned 3 tasks (Offline Fallback)`);
+        onAddSyncLog(`Costack AI planned 3 tasks (Offline Fallback)`);
       }, 700);
       return;
     }
@@ -632,7 +573,7 @@ Based on current workspace data:
       if (data.tasks) {
         setGeneratedTasks(data.tasks);
         setIsAiFallbackActive(false);
-        onAddSyncLog(`Upgen AI planned ${data.tasks.length} tasks for: "${finalPrompt.slice(0, 20)}..."`);
+        onAddSyncLog(`Costack AI planned ${data.tasks.length} tasks for: "${finalPrompt.slice(0, 20)}..."`);
       } else {
         throw new Error("Response error");
       }
@@ -696,7 +637,7 @@ Based on current workspace data:
     });
 
     setTasksCreated(true);
-    onAddSyncLog(`Successfully added ${generatedTasks.length} tasks from Upgen AI to Task Manager`);
+    onAddSyncLog(`Successfully added ${generatedTasks.length} tasks from Costack AI to Task Manager`);
   };
 
   // Helper function to render text to custom clean markup beautifully
@@ -817,13 +758,12 @@ Based on current workspace data:
             }
             setIsOpen(!isOpen);
             // Default selections if unselected
-            if (documents.length > 0 && !selectedDocId) setSelectedDocId(documents[0].id);
             if (tasks.length > 0 && !selectedTaskId) setSelectedTaskId(tasks[0].id);
           }}
           whileHover={{ scale: 1.08 }}
           whileTap={{ scale: 0.94 }}
           className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-950 border border-sky-400/40 flex items-center justify-center text-white shadow-[0_8px_32px_rgba(59,130,246,0.35)] hover:shadow-[0_8px_36px_rgba(56,189,248,0.55)] cursor-pointer relative z-10 overflow-hidden group"
-          title="Trợ lý AI Upgen"
+          title="Trợ lý AI Costack"
         >
           {/* Ambient specular highlight */}
           <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
@@ -876,7 +816,7 @@ Based on current workspace data:
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-sm font-black tracking-tight text-white font-display">
-                        Upgen AI
+                        Costack AI
                       </h2>
                       {/* Interactive Model Dropdown */}
                       <div className="relative">
@@ -973,7 +913,7 @@ Based on current workspace data:
               {isOffline && (
                 <div className="bg-amber-500/10 dark:bg-amber-500/15 border-b border-amber-500/20 px-4 py-2 flex items-center gap-2 text-[10px] font-bold text-amber-700 dark:text-amber-400 shrink-0">
                   <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  <span>{locale === 'vi' ? 'Mạng đang ngoại tuyến. AI đang chạy ở chế độ dự phòng dữ liệu cục bộ.' : 'Network is offline. Upgen AI is currently operating in local fallback mode.'}</span>
+                  <span>{locale === 'vi' ? 'Mạng đang ngoại tuyến. AI đang chạy ở chế độ dự phòng dữ liệu cục bộ.' : 'Network is offline. Costack AI is currently operating in local fallback mode.'}</span>
                 </div>
               )}
 
@@ -981,7 +921,6 @@ Based on current workspace data:
               <div className="flex border-b border-slate-200/80 dark:border-slate-800/60 bg-white/60 dark:bg-slate-900/50 backdrop-blur-md p-1.5 gap-1.5 relative shrink-0">
                 {[
                   { id: 'query', label: locale === 'vi' ? 'Hỏi AI' : 'Ask AI', icon: TrendingUp },
-                  { id: 'summarize', label: locale === 'vi' ? 'Tài liệu' : 'Docs', icon: FileText },
                   { id: 'subtasks', label: locale === 'vi' ? 'Việc con' : 'Subtasks', icon: CheckSquare },
                   { id: 'generate-tasks', label: locale === 'vi' ? 'Lập kế hoạch' : 'Planner', icon: Sparkles }
                 ].map((tab) => {
@@ -1014,7 +953,7 @@ Based on current workspace data:
                   <div className="p-3 mb-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[10px] text-amber-700 dark:text-amber-300 flex items-start gap-2 shadow-2xs leading-normal shrink-0">
                     <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                     <div>
-                      <strong>{locale === 'vi' ? 'Chế độ dự phòng:' : 'Fallback mode:'}</strong> {locale === 'vi' ? 'Upgen AI cần kết nối mạng để sử dụng mô hình Gemini trực tuyến. Dữ liệu hiện được lấy trực tiếp từ máy tính của bạn.' : 'Upgen AI needs network to connect to Gemini servers. Currently operating using local workspace data.'}
+                      <strong>{locale === 'vi' ? 'Chế độ dự phòng:' : 'Fallback mode:'}</strong> {locale === 'vi' ? 'Costack AI cần kết nối mạng để sử dụng mô hình Gemini trực tuyến. Dữ liệu hiện được lấy trực tiếp từ máy tính của bạn.' : 'Costack AI needs network to connect to Gemini servers. Currently operating using local workspace data.'}
                     </div>
                   </div>
                 )}
@@ -1038,8 +977,8 @@ Based on current workspace data:
                                 </h3>
                                 <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed max-w-sm mx-auto">
                                   {locale === 'vi' 
-                                    ? 'Tôi có thể phân tích tiến độ, cảnh báo công việc quá hạn, tóm tắt tài liệu và lập kế hoạch công việc tự động.'
-                                    : 'I can analyze project health, pinpoint overdue blockers, summarize documentation, and plan tasks.'}
+                                    ? 'Tôi có thể phân tích tiến độ, cảnh báo công việc quá hạn và lập kế hoạch công việc tự động.'
+                                    : 'I can analyze project health, pinpoint overdue blockers, and plan tasks.'}
                                 </p>
                               </div>
 
@@ -1126,7 +1065,7 @@ Based on current workspace data:
                                       {/* Message top action bar */}
                                       <div className="flex items-center justify-between pb-1 border-b border-slate-200/40 dark:border-slate-700/30">
                                         <div className="flex items-center gap-1.5">
-                                          <span className="text-[9px] font-black text-indigo-600 dark:text-sky-400 uppercase tracking-wider">Upgen AI</span>
+                                          <span className="text-[9px] font-black text-indigo-600 dark:text-sky-400 uppercase tracking-wider">Costack AI</span>
                                           {msg.isFallback && (
                                             <span className="text-[8px] bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold px-1.5 py-0.2 rounded border border-amber-500/20">
                                               {locale === 'vi' ? 'Dự phòng' : 'Fallback'}
@@ -1196,7 +1135,7 @@ Based on current workspace data:
                           <div className="space-y-3 py-3 px-2">
                             <div className="flex items-center gap-2 text-indigo-500 font-black text-[10px] uppercase tracking-wider animate-pulse justify-center">
                               <ApexaAiIcon className="w-4 h-4 animate-bounce" variant="gradient" />
-                              <span>{locale === 'vi' ? 'AI Upgen đang phân tích dữ liệu...' : 'Upgen AI is analyzing workspace...'}</span>
+                              <span>{locale === 'vi' ? 'AI Costack đang phân tích dữ liệu...' : 'Costack AI is analyzing workspace...'}</span>
                             </div>
                             <div className="space-y-2.5 max-w-sm mx-auto">
                               <div className="h-3 animate-shimmer-fast rounded-lg w-3/4 mx-auto" />
@@ -1279,7 +1218,7 @@ Based on current workspace data:
 
                       <input
                         type="text"
-                        placeholder={isListening ? (locale === 'vi' ? "Đang nghe giọng nói của bạn..." : "Listening...") : (locale === 'vi' ? "Hỏi Upgen AI về tiến độ, rủi ro, phân bổ..." : "Ask about progress, risks, tasks...")}
+                        placeholder={isListening ? (locale === 'vi' ? "Đang nghe giọng nói của bạn..." : "Listening...") : (locale === 'vi' ? "Hỏi Costack AI về tiến độ, rủi ro, phân bổ..." : "Ask about progress, risks, tasks...")}
                         value={queryInput}
                         onChange={(e) => setQueryInput(e.target.value)}
                         onKeyDown={(e) => {
@@ -1317,149 +1256,6 @@ Based on current workspace data:
                       >
                         <Send className="w-4 h-4" />
                       </button>
-                    </div>
-                  </div>
-                )}
-
-
-                {/* --- TAB 2: SUMMARIZE WIKI DOC --- */}
-                {activeTab === 'summarize' && (
-                  <div className="flex-1 flex flex-col overflow-hidden space-y-3 font-sans">
-                    <div className="space-y-2 shrink-0">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
-                          {locale === 'vi' ? 'Chọn tài liệu hệ thống' : 'Select Knowledge Doc'}
-                        </label>
-                        <span className="text-[9px] text-slate-400 font-semibold">{documents.length} {locale === 'vi' ? 'tài liệu' : 'docs'}</span>
-                      </div>
-
-                      {documents.length > 3 && (
-                        <div className="relative">
-                          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                          <input
-                            type="text"
-                            placeholder={locale === 'vi' ? "Lọc tìm tài liệu..." : "Filter docs..."}
-                            value={docSearchQuery}
-                            onChange={(e) => setDocSearchQuery(e.target.value)}
-                            className="w-full text-xs pl-8 pr-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-400"
-                          />
-                        </div>
-                      )}
-
-                      <select
-                        value={selectedDocId}
-                        onChange={(e) => {
-                          setSelectedDocId(e.target.value);
-                          setDocSummary('');
-                        }}
-                        className="w-full text-xs bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-2.5 rounded-xl text-slate-800 dark:text-slate-200 font-bold outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/40 shadow-xs"
-                      >
-                        {documents.length === 0 ? (
-                          <option value="">{locale === 'vi' ? 'Chưa có tài liệu nào' : 'No documents found'}</option>
-                        ) : (
-                          documents
-                            .filter(d => !docSearchQuery || d.title.toLowerCase().includes(docSearchQuery.toLowerCase()) || d.category?.toLowerCase().includes(docSearchQuery.toLowerCase()))
-                            .map(d => (
-                              <option key={d.id} value={d.id}>
-                                [{d.category || 'Tài liệu'}] {d.title}
-                              </option>
-                            ))
-                        )}
-                      </select>
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="space-y-1.5 shrink-0">
-                      <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
-                        {locale === 'vi' ? 'Tùy chọn phân tích AI' : 'AI Analysis Actions'}
-                      </label>
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {[
-                          { label: locale === 'vi' ? 'Tóm tắt cốt lõi' : 'Summary', action: 'summarize' as const, icon: FileText },
-                          { label: locale === 'vi' ? 'Điểm mấu chốt' : 'Key Insights', action: 'points' as const, icon: Sparkles },
-                          { label: locale === 'vi' ? 'Kế hoạch hành động' : 'Action Plan', action: 'actions' as const, icon: ArrowRight }
-                        ].map((act, index) => {
-                          const ActIcon = act.icon;
-                          return (
-                            <button
-                              key={index}
-                              type="button"
-                              onClick={() => handleSummarizeDoc(act.action)}
-                              disabled={!selectedDocId || loading}
-                              className="py-2.5 px-2 text-[10px] font-extrabold bg-indigo-50/70 dark:bg-indigo-950/25 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200/60 dark:border-indigo-800/40 text-indigo-700 dark:text-sky-300 rounded-xl transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-2xs"
-                            >
-                              <ActIcon className="w-3 h-3 text-indigo-600 dark:text-sky-400 shrink-0" />
-                              <span className="truncate">{act.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Output display */}
-                    <div className="flex-1 min-h-0 flex flex-col">
-                      <div className="flex-1 p-3.5 sm:p-4 rounded-2xl border border-slate-200/70 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md flex flex-col overflow-y-auto shadow-xs">
-                        {loading ? (
-                          <div className="m-auto w-full space-y-3 py-4 px-2">
-                            <div className="flex items-center gap-2 text-indigo-500 font-bold text-[10px] uppercase tracking-wider animate-pulse justify-center">
-                              <ApexaAiIcon className="w-4 h-4 animate-bounce" variant="gradient" />
-                              <span>{locale === 'vi' ? 'AI Upgen đang phân tích tài liệu...' : 'Upgen AI is analyzing doc...'}</span>
-                            </div>
-                            <div className="space-y-2.5">
-                              <div className="h-3.5 animate-shimmer-fast rounded-lg w-3/4 mx-auto" />
-                              <div className="h-3 animate-shimmer-fast rounded-lg w-full" />
-                              <div className="h-3 animate-shimmer-fast rounded-lg w-5/6 mx-auto" />
-                            </div>
-                          </div>
-                        ) : docSummary ? (
-                          <div className="space-y-2 relative">
-                            <div className="flex items-center justify-between pb-2 border-b border-slate-200/50 dark:border-slate-800">
-                              <div className="flex items-center gap-1.5">
-                                <FileText className="w-3.5 h-3.5 text-indigo-600 dark:text-sky-400" />
-                                <span className="text-[10px] font-black text-slate-800 dark:text-slate-200">
-                                  {locale === 'vi' ? 'Kết quả phân tích' : 'Analysis Output'}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopyText(docSummary)}
-                                  className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
-                                  title={copied ? "Đã sao chép!" : "Sao chép"}
-                                >
-                                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleSpeech(docSummary)}
-                                  className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
-                                  title={playingSpeech ? "Dừng đọc" : "Đọc bằng giọng nói"}
-                                >
-                                  {playingSpeech ? <VolumeX className="w-3.5 h-3.5 text-indigo-600 animate-pulse" /> : <Volume2 className="w-3.5 h-3.5" />}
-                                </button>
-                              </div>
-                            </div>
-                            <div className="text-xs">
-                              {renderMarkdown(docSummary)}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="m-auto text-center p-6 text-slate-400 dark:text-slate-500 max-w-xs space-y-2">
-                            <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/50 dark:border-indigo-800/40 flex items-center justify-center mx-auto text-indigo-500">
-                              <FileText className="w-5 h-5" />
-                            </div>
-                            <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                              {locale === 'vi' ? 'Soạn & Rà soát tài liệu Wiki' : 'Wiki Knowledge Summarizer'}
-                            </p>
-                            <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
-                              {locale === 'vi' 
-                                ? 'Chọn tài liệu ở trên và nhấp vào một trong các tùy chọn AI để tự động trích xuất điểm chính hoặc lên kế hoạch hành động.'
-                                : 'Select a document above and pick an AI analysis action to summarize or extract action items.'}
-                            </p>
-                          </div>
-                        )}
-                        <div ref={responseEndRef} />
-                      </div>
                     </div>
                   </div>
                 )}
@@ -1505,7 +1301,7 @@ Based on current workspace data:
                       {loading ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin text-white" />
-                          <span>{locale === 'vi' ? 'AI Upgen đang bóc tách nhiệm vụ...' : 'Decomposing task into subtasks...'}</span>
+                          <span>{locale === 'vi' ? 'AI Costack đang bóc tách nhiệm vụ...' : 'Decomposing task into subtasks...'}</span>
                         </>
                       ) : (
                         <>
@@ -1682,7 +1478,7 @@ Based on current workspace data:
                           <div className="m-auto w-full space-y-3 py-4 px-2">
                             <div className="flex items-center gap-2 text-indigo-500 font-bold text-[10px] uppercase tracking-wider animate-pulse justify-center">
                               <ApexaAiIcon className="w-4 h-4 animate-bounce" variant="gradient" />
-                              <span>{locale === 'vi' ? 'AI Upgen đang lập kế hoạch chi tiết...' : 'Upgen AI is planning tasks...'}</span>
+                              <span>{locale === 'vi' ? 'AI Costack đang lập kế hoạch chi tiết...' : 'Costack AI is planning tasks...'}</span>
                             </div>
                             <div className="space-y-2.5 max-w-sm mx-auto">
                               <div className="h-3.5 animate-shimmer-fast rounded-lg w-3/4 mx-auto" />
@@ -1770,7 +1566,7 @@ Based on current workspace data:
                             <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
                               {locale === 'vi'
                                 ? 'Nhập mục tiêu dự án (ví dụ: "Ra mắt chiến dịch Tết 2026") và AI sẽ tự động phân rã thành các công việc chi tiết kèm thời gian ước tính.'
-                                : 'Describe any objective and Upgen AI will generate a complete set of tasks with time estimates and subtasks.'}
+                                : 'Describe any objective and Costack AI will generate a complete set of tasks with time estimates and subtasks.'}
                             </p>
                           </div>
                         )}
@@ -1786,7 +1582,7 @@ Based on current workspace data:
               <div className="p-3 sm:p-4 border-t border-slate-200/80 dark:border-slate-800/60 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
                 <span className="flex items-center gap-1.5">
                   <ApexaAiIcon className="w-3.5 h-3.5 animate-pulse" variant="gradient" />
-                  <span className="font-semibold">{locale === 'vi' ? 'Trợ lý thông minh Upgen AI' : 'Upgen AI Intelligent Copilot'}</span>
+                  <span className="font-semibold">{locale === 'vi' ? 'Trợ lý thông minh Costack AI' : 'Costack AI Intelligent Copilot'}</span>
                 </span>
                 <span className="flex items-center gap-1 text-[9px]">
                   <span>Vận hành bởi</span>

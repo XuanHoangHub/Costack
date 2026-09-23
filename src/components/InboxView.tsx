@@ -690,7 +690,7 @@ export default function InboxView({
     try {
       const activeUnread = notificationsList.filter(n => !n.cleared && !n.read).slice(0, 10);
       const res = await callAiApi('/api/ai/inbox-digest', {
-        userName: currentUser?.name || (isVietnamese ? 'Thành viên Upgen' : 'Upgen Member'),
+        userName: currentUser?.name || (isVietnamese ? 'Thành viên Costack' : 'Costack Member'),
         notifications: activeUnread,
         tasksCount: tasks.length
       });
@@ -707,8 +707,8 @@ export default function InboxView({
     } catch (error) {
       if (isAiAccessError(error)) return;
       setAiDigestText(isVietnamese
-        ? `Chào ${currentUser?.name || 'bạn'}! Bạn đang có ${inboxStats.unread} thông báo chưa đọc trong Hộp thư Upgen. Hãy kiểm tra các thông báo được giao và cập nhật tiến độ công việc để duy trì hiệu suất cao nhất.`
-        : `Hello ${currentUser?.name || 'there'}! You have ${inboxStats.unread} unread notifications in Upgen Inbox. Review your assigned tasks and update progress to maintain peak productivity.`
+        ? `Chào ${currentUser?.name || 'bạn'}! Bạn đang có ${inboxStats.unread} thông báo chưa đọc trong Hộp thư Costack. Hãy kiểm tra các thông báo được giao và cập nhật tiến độ công việc để duy trì hiệu suất cao nhất.`
+        : `Hello ${currentUser?.name || 'there'}! You have ${inboxStats.unread} unread notifications in Costack Inbox. Review your assigned tasks and update progress to maintain peak productivity.`
       );
     } finally {
       setAiDigestLoading(false);
@@ -1803,7 +1803,7 @@ export default function InboxView({
               const isDeadline = catMeta.key === 'deadline';
               const IconComp = catMeta.icon;
               const notifWorkspace = workspaces.find(w => w.id === selectedNotif.workspaceId);
-              const workspaceName = notifWorkspace?.name || (selectedNotif.workspaceId && selectedNotif.workspaceId !== 'all' ? selectedNotif.workspaceId : (isVietnamese ? 'Upgen Cloud' : 'Upgen Cloud'));
+              const workspaceName = notifWorkspace?.name || (selectedNotif.workspaceId && selectedNotif.workspaceId !== 'all' ? selectedNotif.workspaceId : (isVietnamese ? 'Costack Cloud' : 'Costack Cloud'));
               const refId = `#PAY-${selectedNotif.id.slice(-6).toUpperCase()}`;
 
               return (
@@ -2329,17 +2329,17 @@ export default function InboxView({
           </div>
         ) : (
           /* ── Case 3: World-Class Productivity & Focus Command Hub ── */
-          <div className="w-full h-full flex flex-col p-5 sm:p-7 overflow-y-auto text-left space-y-6 custom-scrollbar">
+          <div className="w-full h-full flex flex-col p-5 sm:p-7 overflow-y-auto text-left space-y-4 custom-scrollbar">
             
             {/* 4 Interactive Live Stat Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
+            <div className="grid grid-cols-4 gap-2.5 shrink-0">
               {/* 1. Unread */}
               <div 
                 onClick={() => {
                   setActiveTab('unread');
                   setQuickFilter('all');
                 }}
-                className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 hover:bg-blue-50/60 dark:hover:bg-blue-950/40 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5 shadow-2xs cursor-pointer transition-all group"
+                className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-900/60 hover:bg-blue-50/60 dark:hover:bg-blue-950/40 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5 shadow-2xs cursor-pointer transition-all group"
               >
                 <div className="flex items-center justify-between text-slate-400">
                   <span className="text-[11px] font-bold group-hover:text-blue-600 transition-colors">
@@ -2349,7 +2349,7 @@ export default function InboxView({
                     <Bell className="w-3.5 h-3.5" />
                   </div>
                 </div>
-                <div className="text-2xl font-black text-slate-900 dark:text-white">
+                <div className="text-xl font-black text-slate-900 dark:text-white">
                   {inboxStats.unread}
                 </div>
                 <p className="text-[10px] text-slate-400 font-semibold truncate">
@@ -2360,7 +2360,7 @@ export default function InboxView({
               {/* 2. Assigned */}
               <div 
                 onClick={() => setQuickFilter('assigned')}
-                className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/40 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5 shadow-2xs cursor-pointer transition-all group"
+                className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-900/60 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/40 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5 shadow-2xs cursor-pointer transition-all group"
               >
                 <div className="flex items-center justify-between text-slate-400">
                   <span className="text-[11px] font-bold group-hover:text-indigo-600 transition-colors">
@@ -2370,7 +2370,7 @@ export default function InboxView({
                     <CheckSquare className="w-3.5 h-3.5" />
                   </div>
                 </div>
-                <div className="text-2xl font-black text-slate-900 dark:text-white">
+                <div className="text-xl font-black text-slate-900 dark:text-white">
                   {productivityStats.totalAssigned}
                 </div>
                 <p className="text-[10px] text-slate-400 font-semibold truncate">
@@ -2381,7 +2381,7 @@ export default function InboxView({
               {/* 3. Urgent */}
               <div 
                 onClick={() => setQuickFilter('deadlines')}
-                className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 hover:bg-amber-50/60 dark:hover:bg-amber-950/40 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5 shadow-2xs cursor-pointer transition-all group"
+                className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-900/60 hover:bg-amber-50/60 dark:hover:bg-amber-950/40 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5 shadow-2xs cursor-pointer transition-all group"
               >
                 <div className="flex items-center justify-between text-slate-400">
                   <span className="text-[11px] font-bold group-hover:text-amber-600 transition-colors">
@@ -2391,7 +2391,7 @@ export default function InboxView({
                     <Flame className="w-3.5 h-3.5" />
                   </div>
                 </div>
-                <div className="text-2xl font-black text-slate-900 dark:text-white">
+                <div className="text-xl font-black text-slate-900 dark:text-white">
                   {productivityStats.urgent}
                 </div>
                 <p className="text-[10px] text-slate-400 font-semibold truncate">
@@ -2400,7 +2400,7 @@ export default function InboxView({
               </div>
 
               {/* 4. Completion Rate */}
-              <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5 shadow-2xs">
+              <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5 shadow-2xs">
                 <div className="flex items-center justify-between text-slate-400">
                   <span className="text-[11px] font-bold">
                     {isVietnamese ? 'Hoàn thành' : 'Completed'}
@@ -2409,7 +2409,7 @@ export default function InboxView({
                     <TrendingUp className="w-3.5 h-3.5" />
                   </div>
                 </div>
-                <div className="text-2xl font-black text-slate-900 dark:text-white">
+                <div className="text-xl font-black text-slate-900 dark:text-white">
                   {productivityStats.completionRate}%
                 </div>
                 <div className="w-full bg-slate-200/80 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
@@ -2422,15 +2422,15 @@ export default function InboxView({
             </div>
 
             {/* Apexa AI Daily Briefing Smart Card */}
-            <div className="p-5 rounded-[24px] bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3.5 shadow-xs shrink-0">
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3.5 shadow-xs shrink-0">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-white dark:bg-slate-900 shadow-2xs border border-blue-200/60 dark:border-blue-800/60">
-                    <ApexaAiIcon className="w-4 h-4" variant="gradient" animated={aiDigestLoading} />
+                  <div className="p-1.5 rounded-lg bg-white dark:bg-slate-900 shadow-2xs border border-blue-200/60 dark:border-blue-800/60">
+                    <ApexaAiIcon className="w-3.5 h-3.5" variant="gradient" animated={aiDigestLoading} />
                   </div>
                   <div>
                     <h3 className="text-xs font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5">
-                      <span>Upgen AI Daily Briefing</span>
+                      <span>Costack AI Daily Briefing</span>
                       <span className="px-1.5 py-0.2 rounded-md bg-blue-500/10 text-blue-600 dark:text-sky-400 text-[9px] font-black uppercase">
                         Gemini 2.5 Flash
                       </span>
@@ -2470,7 +2470,7 @@ export default function InboxView({
                   <p>{aiDigestText}</p>
                 </div>
               ) : (
-                <div className="p-3.5 bg-white/60 dark:bg-slate-900/60 rounded-2xl border border-dashed border-blue-200 dark:border-blue-800/60 text-[11.5px] text-slate-500 dark:text-slate-400 leading-relaxed font-medium flex items-center justify-between gap-3">
+                <div className="p-3 bg-white/60 dark:bg-slate-900/60 rounded-2xl border border-dashed border-blue-200 dark:border-blue-800/60 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-medium flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-blue-500 shrink-0" />
                     <span>
@@ -2484,7 +2484,7 @@ export default function InboxView({
             </div>
 
             {/* Next Up & Priority Tasks Queue */}
-            <div className="space-y-3 shrink-0">
+            <div className="space-y-2.5 shrink-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <ListTodo className="w-4 h-4 text-blue-600 dark:text-sky-400" />
@@ -2502,7 +2502,7 @@ export default function InboxView({
               </div>
 
               {upcomingTasks.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 gap-2">
                   {upcomingTasks.map(task => {
                     const isCompleted = task.status === 'completed';
                     const isUrgent = task.priority === 'urgent' || task.priority === 'high';
@@ -2518,7 +2518,7 @@ export default function InboxView({
                             onNavigateToTab?.('tasks');
                           }
                         }}
-                        className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/70 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 shadow-2xs cursor-pointer transition-all group"
+                        className="p-3 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/70 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 shadow-2xs cursor-pointer transition-all group"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <button
@@ -2586,6 +2586,7 @@ export default function InboxView({
             </div>
 
             {/* Workspace Activity Pulse & Recent Timeline */}
+            {recentActivities.length > 0 && (
             <div className="space-y-3 shrink-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -2607,7 +2608,7 @@ export default function InboxView({
                     <div
                       key={item.id}
                       onClick={() => setSelectedNotificationId(item.id)}
-                      className="p-3 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/70 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 shadow-2xs cursor-pointer transition-all group"
+                      className="p-2.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/70 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 shadow-2xs cursor-pointer transition-all group"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className={`p-2 rounded-xl ${catMeta.bg} ${catMeta.color} shrink-0`}>
@@ -2634,6 +2635,7 @@ export default function InboxView({
                 })}
               </div>
             </div>
+            )}
 
             {/* Inbox Health & 1-Click Triage */}
             {olderReadNotifications.length > 0 ? (
@@ -2675,7 +2677,7 @@ export default function InboxView({
             )}
 
             {/* Keyboard Shortcuts Cheat Sheet */}
-            <div className="p-3.5 rounded-2xl bg-slate-100/70 dark:bg-slate-950/60 border border-slate-200/70 dark:border-slate-800/70 shrink-0">
+            <div className="p-2.5 rounded-xl bg-slate-100/70 dark:bg-slate-950/60 border border-slate-200/70 dark:border-slate-800/70 shrink-0">
               <div className="flex items-center justify-between text-[10.5px] font-bold text-slate-500 dark:text-slate-400 flex-wrap gap-2">
                 <span className="uppercase tracking-wider font-black text-slate-400 dark:text-slate-500">
                   {isVietnamese ? 'Phím tắt nhanh' : 'Keyboard Shortcuts'}
@@ -2699,7 +2701,7 @@ export default function InboxView({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 <button
                   onClick={() => onNavigateToTab?.('tasks')}
-                  className="p-3 rounded-2xl bg-slate-50/90 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 flex items-center gap-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer group shadow-2xs"
+                  className="p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 flex items-center gap-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer group shadow-2xs"
                 >
                   <div className="p-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-sky-300">
                     <CheckSquare className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
@@ -2709,7 +2711,7 @@ export default function InboxView({
 
                 <button
                   onClick={() => onNavigateToTab?.('calendar')}
-                  className="p-3 rounded-2xl bg-slate-50/90 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 flex items-center gap-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer group shadow-2xs"
+                  className="p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 flex items-center gap-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer group shadow-2xs"
                 >
                   <div className="p-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-300">
                     <Calendar className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
@@ -2719,7 +2721,7 @@ export default function InboxView({
 
                 <button
                   onClick={() => onNavigateToTab?.('chat')}
-                  className="p-3 rounded-2xl bg-slate-50/90 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 flex items-center gap-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer group shadow-2xs"
+                  className="p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 flex items-center gap-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer group shadow-2xs"
                 >
                   <div className="p-1.5 rounded-xl bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-300">
                     <MessageSquare className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
@@ -2729,7 +2731,7 @@ export default function InboxView({
 
                 <button
                   onClick={() => onNavigateToTab?.('goals')}
-                  className="p-3 rounded-2xl bg-slate-50/90 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 flex items-center gap-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer group shadow-2xs"
+                  className="p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 flex items-center gap-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer group shadow-2xs"
                 >
                   <div className="p-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-300">
                     <Target className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />

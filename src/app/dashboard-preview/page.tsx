@@ -142,7 +142,7 @@ const mockTasks: Task[] = [
 ];
 
 const mockDocs: Document[] = [
-  { id: 'doc-1', title: 'Tài liệu Kiến trúc Upgen v2', content: '', category: 'Architecture', updatedAt: formatIso(-1), updatedBy: 'u1' },
+  { id: 'doc-1', title: 'Tài liệu Kiến trúc Costack v2', content: '', category: 'Architecture', updatedAt: formatIso(-1), updatedBy: 'u1' },
   { id: 'doc-2', title: 'Quy chuẩn Viết Code & Review PR', content: '', category: 'Guidelines', updatedAt: formatIso(-3), updatedBy: 'u2' },
   { id: 'doc-3', title: 'Kế hoạch Phát hành Q3/2026', content: '', category: 'Roadmap', updatedAt: formatIso(-5), updatedBy: 'u1' },
 ];
@@ -167,7 +167,7 @@ export default function DashboardPreviewPage() {
               U
             </span>
             <span className="text-sm font-black text-slate-900 dark:text-white">
-              Upgen Dashboard NextGen
+              Costack Dashboard NextGen
             </span>
             <span className="hidden sm:inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
               Live Preview
@@ -206,7 +206,7 @@ export default function DashboardPreviewPage() {
             syncLogs={mockSyncLogs}
             isOffline={false}
             isSynced={true}
-            workspaceName="Upgen Engineering"
+            workspaceName="Costack Engineering"
             currentUser={{ ...mockMembers[0], isPremium }}
             onNavigate={(tab) => console.log('Navigate to:', tab)}
             onOpenTask={(taskId) => console.log('Open task:', taskId)}

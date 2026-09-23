@@ -223,6 +223,24 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress }) => {
           </View>
         )}
 
+        {/* Hours Logged / Estimated */}
+        {(task.hoursEstimate || task.hoursLogged) ? (
+          <View
+            style={[
+              styles.modernPill,
+              {
+                backgroundColor: `${colors.inprogress}14`,
+                borderColor: `${colors.inprogress}35`,
+              },
+            ]}
+          >
+            <Clock size={11} color={colors.inprogress} />
+            <Text style={[styles.pillText, { color: colors.inprogress }]}>
+              {task.hoursLogged || 0}/{task.hoursEstimate || 0}h
+            </Text>
+          </View>
+        ) : null}
+
         {/* Subtask, Comments & Assignee on right */}
         <View style={styles.rightStats}>
           {totalSubtasks > 0 && (

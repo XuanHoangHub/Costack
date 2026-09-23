@@ -114,7 +114,7 @@ export default function ErrorPage({
 
           {/* Main Headline */}
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white leading-snug font-display text-balance">
-            {isVi ? 'Upgen đang khôi phục phiên làm việc' : 'Upgen is Recovering Your Session'}
+            {isVi ? 'Costack đang khôi phục phiên làm việc' : 'Costack is Recovering Your Session'}
           </h1>
 
           {/* Subtitle / Description */}

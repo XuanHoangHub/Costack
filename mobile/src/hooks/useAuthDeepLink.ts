@@ -1,4 +1,4 @@
-﻿import { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Linking } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { supabase } from '../api/supabase';
@@ -66,7 +66,7 @@ export function useAuthDeepLink() {
             Toast.show({
               type: 'success',
               text1: 'Đăng nhập thành công',
-              text2: 'Chào mừng bạn quay trở lại Upgen!',
+              text2: 'Chào mừng bạn quay trở lại Costack!',
             });
           }
         } else if (parsed.code) {
@@ -79,7 +79,7 @@ export function useAuthDeepLink() {
             Toast.show({
               type: 'success',
               text1: 'Đăng nhập thành công',
-              text2: 'Chào mừng bạn quay trở lại Upgen!',
+              text2: 'Chào mừng bạn quay trở lại Costack!',
             });
           }
         }

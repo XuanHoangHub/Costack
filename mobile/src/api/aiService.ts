@@ -69,12 +69,12 @@ function generateAiFallback(prompt: string, context?: AiTaskContext): string {
   }
 
   if (lower.includes('task') || lower.includes('việc') || lower.includes('subtask') || lower.includes('chia nhỏ')) {
-    return '💡 **Gợi ý phương pháp chia nhỏ công việc (Work Breakdown)**:\n\n1. **Xác định mục tiêu rõ ràng**: Kết quả mong đợi sau khi hoàn thành là gì?\n2. **Tạo 3-5 subtasks cụ thể**: Mỗi subtask có thời lượng từ 15-45 phút.\n3. **Gán hạn chót ngắn hạn**: Tập trung xử lý từng phần một.\n4. **Ghi chú & Đánh giá**: Ghi lại khó khăn để Upgen AI tối ưu cho lần sau!';
+    return '💡 **Gợi ý phương pháp chia nhỏ công việc (Work Breakdown)**:\n\n1. **Xác định mục tiêu rõ ràng**: Kết quả mong đợi sau khi hoàn thành là gì?\n2. **Tạo 3-5 subtasks cụ thể**: Mỗi subtask có thời lượng từ 15-45 phút.\n3. **Gán hạn chót ngắn hạn**: Tập trung xử lý từng phần một.\n4. **Ghi chú & Đánh giá**: Ghi lại khó khăn để Costack AI tối ưu cho lần sau!';
   }
 
   if (lower.includes('ưu tiên') || lower.includes('prioritize')) {
     if (highPriority.length > 0) {
-      let advice = `🎯 **Ma trận ưu tiên Upgen (Eisenhower Matrix)**:\n\n`;
+      let advice = `🎯 **Ma trận ưu tiên Costack (Eisenhower Matrix)**:\n\n`;
       advice += `Các đầu việc cần bạn tập trung trước mắt:\n`;
       highPriority.forEach((title, i) => {
         advice += `• ${i + 1}. ${title}\n`;
@@ -82,8 +82,10 @@ function generateAiFallback(prompt: string, context?: AiTaskContext): string {
       advice += `\nKhuyên dùng: Hoàn thành các việc Khẩn cấp / Cao trước 12:00 trưa để giảm tải áp lực cuối ngày.`;
       return advice;
     }
-    return `🎯 **Ma trận ưu tiên Upgen**:\n\n1. **Khẩn cấp & Quan trọng**: Xử lý ngay trong buổi sáng.\n2. **Quan trọng nhưng chưa gấp**: Lên lịch thực hiện cố định.\n3. **Ít quan trọng**: Ủy quyền hoặc dời lại.\n4. Hiện tại danh sách của bạn chưa có việc khẩn cấp nào!`;
+    return `🎯 **Ma trận ưu tiên Costack**:\n\n1. **Khẩn cấp & Quan trọng**: Xử lý ngay trong buổi sáng.\n2. **Quan trọng nhưng chưa gấp**: Lên lịch thực hiện cố định.\n3. **Ít quan trọng**: Ủy quyền hoặc dời lại.\n4. Hiện tại danh sách của bạn chưa có việc khẩn cấp nào!`;
   }
 
-  return `🤖 **Upgen Brain Assistant**:\nTôi đã ghi nhận câu hỏi: "${prompt}".\n\nHệ thống AI của Upgen đang theo dõi **${total} công việc** của bạn trên toàn bộ không gian làm việc. Nếu bạn cần tôi phân tích tiến độ hoặc đề xuất lịch làm việc, hãy chọn các gợi ý nhanh bên dưới!`;
+  return `🤖 **Costack Brain Assistant**:\nTôi đã ghi nhận câu hỏi: "${prompt}".\n\nHệ thống AI của Costack đang theo dõi **${total} công việc** của bạn trên toàn bộ không gian làm việc. Nếu bạn cần tôi phân tích tiến độ hoặc đề xuất lịch làm việc, hãy chọn các gợi ý nhanh bên dưới!`;
 }
+
+export const askCostackAi = askApexaAi;

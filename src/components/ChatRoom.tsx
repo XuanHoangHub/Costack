@@ -19,6 +19,7 @@ import {
 import { callAiApi } from '@/lib/aiClient';
 import { useSpaceStore } from '../store/spaceStore';
 import { useUiStore } from '../store/uiStore';
+import { isSelfChatMessage } from '../lib/notificationPolicy';
 
 const useChatAttachmentUrl = (filePath?: string) => {
   const [url, setUrl] = useState(filePath || '');
@@ -198,7 +199,7 @@ interface ChatRoomProps {
   currentUser: any;
   isOffline: boolean;
   onAddSyncLog: (action: string) => void;
-  triggerToast?: (type: any, title: string, message: string) => void;
+  triggerToast?: (type: any, title: string, message: string, options?: any) => void;
   activeTab?: string;
   initialSelectedChannelId?: string | null;
   onClearInitialSelectedChannelId?: () => void;
@@ -359,6 +360,10 @@ export default function ChatRoom({
   useEffect(() => { membersRef.current = members; }, [members]);
   const spacesRef = useRef(spaces);
   useEffect(() => { spacesRef.current = spaces; }, [spaces]);
+  const channelsRef = useRef(channels);
+  useEffect(() => { channelsRef.current = channels; }, [channels]);
+  const currentUserRef = useRef(currentUser);
+  useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
   // Emoji Picker Popover state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -597,7 +602,7 @@ export default function ChatRoom({
       }
     }
     if (enabled && (!('Notification' in window) || Notification.permission === 'denied')) {
-      triggerToast?.('info', 'Không thể bật thông báo', 'Hãy cấp quyền thông báo cho Upgen trong cài đặt trình duyệt.');
+      triggerToast?.('info', 'Không thể bật thông báo', 'Hãy cấp quyền thông báo cho Costack trong cài đặt trình duyệt.');
       setChatSettings(previous => ({ ...previous, desktopNotifications: false }));
       return;
     }
@@ -1363,7 +1368,7 @@ ${channelMessagesText}`;
 
     const seedMessages: Record<string, ChatMessage[]> = {
       'apexa-brain-ai': [
-        { id: 'mai1', senderId: 'ai-brain', senderName: 'Upgen Brain AI', senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ApexaBrain', content: 'Xin chào! Tôi là trợ lý Upgen Brain của workspace hiện tại. Tại kênh truyền này, bạn có thể hỏi tôi bất kỳ điều gì: từ cách lập kế hoạch dự án, phân chia KPI, soạn thảo tài liệu, cho đến viết mã tối ưu. Hãy thử gửi tin nhắn ngay nhé! 💡', timestamp: '09:00', isAi: true }
+        { id: 'mai1', senderId: 'ai-brain', senderName: 'Costack Brain AI', senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ApexaBrain', content: 'Xin chào! Tôi là trợ lý Costack Brain của workspace hiện tại. Tại kênh truyền này, bạn có thể hỏi tôi bất kỳ điều gì: từ cách lập kế hoạch dự án, phân chia KPI, soạn thảo tài liệu, cho đến viết mã tối ưu. Hãy thử gửi tin nhắn ngay nhé! 💡', timestamp: '09:00', isAi: true }
       ]
     };
 
@@ -1381,7 +1386,7 @@ ${channelMessagesText}`;
           entityType = 'folder';
           const prefixIndex = activeChannelId.indexOf(':folder-');
           const infoStr = activeChannelId.substring(prefixIndex + 8);
-          const space = spaces.find(s => infoStr.startsWith(s.id));
+          const space = spacesRef.current.find(s => infoStr.startsWith(s.id));
           if (space) {
             spaceId = space.id;
             entityId = infoStr.substring(space.id.length + 1);
@@ -1391,7 +1396,7 @@ ${channelMessagesText}`;
           entityType = 'list';
           const prefixIndex = activeChannelId.indexOf(':list-');
           const infoStr = activeChannelId.substring(prefixIndex + 6);
-          const space = spaces.find(s => infoStr.startsWith(s.id));
+          const space = spacesRef.current.find(s => infoStr.startsWith(s.id));
           if (space) {
             spaceId = space.id;
             entityId = infoStr.substring(space.id.length + 1);
@@ -1401,7 +1406,7 @@ ${channelMessagesText}`;
           entityType = 'space';
           const prefixIndex = activeChannelId.indexOf(':space-');
           const infoStr = activeChannelId.substring(prefixIndex + 7);
-          const space = spaces.find(s => infoStr.startsWith(s.id));
+          const space = spacesRef.current.find(s => infoStr.startsWith(s.id));
           if (space) {
             spaceId = space.id;
             entityId = infoStr.substring(space.id.length + 1);
@@ -1485,7 +1490,8 @@ ${channelMessagesText}`;
 
             if (eventType === 'INSERT') {
               const newMsg = mapChatMessage(m);
-              const shouldFollowMessage = isNearBottomRef.current || newMsg.senderId === currentUser.id;
+              const isOwn = isSelfChatMessage(m, currentUserRef.current);
+              const shouldFollowMessage = isNearBottomRef.current || isOwn;
               setMessages(prev => {
                 const next = prev.some(x => x.id === newMsg.id)
                   ? prev.map(x => x.id === newMsg.id ? { ...newMsg, deliveryState: 'sent' as const } : x)
@@ -1496,6 +1502,31 @@ ${channelMessagesText}`;
               pendingMessagesRef.current.delete(newMsg.id);
               if (shouldFollowMessage) scrollToBottom();
               else setNewMessagesBelow(count => count + 1);
+
+              // Khi có tin nhắn từ user khác trong kênh đang mở
+              if (!isOwn) {
+                if (chatSettingsRef.current.soundEnabled) {
+                  (window as any).playSystemSound?.('notification');
+                }
+                if (
+                  chatSettingsRef.current.desktopNotifications &&
+                  'Notification' in window &&
+                  Notification.permission === 'granted' &&
+                  (document.visibilityState !== 'visible' || !document.hasFocus())
+                ) {
+                  const chanName = channelsRef.current.find(c => c.id === activeChannelId)?.name;
+                  try {
+                    const notif = new Notification(newMsg.senderName || 'Tin nhắn mới', {
+                      body: `${chanName ? `#${chanName}: ` : ''}${newMsg.content || (newMsg.attachment ? '📎 Tệp đính kèm' : 'Tin nhắn mới')}`,
+                      tag: `apexa-chat-${activeChannelId}`,
+                      icon: newMsg.senderAvatar || undefined
+                    });
+                    notif.onclick = () => {
+                      window.focus();
+                    };
+                  } catch {}
+                }
+              }
             } else if (eventType === 'UPDATE') {
               setMessages(prev => {
                 const next = prev.map(x => x.id === m.id ? mapChatMessage(m) : x);
@@ -1912,31 +1943,57 @@ ${channelMessagesText}`;
         payload => {
           const row = payload.new as any;
           if (!row?.channel_id || row.channel_id === activeChannelIdRef.current) return;
-          const ownIds = [currentUser.id, currentUser.userId].filter(Boolean);
-          if (ownIds.includes(row.sender_id) || ownIds.includes(row.user_id)) return;
+          if (isSelfChatMessage(row, currentUser)) return;
 
           incrementUnread(row.channel_id);
           if (chatSettingsRef.current.soundEnabled) (window as any).playSystemSound?.('notification');
 
+          const channelName = channels.find(channel => channel.id === row.channel_id)?.name;
+          const senderName = row.sender_name || 'Người dùng';
+          const preview = row.content
+            ? row.content.length > 60 ? row.content.slice(0, 60) + '…' : row.content
+            : row.attachment ? '📎 Tệp đính kèm' : 'Tin nhắn mới';
+
+          triggerToast?.(
+            'chat_message',
+            `💬 ${senderName}${channelName ? ` (#${channelName})` : ''}`,
+            preview,
+            {
+              action: {
+                label: 'Xem ngay',
+                onClick: () => {
+                  setActiveChannelId(row.channel_id);
+                  setUnreadCounts(prev => ({ ...prev, [row.channel_id]: 0 }));
+                }
+              }
+            } as any
+          );
+
           if (
             chatSettingsRef.current.desktopNotifications &&
-            document.visibilityState !== 'visible' &&
             'Notification' in window &&
-            Notification.permission === 'granted'
+            Notification.permission === 'granted' &&
+            (document.visibilityState !== 'visible' || !document.hasFocus())
           ) {
-            const channelName = channels.find(channel => channel.id === row.channel_id)?.name;
-            new Notification(row.sender_name || 'Tin nhắn mới', {
-              body: `${channelName ? `#${channelName}: ` : ''}${row.content || 'Đã gửi một tệp đính kèm'}`,
-              tag: `apexa-chat-${row.channel_id}`,
-              icon: row.sender_avatar || undefined
-            });
+            try {
+              const notif = new Notification(senderName, {
+                body: `${channelName ? `#${channelName}: ` : ''}${preview}`,
+                tag: `apexa-chat-${row.channel_id}`,
+                icon: row.sender_avatar || undefined
+              });
+              notif.onclick = () => {
+                window.focus();
+                setActiveChannelId(row.channel_id);
+                setUnreadCounts(prev => ({ ...prev, [row.channel_id]: 0 }));
+              };
+            } catch {}
           }
         }
       )
       .subscribe();
 
     return () => { supabase.removeChannel(inboxSubscription); };
-  }, [channels, currentUser.id, currentUser.userId, isOffline, workspaceId]);
+  }, [channels, currentUser, isOffline, workspaceId, triggerToast]);
 
   // Realtime subscription for workspace chat channels (add, rename, delete, new DM channels)
   useEffect(() => {
@@ -2077,7 +2134,7 @@ ${channelMessagesText}`;
         const userId = session?.user?.id;
         await supabase.from('chat_messages').insert({
           id: msgId,
-          sender_id: 'user',
+          sender_id: currentUser?.id || 'user',
           sender_name: currentUser.name,
           sender_avatar: currentUser.avatar,
           content: fwdContent,
@@ -2289,7 +2346,7 @@ ${channelMessagesText}`;
   };
 
   const COMMANDS = [
-    { name: '/ai', desc: 'Hỏi Upgen Brain AI câu bất kỳ (VD: /ai gợi ý ý tưởng dự án)', action: 'ai' },
+    { name: '/ai', desc: 'Hỏi Costack Brain AI câu bất kỳ (VD: /ai gợi ý ý tưởng dự án)', action: 'ai' },
     { name: '/summary', desc: 'Tóm tắt các công việc hiện tại bằng AI', action: 'summary' },
     { name: '/addtask', desc: 'Tạo nhanh công việc (VD: /addtask Họp báo cáo)', action: 'addtask' },
     { name: '/poll', desc: 'Tạo nhanh cuộc thăm dò ý kiến trong kênh', action: 'poll' },
@@ -2393,9 +2450,9 @@ ${channelMessagesText}`;
           const aiResponseMsg: ChatMessage = {
             id: aiMsgId,
             senderId: 'apexa-ai',
-            senderName: 'Upgen Brain AI',
+            senderName: 'Costack Brain AI',
             senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ApexaBrain',
-            content: `🤖 **Upgen Brain AI:**\n\n${data.text}`,
+            content: `🤖 **Costack Brain AI:**\n\n${data.text}`,
             timestamp: aiMsgTime,
             channelId: activeChannelId,
             isAi: true,
@@ -2408,7 +2465,7 @@ ${channelMessagesText}`;
               await supabase.from('chat_messages').insert({
                 id: aiMsgId,
                 sender_id: 'apexa-ai',
-                sender_name: 'Upgen Brain AI',
+                sender_name: 'Costack Brain AI',
                 sender_avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ApexaBrain',
                 content: aiResponseMsg.content,
                 timestamp: aiMsgTime,
@@ -2423,7 +2480,7 @@ ${channelMessagesText}`;
         }
       } catch (err) {
         console.error('Error executing /ai command:', err);
-        triggerToast?.('error', 'Lỗi AI', 'Không thể kết nối với Upgen Brain AI.');
+        triggerToast?.('error', 'Lỗi AI', 'Không thể kết nối với Costack Brain AI.');
       } finally {
         setIsAiTyping(false);
         scrollToBottom();
@@ -2462,7 +2519,7 @@ ${channelMessagesText}`;
           const aiResponseMsg: ChatMessage = {
             id: aiMsgId,
             senderId: 'apexa-ai',
-            senderName: 'Upgen Brain AI',
+            senderName: 'Costack Brain AI',
             senderAvatar: '',
             content: data.text,
             timestamp: aiMsgTime,
@@ -2474,7 +2531,7 @@ ${channelMessagesText}`;
             await supabase.from('chat_messages').insert({
               id: aiMsgId,
               sender_id: 'apexa-ai',
-              sender_name: 'Upgen Brain AI',
+              sender_name: 'Costack Brain AI',
               sender_avatar: '',
               content: data.text,
               timestamp: aiMsgTime,
@@ -2559,7 +2616,7 @@ ${channelMessagesText}`;
     pendingMessagesRef.current.delete(messageId);
     updateLocalMessage(message.channelId || '', messageId, { deliveryState: 'sent', attachment: message.attachment });
     if (pending.attachment?.url?.startsWith('blob:')) URL.revokeObjectURL(pending.attachment.url);
-  }, [updateLocalMessage, workspaceId]);
+  }, [updateLocalMessage, workspaceId, currentUser?.id]);
 
   const tryPersistPendingMessage = useCallback(async (messageId: string, showError = true) => {
     const pending = pendingMessagesRef.current.get(messageId);
@@ -2683,7 +2740,7 @@ ${channelMessagesText}`;
             const aiResponseMsg: ChatMessage = {
               id: `ai-msg-${crypto.randomUUID()}`,
               senderId: 'apexa-ai',
-              senderName: 'Upgen Brain AI',
+              senderName: 'Costack Brain AI',
               senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S',
               content: data.text,
               timestamp: new Date(aiCreatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
@@ -4439,7 +4496,7 @@ ${channelMessagesText}`;
                 <Bot className="w-4.5 h-4.5 animate-spin" />
               </div>
               <div className="space-y-1 text-left">
-                <span className="text-[10px] font-black text-amber-600 uppercase tracking-wider">AI Upgen Brain</span>
+                <span className="text-[10px] font-black text-amber-600 uppercase tracking-wider">AI Costack Brain</span>
                 <div className="flex gap-1.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 max-w-sm">
                   <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                   <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -4860,7 +4917,7 @@ ${channelMessagesText}`;
                       isSelfDm
                         ? `Nhắn tin cho chính bạn... (Space cho AI, / lệnh)`
                         : activeChannel?.name.includes('ai')
-                          ? "Hỏi Upgen Brain AI bất cứ điều gì..."
+                          ? "Hỏi Costack Brain AI bất cứ điều gì..."
                           : `Nhắn tin đến ${isDm && dmMember ? dmMember.name : (activeChannel?.name || 'chat')}...`
                     }
                     rows={1}
@@ -4985,7 +5042,7 @@ ${channelMessagesText}`;
                         <div className="absolute right-0 bottom-11 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-50 min-w-[210px] text-left animate-fadeIn">
                           <div className="px-2.5 py-1 mb-1 border-b border-slate-100 dark:border-slate-800 flex items-center gap-1.5">
                             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Trợ lý viết AI Upgen</span>
+                            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Trợ lý viết AI Costack</span>
                           </div>
                           <button type="button" onClick={() => handleAiEnhanceInput('expand')} className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600 rounded-xl transition-colors cursor-pointer flex items-center gap-2">
                             🪄 Viết tiếp & Mở rộng ý
@@ -5765,7 +5822,7 @@ ${channelMessagesText}`;
                         const summaryMsg: ChatMessage = {
                           id: msgId,
                           senderId: 'apexa-ai',
-                          senderName: 'Upgen Brain AI',
+                          senderName: 'Costack Brain AI',
                           senderAvatar: '',
                           content: `✨ **Bản tóm tắt kênh từ AI:**\n${aiSummaryText}`,
                           timestamp: timeStr,
