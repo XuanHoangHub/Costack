@@ -356,7 +356,7 @@ export default function ChatRoom({
 
   // Online Presence state per channel
   const [channelOnlineUserIds, setChannelOnlineUserIds] = useState<string[]>([]);
-  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'reconnecting' | 'error'>('connecting');
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'reconnecting' | 'disconnected' | 'error'>('connecting');
 
   // Pagination states
   const [hasMoreOlderMessages, setHasMoreOlderMessages] = useState(false);
@@ -1386,8 +1386,7 @@ ${channelMessagesText}`;
       ]
     };
 
-    const loadMessages = async () => {
-      const isSpace = activeChannelId.includes(':space-') || activeChannelId.includes(':folder-') || activeChannelId.includes(':list-');
+    const isSpace = activeChannelId.includes(':space-') || activeChannelId.includes(':folder-') || activeChannelId.includes(':list-');
       const isDm = activeChannelId.includes(':dm-');
 
       let spaceId = '';
@@ -1456,297 +1455,321 @@ ${channelMessagesText}`;
         return;
       }
 
-      try {
-        setAuthChecking(true);
-        // Kiểm tra quyền truy cập kênh đối với private/dm/group
-        const currentChannel = channelsRef.current.find(c => c.id === activeChannelId);
-        if (currentChannel && (currentChannel.type === 'private' || currentChannel.type === 'dm' || currentChannel.type === 'group')) {
+      const initChannel = async () => {
+        try {
+          setConnectionStatus('connecting');
+
+          // 1. Kiểm tra phiên đăng nhập người dùng
           const { data: { session } } = await supabase.auth.getSession();
           const authUserId = session?.user?.id;
-          if (authUserId) {
-            let hasAccess = false;
-            if (currentChannel.dmKey && currentChannel.dmKey.includes(authUserId)) {
-              hasAccess = true;
-            } else {
-              const { data: memCheck } = await supabase
-                .from('chat_channel_members')
-                .select('user_id')
-                .eq('channel_id', activeChannelId)
-                .eq('user_id', authUserId)
-                .maybeSingle();
-
-              if (memCheck) {
-                hasAccess = true;
-              } else {
-                const { data: chanCheck } = await supabase
-                  .from('chat_channels')
-                  .select('created_by')
-                  .eq('id', activeChannelId)
-                  .maybeSingle();
-                if (chanCheck?.created_by === authUserId) hasAccess = true;
-              }
-            }
-
+          if (!authUserId) {
             if (!cancelled) {
-              setIsAuthorized(hasAccess);
+              setIsAuthorized(false);
               setAuthChecking(false);
-              if (!hasAccess) {
-                setIsLoadingMessages(false);
-                return;
-              }
+              setIsLoadingMessages(false);
+              setConnectionStatus('disconnected');
             }
-          }
-        } else {
-          if (!cancelled) {
-            setIsAuthorized(true);
-            setAuthChecking(false);
-          }
-        }
-
-        const cachedMessages = messageCacheRef.current.get(activeChannelId);
-        setMessages(cachedMessages || []);
-        setIsLoadingMessages(!cachedMessages);
-        const { data, error } = await supabase
-          .from('chat_messages')
-          .select('*')
-          .eq('channel_id', activeChannelId)
-          .order('created_at', { ascending: false })
-          .limit(CHAT_PAGE_SIZE);
-
-        if (error) throw error;
-        if (cancelled || activeChannelIdRef.current !== activeChannelId) return;
-
-        setHasMoreOlderMessages((data || []).length === CHAT_PAGE_SIZE);
-        const loadedMessages = (data || []).reverse().map(mapChatMessage);
-        const pendingMessages = Array.from(pendingMessagesRef.current.values())
-          .map(item => item.message)
-          .filter(message => message.channelId === activeChannelId && !loadedMessages.some(remote => remote.id === message.id));
-        const mergedMessages = [...loadedMessages, ...pendingMessages];
-        messageCacheRef.current.set(activeChannelId, mergedMessages);
-        setMessages(mergedMessages);
-      } catch (err) {
-        console.error('Error loading messages from Supabase:', err);
-      } finally {
-        if (!cancelled && activeChannelIdRef.current === activeChannelId) {
-          setIsLoadingMessages(false);
-          setAuthChecking(false);
-        }
-      }
-      if (!cancelled && activeChannelIdRef.current === activeChannelId) scrollToBottom('auto');
-    };
-
-    loadMessages();
-
-    // Xử lý thống nhất các sự kiện tin nhắn từ Broadcast hoặc CDC
-    const handleIncomingMessagePayload = (m: any, eventType: string) => {
-      if (!m || (m.channel_id && m.channel_id !== activeChannelId)) return;
-
-      if (eventType === 'INSERT') {
-        const newMsg = mapChatMessage(m);
-        const isOwn = isSelfChatMessage(m, currentUserRef.current);
-        const shouldFollowMessage = isNearBottomRef.current || isOwn;
-        setMessages(prev => {
-          const exists = prev.some(x => x.id === newMsg.id);
-          const next = exists
-            ? prev.map(x => x.id === newMsg.id ? { ...newMsg, deliveryState: 'sent' as const } : x)
-            : [...prev, newMsg];
-          messageCacheRef.current.set(activeChannelId, next);
-          return next;
-        });
-        pendingMessagesRef.current.delete(newMsg.id);
-        if (shouldFollowMessage) scrollToBottom();
-        else setNewMessagesBelow(count => count + 1);
-
-        if (!isOwn) {
-          if (chatSettingsRef.current.soundEnabled) {
-            (window as any).playSystemSound?.('notification');
-          }
-          if (
-            chatSettingsRef.current.desktopNotifications &&
-            'Notification' in window &&
-            Notification.permission === 'granted' &&
-            (document.visibilityState !== 'visible' || !document.hasFocus())
-          ) {
-            const chanName = channelsRef.current.find(c => c.id === activeChannelId)?.name;
-            try {
-              const notif = new Notification(newMsg.senderName || 'Tin nhắn mới', {
-                body: `${chanName ? `#${chanName}: ` : ''}${newMsg.content || (newMsg.attachment ? '📎 Tệp đính kèm' : 'Tin nhắn mới')}`,
-                tag: `apexa-chat-${activeChannelId}`,
-                icon: newMsg.senderAvatar || undefined
-              });
-              notif.onclick = () => { window.focus(); };
-            } catch {}
-          }
-        }
-      } else if (eventType === 'UPDATE') {
-        setMessages(prev => {
-          const next = prev.map(x => x.id === m.id ? mapChatMessage(m) : x);
-          messageCacheRef.current.set(activeChannelId, next);
-          return next;
-        });
-      } else if (eventType === 'DELETE') {
-        setMessages(prev => {
-          const next = prev.filter(x => x.id !== m.id);
-          messageCacheRef.current.set(activeChannelId, next);
-          return next;
-        });
-      }
-    };
-
-    // Đăng ký Supabase Realtime Channel với Broadcast, CDC fallback & Presence theo kênh
-    if (!isOffline) {
-      setConnectionStatus('connecting');
-      const channelTopic = `chat:${activeChannelId}`;
-      const authId = currentUser?.userId || currentUser?.id;
-
-      subscription = getCleanChannel(channelTopic, {
-        config: {
-          presence: { key: authId || `guest-${Date.now()}` }
-        }
-      });
-
-      // 1. Broadcast messages từ database trigger (topic: chat:<channel_id>)
-      subscription.on('broadcast', { event: 'message' }, (payload: any) => {
-        const body = payload?.payload || payload;
-        const eventType = body?.eventType || 'INSERT';
-        const row = body?.new || body?.old || body;
-        if (row) handleIncomingMessagePayload(row, eventType);
-      });
-
-      // 2. Dual fallback: CDC postgres_changes trên bảng chat_messages
-      subscription.on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'chat_messages',
-          filter: `channel_id=eq.${activeChannelId}`
-        },
-        (payload: any) => {
-          const eventType = payload.eventType;
-          const m = (payload.new || payload.old) as any;
-          if (m) handleIncomingMessagePayload(m, eventType);
-        }
-      );
-
-      // 3. Typing indicator qua Broadcast
-      subscription.on(
-        'broadcast',
-        { event: 'typing' },
-        (payload: any) => {
-          const { userId, name, isTyping = true } = payload.payload || payload || {};
-          if (userId === currentUser.id || (authId && userId === authId)) return;
-
-          const existingTimer = typingRemovalTimers.get(userId);
-          if (existingTimer) clearTimeout(existingTimer);
-          if (!isTyping) {
-            typingRemovalTimers.delete(userId);
-            setTypingUsers(prev => prev.filter(n => n !== name));
             return;
           }
 
-          setTypingUsers(prev => {
-            if (prev.includes(name)) return prev;
-            return [...prev, name];
-          });
+          // 2. Kiểm tra quyền truy cập kênh một cách nghiêm ngặt
+          let hasAccess = false;
+          const localChan = channelsRef.current.find(c => c.id === activeChannelId);
 
-          const timer = setTimeout(() => {
-            setTypingUsers(prev => prev.filter(n => n !== name));
-            typingRemovalTimers.delete(userId);
-          }, 3000);
-          typingRemovalTimers.set(userId, timer);
-        }
-      );
+          const { data: chanData } = await supabase
+            .from('chat_channels')
+            .select('id, workspace_id, channel_type, created_by, is_archived, dm_key')
+            .eq('id', activeChannelId)
+            .maybeSingle();
 
-      // 4. Supabase Presence theo kênh (theo dõi người đang mở kênh này)
-      subscription.on('presence', { event: 'sync' }, () => {
-        if (cancelled) return;
-        const state = subscription.presenceState();
-        const onlineIds = new Set<string>();
-        Object.entries(state).forEach(([key, items]: [string, any]) => {
-          if (key && !key.startsWith('guest-')) onlineIds.add(key);
-          if (Array.isArray(items)) {
-            items.forEach((item: any) => {
-              if (item.user_id) onlineIds.add(item.user_id);
-            });
+          const channelObj = chanData || (localChan ? {
+            id: localChan.id,
+            workspace_id: localChan.workspaceId,
+            channel_type: localChan.type,
+            created_by: null,
+            is_archived: false,
+            dm_key: localChan.dmKey
+          } : null);
+
+          if (!channelObj || channelObj.is_archived) {
+            hasAccess = false;
+          } else if (channelObj.workspace_id && channelObj.workspace_id !== workspaceId) {
+            hasAccess = false;
+          } else {
+            // Kiểm tra tư cách thành viên workspace
+            const targetWs = channelObj.workspace_id || workspaceId;
+            const { data: wsMem } = await supabase
+              .from('workspace_memberships')
+              .select('user_id')
+              .eq('workspace_id', targetWs)
+              .eq('user_id', authUserId)
+              .maybeSingle();
+
+            if (wsMem) {
+              if (channelObj.channel_type === 'public') {
+                hasAccess = true;
+              } else {
+                // Kênh private / dm / group
+                if (channelObj.created_by === authUserId) {
+                  hasAccess = true;
+                } else if (channelObj.dm_key && channelObj.dm_key.includes(authUserId)) {
+                  hasAccess = true;
+                } else {
+                  const { data: memCheck } = await supabase
+                    .from('chat_channel_members')
+                    .select('user_id')
+                    .eq('channel_id', activeChannelId)
+                    .eq('user_id', authUserId)
+                    .maybeSingle();
+                  hasAccess = !!memCheck;
+                }
+              }
+            }
           }
-        });
-        setChannelOnlineUserIds(Array.from(onlineIds));
-      });
 
-      // 5. Quản lý trạng thái kết nối & Reconnect catch-up
-      subscription.subscribe((status: any, err?: any) => {
-        if (status === 'SUBSCRIBED') {
-          setConnectionStatus('connected');
-          // Track presence người dùng trong kênh hiện tại
-          if (authId) {
-            subscription.track({
-              user_id: authId,
-              name: currentUser.name,
-              avatar: currentUser.avatar || '',
-              online_at: new Date().toISOString()
-            }).catch(() => {});
+          if (cancelled) return;
+          setIsAuthorized(hasAccess);
+          setAuthChecking(false);
+
+          if (!hasAccess) {
+            setIsLoadingMessages(false);
+            setConnectionStatus('disconnected');
+            return;
           }
 
-          // Tải bù tin nhắn phát sinh trong thời gian mất kết nối
-          const cached = messageCacheRef.current.get(activeChannelId) || [];
-          const latestTime = cached[cached.length - 1]?.createdAt;
-          let catchupQuery = supabase
+          // 3. Tải tin nhắn ban đầu (50 tin gần nhất)
+          const cachedMessages = messageCacheRef.current.get(activeChannelId);
+          setMessages(cachedMessages || []);
+          setIsLoadingMessages(!cachedMessages);
+
+          const { data, error } = await supabase
             .from('chat_messages')
             .select('*')
             .eq('channel_id', activeChannelId)
             .order('created_at', { ascending: false })
-            .limit(30);
+            .limit(CHAT_PAGE_SIZE);
 
-          if (latestTime) {
-            catchupQuery = catchupQuery.gt('created_at', latestTime);
-          }
+          if (error) throw error;
+          if (cancelled || activeChannelIdRef.current !== activeChannelId) return;
 
-          catchupQuery.then(({ data: recentRows, error: catchupErr }) => {
-            if (!catchupErr && recentRows && recentRows.length > 0) {
-              const recentMsgs = recentRows.reverse().map(mapChatMessage);
-              setMessages(prev => {
-                const existingIds = new Set(prev.map(msg => msg.id));
-                const missing = recentMsgs.filter(msg => !existingIds.has(msg.id));
-                if (missing.length === 0) return prev;
-                const merged = [...prev, ...missing].sort((a, b) =>
-                  new Date(a.createdAt || a.timestamp).getTime() - new Date(b.createdAt || b.timestamp).getTime()
-                );
-                messageCacheRef.current.set(activeChannelId, merged);
-                return merged;
-              });
+          setHasMoreOlderMessages((data || []).length === CHAT_PAGE_SIZE);
+          const loadedMessages = (data || []).reverse().map(mapChatMessage);
+          const pendingMessages = Array.from(pendingMessagesRef.current.values())
+            .map(item => item.message)
+            .filter(message => message.channelId === activeChannelId && !loadedMessages.some(remote => remote.id === message.id));
+          const mergedMessages = [...loadedMessages, ...pendingMessages];
+          messageCacheRef.current.set(activeChannelId, mergedMessages);
+          setMessages(mergedMessages);
+          setIsLoadingMessages(false);
+          scrollToBottom('auto');
+
+          // 4. Thiết lập Supabase Realtime Channel với Postgres Changes, Presence và Broadcast typing
+          const channelTopic = `chat:${activeChannelId}`;
+          subscription = getCleanChannel(channelTopic, {
+            config: {
+              private: true,
+              presence: { key: authUserId }
             }
           });
-        } else if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR' || status === 'CLOSED') {
-          setConnectionStatus('reconnecting');
+
+          // 4a. Postgres Changes (CDC) trực tiếp trên bảng chat_messages
+          subscription.on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'chat_messages',
+              filter: `channel_id=eq.${activeChannelId}`
+            },
+            (payload: any) => {
+              const eventType = payload.eventType;
+              const m = (payload.new || payload.old) as any;
+              if (m) handleIncomingMessagePayload(m, eventType);
+            }
+          );
+
+          // 4b. Typing indicator qua Broadcast
+          subscription.on(
+            'broadcast',
+            { event: 'typing' },
+            (payload: any) => {
+              const { userId, name, isTyping = true } = payload.payload || payload || {};
+              if (userId === authUserId || userId === currentUser.id) return;
+
+              const existingTimer = typingRemovalTimers.get(userId);
+              if (existingTimer) clearTimeout(existingTimer);
+              if (!isTyping) {
+                typingRemovalTimers.delete(userId);
+                setTypingUsers(prev => prev.filter(n => n !== name));
+                return;
+              }
+
+              setTypingUsers(prev => {
+                if (prev.includes(name)) return prev;
+                return [...prev, name];
+              });
+
+              const timer = setTimeout(() => {
+                setTypingUsers(prev => prev.filter(n => n !== name));
+                typingRemovalTimers.delete(userId);
+              }, 3000);
+              typingRemovalTimers.set(userId, timer);
+            }
+          );
+
+          // 4c. Supabase Presence theo kênh
+          subscription.on('presence', { event: 'sync' }, () => {
+            if (cancelled) return;
+            const state = subscription.presenceState();
+            const onlineIds = new Set<string>();
+            Object.entries(state).forEach(([key, items]: [string, any]) => {
+              if (key && !key.startsWith('guest-')) onlineIds.add(key);
+              if (Array.isArray(items)) {
+                items.forEach((item: any) => {
+                  if (item.user_id) onlineIds.add(item.user_id);
+                });
+              }
+            });
+            setChannelOnlineUserIds(Array.from(onlineIds));
+          });
+
+          // 4d. Quản lý trạng thái kết nối, Track Presence & Reconnect catch-up
+          subscription.subscribe((status: any, err?: any) => {
+            if (status === 'SUBSCRIBED') {
+              setConnectionStatus('connected');
+              // Gửi Presence với payload tối thiểu cần cho UI
+              subscription.track({
+                user_id: authUserId,
+                name: currentUser.name,
+                avatar: currentUser.avatar || ''
+              }).catch(() => {});
+
+              // Truy vấn bù tin nhắn nếu vừa kết nối lại
+              const cached = messageCacheRef.current.get(activeChannelId) || [];
+              const latestTime = cached[cached.length - 1]?.createdAt;
+              let catchupQuery = supabase
+                .from('chat_messages')
+                .select('*')
+                .eq('channel_id', activeChannelId)
+                .order('created_at', { ascending: false })
+                .limit(30);
+
+              if (latestTime) {
+                catchupQuery = catchupQuery.gt('created_at', latestTime);
+              }
+
+              catchupQuery.then(({ data: recentRows, error: catchupErr }) => {
+                if (!catchupErr && recentRows && recentRows.length > 0) {
+                  const recentMsgs = recentRows.reverse().map(mapChatMessage);
+                  setMessages(prev => {
+                    const existingIds = new Set(prev.map(msg => msg.id));
+                    const missing = recentMsgs.filter(msg => !existingIds.has(msg.id));
+                    if (missing.length === 0) return prev;
+                    const merged = [...prev, ...missing].sort((a, b) =>
+                      new Date(a.createdAt || a.timestamp).getTime() - new Date(b.createdAt || b.timestamp).getTime()
+                    );
+                    messageCacheRef.current.set(activeChannelId, merged);
+                    return merged;
+                  });
+                }
+              });
+            } else if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
+              setConnectionStatus('reconnecting');
+            } else if (status === 'CLOSED') {
+              setConnectionStatus('disconnected');
+            }
+          });
+
+          channelSubscriptionRef.current = subscription;
+        } catch (err) {
+          console.error('Error initializing chat channel:', err);
+          if (!cancelled) {
+            setIsLoadingMessages(false);
+            setAuthChecking(false);
+            setConnectionStatus('error');
+          }
         }
-      });
+      };
 
-      channelSubscriptionRef.current = subscription;
-    }
+      const handleIncomingMessagePayload = (m: any, eventType: string) => {
+        if (!m || (m.channel_id && m.channel_id !== activeChannelId)) return;
 
-    return () => {
-      cancelled = true;
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-        typingTimeoutRef.current = null;
-      }
-      lastTypingBroadcastRef.current = 0;
-      typingRemovalTimers.forEach(timer => clearTimeout(timer));
-      typingRemovalTimers.clear();
-      setChannelOnlineUserIds([]);
-      setTypingUsers([]);
-      if (subscription) {
-        try {
-          subscription.untrack().catch(() => {});
-        } catch {}
-        supabase.removeChannel(subscription);
-      }
-      if (channelSubscriptionRef.current === subscription) {
-        channelSubscriptionRef.current = null;
-      }
-    };
-  }, [activeChannelId, isOffline, currentUser?.id, currentUser?.name, currentUser?.userId, workspaceId]);
+        if (eventType === 'INSERT') {
+          const newMsg = mapChatMessage(m);
+          const isOwn = isSelfChatMessage(m, currentUserRef.current);
+          const shouldFollowMessage = isNearBottomRef.current || isOwn;
+          setMessages(prev => {
+            const exists = prev.some(x => x.id === newMsg.id);
+            const next = exists
+              ? prev.map(x => x.id === newMsg.id ? { ...newMsg, deliveryState: 'sent' as const } : x)
+              : [...prev, newMsg];
+            messageCacheRef.current.set(activeChannelId, next);
+            return next;
+          });
+          pendingMessagesRef.current.delete(newMsg.id);
+          if (shouldFollowMessage) scrollToBottom();
+          else setNewMessagesBelow(count => count + 1);
+
+          if (!isOwn) {
+            if (chatSettingsRef.current.soundEnabled) {
+              (window as any).playSystemSound?.('notification');
+            }
+            if (
+              chatSettingsRef.current.desktopNotifications &&
+              'Notification' in window &&
+              Notification.permission === 'granted' &&
+              (document.visibilityState !== 'visible' || !document.hasFocus())
+            ) {
+              const chanName = channelsRef.current.find(c => c.id === activeChannelId)?.name;
+              try {
+                const notif = new Notification(newMsg.senderName || 'Tin nhắn mới', {
+                  body: `${chanName ? `#${chanName}: ` : ''}${newMsg.content || (newMsg.attachment ? '📎 Tệp đính kèm' : 'Tin nhắn mới')}`,
+                  tag: `costack-chat-${activeChannelId}`,
+                  icon: newMsg.senderAvatar || undefined
+                });
+                notif.onclick = () => { window.focus(); };
+              } catch {}
+            }
+          }
+        } else if (eventType === 'UPDATE') {
+          setMessages(prev => {
+            const next = prev.map(x => x.id === m.id ? mapChatMessage(m) : x);
+            messageCacheRef.current.set(activeChannelId, next);
+            return next;
+          });
+        } else if (eventType === 'DELETE') {
+          setMessages(prev => {
+            const next = prev.filter(x => x.id !== m.id);
+            messageCacheRef.current.set(activeChannelId, next);
+            return next;
+          });
+        }
+      };
+
+      initChannel();
+
+      return () => {
+        cancelled = true;
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = null;
+        }
+        lastTypingBroadcastRef.current = 0;
+        typingRemovalTimers.forEach(timer => clearTimeout(timer));
+        typingRemovalTimers.clear();
+        setChannelOnlineUserIds([]);
+        setTypingUsers([]);
+        if (subscription) {
+          try {
+            subscription.untrack().catch(() => {});
+          } catch {}
+          supabase.removeChannel(subscription);
+        }
+        if (channelSubscriptionRef.current === subscription) {
+          channelSubscriptionRef.current = null;
+        }
+      };
+    }, [activeChannelId, isOffline, currentUser?.id, currentUser?.name, currentUser?.userId, currentUser?.avatar, workspaceId]);
 
   // Phân trang: Tải các tin nhắn cũ hơn khi người dùng cuộn lên trên cùng
   const loadOlderMessages = useCallback(async () => {
@@ -1921,10 +1944,11 @@ ${channelMessagesText}`;
   // Typing indicator broadcast (throttled: tối đa 1 broadcast / 2 giây)
   const sendTypingState = (isTyping: boolean) => {
     if (isOffline || !channelSubscriptionRef.current) return;
+    const authId = currentUser?.userId || currentUser?.id;
     channelSubscriptionRef.current.send({
       type: 'broadcast',
       event: 'typing',
-      payload: { userId: currentUser.id, name: currentUser.name, isTyping }
+      payload: { userId: authId || currentUser.id, name: currentUser.name, isTyping }
     });
   };
 

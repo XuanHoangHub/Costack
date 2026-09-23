@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -124,7 +124,13 @@ export const WhiteboardScreen: React.FC<WhiteboardScreenProps> = ({ navigation }
 
   // PanResponder for drawing
   const currentPathRef = useRef('');
-  const panResponder = useRef(
+  const penColorRef = useRef(penColor);
+  useEffect(() => {
+    penColorRef.current = penColor;
+  }, [penColor]);
+
+  // eslint-disable-next-line react-hooks/refs
+  const [panResponder] = useState(() =>
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderGrant: (evt) => {
@@ -141,14 +147,14 @@ export const WhiteboardScreen: React.FC<WhiteboardScreenProps> = ({ navigation }
         if (currentPathRef.current) {
           setStrokes((prev) => [
             ...prev,
-            { path: currentPathRef.current, color: penColor, width: 3 },
+            { path: currentPathRef.current, color: penColorRef.current, width: 3 },
           ]);
           currentPathRef.current = '';
           setCurrentPath('');
         }
       },
     })
-  ).current;
+  );
 
   const handleCreateNote = () => {
     if (!noteTitle.trim() && !noteContent.trim()) return;
