@@ -4,19 +4,18 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { 
   Bell, Check, Trash2, Eye, EyeOff, Pin, Archive, Clock, Search, 
   Inbox, ArchiveRestore, Sparkles, CheckSquare,
-  Bookmark, User as UserIcon, Send, MessageSquare,
-  ChevronRight, ChevronDown, Minus, Calendar, X, CheckCheck,
-  Flame, TrendingUp, Target, RefreshCw, ArrowLeft,
+  Bookmark, Send, MessageSquare,
+  ChevronRight, ChevronDown, Minus, X, CheckCheck,
+  Flame, ArrowLeft,
   CreditCard, Copy, Layers, SlidersHorizontal,
-  AlertTriangle, ShieldCheck, CheckCircle2,
-  ExternalLink, Share2, Plus, Flag, Award,
-  ListTodo, CheckCircle, ArrowUpRight, Mail, MailOpen
+  AlertTriangle, ShieldCheck,
+  Award, Mail
 } from 'lucide-react';
 import { Task, User, Workspace, WorkspaceInvitation, TaskStatus, Priority } from '../types';
 import TaskDetailsPanel from './tasks/TaskDetailsPanel';
-import { callAiApi, isAiAccessError } from '@/lib/aiClient';
+import { callAiApi } from '@/lib/aiClient';
 import { useTranslation } from '@/contexts/TranslationContext';
-import { ApexaAiIcon } from './ApexaAiIcon';
+
 
 interface InboxViewProps {
   notificationsList: any[];
@@ -90,10 +89,6 @@ export default function InboxView({
   const [aiGenerating, setAiGenerating] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [aiSummary, setAiSummary] = useState('');
-
-  // AI Daily Digest
-  const [aiDigestLoading, setAiDigestLoading] = useState(false);
-  const [aiDigestText, setAiDigestText] = useState<string | null>(null);
 
   // Close dropdowns on click outside
   useEffect(() => {
@@ -259,21 +254,6 @@ export default function InboxView({
     };
   }, [notificationsList, workspaceScope, activeWorkspaceId, workspaceInvitations.length, tasks, currentUser, getAssociatedTaskId]);
 
-  // Productivity Metrics
-  const productivityStats = useMemo(() => {
-    const userTasks = tasks.filter(t => t.assigneeId === currentUser?.id || t.assigneeIds?.includes(currentUser?.id));
-    const completedTasks = userTasks.filter(t => t.status === 'completed');
-    const urgentTasks = userTasks.filter(t => t.priority === 'urgent' || t.priority === 'high');
-    const completionRate = userTasks.length > 0 ? Math.round((completedTasks.length / userTasks.length) * 100) : 100;
-    
-    return {
-      totalAssigned: userTasks.length,
-      completed: completedTasks.length,
-      urgent: urgentTasks.length,
-      completionRate
-    };
-  }, [tasks, currentUser]);
-
   // Live Counts for Filter Chips
   const quickFilterCounts = useMemo(() => {
     const now = Date.now();
@@ -420,27 +400,6 @@ export default function InboxView({
       { label: isVietnamese ? 'Cũ hơn' : 'Older', items: older }
     ].filter(g => g.items.length > 0);
   }, [filteredNotifications, isVietnamese]);
-
-  // Next Up / Active Tasks for the Productivity Hub
-  const upcomingTasks = useMemo(() => {
-    const pending = tasks.filter(t => t.status !== 'completed');
-    const myTasks = pending.filter(t => t.assigneeId === currentUser?.id || t.assigneeIds?.includes(currentUser?.id));
-    if (myTasks.length > 0) {
-      return myTasks.slice(0, 4);
-    }
-    return pending.slice(0, 4);
-  }, [tasks, currentUser]);
-
-  // Recent Workspace Activities
-  const recentActivities = useMemo(() => {
-    const now = Date.now();
-    return [...notificationsList]
-      .filter(n => {
-        const matchesWorkspace = workspaceScope === 'all' || !n.workspaceId || n.workspaceId === activeWorkspaceId || n.workspaceId === 'all';
-        return matchesWorkspace && !n.cleared && !(n.snoozedUntil && n.snoozedUntil > now);
-      })
-      .slice(0, 5);
-  }, [notificationsList, workspaceScope, activeWorkspaceId]);
 
   // Older read notifications that can be triaged
   const olderReadNotifications = useMemo(() => {
@@ -678,41 +637,6 @@ export default function InboxView({
 
     setReplyText('');
     setIsSendingReply(false);
-  };
-
-  // Generate AI Daily Briefing
-  const handleGenerateAiDigest = async () => {
-    if (!currentUser?.isPremium) {
-      onUpgradePremium();
-      return;
-    }
-    setAiDigestLoading(true);
-    try {
-      const activeUnread = notificationsList.filter(n => !n.cleared && !n.read).slice(0, 10);
-      const res = await callAiApi('/api/ai/inbox-digest', {
-        userName: currentUser?.name || (isVietnamese ? 'Thành viên Costack' : 'Costack Member'),
-        notifications: activeUnread,
-        tasksCount: tasks.length
-      });
-      const data = await res.json();
-      if (data.success && data.digest) {
-        setAiDigestText(data.digest);
-        triggerToast?.('success', 'AI Daily Digest ✨', isVietnamese ? 'Đã tổng hợp tóm tắt thông minh cho hôm nay.' : 'Smart summary prepared for today.');
-      } else {
-        setAiDigestText(isVietnamese 
-          ? `Chào ${currentUser?.name || 'bạn'}! Hôm nay bạn có ${inboxStats.important} thông báo quan trọng và ${productivityStats.totalAssigned} công việc được giao cần xử lý. Tỉ lệ hoàn thành hiện tại đạt ${productivityStats.completionRate}%. Hãy ưu tiên các đầu việc có mức khẩn cấp cao!`
-          : `Hello ${currentUser?.name || 'there'}! Today you have ${inboxStats.important} important notifications and ${productivityStats.totalAssigned} assigned tasks. Your current completion rate is ${productivityStats.completionRate}%. Focus on high-priority items first!`
-        );
-      }
-    } catch (error) {
-      if (isAiAccessError(error)) return;
-      setAiDigestText(isVietnamese
-        ? `Chào ${currentUser?.name || 'bạn'}! Bạn đang có ${inboxStats.unread} thông báo chưa đọc trong Hộp thư Costack. Hãy kiểm tra các thông báo được giao và cập nhật tiến độ công việc để duy trì hiệu suất cao nhất.`
-        : `Hello ${currentUser?.name || 'there'}! You have ${inboxStats.unread} unread notifications in Costack Inbox. Review your assigned tasks and update progress to maintain peak productivity.`
-      );
-    } finally {
-      setAiDigestLoading(false);
-    }
   };
 
   // Task Attachment & AI utilities
@@ -2332,416 +2256,92 @@ export default function InboxView({
             })()}
           </div>
         ) : (
-          /* ── Case 3: World-Class Productivity & Focus Command Hub ── */
-          <div className="w-full h-full flex flex-col p-5 sm:p-7 overflow-y-auto text-left space-y-4 custom-scrollbar">
+          /* ── Case 3: Clean Notification Overview ── */
+          <div className="w-full h-full flex flex-col items-center justify-center p-5 sm:p-7 overflow-y-auto text-center space-y-5 custom-scrollbar">
             
-            {/* 4 Interactive Live Stat Cards */}
-            <div className="grid grid-cols-4 gap-2.5 shrink-0">
-              {/* 1. Unread */}
-              <div 
-                onClick={() => {
-                  setActiveTab('unread');
-                  setQuickFilter('all');
-                }}
-                className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-900/60 hover:bg-blue-50/60 dark:hover:bg-blue-950/40 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5 shadow-2xs cursor-pointer transition-all group"
-              >
-                <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-[11px] font-bold group-hover:text-blue-600 transition-colors">
-                    {isVietnamese ? 'Cần xử lý' : 'Pending'}
-                  </span>
-                  <div className="p-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-sky-300 border border-blue-200/70 dark:border-blue-800/50">
-                    <Bell className="w-3.5 h-3.5" />
-                  </div>
+            {/* Central Inbox Status */}
+            {inboxStats.unread > 0 ? (
+              <div className="flex flex-col items-center gap-4 max-w-sm">
+                <div className="w-16 h-16 rounded-3xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-sky-400 flex items-center justify-center border border-blue-100 dark:border-blue-900/40 shadow-xs">
+                  <Bell className="w-8 h-8" />
                 </div>
-                <div className="text-xl font-black text-slate-900 dark:text-white">
-                  {inboxStats.unread}
+                <div className="space-y-1.5">
+                  <h2 className="text-lg font-black text-slate-900 dark:text-white">
+                    {inboxStats.unread} {isVietnamese ? 'thông báo chưa đọc' : 'unread notifications'}
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                    {isVietnamese 
+                      ? 'Chọn một thông báo bên trái để xem chi tiết, hoặc dùng phím J/K để di chuyển nhanh.' 
+                      : 'Select a notification on the left to view details, or use J/K keys to navigate quickly.'}
+                  </p>
                 </div>
-                <p className="text-[10px] text-slate-400 font-semibold truncate">
-                  {isVietnamese ? 'Thông báo chưa đọc' : 'Unread notifications'}
-                </p>
-              </div>
-
-              {/* 2. Assigned */}
-              <div 
-                onClick={() => setQuickFilter('assigned')}
-                className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-900/60 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/40 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5 shadow-2xs cursor-pointer transition-all group"
-              >
-                <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-[11px] font-bold group-hover:text-indigo-600 transition-colors">
-                    {isVietnamese ? 'Được giao' : 'Assigned'}
-                  </span>
-                  <div className="p-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/70 dark:border-indigo-800/50">
-                    <CheckSquare className="w-3.5 h-3.5" />
-                  </div>
-                </div>
-                <div className="text-xl font-black text-slate-900 dark:text-white">
-                  {productivityStats.totalAssigned}
-                </div>
-                <p className="text-[10px] text-slate-400 font-semibold truncate">
-                  {isVietnamese ? 'Đầu việc cần làm' : 'Tasks in progress'}
-                </p>
-              </div>
-
-              {/* 3. Urgent */}
-              <div 
-                onClick={() => setQuickFilter('deadlines')}
-                className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-900/60 hover:bg-amber-50/60 dark:hover:bg-amber-950/40 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5 shadow-2xs cursor-pointer transition-all group"
-              >
-                <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-[11px] font-bold group-hover:text-amber-600 transition-colors">
-                    {isVietnamese ? 'Khẩn cấp' : 'Urgent'}
-                  </span>
-                  <div className="p-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200/70 dark:border-amber-800/50">
-                    <Flame className="w-3.5 h-3.5" />
-                  </div>
-                </div>
-                <div className="text-xl font-black text-slate-900 dark:text-white">
-                  {productivityStats.urgent}
-                </div>
-                <p className="text-[10px] text-slate-400 font-semibold truncate">
-                  {isVietnamese ? 'Ưu tiên cao nhất' : 'High priority items'}
-                </p>
-              </div>
-
-              {/* 4. Completion Rate */}
-              <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5 shadow-2xs">
-                <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-[11px] font-bold">
-                    {isVietnamese ? 'Hoàn thành' : 'Completed'}
-                  </span>
-                  <div className="p-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/70 dark:border-emerald-800/50">
-                    <TrendingUp className="w-3.5 h-3.5" />
-                  </div>
-                </div>
-                <div className="text-xl font-black text-slate-900 dark:text-white">
-                  {productivityStats.completionRate}%
-                </div>
-                <div className="w-full bg-slate-200/80 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-emerald-500 rounded-full transition-all duration-500" 
-                    style={{ width: `${productivityStats.completionRate}%` }} 
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Apexa AI Daily Briefing Smart Card */}
-            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3.5 shadow-xs shrink-0">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 rounded-lg bg-white dark:bg-slate-900 shadow-2xs border border-blue-200/60 dark:border-blue-800/60">
-                    <ApexaAiIcon className="w-3.5 h-3.5" variant="gradient" animated={aiDigestLoading} />
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5">
-                      <span>Costack AI Daily Briefing</span>
-                      <span className="px-1.5 py-0.2 rounded-md bg-blue-500/10 text-blue-600 dark:text-sky-400 text-[9px] font-black uppercase">
-                        Gemini 2.5 Flash
-                      </span>
-                    </h3>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                      {isVietnamese ? 'Tóm tắt thông minh công việc & thông báo trọng tâm trong ngày' : 'Smart daily executive overview powered by Gemini'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  {aiDigestText && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleMarkAllRead}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <CheckCheck className="w-3.5 h-3.5" />
+                    <span>{isVietnamese ? 'Đánh dấu tất cả đã đọc' : 'Mark all read'}</span>
+                  </button>
+                  {olderReadNotifications.length > 0 && (
                     <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(aiDigestText);
-                        triggerToast?.('success', isVietnamese ? 'Đã sao chép' : 'Copied', isVietnamese ? 'Đã sao chép tóm tắt AI vào bộ nhớ đệm.' : 'AI briefing copied.');
-                      }}
-                      className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 text-slate-500 hover:text-slate-800 dark:hover:text-white transition-all"
-                      title={isVietnamese ? "Sao chép tóm tắt" : "Copy summary"}
+                      onClick={handleTriageOlderRead}
+                      className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 transition-all cursor-pointer flex items-center gap-1.5"
                     >
-                      <Copy className="w-3.5 h-3.5" />
+                      <Archive className="w-3.5 h-3.5" />
+                      <span>{isVietnamese ? 'Dọn dẹp' : 'Clean up'}</span>
                     </button>
                   )}
-                  <button
-                    onClick={handleGenerateAiDigest}
-                    disabled={aiDigestLoading}
-                    className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black shadow-xs transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                  >
-                    {aiDigestLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ApexaAiIcon className="w-3.5 h-3.5" variant="white" />}
-                    <span>{aiDigestLoading ? (isVietnamese ? 'Đang tóm tắt…' : 'Generating…') : (isVietnamese ? 'Tạo tóm tắt AI' : 'Generate Briefing')}</span>
-                  </button>
                 </div>
-              </div>
-
-              {aiDigestText ? (
-                <div className="p-4 bg-white/90 dark:bg-slate-900/90 rounded-2xl border border-blue-200/60 dark:border-blue-800/50 text-xs leading-relaxed text-slate-700 dark:text-slate-200 font-medium shadow-2xs space-y-2">
-                  <p>{aiDigestText}</p>
-                </div>
-              ) : (
-                <div className="p-3 bg-white/60 dark:bg-slate-900/60 rounded-2xl border border-dashed border-blue-200 dark:border-blue-800/60 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-medium flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-blue-500 shrink-0" />
-                    <span>
-                      {isVietnamese 
-                        ? 'Nhấn "Tạo tóm tắt AI" để Gemini đọc thông báo, thời hạn công việc và tiến độ để xuất báo cáo nhanh đầu ngày cho bạn.' 
-                        : 'Click "Generate Briefing" to let Gemini scan notifications and upcoming deadlines for an executive morning brief.'}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Next Up & Priority Tasks Queue */}
-            <div className="space-y-2.5 shrink-0">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ListTodo className="w-4 h-4 text-blue-600 dark:text-sky-400" />
-                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
-                    {isVietnamese ? 'Hàng đợi công việc trọng tâm' : 'Next Up & Priority Tasks'}
-                  </h3>
-                </div>
-                <button
-                  onClick={() => onNavigateToTab?.('tasks')}
-                  className="text-[11px] font-bold text-blue-600 dark:text-sky-400 hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  <span>{isVietnamese ? 'Xem tất cả' : 'View all'}</span>
-                  <ChevronRight className="w-3 h-3" />
-                </button>
-              </div>
-
-              {upcomingTasks.length > 0 ? (
-                <div className="grid grid-cols-1 gap-2">
-                  {upcomingTasks.map(task => {
-                    const isCompleted = task.status === 'completed';
-                    const isUrgent = task.priority === 'urgent' || task.priority === 'high';
-                    return (
-                      <div
-                        key={task.id}
-                        onClick={() => {
-                          const linkedNotif = notificationsList.find(n => getAssociatedTaskId(n) === task.id);
-                          if (linkedNotif) {
-                            setSelectedNotificationId(linkedNotif.id);
-                          } else {
-                            // Link to tasks
-                            onNavigateToTab?.('tasks');
-                          }
-                        }}
-                        className="p-3 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/70 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 shadow-2xs cursor-pointer transition-all group"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const newStatus: TaskStatus = isCompleted ? 'inprogress' : 'completed';
-                              onUpdateTask({ ...task, status: newStatus });
-                              triggerToast?.('success', isVietnamese ? 'Cập nhật tiến độ' : 'Progress Updated', `${task.title}: ${newStatus}`);
-                            }}
-                            className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
-                              isCompleted
-                                ? 'bg-emerald-600 border-emerald-600 text-white'
-                                : 'border-slate-300 dark:border-slate-700 hover:border-blue-500 text-transparent hover:text-blue-500'
-                            }`}
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                          </button>
-
-                          <div className="min-w-0">
-                            <h4 className={`text-xs font-black truncate group-hover:text-blue-600 transition-colors ${
-                              isCompleted ? 'line-through text-slate-400' : 'text-slate-900 dark:text-white'
-                            }`}>
-                              {task.title}
-                            </h4>
-                            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
-                              {task.dueDate && (
-                                <span className="flex items-center gap-1 font-bold">
-                                  <Clock className="w-3 h-3 text-slate-400" />
-                                  {task.dueDate}
-                                </span>
-                              )}
-                              {task.priority && (
-                                <span className={`font-black uppercase text-[9px] px-1.5 py-0.2 rounded ${
-                                  isUrgent 
-                                    ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400' 
-                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                                }`}>
-                                  {task.priority}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span>{isVietnamese ? 'Không có công việc tồn đọng cần xử lý!' : 'No pending tasks on your plate!'}</span>
-                  </div>
-                  <button
-                    onClick={() => onNavigateToTab?.('tasks')}
-                    className="px-3 py-1 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-sky-300 text-xs font-bold hover:bg-blue-100 transition-all cursor-pointer flex items-center gap-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>{isVietnamese ? 'Tạo việc' : 'New Task'}</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Workspace Activity Pulse & Recent Timeline */}
-            {recentActivities.length > 0 && (
-            <div className="space-y-3 shrink-0">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-violet-600 dark:text-violet-400" />
-                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
-                    {isVietnamese ? 'Dòng hoạt động không gian' : 'Workspace Activity Pulse'}
-                  </h3>
-                </div>
-                <span className="text-[11px] font-bold text-slate-400">
-                  {recentActivities.length} {isVietnamese ? 'hoạt động gần đây' : 'recent events'}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 gap-2">
-                {recentActivities.map(item => {
-                  const catMeta = getCategoryMeta(item);
-                  const IconComp = catMeta.icon;
-                  return (
-                    <div
-                      key={item.id}
-                      onClick={() => setSelectedNotificationId(item.id)}
-                      className="p-2.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/70 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 shadow-2xs cursor-pointer transition-all group"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className={`p-2 rounded-xl ${catMeta.bg} ${catMeta.color} shrink-0`}>
-                          <IconComp className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="text-xs font-black text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
-                            {item.title}
-                          </h4>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                            {item.message}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[10px] font-bold text-slate-400">
-                          {item.timestamp}
-                        </span>
-                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            )}
-
-            {/* Inbox Health & 1-Click Triage */}
-            {olderReadNotifications.length > 0 ? (
-              <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0 shadow-2xs">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="p-2 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-sky-300">
-                    <Sparkles className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-black text-slate-900 dark:text-white">
-                      {isVietnamese ? 'Dọn dẹp đạt Inbox Zero' : 'Inbox Health Triage'}
-                    </h4>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      {isVietnamese 
-                        ? `Bạn có ${olderReadNotifications.length} thông báo đã đọc có thể lưu trữ để hộp thư gọn gàng.` 
-                        : `You have ${olderReadNotifications.length} read notifications ready to be archived.`}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleTriageOlderRead}
-                  className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 text-xs font-black shadow-xs transition-all cursor-pointer shrink-0 flex items-center gap-1.5"
-                >
-                  <Archive className="w-3.5 h-3.5" />
-                  <span>{isVietnamese ? 'Lưu trữ thông báo đã đọc' : 'Archive Read'}</span>
-                </button>
               </div>
             ) : (
-              <div className="p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-800/60 flex items-center gap-3 shrink-0">
-                <Award className="w-5 h-5 text-emerald-600 shrink-0" />
-                <div className="text-xs">
-                  <span className="font-black text-emerald-900 dark:text-emerald-300">Inbox Zero 100%! </span>
-                  <span className="text-emerald-700 dark:text-emerald-400 font-medium">
-                    {isVietnamese ? 'Mọi thông báo đã được xử lý ngăn nắp.' : 'All items are neatly triaged and up to date.'}
-                  </span>
+              <div className="flex flex-col items-center gap-4 max-w-sm">
+                <div className="w-16 h-16 rounded-3xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-100 dark:border-emerald-900/40 shadow-xs">
+                  <Check className="w-8 h-8" />
+                </div>
+                <div className="space-y-1.5">
+                  <h2 className="text-lg font-black text-slate-900 dark:text-white">
+                    {isVietnamese ? 'Hộp thư gọn gàng!' : 'Inbox Zero!'}
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                    {isVietnamese 
+                      ? 'Tuyệt vời! Không còn thông báo nào cần xử lý.' 
+                      : 'All caught up! No notifications requiring attention.'}
+                  </p>
                 </div>
               </div>
             )}
 
-            {/* Keyboard Shortcuts Cheat Sheet */}
-            <div className="p-2.5 rounded-xl bg-slate-100/70 dark:bg-slate-950/60 border border-slate-200/70 dark:border-slate-800/70 shrink-0">
-              <div className="flex items-center justify-between text-[10.5px] font-bold text-slate-500 dark:text-slate-400 flex-wrap gap-2">
-                <span className="uppercase tracking-wider font-black text-slate-400 dark:text-slate-500">
-                  {isVietnamese ? 'Phím tắt nhanh' : 'Keyboard Shortcuts'}
-                </span>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border font-mono">J</kbd><kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border font-mono">K</kbd> {isVietnamese ? 'Lên / Xuống' : 'Navigate'}</span>
-                  <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border font-mono">E</kbd> {isVietnamese ? 'Lưu trữ' : 'Archive'}</span>
-                  <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border font-mono">R</kbd> {isVietnamese ? 'Đã đọc' : 'Read'}</span>
-                  <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border font-mono">S</kbd> {isVietnamese ? 'Tạm ẩn' : 'Snooze'}</span>
-                  <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border font-mono">/</kbd> {isVietnamese ? 'Tìm' : 'Search'}</span>
-                  <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border font-mono">Esc</kbd> {isVietnamese ? 'Đóng' : 'Close'}</span>
+            {/* Inbox Health Triage - only show when there are read items to clean */}
+            {olderReadNotifications.length > 0 && inboxStats.unread === 0 && (
+              <div className="w-full max-w-md p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/80 dark:border-blue-800/60 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 text-left">
+                  <Sparkles className="w-4.5 h-4.5 text-blue-600 shrink-0" />
+                  <span className="text-xs font-bold text-blue-800 dark:text-sky-300">
+                    {isVietnamese 
+                      ? `${olderReadNotifications.length} thông báo đã đọc có thể lưu trữ` 
+                      : `${olderReadNotifications.length} read notifications can be archived`}
+                  </span>
                 </div>
+                <button
+                  onClick={handleTriageOlderRead}
+                  className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black shadow-xs transition-all cursor-pointer shrink-0 flex items-center gap-1.5"
+                >
+                  <Archive className="w-3.5 h-3.5" />
+                  <span>{isVietnamese ? 'Dọn dẹp' : 'Clean up'}</span>
+                </button>
               </div>
-            </div>
+            )}
 
-            {/* Quick Action Shortcuts Footer */}
-            <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 shrink-0">
-              <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider block mb-2.5">
-                {isVietnamese ? 'Lối tắt nhanh' : 'Quick Actions'}
-              </span>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                <button
-                  onClick={() => onNavigateToTab?.('tasks')}
-                  className="p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 flex items-center gap-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer group shadow-2xs"
-                >
-                  <div className="p-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-sky-300">
-                    <CheckSquare className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                  </div>
-                  <span>{isVietnamese ? 'Công việc' : 'Tasks'}</span>
-                </button>
-
-                <button
-                  onClick={() => onNavigateToTab?.('calendar')}
-                  className="p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 flex items-center gap-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer group shadow-2xs"
-                >
-                  <div className="p-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-300">
-                    <Calendar className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                  </div>
-                  <span>{isVietnamese ? 'Lịch tuần' : 'Calendar'}</span>
-                </button>
-
-                <button
-                  onClick={() => onNavigateToTab?.('chat')}
-                  className="p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 flex items-center gap-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer group shadow-2xs"
-                >
-                  <div className="p-1.5 rounded-xl bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-300">
-                    <MessageSquare className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                  </div>
-                  <span>{isVietnamese ? 'Trò chuyện' : 'Team Chat'}</span>
-                </button>
-
-                <button
-                  onClick={() => onNavigateToTab?.('goals')}
-                  className="p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 flex items-center gap-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer group shadow-2xs"
-                >
-                  <div className="p-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-300">
-                    <Target className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                  </div>
-                  <span>{isVietnamese ? 'Mục tiêu' : 'Goals'}</span>
-                </button>
+            {/* Keyboard Shortcuts - Compact */}
+            <div className="w-full max-w-lg p-3 rounded-xl bg-slate-100/70 dark:bg-slate-950/60 border border-slate-200/70 dark:border-slate-800/70">
+              <div className="flex items-center justify-center text-[10.5px] font-bold text-slate-500 dark:text-slate-400 flex-wrap gap-3">
+                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border font-mono">J</kbd><kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border font-mono">K</kbd> {isVietnamese ? 'Lên/Xuống' : 'Navigate'}</span>
+                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border font-mono">E</kbd> {isVietnamese ? 'Lưu trữ' : 'Archive'}</span>
+                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border font-mono">R</kbd> {isVietnamese ? 'Đã đọc' : 'Read'}</span>
+                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border font-mono">S</kbd> {isVietnamese ? 'Tạm ẩn' : 'Snooze'}</span>
+                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border font-mono">/</kbd> {isVietnamese ? 'Tìm' : 'Search'}</span>
+                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border font-mono">Esc</kbd> {isVietnamese ? 'Đóng' : 'Close'}</span>
               </div>
             </div>
 
