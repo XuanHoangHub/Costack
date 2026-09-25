@@ -50,7 +50,7 @@ interface AiBrainScreenProps {
 const INITIAL_MESSAGE: AiMessage = {
   id: 'welcome',
   role: 'ai',
-  text: '👋 Xin chào! Tôi là **Apexa Brain AI Assistant**.\n\nTôi đồng bộ toàn bộ dữ liệu công việc và không gian làm việc của bạn trong thời gian thực. Tôi có thể giúp bạn:\n• 📋 Tóm tắt bản tin năng suất & tiến độ hôm nay\n• 🔥 Lọc và phân tích các công việc khẩn cấp / quá hạn\n• 🧩 Gợi ý chia nhỏ các đầu việc phức tạp\n• 🎯 Lên lộ trình công việc tuần tối ưu',
+  text: '👋 Xin chào! Tôi là **Costack Brain AI Assistant**.\n\nTôi đồng bộ toàn bộ dữ liệu công việc và không gian làm việc của bạn trong thời gian thực. Tôi có thể giúp bạn:\n• 📋 Tóm tắt bản tin năng suất & tiến độ hôm nay\n• 🔥 Lọc và phân tích các công việc khẩn cấp / quá hạn\n• 🧩 Gợi ý chia nhỏ các đầu việc phức tạp\n• 🎯 Lên lộ trình công việc tuần tối ưu',
 };
 
 export const AiBrainScreen: React.FC<AiBrainScreenProps> = ({ navigation }) => {
@@ -163,7 +163,15 @@ export const AiBrainScreen: React.FC<AiBrainScreenProps> = ({ navigation }) => {
         highPriorityTasks,
       };
 
-      const reply = await askApexaAi(promptText, [], taskContext);
+      const history = messages
+        .filter((m) => m.id !== 'welcome')
+        .slice(-8)
+        .map((m) => ({
+          role: (m.role === 'user' ? 'user' : 'model') as 'user' | 'model',
+          parts: m.text,
+        }));
+
+      const reply = await askApexaAi(promptText, history, taskContext);
       const aiMsg: AiMessage = {
         id: `ai-${Date.now()}`,
         role: 'ai',
@@ -198,7 +206,7 @@ export const AiBrainScreen: React.FC<AiBrainScreenProps> = ({ navigation }) => {
     >
       <Header
         title={t.ai.title}
-        subtitle="Apexa Brain Assistant"
+        subtitle="Costack Brain AI"
         showBack
         onBack={() => navigation.goBack()}
         rightAction={

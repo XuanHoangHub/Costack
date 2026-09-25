@@ -1482,22 +1482,24 @@ export default function App() {
       clearTimeout(sidebarHoverTimeoutRef.current);
       sidebarHoverTimeoutRef.current = null;
     }
+    // If already open, keep open immediately with no delay
+    if (isSidebarHovered) return;
     sidebarHoverTimeoutRef.current = setTimeout(() => {
       setIsSidebarHovered(true);
-    }, 70);
-  }, [isMainSidebarCollapsed]);
+    }, 50);
+  }, [isMainSidebarCollapsed, isSidebarHovered]);
 
   const handleSidebarMouseLeave = useCallback(() => {
     if (!isMainSidebarCollapsed) return;
-    if (showWorkspaceMenu || showZoneModal || Boolean(draggedItemId)) return;
+    if (showWorkspaceMenu || showZoneModal || showSidebarOrderModal || Boolean(draggedItemId)) return;
     if (sidebarHoverTimeoutRef.current) {
       clearTimeout(sidebarHoverTimeoutRef.current);
       sidebarHoverTimeoutRef.current = null;
     }
     sidebarHoverTimeoutRef.current = setTimeout(() => {
       setIsSidebarHovered(false);
-    }, 220);
-  }, [isMainSidebarCollapsed, showWorkspaceMenu, showZoneModal, draggedItemId]);
+    }, 150);
+  }, [isMainSidebarCollapsed, showWorkspaceMenu, showZoneModal, showSidebarOrderModal, draggedItemId]);
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     setDraggedItemId(id);
@@ -5118,8 +5120,8 @@ export default function App() {
                   setIsSidebarHovered(false);
                   (window as any).playSystemSound?.('click');
                 }} 
-                className="group relative flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:text-zinc-400 dark:hover:text-sky-300 dark:hover:bg-sky-500/15 active:scale-90 transition-all duration-150 cursor-pointer"
-                title={locale === 'vi' ? 'Ghim thanh bên (Giữ luôn mở)' : 'Pin sidebar (Keep open)'}
+                className="group relative flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-lg border border-slate-200/80 dark:border-white/10 bg-slate-100/60 dark:bg-white/[0.04] text-slate-500 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 dark:text-zinc-400 dark:hover:text-sky-300 dark:hover:bg-sky-500/15 dark:hover:border-sky-500/30 active:scale-90 transition-all duration-150 cursor-pointer shadow-2xs"
+                title={locale === 'vi' ? 'Ghim thanh bên (Giữ luôn mở • Ctrl+\\)' : 'Pin sidebar (Keep open • Ctrl+\\)'}
                 aria-label={locale === 'vi' ? 'Ghim thanh bên' : 'Pin sidebar'}
               >
                 <Pin className="w-3.5 h-3.5 rotate-45 transition-transform duration-150 group-hover:scale-110 text-slate-500 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-sky-300" />
@@ -5151,7 +5153,7 @@ export default function App() {
             className={`group flex items-center rounded-xl border transition-all ${
               collapsed 
                 ? 'h-10 w-10 mx-auto justify-center p-0 rounded-[14px] border-sky-300/80 dark:border-sky-500/25 bg-sky-50/90 dark:bg-sky-500/10 text-sky-600 dark:text-sky-300 hover:scale-105 hover:bg-sky-100 dark:hover:bg-sky-500/20 shadow-xs' 
-                : 'h-[34px] w-full gap-2 px-2.5 py-1 border-sky-500/20 bg-sky-500/[0.05] text-sky-700 dark:text-sky-300 hover:border-sky-500/35 hover:bg-sky-500/[0.10] hover:text-sky-900 dark:hover:text-white shadow-2xs'
+                : 'h-[34px] w-full gap-2.5 pl-3.5 pr-2.5 py-1 border-sky-500/20 bg-sky-500/[0.05] text-sky-700 dark:text-sky-300 hover:border-sky-500/35 hover:bg-sky-500/[0.10] hover:text-sky-900 dark:hover:text-white shadow-2xs'
             }`}
             title="Costack Control Center (Admin)"
           >
@@ -5177,7 +5179,7 @@ export default function App() {
       <div className={`h-px bg-slate-200/80 dark:bg-white/[0.08] my-1 shrink-0 ${collapsed ? 'w-8 mx-auto' : 'mx-2.5'}`} />
 
       {/* Row 4: Scrollable Navigation List */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar space-y-0.5 px-2 w-full">
+      <div className={`flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar space-y-0.5 w-full ${collapsed ? 'px-2' : 'px-2.5'}`}>
         {/* Root Modules */}
         {rootOrderedItems.map((item) => {
           const isActive = item.id === 'tasks'
@@ -5198,6 +5200,7 @@ export default function App() {
               disabled={item.disabled}
               disabledTooltip={item.disabledTooltip}
               collapsed={collapsed}
+              showFlyout={!isMainSidebarCollapsed}
               isDragging={draggedItemId === item.id}
               onDragStart={(e) => handleDragStart(e, item.id)}
               onDragOver={(e) => handleDragOver(e, item.id)}
@@ -5275,7 +5278,7 @@ export default function App() {
                 setEditingZone(null);
                 setShowZoneModal(true);
               }}
-              className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-xl border border-dashed border-slate-300/80 bg-slate-50/50 text-slate-500 hover:border-blue-400 hover:bg-blue-50/50 hover:text-blue-600 dark:border-white/12 dark:bg-white/[0.02] dark:text-zinc-400 dark:hover:border-sky-500/40 dark:hover:bg-sky-500/10 dark:hover:text-sky-300 transition-all cursor-pointer text-left group"
+              className="flex w-full items-center gap-2.5 pl-3.5 pr-2.5 py-1.5 rounded-xl border border-dashed border-slate-300/80 bg-slate-50/50 text-slate-500 hover:border-blue-400 hover:bg-blue-50/50 hover:text-blue-600 dark:border-white/12 dark:bg-white/[0.02] dark:text-zinc-400 dark:hover:border-sky-500/40 dark:hover:bg-sky-500/10 dark:hover:text-sky-300 transition-all cursor-pointer text-left group"
             >
               <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-slate-200/60 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 dark:bg-white/[0.06] dark:text-zinc-400 dark:group-hover:bg-sky-500/20 dark:group-hover:text-sky-300 transition-colors">
                 <Plus className="h-3 w-3" />
@@ -5366,7 +5369,7 @@ export default function App() {
                           setActiveListId(sp.lists?.[0]?.id || null);
                           if (isHoverDrawer) setIsSidebarHovered(false);
                         }}
-                        className={`group relative flex h-8 min-h-[32px] w-full select-none items-center gap-2 rounded-lg px-2 text-left transition-colors duration-150 cursor-pointer ${
+                        className={`group relative flex h-8 min-h-[32px] w-full select-none items-center gap-2.5 rounded-lg pl-3.5 pr-2.5 text-left transition-colors duration-150 cursor-pointer ${
                           isSpaceActive
                             ? 'bg-blue-50/70 text-blue-700 dark:bg-sky-500/10 dark:text-sky-300 font-semibold'
                             : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100/70 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-zinc-100 font-medium'
@@ -5433,20 +5436,30 @@ export default function App() {
           {renderSidebarContent(isMainSidebarCollapsed, false)}
         </div>
 
-        {/* Ultra-smooth Hover Drawer Layer (when collapsed & hovered) */}
+        {/* Ultra-smooth Hover Drawer Layer (Smooth outward expansion) */}
         <AnimatePresence>
           {isMainSidebarCollapsed && isSidebarHovered && (
             <motion.div
               key="apexa-hover-sidebar-drawer"
-              initial={{ opacity: 0, x: -14, filter: 'blur(4px)' }}
-              animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, x: -10, filter: 'blur(3px)' }}
-              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ width: 68, opacity: 0 }}
+              animate={{ width: 280, opacity: 1 }}
+              exit={{ width: 68, opacity: 0 }}
+              transition={{ 
+                width: { duration: 0.28, ease: [0.16, 1, 0.3, 1] },
+                opacity: { duration: 0.16, ease: "easeOut" }
+              }}
               onMouseEnter={handleSidebarMouseEnter}
               onMouseLeave={handleSidebarMouseLeave}
-              className="absolute top-0 left-0 bottom-0 z-40 w-[var(--cu-sidebar-width)] flex flex-col border-r border-slate-200/90 dark:border-white/[0.08] bg-white/98 dark:bg-[#050508]/98 shadow-[0_16px_48px_-8px_rgba(15,23,42,0.18)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.75)] backdrop-blur-2xl select-none"
+              className="absolute top-0 left-0 bottom-0 z-40 flex flex-col overflow-hidden border-r border-slate-200/90 dark:border-white/[0.12] bg-white dark:bg-[#07080c] shadow-[0_4px_6px_-1px_rgba(0,0,0,0.04),0_12px_32px_-4px_rgba(15,23,42,0.14),0_24px_60px_-8px_rgba(15,23,42,0.18)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_12px_36px_-4px_rgba(0,0,0,0.7),0_24px_70px_-8px_rgba(0,0,0,0.95)] select-none"
+              style={{ willChange: "width, opacity" }}
             >
-              {renderSidebarContent(false, true)}
+              {/* Glowing vertical accent highlight line along right border */}
+              <div className="absolute right-0 top-0 bottom-0 w-[1px] bg-gradient-to-b from-blue-500/35 via-sky-400/20 to-indigo-500/35 dark:from-sky-400/40 dark:via-sky-400/10 dark:to-blue-600/35 pointer-events-none z-50" />
+
+              {/* Inner container with locked 280px width so content does not reflow during expansion */}
+              <div className="w-[280px] min-w-[280px] h-full flex flex-col relative">
+                {renderSidebarContent(false, true)}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -5603,6 +5616,7 @@ export default function App() {
           )}
         </AnimatePresence>
       </aside>
+ 
 
       {/* Right Main Stage (Header + Content) */}
       <div className="apexa-main-stage flex flex-1 flex-col h-full min-w-0 overflow-hidden">
@@ -6006,6 +6020,21 @@ export default function App() {
             >
               <Search className="w-4 h-4" />
             </button>
+
+            {/* Mobile Costack AI trigger */}
+            <button
+              onClick={() => {
+                useUiStore.getState().setIsAiAssistantOpen(true);
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('open-costack-ai'));
+                }
+              }}
+              className="apexa-header-icon-button ml-1 cursor-pointer rounded-xl p-1.5 text-indigo-600 dark:text-sky-300 transition-colors hover:bg-indigo-50/50 dark:hover:bg-indigo-950/50 lg:hidden"
+              title="Costack AI Copilot"
+              aria-label="Costack AI Copilot"
+            >
+              <ApexaAiIcon className="w-4 h-4" variant="gradient" />
+            </button>
           </div>
 
           {/* Centered Global Search Bar trigger button with keyboard shortcut badge */}
@@ -6023,6 +6052,30 @@ export default function App() {
                 <Search className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-zinc-500 group-hover:text-blue-600 dark:group-hover:text-sky-300 transition-colors" />
                 <span className="truncate font-medium">{locale === 'vi' ? 'Tìm công việc, tài liệu...' : 'Search tasks, docs, spaces...'}</span>
               </span>
+            </button>
+          </div>
+
+          {/* Quick Costack AI Button in Top Header */}
+          <div className="relative mr-1.5 hidden md:block">
+            <button
+              type="button"
+              onClick={() => {
+                useUiStore.getState().setIsAiAssistantOpen(true);
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('open-costack-ai'));
+                }
+              }}
+              className="group flex h-8.5 cursor-pointer items-center gap-1.5 rounded-xl border border-indigo-200/80 bg-gradient-to-r from-indigo-50/70 via-purple-50/40 to-sky-50/50 px-2.5 py-1 text-xs font-bold text-indigo-700 shadow-3xs transition-all duration-150 hover:border-indigo-400 hover:shadow-xs hover:scale-[1.02] active:scale-[0.98] dark:border-indigo-900/60 dark:bg-gradient-to-r dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-sky-950/30 dark:text-sky-300 dark:hover:border-indigo-700 select-none"
+              title={locale === 'vi' ? 'Trợ lý Costack AI (⌘J / Ctrl+J)' : 'Costack AI Copilot (⌘J / Ctrl+J)'}
+              aria-label="Costack AI Copilot"
+            >
+              <ApexaAiIcon className="h-4 w-4 shrink-0 drop-shadow-[0_1px_4px_rgba(99,102,241,0.4)]" variant="gradient" />
+              <span className="font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 to-sky-500 bg-clip-text text-transparent dark:from-indigo-300 dark:to-sky-300">
+                Costack AI
+              </span>
+              <kbd className="hidden lg:inline-flex items-center text-[9px] font-mono px-1 py-0.2 rounded bg-indigo-100/60 dark:bg-indigo-900/60 text-indigo-600 dark:text-sky-300 border border-indigo-200/50 dark:border-indigo-800/50">
+                ⌘J
+              </kbd>
             </button>
           </div>
 
@@ -6089,7 +6142,7 @@ export default function App() {
                       className="absolute right-0 mt-2.5 w-[min(95vw,23.5rem)] bg-white dark:bg-zinc-900 border border-slate-200/90 dark:border-zinc-800 rounded-2xl shadow-[0_16px_40px_-8px_rgba(0,0,0,0.18),0_6px_16px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8),0_8px_20px_-4px_rgba(0,0,0,0.6)] z-[90] overflow-hidden font-sans"
                     >
                       {/* Modern Header */}
-                      <div className="p-3 px-3.5 flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-850/50">
+                      <div className="p-3 px-3.5 flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 bg-slate-50/70 dark:bg-white/[0.04]">
                         <div className="flex items-center gap-2">
                           <div className="w-7 h-7 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                             <Bell className="w-3.5 h-3.5" />
@@ -6133,7 +6186,7 @@ export default function App() {
                       </div>
 
                       {/* Filter Segmented Control Tabs */}
-                      <div className="px-3 pt-2 pb-1.5 bg-slate-50/40 dark:bg-zinc-850/20 border-b border-slate-100 dark:border-zinc-800/80 flex items-center gap-1">
+                      <div className="px-3 pt-2 pb-1.5 bg-slate-50/40 dark:bg-white/[0.02] border-b border-slate-100 dark:border-zinc-800/80 flex items-center gap-1">
                         <button
                           type="button"
                           onClick={() => setNotificationFilter('all')}

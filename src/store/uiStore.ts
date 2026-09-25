@@ -70,6 +70,11 @@ interface UiState {
   isMobileSidebarOpen: boolean;
   setIsMobileSidebarOpen: (open: boolean) => void;
 
+  // AI Assistant drawer/modal state
+  isAiAssistantOpen: boolean;
+  setIsAiAssistantOpen: (open: boolean) => void;
+  toggleAiAssistant: () => void;
+
   sidebarOrder: string[];
   sidebarZones: SidebarZone[];
 
@@ -220,11 +225,14 @@ export const useUiStore = create<UiState>()(
       showPomoSettings: false,
       viewingMemberProfileId: null,
       isMobileSidebarOpen: false,
+      isAiAssistantOpen: false,
       sidebarOrder: [...DEFAULT_SIDEBAR_ORDER],
       sidebarZones: [],
 
       setActiveTab: (activeTab) => set({ activeTab }),
       setIsMobileSidebarOpen: (isMobileSidebarOpen) => set({ isMobileSidebarOpen }),
+      setIsAiAssistantOpen: (isAiAssistantOpen) => set({ isAiAssistantOpen }),
+      toggleAiAssistant: () => set((state) => ({ isAiAssistantOpen: !state.isAiAssistantOpen })),
       setIsMainSidebarCollapsed: (isMainSidebarCollapsed) => set({ isMainSidebarCollapsed }),
       setIsSearchOpen: (isSearchOpen) => set({ isSearchOpen }),
       setSearchQuery: (searchQuery) => set({ searchQuery }),

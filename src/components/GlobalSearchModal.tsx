@@ -48,6 +48,7 @@ import {
 import { Task, Document, Space, User as UserType } from '@/types';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { renderSpaceIcon } from './RenderSpaceIcon';
+import { useUiStore } from '@/store/uiStore';
 import { createPortal } from 'react-dom';
 
 function Portal({ children }: { children: React.ReactNode }) {
@@ -695,9 +696,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 type="button"
                 onClick={() => {
                   onClose();
-                  if (typeof document !== 'undefined') {
-                    const aiBtn = document.getElementById('btn_apexa_ai_float');
-                    if (aiBtn) aiBtn.click();
+                  useUiStore.getState().setIsAiAssistantOpen(true);
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('open-costack-ai'));
                   }
                   addSyncLog(isVietnamese ? `Hỏi AI: ${searchQuery || 'Trợ lý Costack Brain'}` : `Ask AI: ${searchQuery || 'Costack Brain'}`);
                 }}
@@ -988,9 +989,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                         badge: '/ai',
                         action: () => {
                           onClose();
-                          if (typeof document !== 'undefined') {
-                            const aiBtn = document.getElementById('btn_apexa_ai_float');
-                            if (aiBtn) aiBtn.click();
+                          useUiStore.getState().setIsAiAssistantOpen(true);
+                          if (typeof window !== 'undefined') {
+                            window.dispatchEvent(new CustomEvent('open-costack-ai'));
                           }
                           addSyncLog(isVietnamese ? 'Lệnh: Kích hoạt Trợ lý AI Costack Brain' : 'Command: Launched Costack Brain AI Assistant');
                         }
@@ -1227,9 +1228,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onClose();
-                                if (typeof document !== 'undefined') {
-                                  const aiBtn = document.getElementById('btn_apexa_ai_float');
-                                  if (aiBtn) aiBtn.click();
+                                useUiStore.getState().setIsAiAssistantOpen(true);
+                                if (typeof window !== 'undefined') {
+                                  window.dispatchEvent(new CustomEvent('open-costack-ai'));
                                 }
                                 addSyncLog(`Hỏi AI về: "${t.title}"`);
                               }}

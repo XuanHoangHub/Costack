@@ -25,6 +25,7 @@ interface NavItemProps {
   disabledTooltip?: string;
   style?: React.CSSProperties;
   dragIndicator?: React.ReactNode;
+  showFlyout?: boolean;
 }
 
 function NavItemComponent({
@@ -48,6 +49,7 @@ function NavItemComponent({
   onDrop,
   style,
   dragIndicator,
+  showFlyout = true,
 }: NavItemProps) {
   const { isVietnamese } = useTranslation();
   const displayText = collapsed ? shortLabel || label : label;
@@ -100,43 +102,45 @@ function NavItemComponent({
           )}
 
           {/* Rich Floating Flyout Card on Hover: ClickUp / Notion SaaS Popover */}
-          <div className="pointer-events-none absolute left-full top-1/2 z-[120] ml-2.5 flex -translate-y-1/2 min-w-[190px] max-w-[250px] flex-col gap-1 rounded-xl border border-slate-200/90 bg-white/95 p-2.5 text-left opacity-0 shadow-xl backdrop-blur-xl transition-all duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 scale-95 group-hover:scale-100 origin-left dark:border-white/[0.12] dark:bg-[#121318]/95 dark:shadow-[0_12px_32px_rgba(0,0,0,0.7)]">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className={`p-1 rounded-md flex items-center justify-center shrink-0 ${
-                  disabled
-                    ? 'bg-slate-100 text-slate-400 dark:bg-white/[0.04] dark:text-zinc-500'
-                    : effectiveIsActive
-                      ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-sky-300'
-                      : 'bg-slate-100 text-slate-600 dark:bg-white/[0.08] dark:text-slate-300'
-                }`}>
-                  <Icon size={14} strokeWidth={effectiveIsActive ? 2 : 1.8} />
+          {showFlyout && (
+            <div className="pointer-events-none absolute left-full top-1/2 z-[120] ml-2.5 flex -translate-y-1/2 min-w-[190px] max-w-[250px] flex-col gap-1 rounded-xl border border-slate-200/90 bg-white p-2.5 text-left opacity-0 shadow-xl transition-all duration-150 delay-250 group-hover:opacity-100 group-focus-visible:opacity-100 scale-95 group-hover:scale-100 origin-left dark:border-white/[0.12] dark:bg-[#121318] dark:shadow-[0_12px_32px_rgba(0,0,0,0.7)]">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className={`p-1 rounded-md flex items-center justify-center shrink-0 ${
+                    disabled
+                      ? 'bg-slate-100 text-slate-400 dark:bg-white/[0.04] dark:text-zinc-500'
+                      : effectiveIsActive
+                        ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-sky-300'
+                        : 'bg-slate-100 text-slate-600 dark:bg-white/[0.08] dark:text-slate-300'
+                  }`}>
+                    <Icon size={14} strokeWidth={effectiveIsActive ? 2 : 1.8} />
+                  </div>
+                  <span className="font-bold text-xs text-slate-900 dark:text-white tracking-tight truncate">{label}</span>
                 </div>
-                <span className="font-bold text-xs text-slate-900 dark:text-white tracking-tight truncate">{label}</span>
+                {shortcut && !disabled && (
+                  <kbd className="px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-white/[0.08] border border-slate-200/60 dark:border-white/10 shrink-0">
+                    {shortcut}
+                  </kbd>
+                )}
               </div>
-              {shortcut && !disabled && (
-                <kbd className="px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-white/[0.08] border border-slate-200/60 dark:border-white/10 shrink-0">
-                  {shortcut}
-                </kbd>
+              {disabled && (
+                <div className="mt-1 flex items-center gap-1.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-1 rounded-lg border border-amber-200/60 dark:border-amber-800/40">
+                  <span>🚧 {isVietnamese ? 'Tính năng đang phát triển' : 'Under development'}</span>
+                </div>
+              )}
+              {description && (
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug line-clamp-2 mt-0.5">
+                  {description}
+                </p>
+              )}
+              {!disabled && count !== undefined && count > 0 && (
+                <div className="mt-1 pt-1 border-t border-slate-100 dark:border-white/[0.08] flex items-center justify-between text-[10.5px]">
+                  <span className="text-slate-400 dark:text-zinc-500">{isVietnamese ? 'Cần xử lý' : 'Pending'}</span>
+                  <span className="font-bold text-blue-600 dark:text-sky-300">{count}</span>
+                </div>
               )}
             </div>
-            {disabled && (
-              <div className="mt-1 flex items-center gap-1.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-1 rounded-lg border border-amber-200/60 dark:border-amber-800/40">
-                <span>🚧 {isVietnamese ? 'Tính năng đang phát triển' : 'Under development'}</span>
-              </div>
-            )}
-            {description && (
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug line-clamp-2 mt-0.5">
-                {description}
-              </p>
-            )}
-            {!disabled && count !== undefined && count > 0 && (
-              <div className="mt-1 pt-1 border-t border-slate-100 dark:border-white/[0.08] flex items-center justify-between text-[10.5px]">
-                <span className="text-slate-400 dark:text-zinc-500">{isVietnamese ? 'Cần xử lý' : 'Pending'}</span>
-                <span className="font-bold text-blue-600 dark:text-sky-300">{count}</span>
-              </div>
-            )}
-          </div>
+          )}
         </button>
       </div>
     );
@@ -172,7 +176,7 @@ function NavItemComponent({
         title={tooltipText}
         style={style}
         className={[
-          "apexa-nav-item group relative flex h-8 min-h-[32px] w-full select-none items-center gap-2 rounded-lg px-2.5 py-1 text-left transition-all duration-150 active:scale-[0.99]",
+          "apexa-nav-item group relative flex h-8 min-h-[32px] w-full select-none items-center gap-2.5 rounded-lg pl-3.5 pr-2.5 py-1 text-left transition-all duration-150 active:scale-[0.99]",
           disabled
             ? "cursor-not-allowed opacity-65 border border-transparent text-slate-400 hover:bg-slate-100/40 dark:text-zinc-500 dark:hover:bg-white/[0.03]"
             : isDragging

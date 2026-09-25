@@ -1,5 +1,6 @@
 import { useAuthStore } from '@/store/authStore';
 import { useUiStore } from '@/store/uiStore';
+import { isApexaSuperAdmin } from '@/lib/admin/constants';
 
 export class AiAccessError extends Error {
   readonly code = 'AI_PLAN_REQUIRED';
@@ -16,7 +17,7 @@ export const isAiAccessError = (error: unknown): error is AiAccessError =>
 function requirePaidAiAccess() {
   if (typeof window === 'undefined') return;
   const currentUser = useAuthStore.getState().currentUser;
-  if (currentUser?.isPremium) return;
+  if (currentUser?.isPremium || (currentUser?.id && isApexaSuperAdmin(currentUser.id))) return;
   useUiStore.getState().setShowPremiumModal(true);
   throw new AiAccessError();
 }

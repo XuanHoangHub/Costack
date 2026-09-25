@@ -53,6 +53,7 @@
   --color-slate-855: var(--slate-855, #0f172a);
   --color-slate-905: var(--slate-905, #0f172a);
   --color-slate-955: var(--slate-955, #020617);
+  --color-zinc-850: var(--zinc-850, #0d0f15);
 
   /* Remap indigo palette to Modern Electric Blue */
   --color-indigo-50: #eff6ff;
@@ -229,6 +230,7 @@
   --slate-855: #0f172a;
   --slate-905: #0f172a;
   --slate-955: #020617;
+  --zinc-850: #0f172a;
 
   /* Apexa Core Theme Color Gradients */
   --apexa-primary: #2563EB;
@@ -320,6 +322,7 @@
   --slate-855: #0d0f15;
   --slate-905: #05060a;
   --slate-955: #000000;
+  --zinc-850: #0d0f15;
 
   /* Apexa Core Theme Color Gradients */
   --apexa-primary: #3B82F6;

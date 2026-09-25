@@ -5,6 +5,7 @@ import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Tooltip, TooltipProvider } from "@/components/ui/Tooltip";
 import { Badge, CountBadge } from "@/components/ui/Badge";
 import { ScrollArea } from "@/components/ui/ScrollArea";
+import { useUiStore } from "@/store/uiStore";
 
 /* ═══════════════════════════════════════════════════════
    Apexa Sidebar — Navigation Rail Component
@@ -156,7 +157,16 @@ export function Sidebar({
             <Tooltip content="Costack AI" side="right">
               <button
                 type="button"
-                onClick={onAiClick}
+                onClick={() => {
+                  if (onAiClick) {
+                    onAiClick();
+                  } else {
+                    useUiStore.getState().setIsAiAssistantOpen(true);
+                    if (typeof window !== 'undefined') {
+                      window.dispatchEvent(new CustomEvent('open-costack-ai'));
+                    }
+                  }
+                }}
                 className={[
                   "flex items-center justify-center shrink-0 rounded-[var(--ax-radius-md)]",
                   "hover:bg-white/[0.08] active:bg-white/[0.12] transition-colors cursor-pointer",

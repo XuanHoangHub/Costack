@@ -399,15 +399,15 @@ export default function FieldSettingsModal({
           transition={{ type: "spring", stiffness: 400, damping: 28 }}
           className="relative w-full max-w-[620px] max-h-[92vh] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl flex flex-col z-10 text-xs overflow-hidden"
         >
-          <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-850 shrink-0">
+          <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-900/90 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-slate-300 flex items-center justify-center">
-                <CurrentTypeIcon className="w-4 h-4" />
+              <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 border border-slate-200/80 dark:border-zinc-700/80 flex items-center justify-center shrink-0 shadow-2xs">
+                <CurrentTypeIcon className="w-4.5 h-4.5 stroke-[2]" />
               </div>
               <div>
                 <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-2">
                   <span>{config.isNew ? (isVietnamese ? 'Tạo trường tùy chỉnh mới' : 'Create Custom Field') : (isVietnamese ? 'Cài đặt trường' : 'Field Settings')}</span>
-                  {!config.isNew && <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">• {name || config.name}</span>}
+                  {!config.isNew && <span className="text-blue-600 dark:text-blue-400 font-extrabold">• {name || config.name}</span>}
                 </h3>
                 <p className="text-[11px] text-slate-400 font-medium mt-0.5">
                   {isVietnamese ? currentTypeMeta.desc : ((currentTypeMeta as any).descEn || currentTypeMeta.desc)}
@@ -433,7 +433,7 @@ export default function FieldSettingsModal({
             {!config.isStandard && (
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Tag className="w-3.5 h-3.5 text-indigo-500" />
+                  <Tag className="w-3.5 h-3.5 text-blue-500" />
                   <span>{isVietnamese ? 'Loại trường dữ liệu' : 'Field Type'}</span>
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -457,14 +457,18 @@ export default function FieldSettingsModal({
                             ]);
                           }
                         }}
-                        className={`flex items-center gap-2 p-2.5 rounded-2xl border text-left cursor-pointer transition-all ${
+                        className={`group flex items-center gap-2 p-2.5 rounded-2xl border text-left cursor-pointer transition-all ${
                           isSelected
-                            ? 'border-indigo-500 bg-indigo-50/80 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-extrabold shadow-sm ring-2 ring-indigo-500/20'
-                            : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
+                            ? 'border-blue-500 bg-blue-50/80 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-extrabold shadow-xs ring-2 ring-blue-500/20'
+                            : 'border-slate-200/80 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/60 text-slate-700 dark:text-zinc-300 hover:border-slate-300 dark:hover:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-850'
                         }`}
                       >
-                        <div className={`p-1.5 rounded-xl ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'} shrink-0`}>
-                          <IconComp className="w-3.5 h-3.5" />
+                        <div className={`p-1.5 rounded-xl border shrink-0 transition-colors ${
+                          isSelected 
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-xs' 
+                            : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border-slate-200/60 dark:border-zinc-700/60 group-hover:text-slate-900 dark:group-hover:text-zinc-200'
+                        }`}>
+                          <IconComp className="w-3.5 h-3.5 stroke-[2]" />
                         </div>
                         <span className="truncate text-[11px] font-bold">{isVietnamese ? ft.label.split('(')[0].trim() : ft.labelEn}</span>
                       </button>
@@ -477,7 +481,7 @@ export default function FieldSettingsModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <AlignLeft className="w-3.5 h-3.5 text-indigo-500" />
+                  <AlignLeft className="w-3.5 h-3.5 text-blue-500" />
                   <span>{isVietnamese ? 'Tên trường' : 'Field Name'} *</span>
                 </label>
                 <input
@@ -485,7 +489,7 @@ export default function FieldSettingsModal({
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder={isVietnamese ? 'VD: Mức độ ưu tiên, Khách hàng, Ngân sách...' : 'Enter field name...'}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 focus:bg-white dark:focus:bg-slate-950 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-bold text-slate-800 dark:text-slate-100 transition-all text-xs"
+                  className="w-full px-3.5 py-2.5 border border-slate-200/90 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/80 focus:bg-white dark:focus:bg-zinc-950 rounded-xl outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold text-slate-800 dark:text-slate-100 transition-all text-xs"
                   required
                 />
               </div>
@@ -500,20 +504,29 @@ export default function FieldSettingsModal({
                   value={placeholder}
                   onChange={e => setPlaceholder(e.target.value)}
                   placeholder={isVietnamese ? 'Gợi ý hiển thị khi ô trống...' : 'Hint shown when empty...'}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 focus:bg-white dark:focus:bg-slate-950 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-medium text-slate-800 dark:text-slate-100 transition-all text-xs"
+                  className="w-full px-3.5 py-2.5 border border-slate-200/90 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/80 focus:bg-white dark:focus:bg-zinc-950 rounded-xl outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-medium text-slate-800 dark:text-slate-100 transition-all text-xs"
                 />
               </div>
             </div>
 
             <label className="block space-y-1.5 text-xs font-semibold">
-              <span>{isVietnamese ? 'Mô tả và hướng dẫn nhập' : 'Description and instructions'}</span>
-              <textarea value={description} onChange={event => setDescription(event.target.value)} rows={2} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-900" />
+              <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-blue-500" />
+                <span>{isVietnamese ? 'Mô tả và hướng dẫn nhập' : 'Description and instructions'}</span>
+              </span>
+              <textarea 
+                value={description} 
+                onChange={event => setDescription(event.target.value)} 
+                rows={2} 
+                placeholder={isVietnamese ? 'Mô tả ngắn gọn về trường này...' : 'Brief description or instructions for this field...'} 
+                className="w-full rounded-xl border border-slate-200/90 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/80 focus:bg-white dark:focus:bg-zinc-950 px-3.5 py-2 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-medium resize-none placeholder:text-slate-400" 
+              />
             </label>
-            <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60 dark:border-slate-800">
-                <Sliders className="w-4 h-4 text-indigo-500" />
+            <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-zinc-850/60 border border-slate-200/80 dark:border-zinc-800 space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60 dark:border-zinc-800">
+                <Sliders className="w-4 h-4 text-blue-500" />
                 <span className="text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">
-                  {isVietnamese ? 'Cài đặt riêng cho loại trường' : 'Field Specific Settings'}: <span className="text-indigo-600 dark:text-indigo-400">{currentTypeMeta.label}</span>
+                  {isVietnamese ? 'Cài đặt riêng cho loại trường' : 'Field Specific Settings'}: <span className="text-blue-600 dark:text-blue-400 font-extrabold">{isVietnamese ? currentTypeMeta.label : currentTypeMeta.labelEn}</span>
                 </span>
               </div>
 
@@ -526,7 +539,7 @@ export default function FieldSettingsModal({
                     <button
                       type="button"
                       onClick={handleAddOption}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/80 text-indigo-600 dark:text-indigo-400 font-extrabold text-[11px] cursor-pointer transition-colors shadow-2xs"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/80 text-blue-600 dark:text-blue-400 font-extrabold text-[11px] cursor-pointer transition-colors shadow-2xs"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>{isVietnamese ? 'Thêm tùy chọn' : 'Add Option'}</span>
@@ -578,7 +591,7 @@ export default function FieldSettingsModal({
                                   key={cp.id}
                                   type="button"
                                   onClick={() => handleUpdateOptionColor(opt.id, cp.id)}
-                                  className={`w-6 h-6 rounded-lg ${cp.badge} flex items-center justify-center cursor-pointer hover:scale-110 transition-transform ${opt.color === cp.id ? 'ring-2 ring-indigo-500' : ''}`}
+                                  className={`w-6 h-6 rounded-lg ${cp.badge} flex items-center justify-center cursor-pointer hover:scale-110 transition-transform ${opt.color === cp.id ? 'ring-2 ring-blue-500' : ''}`}
                                   title={isVietnamese ? cp.nameVi : cp.name}
                                 >
                                   <span className={`w-2 h-2 rounded-full ${cp.dot}`} />
@@ -591,7 +604,7 @@ export default function FieldSettingsModal({
                             type="text"
                             value={opt.label}
                             onChange={e => handleUpdateOptionLabel(opt.id, e.target.value)}
-                            className="flex-1 px-2 py-1 text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 rounded-lg outline-none focus:border-indigo-500"
+                            className="flex-1 px-2 py-1 text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 rounded-lg outline-none focus:border-blue-500"
                             placeholder={isVietnamese ? 'Tên lựa chọn...' : 'Option label...'}
                           />
 
@@ -744,7 +757,7 @@ export default function FieldSettingsModal({
                       placeholder={isVietnamese ? 'VD: kg, giờ, điểm, pts...' : 'e.g. kg, hrs, pts...'}
                       value={numberUnit}
                       onChange={e => setNumberUnit(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 transition-colors font-medium"
+                      className="w-full px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 transition-colors font-medium"
                     />
                   </div>
                 </div>
@@ -762,7 +775,7 @@ export default function FieldSettingsModal({
                           onClick={() => setSelectedDateFormat(preset.id)}
                           className={`p-2 rounded-xl border text-left cursor-pointer transition-all ${
                             isSelected
-                              ? 'border-indigo-500 bg-indigo-50/80 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-bold'
+                              ? 'border-blue-500 bg-blue-50/80 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 font-bold ring-2 ring-blue-500/20'
                               : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                           }`}
                         >
@@ -779,7 +792,7 @@ export default function FieldSettingsModal({
                         type="checkbox"
                         checked={includeTime}
                         onChange={e => setIncludeTime(e.target.checked)}
-                        className="rounded text-indigo-600"
+                        className="rounded text-blue-600 focus:ring-blue-500/20 accent-blue-600"
                       />
                       <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
                         {isVietnamese ? 'Bao gồm giờ:phút (Time)' : 'Include Time'}
@@ -791,7 +804,7 @@ export default function FieldSettingsModal({
                         type="checkbox"
                         checked={defaultToToday}
                         onChange={e => setDefaultToToday(e.target.checked)}
-                        className="rounded text-indigo-600"
+                        className="rounded text-blue-600 focus:ring-blue-500/20 accent-blue-600"
                       />
                       <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
                         {isVietnamese ? 'Mặc định ngày hôm nay' : 'Default to Today'}
@@ -893,7 +906,7 @@ export default function FieldSettingsModal({
                         onClick={() => setCheckboxDefault(true)}
                         className={`flex-1 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
                           checkboxDefault 
-                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' 
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-xs' 
                             : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500'
                         }`}
                       >
@@ -917,9 +930,9 @@ export default function FieldSettingsModal({
                       step="10"
                       value={progressMax}
                       onChange={e => setProgressMax(Number(e.target.value))}
-                      className="flex-1 accent-indigo-600 cursor-pointer"
+                      className="flex-1 accent-blue-600 cursor-pointer"
                     />
-                    <span className="px-3 py-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 font-extrabold text-xs text-indigo-600">
+                    <span className="px-3 py-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 font-extrabold text-xs text-blue-600 dark:text-blue-400">
                       {progressMax}%
                     </span>
                   </div>
@@ -933,7 +946,7 @@ export default function FieldSettingsModal({
                     id="allowMult"
                     checked={allowMultiple}
                     onChange={e => setAllowMultiple(e.target.checked)}
-                    className="rounded text-indigo-600"
+                    className="rounded text-blue-600 focus:ring-blue-500/20 accent-blue-600"
                   />
                   <label htmlFor="allowMult" className="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
                     {isVietnamese ? 'Cho phép gán nhiều thành viên cùng lúc' : 'Allow multiple assignees'}
@@ -1036,15 +1049,15 @@ export default function FieldSettingsModal({
                 <CustomFieldInput draft field={{ id: config.id, name: name || 'Default', type, options, numberMin, numberMax, numberPrecision, numberUnit, currencySymbol, currencyPosition, ratingMax, ratingIcon, progressMax, includeTime } as CustomFieldDefinition} value={defaultValue} onChange={setDefaultValue} />
               </div>
             )}
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/50 via-purple-50/30 to-blue-50/50 dark:from-indigo-950/20 dark:via-purple-950/10 dark:to-slate-900/40 border border-indigo-200/60 dark:border-indigo-900/40 space-y-2">
-              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-sky-400">
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50/50 via-slate-50/30 to-blue-50/50 dark:from-blue-950/20 dark:via-zinc-950/10 dark:to-zinc-900/40 border border-blue-200/60 dark:border-blue-900/40 space-y-2">
+              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
                 <span className="flex items-center gap-1.5">
                   <Eye className="w-3.5 h-3.5" /> {isVietnamese ? 'Xem trước trực tiếp (Live Preview)' : 'Live Interactive Preview'}
                 </span>
                 <span className="font-semibold text-slate-400">{isVietnamese ? 'Hãy thử thao tác' : 'Try interacting'}</span>
               </div>
 
-              <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between gap-3">
+              <div className="p-3 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm flex items-center justify-between gap-3">
                 <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300 min-w-[100px] truncate">
                   {name || (isVietnamese ? 'Tên trường' : 'Field Name')}
                 </span>
@@ -1094,9 +1107,9 @@ export default function FieldSettingsModal({
                         max={progressMax}
                         value={previewValue || 65}
                         onChange={e => setPreviewValue(Number(e.target.value))}
-                        className="flex-1 accent-indigo-600 cursor-pointer"
+                        className="flex-1 accent-blue-600 cursor-pointer"
                       />
-                      <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 w-10 text-right">
+                      <span className="text-xs font-black text-blue-600 dark:text-blue-400 w-10 text-right">
                         {previewValue || 65}%
                       </span>
                     </div>
@@ -1108,8 +1121,8 @@ export default function FieldSettingsModal({
                       onClick={() => setPreviewValue(!previewValue)}
                       className={`px-3 py-1.5 rounded-xl border font-bold text-xs flex items-center gap-1.5 transition-all ${
                         previewValue 
-                          ? 'bg-indigo-600 text-white border-indigo-600' 
-                          : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-500'
+                          ? 'bg-blue-600 text-white border-blue-600' 
+                          : 'bg-slate-100 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700 text-slate-500'
                       }`}
                     >
                       <Check className={`w-3.5 h-3.5 ${previewValue ? 'opacity-100' : 'opacity-0'}`} />
@@ -1127,7 +1140,7 @@ export default function FieldSettingsModal({
 
                   {type === 'date' && (
                     <div className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                      <Calendar className="w-3.5 h-3.5 text-blue-500" />
                       <span>17/07/2026 {includeTime ? '14:30' : ''}</span>
                     </div>
                   )}
@@ -1151,7 +1164,7 @@ export default function FieldSettingsModal({
                   onChange={e => setIsRequired(e.target.checked)}
                   className="sr-only peer" 
                 />
-                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
               </label>
             </div>
           </div>
@@ -1169,7 +1182,7 @@ export default function FieldSettingsModal({
               disabled={!name.trim()}
               className={`px-5 py-2 rounded-xl text-xs font-black text-white flex items-center gap-1.5 transition-all shadow-md ${
                 name.trim() 
-                  ? 'bg-indigo-600 hover:bg-indigo-700 active:scale-95 shadow-indigo-500/25 cursor-pointer' 
+                  ? 'bg-blue-600 hover:bg-blue-700 active:scale-95 shadow-blue-500/25 cursor-pointer' 
                   : 'bg-slate-300 dark:bg-slate-800 text-slate-500 pointer-events-none'
               }`}
             >

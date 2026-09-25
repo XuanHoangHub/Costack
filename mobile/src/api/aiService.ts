@@ -1,3 +1,5 @@
+import { supabase } from './supabase';
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
 export interface AiTaskContext {
@@ -14,11 +16,22 @@ export async function askApexaAi(
   context?: AiTaskContext
 ): Promise<string> {
   try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+    } catch (e) {
+      console.log('Failed to attach Supabase session to AI request:', e);
+    }
+
     const response = await fetch(`${API_URL}/api/ai/chat`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
         message,
         history,
@@ -27,12 +40,12 @@ export async function askApexaAi(
     });
 
     if (!response.ok) {
-      // Fallback simulated intelligent response if backend API is unreachable in mobile local testing
+      // Fallback simulated intelligent response if backend API is unreachable or free tier in mobile local testing
       return generateAiFallback(message, context);
     }
 
     const data = await response.json();
-    return data.reply || data.content || generateAiFallback(message, context);
+    return data.text || data.reply || data.content || generateAiFallback(message, context);
   } catch (error) {
     console.log('AI API fetch failed, using smart fallback response:', error);
     return generateAiFallback(message, context);

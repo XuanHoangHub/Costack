@@ -3,10 +3,20 @@ import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, readAiJ
 
 export async function POST(request: Request) {
   try {
-    const { message, history, model, temperature, googleSearch, stream: wantStream } = await readAiJson<any>(request);
+    const { message, history, context, model, temperature, googleSearch, stream: wantStream } = await readAiJson<any>(request);
     const client = await getAuthorizedGeminiClient(request, 512_000);
 
-    const systemPrompt = "You are Costack Brain, the AI assistant integrated into Costack Productivity OS. You are fluent in English and Vietnamese, professional, helpful, concise, and structured. Always respond in the same language that the user uses or requests.";
+    let systemPrompt = "You are Costack Brain, the AI assistant integrated into Costack Productivity OS. You are fluent in English and Vietnamese, professional, helpful, concise, and structured. Always respond in the same language that the user uses or requests.";
+
+    if (context && typeof context === 'object') {
+      systemPrompt += `\n\nTHÔNG TIN BỐI CẢNH DỰ ÁN THỜI GIAN THỰC CỦA NGƯỜI DÙNG:
+- Tổng số công việc: ${context.totalTasks ?? 'Chưa rõ'}
+- Việc đến hạn hôm nay: ${context.dueTodayCount ?? 0}
+- Việc quá hạn: ${context.overdueCount ?? 0}
+- Việc đã hoàn thành: ${context.completedCount ?? 0}
+${Array.isArray(context.highPriorityTasks) && context.highPriorityTasks.length > 0 ? `- Công việc ưu tiên cao/khẩn cấp: ${context.highPriorityTasks.join(', ')}` : ''}
+Hãy tham chiếu dữ liệu này một cách tự nhiên và chính xác khi người dùng hỏi về tiến độ, công việc gấp hoặc kế hoạch làm việc.`;
+    }
 
     // Map history to Content[] format
     const contents: any[] = [];
@@ -59,7 +69,8 @@ export async function POST(request: Request) {
       config: config
     });
 
-    return NextResponse.json({ success: true, text: response.text });
+    const outputText = response.text || '';
+    return NextResponse.json({ success: true, text: outputText, reply: outputText });
   } catch (error: any) {
     console.error("AI Chat error:", error);
     return NextResponse.json({ success: false, error: getAiErrorMessage(error, 'Lỗi xử lý AI') }, { status: getAiErrorStatus(error) });

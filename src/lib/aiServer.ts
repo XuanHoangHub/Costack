@@ -5,24 +5,19 @@ import { getGeminiClient } from '@/lib/gemini';
 import { checkRateLimit, pruneRateLimitBuckets } from '@/lib/rateLimit';
 import { getBillingAdmin } from '@/lib/billing/server';
 import { isBillingPlan, isPaidBillingPlan } from '@/lib/billing/plans';
+import { isApexaSuperAdmin } from '@/lib/admin/constants';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
 const supabasePublicKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 
-const SUPPORTED_MODELS = new Set([
-  'gemini-3.6-flash',
-  'gemini-3.5-flash',
-  'gemini-3.5-flash-lite',
-  'gemini-2.5-pro',
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
-]);
-
 export function resolveModel(model?: string): string {
-  if (!model || typeof model !== 'string') return 'gemini-3.6-flash';
+  if (!model || typeof model !== 'string') return 'gemini-2.5-flash';
   const m = model.trim().toLowerCase();
-  if (SUPPORTED_MODELS.has(m)) return m;
-  return 'gemini-3.6-flash';
+  if (m === 'gemini-2.5-pro') return 'gemini-2.5-pro';
+  if (m === 'gemini-2.5-flash-lite' || m === 'gemini-3.5-flash-lite') return 'gemini-2.5-flash-lite';
+  if (m === 'gemini-2.0-flash') return 'gemini-2.0-flash';
+  // All other requested versions (including default, 3.6-flash, 3.5-flash, 2.5-flash) map safely to 2.5-flash
+  return 'gemini-2.5-flash';
 }
 
 export async function readAiJson<T = Record<string, unknown>>(
@@ -75,6 +70,8 @@ export async function getAuthorizedGeminiClient(
   if (error || !data.user) {
     throw new Error('AI_UNAUTHORIZED: Phiên đăng nhập không hợp lệ hoặc đã hết hạn.');
   }
+
+  const isSuper = isApexaSuperAdmin(data.user.id);
   const admin = getBillingAdmin();
   const { data: subscription, error: subscriptionError } = await admin
     .from('billing_subscriptions')
@@ -90,22 +87,24 @@ export async function getAuthorizedGeminiClient(
     (['active', 'trialing'].includes(subscription?.status || '') && periodEndMs > Date.now())
     || (subscription?.status === 'past_due' && periodEndMs > Date.now() - 7 * 86_400_000)
   );
-  const plan = subscriptionIsLive && isBillingPlan(subscription?.plan) ? subscription.plan : 'free';
-  if (!isPaidBillingPlan(plan)) {
+  const plan = isSuper ? 'enterprise' : (subscriptionIsLive && isBillingPlan(subscription?.plan) ? subscription.plan : 'free');
+  if (!isSuper && !isPaidBillingPlan(plan)) {
     throw new Error('AI_PLAN_REQUIRED: Costack AI chỉ dành cho tài khoản trả phí. Vui lòng nâng cấp gói để tiếp tục.');
   }
   if (!envKey || envKey === 'your-gemini-api-key') {
     throw new Error('AI_UNAVAILABLE: Costack Brain chưa được cấu hình API Key trên máy chủ.');
   }
 
-  const { data: usageData, error: usageError } = await admin.rpc('consume_ai_billing_usage', {
-    p_user_id: data.user.id,
-    p_units: 1,
-  });
-  if (usageError) throw usageError;
-  const usage = Array.isArray(usageData) ? usageData[0] : usageData;
-  if (!usage?.allowed) {
-    throw new Error(`AI_QUOTA_EXCEEDED: Bạn đã dùng hết ${usage?.quota || 0} lượt AI trong tháng của gói ${plan}.`);
+  if (!isSuper) {
+    const { data: usageData, error: usageError } = await admin.rpc('consume_ai_billing_usage', {
+      p_user_id: data.user.id,
+      p_units: 1,
+    });
+    if (usageError) throw usageError;
+    const usage = Array.isArray(usageData) ? usageData[0] : usageData;
+    if (!usage?.allowed) {
+      throw new Error(`AI_QUOTA_EXCEEDED: Bạn đã dùng hết ${usage?.quota || 0} lượt AI trong tháng của gói ${plan}.`);
+    }
   }
   return getGeminiClient();
 }

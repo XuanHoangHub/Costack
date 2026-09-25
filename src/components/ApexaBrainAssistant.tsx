@@ -16,6 +16,7 @@ import { useTranslation } from '../contexts/TranslationContext';
 import { useUiStore } from '../store/uiStore';
 import { useAuthStore } from '../store/authStore';
 import { ApexaAiIcon, ApexaAiAvatar } from './ApexaAiIcon';
+import { isApexaSuperAdmin } from '@/lib/admin/constants';
 
 export interface AiChatMessage {
   id: string;
@@ -385,10 +386,12 @@ export default function ApexaBrainAssistant({
   const { locale } = useTranslation();
   const appActiveTab = useUiStore((s) => s.activeTab);
   const setShowPremiumModal = useUiStore((s) => s.setShowPremiumModal);
-  const isPremium = useAuthStore((s) => Boolean(s.currentUser?.isPremium));
+  const isOpen = useUiStore((s) => s.isAiAssistantOpen);
+  const setIsOpen = useUiStore((s) => s.setIsAiAssistantOpen);
+  const toggleAiAssistant = useUiStore((s) => s.toggleAiAssistant);
+  const isPremium = useAuthStore((s) => Boolean(s.currentUser?.isPremium || (s.currentUser?.id && isApexaSuperAdmin(s.currentUser.id))));
 
-  // Modal open & view mode
-  const [isOpen, setIsOpen] = useState(false);
+  // Modal view mode & content states
   const [viewMode, setViewMode] = useState<ViewMode>('drawer');
   const [activeTab, setActiveTab] = useState<TabType>('query');
   const [loading, setLoading] = useState(false);
@@ -436,6 +439,20 @@ export default function ApexaBrainAssistant({
   // Scroll to bottom of response refs
   const responseEndRef = useRef<HTMLDivElement>(null);
 
+  // Listen to open-costack-ai custom event
+  useEffect(() => {
+    const handleOpenAi = () => {
+      if (!isPremium) {
+        setShowPremiumModal(true);
+        return;
+      }
+      setIsOpen(true);
+      if (tasks.length > 0 && !selectedTaskId) setSelectedTaskId(tasks[0].id);
+    };
+    window.addEventListener('open-costack-ai', handleOpenAi);
+    return () => window.removeEventListener('open-costack-ai', handleOpenAi);
+  }, [isPremium, selectedTaskId, setIsOpen, setShowPremiumModal, tasks]);
+
   // Load chat history from localStorage on mount
   useEffect(() => {
     try {
@@ -471,7 +488,8 @@ export default function ApexaBrainAssistant({
           setShowPremiumModal(true);
           return;
         }
-        setIsOpen(prev => !prev);
+        toggleAiAssistant();
+        if (tasks.length > 0 && !selectedTaskId) setSelectedTaskId(tasks[0].id);
       }
       if (e.key === 'Escape' && isOpen) {
         setIsOpen(false);
@@ -479,7 +497,7 @@ export default function ApexaBrainAssistant({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isPremium, setShowPremiumModal]);
+  }, [isOpen, isPremium, selectedTaskId, setIsOpen, setShowPremiumModal, tasks, toggleAiAssistant]);
 
   // Load Model & Search Grounding preference
   useEffect(() => {
