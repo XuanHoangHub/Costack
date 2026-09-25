@@ -22,6 +22,7 @@ import {
   MoreVertical,
   ClipboardList,
   RefreshCw,
+  Sparkles,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
@@ -181,6 +182,25 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({ navigation }) => {
         subtitle={`${filteredTasks.length} ${t.tasks.title.toLowerCase()}`}
         rightAction={
           <View style={styles.headerActions}>
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() => {
+                try {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                } catch {}
+                navigation?.navigate('More', { screen: 'AiBrain' });
+              }}
+              style={[
+                styles.headerActionBtn,
+                {
+                  backgroundColor: `${colors.primary}18`,
+                  borderColor: `${colors.primary}50`,
+                },
+              ]}
+            >
+              <Sparkles size={18} color={colors.primary} />
+            </TouchableOpacity>
+
             <TouchableOpacity
               activeOpacity={0.75}
               onPress={() => setShowGlobalSearch(true)}

@@ -11,16 +11,18 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { Folder, List, ChevronRight, Plus, X, ArrowRight, Layers, Trash2, PlusCircle } from 'lucide-react-native';
+import { Folder, List, ChevronRight, Plus, X, ArrowRight, Layers, Trash2, PlusCircle, Settings2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useUiStore } from '../../store/uiStore';
 import { useSpaceStore } from '../../store/spaceStore';
 import { useTaskStore } from '../../store/taskStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { Space } from '../../types';
 import { Header } from '../../components/common/Header';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { RenderSpaceIcon } from '../../components/common/RenderSpaceIcon';
+import { EditSpaceModal } from '../../components/common/EditSpaceModal';
 import Toast from 'react-native-toast-message';
 
 interface SpacesScreenProps {
@@ -70,6 +72,10 @@ export const SpacesScreen: React.FC<SpacesScreenProps> = ({ navigation }) => {
   const [targetSpaceIdForList, setTargetSpaceIdForList] = useState<string | null>(null);
   const [newListName, setNewListName] = useState('');
   const [addingList, setAddingList] = useState(false);
+
+  // Edit Space modal state
+  const [editingSpace, setEditingSpace] = useState<Space | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -270,6 +276,19 @@ export const SpacesScreen: React.FC<SpacesScreenProps> = ({ navigation }) => {
                   </Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <TouchableOpacity
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    onPress={() => {
+                      try {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      } catch {}
+                      setEditingSpace(sp);
+                      setShowEditModal(true);
+                    }}
+                    style={styles.actionIconBtn}
+                  >
+                    <Settings2 size={16} color={colors.textSecondary} />
+                  </TouchableOpacity>
                   <TouchableOpacity
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     onPress={() => handleDeleteSpace(sp.id, sp.name)}
@@ -551,6 +570,16 @@ export const SpacesScreen: React.FC<SpacesScreenProps> = ({ navigation }) => {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Edit Space Settings Modal */}
+      <EditSpaceModal
+        visible={showEditModal}
+        space={editingSpace}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingSpace(null);
+        }}
+      />
     </View>
   );
 };

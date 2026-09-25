@@ -181,6 +181,25 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
               try {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               } catch {}
+              navigation.navigate('More', { screen: 'AiBrain' });
+            }}
+            style={[
+              styles.aiIconButton,
+              {
+                backgroundColor: `${colors.primary}18`,
+                borderColor: `${colors.primary}50`,
+              },
+            ]}
+          >
+            <Sparkles size={17} color={colors.primary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              try {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              } catch {}
               setShowSearchModal(true);
             }}
             style={[
@@ -1116,6 +1135,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  aiIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    borderWidth: 1.2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchIconButton: {
     width: 36,
