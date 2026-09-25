@@ -237,6 +237,8 @@ export const SpacesScreen: React.FC<SpacesScreenProps> = ({ navigation }) => {
       >
         {currentSpaces.map((sp) => {
           const spTasks = tasks.filter((t) => t.spaceId === sp.id);
+          const completedTasks = spTasks.filter((t) => t.status === 'completed').length;
+          const progressPercent = spTasks.length > 0 ? Math.round((completedTasks / spTasks.length) * 100) : 0;
           const spColor = sp.themeColor || colors.primary;
 
           return (
@@ -264,13 +266,14 @@ export const SpacesScreen: React.FC<SpacesScreenProps> = ({ navigation }) => {
                     {sp.name}
                   </Text>
                   <Text style={[styles.spaceMeta, { color: colors.textMuted }]}>
-                    {sp.lists?.length || 0} danh sách • {spTasks.length} công việc
+                    {sp.lists?.length || 0} danh sách • {spTasks.length} việc {spTasks.length > 0 ? `(${completedTasks} xong)` : ''}
                   </Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <TouchableOpacity
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     onPress={() => handleDeleteSpace(sp.id, sp.name)}
-                    style={{ padding: 6 }}
+                    style={styles.actionIconBtn}
                   >
                     <Trash2 size={16} color={colors.textMuted} />
                   </TouchableOpacity>
@@ -278,11 +281,34 @@ export const SpacesScreen: React.FC<SpacesScreenProps> = ({ navigation }) => {
                 </View>
               </TouchableOpacity>
 
+              {/* Space Progress Bar */}
+              {spTasks.length > 0 && (
+                <View style={styles.spaceProgressWrap}>
+                  <View style={styles.spaceProgressRow}>
+                    <Text style={[styles.spaceProgressText, { color: colors.textMuted }]}>
+                      Tiến độ hoàn thành
+                    </Text>
+                    <Text style={[styles.spaceProgressPercent, { color: spColor }]}>
+                      {progressPercent}%
+                    </Text>
+                  </View>
+                  <View style={[styles.progressBarTrack, { backgroundColor: colors.surfaceHover }]}>
+                    <View
+                      style={[
+                        styles.progressBarFill,
+                        { width: `${progressPercent}%`, backgroundColor: spColor },
+                      ]}
+                    />
+                  </View>
+                </View>
+              )}
+
               {/* Space Lists */}
               {sp.lists && sp.lists.length > 0 ? (
                 <View style={styles.listsContainer}>
                   {sp.lists.map((l) => {
                     const listTasks = tasks.filter((t) => t.listId === l.id);
+                    const listDone = listTasks.filter((t) => t.status === 'completed').length;
 
                     return (
                       <TouchableOpacity
@@ -308,14 +334,15 @@ export const SpacesScreen: React.FC<SpacesScreenProps> = ({ navigation }) => {
                         <View style={styles.listRight}>
                           <View style={[styles.listCountPill, { backgroundColor: colors.surfaceHover }]}>
                             <Text style={[styles.listCountText, { color: colors.textMuted }]}>
-                              {listTasks.length}
+                              {listTasks.length > 0 ? `${listDone}/${listTasks.length}` : '0'}
                             </Text>
                           </View>
                           <TouchableOpacity
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             onPress={() => handleDeleteList(sp.id, l.id, l.name)}
-                            style={{ padding: 4 }}
+                            style={styles.actionIconBtn}
                           >
-                            <X size={13} color={colors.textMuted} />
+                            <X size={14} color={colors.textMuted} />
                           </TouchableOpacity>
                         </View>
                       </TouchableOpacity>
@@ -534,6 +561,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+    paddingBottom: 110,
     gap: 14,
   },
   spaceCard: {
@@ -545,7 +573,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 14,
+    marginBottom: 12,
+  },
+  spaceProgressWrap: {
+    marginBottom: 12,
+    paddingHorizontal: 2,
+  },
+  spaceProgressRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  spaceProgressText: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  spaceProgressPercent: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  progressBarTrack: {
+    height: 5,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  actionIconBtn: {
+    padding: 6,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emojiWrap: {
     width: 44,

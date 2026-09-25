@@ -1,26 +1,41 @@
 import React from 'react';
-import { StyleSheet, ViewStyle } from 'react-native';
+import { StyleSheet, ViewStyle, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Plus } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUiStore } from '../../store/uiStore';
 import { PressableScale } from './PressableScale';
 
 interface FABProps {
   onPress: () => void;
   style?: ViewStyle;
+  icon?: React.ReactNode;
+  bottomOffset?: number;
 }
 
-export const FloatingActionButton: React.FC<FABProps> = ({ onPress, style }) => {
+export const FloatingActionButton: React.FC<FABProps> = ({
+  onPress,
+  style,
+  icon,
+  bottomOffset,
+}) => {
   const colors = useUiStore((s) => s.getColors());
+  const insets = useSafeAreaInsets();
+
+  // Bottom tab bar height is 88 on iOS, 68 on Android.
+  // Standard position should sit comfortably above it.
+  const defaultBottom = Platform.OS === 'ios' ? 96 : 80;
+  const calculatedBottom = bottomOffset !== undefined ? bottomOffset : defaultBottom;
 
   return (
     <PressableScale
-      activeScale={0.9}
+      activeScale={0.88}
       hapticFeedback="medium"
       onPress={onPress}
       style={[
         styles.fabContainer,
         {
+          bottom: calculatedBottom,
           shadowColor: colors.primary,
         },
         style,
@@ -32,7 +47,7 @@ export const FloatingActionButton: React.FC<FABProps> = ({ onPress, style }) => 
         end={{ x: 1, y: 1 }}
         style={styles.gradient}
       >
-        <Plus size={26} color="#ffffff" strokeWidth={2.5} />
+        {icon || <Plus size={26} color="#ffffff" strokeWidth={2.5} />}
       </LinearGradient>
     </PressableScale>
   );
@@ -41,14 +56,13 @@ export const FloatingActionButton: React.FC<FABProps> = ({ onPress, style }) => 
 const styles = StyleSheet.create({
   fabContainer: {
     position: 'absolute',
-    bottom: 24,
     right: 20,
     width: 58,
     height: 58,
     borderRadius: 29,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.38,
+    shadowRadius: 10,
     elevation: 10,
     zIndex: 99,
   },

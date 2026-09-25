@@ -35,6 +35,7 @@ import {
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUiStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 import { useTaskStore } from '../../store/taskStore';
@@ -62,6 +63,7 @@ interface DashboardScreenProps {
 }
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const colors = useUiStore((s) => s.colors);
   const currentUser = useAuthStore((s) => s.currentUser);
   const tasks = useTaskStore((s) => s.tasks);
@@ -143,10 +145,18 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
   // Recent tasks
   const recentTasks = displayTasks.slice(0, 4);
 
-  return (
+    return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Top Welcome Bar */}
-      <View style={[styles.topBar, { borderBottomColor: colors.border }]}>
+      <View
+        style={[
+          styles.topBar,
+          {
+            paddingTop: Math.max(insets.top, 14),
+            borderBottomColor: colors.border,
+          },
+        ]}
+      >
         <View style={styles.userRow}>
           <Avatar
             name={currentUser?.name || 'User'}
@@ -873,6 +883,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 16,
+    paddingBottom: 110,
   },
   heroBanner: {
     borderRadius: 22,

@@ -1366,7 +1366,7 @@ export const LoginScreen: React.FC = () => {
         {/* Brand Footer */}
         <View style={styles.brandFooter}>
           <Text style={[styles.brandFooterText, { color: colors.textMuted }]}>
-            © {new Date().getFullYear()} Costack Inc. All rights reserved.
+            © {new Date().getFullYear()} Costack · Copyrighted by Avaxa. All rights reserved.
           </Text>
         </View>
       </ScrollView>

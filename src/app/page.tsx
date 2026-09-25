@@ -368,6 +368,7 @@ export default function App() {
   const showPomoSettings = usePomodoroStore((s) => s.showPomoSettings);
   const setShowPomoSettings = usePomodoroStore((s) => s.setShowPomoSettings);
   const setPomodoroTime = usePomodoroStore((s) => s.setPomodoroTime);
+  const pomodoroTime = usePomodoroStore((s) => s.pomodoroTime);
   const pomodoroActive = usePomodoroStore((s) => s.pomodoroActive);
   const setPomodoroActive = usePomodoroStore((s) => s.setPomodoroActive);
   const previousStatus = usePomodoroStore((s) => s.previousStatus);
@@ -541,7 +542,69 @@ export default function App() {
   const [isChannelsExpanded, setIsChannelsExpanded] = useState<boolean>(true);
   const [isDmsExpanded, setIsDmsExpanded] = useState<boolean>(true);
   const [isOtherAppsExpanded, setIsOtherAppsExpanded] = useState<boolean>(true);
-  
+  const notificationsList = useNotificationStore((s) => s.notificationsList);
+
+  // Dynamic Browser Tab Document Title sync
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    if (!currentUser) {
+      document.title = 'Costack · Không gian làm việc thông minh & Trợ lý AI';
+      return;
+    }
+
+    // 1. Pomodoro Focus Timer countdown takes top priority if active
+    if (pomodoroActive && pomodoroMode) {
+      const m = Math.floor(pomodoroTime / 60);
+      const s = pomodoroTime % 60;
+      const timeStr = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      const modeLabel = pomodoroMode === 'work'
+        ? (locale === 'vi' ? 'Tập trung' : 'Focus')
+        : (locale === 'vi' ? 'Nghỉ ngơi' : 'Break');
+      document.title = `⏱ ${timeStr} (${modeLabel}) · Costack`;
+      return;
+    }
+
+    // 2. Tab title based on activeTab
+    const TAB_LABELS: Record<string, string> = {
+      dashboard: locale === 'vi' ? 'Tổng quan' : 'Dashboard',
+      tasks: locale === 'vi' ? 'Công việc' : 'Tasks',
+      inbox: locale === 'vi' ? 'Hộp thư đến' : 'Inbox',
+      finance: locale === 'vi' ? 'Tài chính & Thu chi' : 'Finance',
+      team: locale === 'vi' ? 'Đội ngũ' : 'Team Directory',
+      calendar: locale === 'vi' ? 'Lịch biểu' : 'Calendar',
+      chat: locale === 'vi' ? 'Kênh trao đổi' : 'Chat',
+      docs: locale === 'vi' ? 'Tài liệu' : 'Docs',
+      whiteboard: locale === 'vi' ? 'Bảng vẽ' : 'Whiteboard',
+      analytics: locale === 'vi' ? 'Báo cáo năng suất' : 'Analytics',
+      settings: locale === 'vi' ? 'Cài đặt' : 'Settings',
+      profile: locale === 'vi' ? 'Hồ sơ cá nhân' : 'Profile',
+      productivity: locale === 'vi' ? 'Năng suất' : 'Productivity Hub',
+    };
+
+    let titlePart = TAB_LABELS[activeTab] || 'Workspace';
+
+    // If viewing tasks inside a specific Space
+    if (activeTab === 'tasks' && activeSpaceId) {
+      const activeSpace = spaces.find((sp) => sp.id === activeSpaceId);
+      if (activeSpace?.name) {
+        titlePart = `${activeSpace.name} · ${locale === 'vi' ? 'Công việc' : 'Tasks'}`;
+      }
+    }
+
+    // Unread notifications badge prefix e.g. (3)
+    const unreadCount = (notificationsList || []).filter((n: any) => !n.isRead && !n.read).length;
+    const badgePrefix = unreadCount > 0 ? `(${unreadCount}) ` : '';
+
+    const wsName = currentWorkspace?.name && currentWorkspace.name !== 'U' ? currentWorkspace.name.trim() : 'Costack';
+    if (wsName.toLowerCase() === 'costack') {
+      document.title = `${badgePrefix}${titlePart} · Costack`;
+    } else if (wsName.toLowerCase().includes('costack')) {
+      document.title = `${badgePrefix}${titlePart} · ${wsName}`;
+    } else {
+      document.title = `${badgePrefix}${titlePart} · ${wsName} · Costack`;
+    }
+  }, [currentUser, activeTab, activeSpaceId, spaces, currentWorkspace?.name, pomodoroActive, pomodoroMode, pomodoroTime, notificationsList, locale]);
   // Modals for Spaces & Lists - consumed from useUiStore
   const showAddSpaceModal = useUiStore((s) => s.showAddSpaceModal);
   const setShowAddSpaceModal = useUiStore((s) => s.setShowAddSpaceModal);
@@ -1325,7 +1388,6 @@ export default function App() {
   const lastToastsRef = useRef<Record<string, number>>({});
 
   // Persistent notifications history list
-  const notificationsList = useNotificationStore((s) => s.notificationsList);
   const setNotificationsList = useNotificationStore((s) => s.setNotificationsList);
   const showNotificationsMenu = useUiStore((s) => s.showNotificationsMenu);
   const setShowNotificationsMenu = useUiStore((s) => s.setShowNotificationsMenu);
@@ -5006,8 +5068,10 @@ export default function App() {
             >
               {currentWorkspace?.logoUrl ? (
                 <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
+              ) : currentWorkspace?.name?.toLowerCase().includes('costack') ? (
+                <img src="/logo.png" className="w-full h-full object-contain p-1" alt="Costack Logo" />
               ) : (
-                <span>{(currentWorkspace?.name || 'U').charAt(0).toUpperCase()}</span>
+                <span>{(currentWorkspace?.name || 'Costack').charAt(0).toUpperCase()}</span>
               )}
             </div>
           </button>
@@ -5032,8 +5096,10 @@ export default function App() {
                 >
                   {currentWorkspace?.logoUrl ? (
                     <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
+                  ) : currentWorkspace?.name?.toLowerCase().includes('costack') ? (
+                    <img src="/logo.png" className="w-full h-full object-contain p-0.5" alt="Costack Logo" />
                   ) : (
-                    <span>{(currentWorkspace?.name || 'U').charAt(0).toUpperCase()}</span>
+                    <span>{(currentWorkspace?.name || 'Costack').charAt(0).toUpperCase()}</span>
                   )}
                 </div>
                 <span className="font-sans font-extrabold text-slate-800 dark:text-white text-[12.5px] tracking-tight truncate flex-1">
@@ -5413,8 +5479,10 @@ export default function App() {
                     >
                       {currentWorkspace?.logoUrl ? (
                         <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
+                      ) : currentWorkspace?.name?.toLowerCase().includes('costack') ? (
+                        <img src="/logo.png" className="w-full h-full object-contain p-1" alt="Costack Logo" />
                       ) : (
-                        <span>{(currentWorkspace?.name || 'U').charAt(0).toUpperCase()}</span>
+                        <span>{(currentWorkspace?.name || 'Costack').charAt(0).toUpperCase()}</span>
                       )}
                     </div>
 
@@ -5499,8 +5567,10 @@ export default function App() {
                             >
                               {w.logoUrl ? (
                                 <img src={w.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
+                              ) : w.name?.toLowerCase().includes('costack') ? (
+                                <img src="/logo.png" className="w-full h-full object-contain p-0.5" alt="Costack Logo" />
                               ) : (
-                                <span>{w.initial || w.name.charAt(0).toUpperCase()}</span>
+                                <span>{(w.initial && w.initial !== 'U' ? w.initial : w.name?.charAt(0) || 'C').toUpperCase()}</span>
                               )}
                             </div>
                             <span className="truncate flex-1 font-bold text-slate-800 dark:text-slate-200 group-hover/ws:text-slate-950 dark:group-hover/ws:text-white transition-colors">{w.name}</span>
@@ -5570,8 +5640,10 @@ export default function App() {
               >
                 {currentWorkspace?.logoUrl ? (
                   <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
+                ) : currentWorkspace?.name?.toLowerCase().includes('costack') ? (
+                  <img src="/logo.png" className="w-full h-full object-contain p-0.5" alt="Costack Logo" />
                 ) : (
-                  <span>{currentWorkspace?.initial || 'U'}</span>
+                  <span>{(currentWorkspace?.initial && currentWorkspace.initial !== 'U' ? currentWorkspace.initial : currentWorkspace?.name?.charAt(0) || 'C').toUpperCase()}</span>
                 )}
               </div>
               <span className="font-extrabold text-slate-800 dark:text-slate-100 text-[11px] truncate">
@@ -6531,8 +6603,10 @@ export default function App() {
                   >
                     {currentWorkspace?.logoUrl ? (
                       <img src={currentWorkspace.logoUrl} className="h-full w-full object-cover" alt="" />
+                    ) : currentWorkspace?.name?.toLowerCase().includes('costack') ? (
+                      <img src="/logo.png" className="h-full w-full object-contain p-1" alt="Costack Logo" />
                     ) : (
-                      currentWorkspace?.initial || 'U'
+                      (currentWorkspace?.initial && currentWorkspace.initial !== 'U' ? currentWorkspace.initial : currentWorkspace?.name?.charAt(0) || 'C').toUpperCase()
                     )}
                   </div>
                   <div className="min-w-0">

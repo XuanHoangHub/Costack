@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, readAiJson, resolveModel } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, readAiJson, resolveModel, createAiStreamResponse } from '@/lib/aiServer';
 import { analyzeTasks, serializeTaskIntelligence } from '@/lib/taskIntelligence';
 import type { Task } from '@/types';
 
 export async function POST(request: Request) {
   try {
-    const { query, tasks, documents, members, model, temperature, googleSearch, now } = await readAiJson<any>(request);
+    const { query, tasks, documents, members, model, temperature, googleSearch, now, stream: wantStream } = await readAiJson<any>(request);
     if (typeof query !== 'string' || !query.trim()) {
       return NextResponse.json({ success: false, error: 'Query is required' }, { status: 400 });
     }
@@ -62,6 +62,19 @@ Sử dụng các bảng biểu, gạch đầu dòng, in đậm để định d�
       config.tools = [{ googleSearch: {} }];
     }
 
+    // Streaming mode: return SSE text/event-stream with intelligence metadata
+    if (wantStream) {
+      const responseStream = await client.models.generateContentStream({
+        model: resolveModel(model),
+        contents: contents,
+        config: config
+      });
+      return createAiStreamResponse(responseStream, {
+        intelligence: serializeTaskIntelligence(intelligence),
+      });
+    }
+
+    // Legacy non-streaming mode
     const response = await client.models.generateContent({
       model: resolveModel(model),
       contents: contents,

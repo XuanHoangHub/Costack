@@ -9,14 +9,16 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Send, Smile } from 'lucide-react-native';
+import { Send, Smile, MessagesSquare } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUiStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 import { useChatStore } from '../../store/chatStore';
 import { useTranslation } from '../../locales';
 import { Header } from '../../components/common/Header';
 import { Avatar } from '../../components/common/Avatar';
+import { PressableScale } from '../../components/common/PressableScale';
 
 interface ChatRoomScreenProps {
   route: any;
@@ -24,12 +26,14 @@ interface ChatRoomScreenProps {
 }
 
 const EMPTY_MESSAGES: any[] = [];
+const QUICK_EMOJIS = ['👍', '❤️', '🔥', '🎉', '🚀', '👀'];
 
 export const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({
   route,
   navigation,
 }) => {
   const { channelId, channelName } = route.params;
+  const insets = useSafeAreaInsets();
   const colors = useUiStore((s) => s.colors);
   const currentUser = useAuthStore((s) => s.currentUser);
   const messagesMap = useChatStore((s) => s.messages);
@@ -40,6 +44,7 @@ export const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({
   const { t } = useTranslation();
 
   const [inputMessage, setInputMessage] = useState('');
+  const [activeReactionMsgId, setActiveReactionMsgId] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -49,9 +54,10 @@ export const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({
 
   useEffect(() => {
     // Auto scroll to bottom
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 150);
+    return () => clearTimeout(timer);
   }, [messages.length]);
 
   const handleSend = async () => {
@@ -74,11 +80,13 @@ export const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {}
     addReaction(channelId, msgId, emoji, currentUser?.id || 'user-default');
+    setActiveReactionMsgId(null);
   };
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <Header
@@ -93,9 +101,11 @@ export const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({
         ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.messagesContainer}
+        onScrollBeginDrag={() => setActiveReactionMsgId(null)}
       >
         {messages.map((msg) => {
           const isMe = msg.senderId === 'user-default' || msg.senderName === currentUser?.name;
+          const showPicker = activeReactionMsgId === msg.id;
 
           return (
             <View
@@ -109,7 +119,7 @@ export const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({
                 <Avatar
                   name={msg.senderName}
                   url={msg.senderAvatar}
-                  size={32}
+                  size={34}
                 />
               )}
 
@@ -147,7 +157,7 @@ export const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({
                   <Text
                     style={[
                       styles.messageTime,
-                      { color: isMe ? 'rgba(255,255,255,0.7)' : colors.textMuted },
+                      { color: isMe ? 'rgba(255,255,255,0.75)' : colors.textMuted },
                     ]}
                   >
                     {new Date(msg.timestamp).toLocaleTimeString('vi-VN', {
@@ -157,11 +167,36 @@ export const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({
                   </Text>
                 </View>
 
+                {/* Quick Emoji Picker Floating Bar */}
+                {showPicker && (
+                  <View
+                    style={[
+                      styles.quickEmojiBar,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    {QUICK_EMOJIS.map((emoji) => (
+                      <TouchableOpacity
+                        key={emoji}
+                        activeOpacity={0.7}
+                        onPress={() => handleReaction(msg.id, emoji)}
+                        style={styles.quickEmojiBtn}
+                      >
+                        <Text style={styles.quickEmojiText}>{emoji}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
                 {/* Reactions */}
                 <View style={styles.reactionsRow}>
                   {msg.reactions?.map((r, i) => (
                     <TouchableOpacity
                       key={i}
+                      activeOpacity={0.7}
                       onPress={() => handleReaction(msg.id, r.emoji)}
                       style={[
                         styles.reactionPill,
@@ -178,13 +213,22 @@ export const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({
                   ))}
 
                   <TouchableOpacity
-                    onPress={() => handleReaction(msg.id, '👍')}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    onPress={() => {
+                      try {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      } catch {}
+                      setActiveReactionMsgId(showPicker ? null : msg.id);
+                    }}
                     style={[
                       styles.addReactionBtn,
-                      { backgroundColor: colors.surfaceSubtle },
+                      {
+                        backgroundColor: showPicker ? colors.surfaceHover : colors.surfaceSubtle,
+                        borderColor: colors.border,
+                      },
                     ]}
                   >
-                    <Smile size={13} color={colors.textMuted} />
+                    <Smile size={13} color={showPicker ? colors.primary : colors.textMuted} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -194,20 +238,27 @@ export const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({
 
         {messages.length === 0 && (
           <View style={styles.emptyContainer}>
+            <View style={[styles.emptyIconCircle, { backgroundColor: `${colors.primary}15` }]}>
+              <MessagesSquare size={36} color={colors.primary} />
+            </View>
+            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+              Chưa có tin nhắn nào
+            </Text>
             <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-              {t.chat.noMessages}
+              Hãy bắt đầu cuộc trò chuyện trong kênh này!
             </Text>
           </View>
         )}
       </ScrollView>
 
-      {/* Input Bar */}
+      {/* Input Bar with dynamic Safe Area padding */}
       <View
         style={[
           styles.inputBar,
           {
             backgroundColor: colors.surface,
             borderTopColor: colors.border,
+            paddingBottom: Math.max(insets.bottom, 12),
           },
         ]}
       >
@@ -217,6 +268,7 @@ export const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({
           value={inputMessage}
           onChangeText={setInputMessage}
           onSubmitEditing={handleSend}
+          multiline
           style={[
             styles.textInput,
             {
@@ -227,9 +279,10 @@ export const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({
           ]}
         />
 
-        <TouchableOpacity
+        <PressableScale
           onPress={handleSend}
           disabled={!inputMessage.trim()}
+          activeScale={0.9}
           style={[
             styles.sendBtn,
             {
@@ -243,7 +296,7 @@ export const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({
             size={18}
             color={inputMessage.trim() ? '#ffffff' : colors.textMuted}
           />
-        </TouchableOpacity>
+        </PressableScale>
       </View>
     </KeyboardAvoidingView>
   );
@@ -255,7 +308,7 @@ const styles = StyleSheet.create({
   },
   messagesContainer: {
     padding: 16,
-    paddingBottom: 20,
+    paddingBottom: 24,
   },
   messageRow: {
     flexDirection: 'row',
@@ -308,39 +361,75 @@ const styles = StyleSheet.create({
     marginTop: 4,
     alignSelf: 'flex-end',
   },
+  quickEmojiBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginTop: 6,
+    gap: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  quickEmojiBtn: {
+    padding: 4,
+  },
+  quickEmojiText: {
+    fontSize: 18,
+  },
   reactionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 4,
+    marginTop: 5,
   },
   reactionPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
     borderWidth: 1,
   },
   reactionText: {
-    fontSize: 11,
+    fontSize: 12,
   },
   addReactionBtn: {
-    padding: 4,
-    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
   },
   emptyContainer: {
-    paddingVertical: 40,
+    paddingVertical: 60,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyIconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 6,
   },
   emptyText: {
     fontSize: 13,
   },
   inputBar: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingTop: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
     gap: 10,
   },
@@ -349,15 +438,18 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingTop: 10,
+    paddingBottom: 10,
     fontSize: 14,
     maxHeight: 100,
+    minHeight: 42,
   },
   sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 1,
   },
 });

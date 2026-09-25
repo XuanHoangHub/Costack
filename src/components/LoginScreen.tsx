@@ -631,7 +631,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
   const showEmailDomainChips = !isForgot && !mfaPendingUser && email.trim().length > 1 && !email.includes('@');
 
   return (
-    <div className="apexa-auth-shell fixed inset-0 overflow-y-auto overflow-x-clip bg-[#f8fafc] dark:bg-[#030304] text-slate-800 dark:text-slate-100 font-sans selection:bg-blue-100 selection:text-blue-900 dark:selection:bg-blue-900/50 dark:selection:text-blue-100">
+    <div className="apexa-auth-shell fixed inset-0 overflow-y-auto overflow-x-clip scroll-smooth bg-[#f8fafc] dark:bg-[#030304] text-slate-800 dark:text-slate-100 font-sans selection:bg-blue-100 selection:text-blue-900 dark:selection:bg-blue-900/50 dark:selection:text-blue-100">
       <LandingPage
         onSignUp={() => openAuth(true)}
         onSignIn={() => openAuth(false)}
@@ -681,9 +681,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                 {/* Top Action Header (ThemeSwitch + LanguageSwitch + Close) */}
                 <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-white/5">
                   <div className="flex items-center gap-2 lg:hidden">
-                    <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs shrink-0">
-                      <Zap className="w-4 h-4 fill-white" />
-                    </div>
+                    <img src="/logo.png" alt="Costack Logo" className="w-8 h-8 rounded-xl object-contain drop-shadow-xs shrink-0" />
                     <span className="font-black text-slate-900 dark:text-white text-base tracking-tight font-display">
                       Costack<span className="text-blue-600 dark:text-cyan-400">.</span>
                     </span>

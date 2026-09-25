@@ -19,6 +19,9 @@ import {
   RotateCcw,
   Download,
   Table as TableIcon,
+  MoreVertical,
+  ClipboardList,
+  RefreshCw,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
@@ -28,9 +31,8 @@ import { useSpaceStore } from '../../store/spaceStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useAuthStore } from '../../store/authStore';
 import { useTranslation } from '../../locales';
-import { Task, TaskStatus } from '../../types';
+import { Task } from '../../types';
 import { Header } from '../../components/common/Header';
-import { Input } from '../../components/common/Input';
 import { RenderSpaceIcon } from '../../components/common/RenderSpaceIcon';
 import { SpaceFilterBar } from '../../components/tasks/SpaceFilterBar';
 import { TaskFilterBar } from '../../components/tasks/TaskFilterBar';
@@ -54,7 +56,6 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({ navigation }) => {
   const deletedTasks = useTaskStore((s) => s.deletedTasks);
   const filter = useTaskStore((s) => s.filter);
   const searchQuery = useTaskStore((s) => s.searchQuery);
-  const setSearchQuery = useTaskStore((s) => s.setSearchQuery);
   const fetchTasks = useTaskStore((s) => s.fetchTasksFromSupabase);
   const fetchDeletedTasks = useTaskStore((s) => s.fetchDeletedTasks);
   const restoreTask = useTaskStore((s) => s.restoreTask);
@@ -79,8 +80,8 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({ navigation }) => {
   const [showTrashModal, setShowTrashModal] = useState(false);
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -113,6 +114,7 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({ navigation }) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {}
     await fetchDeletedTasks();
+    setShowMoreMenu(false);
     setShowTrashModal(true);
   };
 
@@ -151,9 +153,9 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({ navigation }) => {
       }
       case 'overdue':
         return (
-          task.dueDate &&
+          Boolean(task.dueDate) &&
           task.status !== 'completed' &&
-          new Date(task.dueDate).getTime() < now
+          new Date(task.dueDate!).getTime() < now
         );
       case 'highPriority':
         return task.priority === 'high' || task.priority === 'urgent';
@@ -164,97 +166,84 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({ navigation }) => {
     }
   });
 
+  const viewTabs: Array<{ id: 'list' | 'board' | 'calendar' | 'table'; label: string; icon: any }> = [
+    { id: 'list', label: 'Danh sách', icon: List },
+    { id: 'board', label: 'Bảng', icon: Columns3 },
+    { id: 'calendar', label: 'Lịch', icon: CalendarIcon },
+    { id: 'table', label: 'Bảng tính', icon: TableIcon },
+  ];
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
+      {/* Header with clean & spacious layout */}
       <Header
         title={t.tasks.title}
         subtitle={`${filteredTasks.length} ${t.tasks.title.toLowerCase()}`}
         rightAction={
           <View style={styles.headerActions}>
             <TouchableOpacity
+              activeOpacity={0.75}
               onPress={() => setShowGlobalSearch(true)}
-              style={[styles.modeBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              style={[styles.headerActionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
             >
-              <Search size={17} color={colors.primary} />
+              <Search size={18} color={colors.primary} />
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={handleOpenTrash}
-              style={[styles.modeBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            >
-              <Trash2 size={16} color={colors.textSecondary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
+              activeOpacity={0.75}
               onPress={() => {
                 try {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 } catch {}
-                setShowExportModal(true);
+                setShowMoreMenu(true);
               }}
-              style={[styles.modeBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              style={[styles.headerActionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
             >
-              <Download size={16} color={colors.textSecondary} />
+              <MoreVertical size={18} color={colors.textSecondary} />
             </TouchableOpacity>
-
-            {/* View Switcher: List vs Board vs Calendar */}
-            <View style={[styles.segmentedWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <TouchableOpacity
-                onPress={() => handleModeChange('list')}
-                style={[
-                  styles.segmentBtn,
-                  viewMode === 'list' && { backgroundColor: colors.primary },
-                ]}
-              >
-                <List
-                  size={15}
-                  color={viewMode === 'list' ? '#ffffff' : colors.textSecondary}
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => handleModeChange('board')}
-                style={[
-                  styles.segmentBtn,
-                  viewMode === 'board' && { backgroundColor: colors.primary },
-                ]}
-              >
-                <Columns3
-                  size={15}
-                  color={viewMode === 'board' ? '#ffffff' : colors.textSecondary}
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => handleModeChange('calendar')}
-                style={[
-                  styles.segmentBtn,
-                  viewMode === 'calendar' && { backgroundColor: colors.primary },
-                ]}
-              >
-                <CalendarIcon
-                  size={15}
-                  color={viewMode === 'calendar' ? '#ffffff' : colors.textSecondary}
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => handleModeChange('table')}
-                style={[
-                  styles.segmentBtn,
-                  viewMode === 'table' && { backgroundColor: colors.primary },
-                ]}
-              >
-                <TableIcon
-                  size={15}
-                  color={viewMode === 'table' ? '#ffffff' : colors.textSecondary}
-                />
-              </TouchableOpacity>
-            </View>
           </View>
         }
       />
+
+      {/* Segmented View Switcher: List vs Board vs Calendar vs Table */}
+      <View style={styles.segmentedContainer}>
+        <View style={[styles.segmentedWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {viewTabs.map((tab) => {
+            const isActive = viewMode === tab.id;
+            const TabIcon = tab.icon;
+
+            return (
+              <TouchableOpacity
+                key={tab.id}
+                activeOpacity={0.8}
+                onPress={() => handleModeChange(tab.id)}
+                style={[
+                  styles.segmentBtn,
+                  isActive && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+                ]}
+              >
+                <TabIcon
+                  size={15}
+                  color={isActive ? '#ffffff' : colors.textSecondary}
+                  strokeWidth={isActive ? 2.3 : 1.8}
+                />
+                <Text
+                  style={[
+                    styles.segmentText,
+                    {
+                      color: isActive ? '#ffffff' : colors.textSecondary,
+                      fontWeight: isActive ? '700' : '500',
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
 
       {/* Space and Lists Filter Bar */}
       <SpaceFilterBar />
@@ -320,7 +309,7 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({ navigation }) => {
       {viewMode === 'list' ? (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: 110 }]}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -344,13 +333,29 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({ navigation }) => {
                 { backgroundColor: colors.surface, borderColor: colors.border },
               ]}
             >
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                {t.tasks.noTasks}
+              <View style={[styles.emptyIconCircle, { backgroundColor: `${colors.primary}18` }]}>
+                <ClipboardList size={32} color={colors.primary} />
+              </View>
+              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+                {filter === 'all' ? 'Chưa có công việc nào' : 'Không tìm thấy công việc'}
               </Text>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                {filter === 'all'
+                  ? 'Bắt đầu ngày mới bằng việc thêm công việc cần làm.'
+                  : 'Hãy thử chọn tab bộ lọc khác hoặc tạo một công việc mới.'}
+              </Text>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setShowCreateModal(true)}
+                style={[styles.emptyCreateBtn, { backgroundColor: colors.primary }]}
+              >
+                <Plus size={16} color="#ffffff" strokeWidth={2.5} />
+                <Text style={styles.emptyCreateBtnText}>Tạo công việc ngay</Text>
+              </TouchableOpacity>
             </View>
           )}
 
-          <View style={{ height: 100 }} />
+          <View style={{ height: 20 }} />
         </ScrollView>
       ) : viewMode === 'calendar' ? (
         <CalendarAgendaView
@@ -385,6 +390,101 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({ navigation }) => {
         visible={!!selectedTask}
         onClose={() => setSelectedTask(null)}
       />
+
+      {/* More Options Sheet / Modal */}
+      <Modal
+        visible={showMoreMenu}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowMoreMenu(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setShowMoreMenu(false)}
+          style={styles.modalOverlay}
+        >
+          <View
+            style={[
+              styles.actionMenuCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <View style={[styles.actionMenuHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.actionMenuTitle, { color: colors.textPrimary }]}>
+                Tùy chọn công việc
+              </Text>
+              <TouchableOpacity onPress={() => setShowMoreMenu(false)} style={styles.closeBtn}>
+                <X size={18} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleOpenTrash}
+              style={[styles.actionMenuItem, { borderBottomColor: colors.border }]}
+            >
+              <View style={[styles.actionMenuIconWrap, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}>
+                <Trash2 size={18} color={colors.danger} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.actionMenuItemLabel, { color: colors.textPrimary }]}>
+                  {t.tasks.trash}
+                </Text>
+                <Text style={[styles.actionMenuItemDesc, { color: colors.textMuted }]}>
+                  Xem và khôi phục các công việc đã xóa gần đây
+                </Text>
+              </View>
+              {deletedTasks.length > 0 && (
+                <View style={[styles.menuBadge, { backgroundColor: colors.danger }]}>
+                  <Text style={styles.menuBadgeText}>{deletedTasks.length}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                setShowMoreMenu(false);
+                setShowExportModal(true);
+              }}
+              style={[styles.actionMenuItem, { borderBottomColor: colors.border }]}
+            >
+              <View style={[styles.actionMenuIconWrap, { backgroundColor: `${colors.primary}15` }]}>
+                <Download size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.actionMenuItemLabel, { color: colors.textPrimary }]}>
+                  Xuất dữ liệu công việc
+                </Text>
+                <Text style={[styles.actionMenuItemDesc, { color: colors.textMuted }]}>
+                  Tải danh sách công việc dưới định dạng CSV hoặc JSON
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                setShowMoreMenu(false);
+                onRefresh();
+              }}
+              style={styles.actionMenuItem}
+            >
+              <View style={[styles.actionMenuIconWrap, { backgroundColor: `${colors.primary}15` }]}>
+                <RefreshCw size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.actionMenuItemLabel, { color: colors.textPrimary }]}>
+                  Đồng bộ ngay
+                </Text>
+                <Text style={[styles.actionMenuItemDesc, { color: colors.textMuted }]}>
+                  Cập nhật các thay đổi mới nhất từ máy chủ
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Trash Bin Modal */}
       <Modal visible={showTrashModal} animationType="slide" transparent onRequestClose={() => setShowTrashModal(false)}>
@@ -501,42 +601,90 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  modeBtn: {
-    width: 36,
-    height: 36,
+  headerActionBtn: {
+    width: 38,
+    height: 38,
     borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  segmentedContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 6,
   },
   segmentedWrap: {
     flexDirection: 'row',
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     padding: 3,
-    gap: 2,
+    gap: 4,
   },
   segmentBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 7,
+    borderRadius: 10,
+    gap: 5,
+  },
+  segmentBtnActive: {
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  segmentText: {
+    fontSize: 12,
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 6,
   },
   emptyWrap: {
     padding: 32,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 20,
+    marginHorizontal: 4,
+  },
+  emptyIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 6,
+    textAlign: 'center',
   },
   emptyText: {
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 12,
+  },
+  emptyCreateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 6,
+  },
+  emptyCreateBtnText: {
+    color: '#ffffff',
     fontSize: 14,
+    fontWeight: '700',
   },
   activeSpaceBanner: {
     flexDirection: 'row',
@@ -582,8 +730,59 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'flex-end',
+  },
+  actionMenuCard: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    paddingBottom: 32,
+  },
+  actionMenuHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  actionMenuTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  actionMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 14,
+  },
+  actionMenuIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionMenuItemLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  actionMenuItemDesc: {
+    fontSize: 12,
+  },
+  menuBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  menuBadgeText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
   },
   modalCard: {
     borderTopLeftRadius: 24,

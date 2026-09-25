@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, readAiJson, resolveModel } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, readAiJson, resolveModel, createAiStreamResponse } from '@/lib/aiServer';
 
 export async function POST(request: Request) {
   try {
-    const { message, history, model, temperature, googleSearch } = await readAiJson<any>(request);
+    const { message, history, model, temperature, googleSearch, stream: wantStream } = await readAiJson<any>(request);
     const client = await getAuthorizedGeminiClient(request, 512_000);
 
     const systemPrompt = "You are Costack Brain, the AI assistant integrated into Costack Productivity OS. You are fluent in English and Vietnamese, professional, helpful, concise, and structured. Always respond in the same language that the user uses or requests.";
@@ -42,6 +42,17 @@ export async function POST(request: Request) {
       config.tools = [{ googleSearch: {} }];
     }
 
+    // Streaming mode: return SSE text/event-stream
+    if (wantStream) {
+      const responseStream = await client.models.generateContentStream({
+        model: resolveModel(model),
+        contents: contents,
+        config: config
+      });
+      return createAiStreamResponse(responseStream);
+    }
+
+    // Legacy non-streaming mode for backward compatibility
     const response = await client.models.generateContent({
       model: resolveModel(model),
       contents: contents,

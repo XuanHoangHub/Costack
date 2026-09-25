@@ -1773,8 +1773,12 @@ export default function InboxView({
 
             {/* Inline Quick Reply Dock */}
             <form onSubmit={handleSendQuickReply} className="p-3.5 bg-slate-50/90 dark:bg-slate-950/90 border-t border-slate-200/80 dark:border-slate-800 shrink-0 flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-black text-xs shrink-0">
-                {currentUser?.name?.charAt(0) || 'U'}
+              <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-black text-xs shrink-0 overflow-hidden">
+                {currentUser?.avatar ? (
+                  <img src={currentUser.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{(currentUser?.name?.charAt(0) || 'C').toUpperCase()}</span>
+                )}
               </div>
               <input 
                 type="text"

@@ -210,3 +210,18 @@
   .apexa-space-list .task-list-title span[title] { white-space: normal; overflow-wrap: anywhere; }
   .apexa-space-list .apexa-list-columns { gap: 8px; padding-inline: 10px; }
 }
+
+/* Mobile Table & Touch responsiveness */
+.apexa-task-table {
+  -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 767px) {
+  .apexa-task-table th,
+  .apexa-task-table td {
+    touch-action: pan-x pan-y;
+  }
+  .apexa-task-table tr {
+    min-height: 44px;
+  }
+}
+

@@ -1033,54 +1033,58 @@ export default function SpacePage({
     if (triggerToast) triggerToast('success', 'Đã xóa danh sách', `Đã xóa danh sách cùng ${listTasks.length} công việc liên quan.`);
   };
 
-  // Real AI Task Generation
+  // Real AI Task Generation using structured task blueprint endpoint
   const handleAiGenerateTasks = async () => {
     if (!aiPromptInput.trim()) return;
     setIsAiGeneratingTasks(true);
     try {
       const targetSpaceId = activeSpace.id;
       const targetListId = activeListId || activeSpace.lists?.[0]?.id;
-      
-      const promptMessage = `Bạn là trợ lý quản lý dự án. Hãy phân tích yêu cầu này và tạo ra từ 3 đến 6 công việc chi tiết: "${aiPromptInput.trim()}". Trả về định dạng JSON thuần túy (không dùng markdown codeblock \`\`\`json) là một mảng: [{"title": "Tên công việc", "description": "Mô tả ngắn", "priority": "urgent"|"high"|"medium"|"low", "hoursEstimate": 2}].`;
-      
-      const res = await callAiApi('/api/ai/chat', {
-        message: promptMessage,
-        history: []
+
+      const res = await callAiApi('/api/ai/generate-tasks', {
+        prompt: aiPromptInput.trim(),
       });
-      
-      let generatedItems: Array<{ title: string; description?: string; priority?: Priority; hoursEstimate?: number }> = [];
-      
+
+      let generatedItems: Array<{
+        title: string;
+        description?: string;
+        priority?: Priority;
+        hoursEstimate?: number;
+        tags?: string[];
+        subtasks?: string[];
+      }> = [];
+
       if (res.ok) {
         const data = await res.json();
-        const content = data.reply || data.message || data.text || '';
-        try {
-          const cleaned = content.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
-          const parsed = JSON.parse(cleaned);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            generatedItems = parsed.map((item: any) => ({
-              ...item,
-              priority: (item.priority === 'normal' ? 'medium' : item.priority) as Priority || 'medium'
-            }));
-          }
-        } catch {
-          const lines = content.split('\n').filter((l: string) => l.trim().length > 0).slice(0, 5);
-          generatedItems = lines.map((line: string) => ({
-            title: line.replace(/^[\d\-\*\.]+\s*/, '').trim(),
-            priority: 'medium' as Priority,
-            hoursEstimate: 2
+        if (data.success && Array.isArray(data.tasks) && data.tasks.length > 0) {
+          generatedItems = data.tasks.map((item: any) => ({
+            title: item.title,
+            description: item.description || '',
+            priority: (item.priority === 'normal' ? 'medium' : item.priority) as Priority || 'medium',
+            hoursEstimate: Number(item.hoursEstimate) || 2,
+            tags: Array.isArray(item.tags) ? item.tags : ['AI-Generated'],
+            subtasks: Array.isArray(item.subtasks) ? item.subtasks : [],
           }));
         }
       }
-      
+
       if (generatedItems.length === 0) {
         generatedItems = [
-          { title: `${aiPromptInput.trim()} - Lập kế hoạch & Yêu cầu`, priority: 'high', hoursEstimate: 2 },
-          { title: `${aiPromptInput.trim()} - Triển khai thực hiện`, priority: 'medium', hoursEstimate: 4 },
-          { title: `${aiPromptInput.trim()} - Đánh giá & Hoàn tất`, priority: 'medium', hoursEstimate: 2 },
+          { title: `${aiPromptInput.trim()} - Lập kế hoạch & Yêu cầu`, priority: 'high', hoursEstimate: 2, tags: ['AI-Generated'], subtasks: ['Khảo sát yêu cầu', 'Viết tài liệu kỹ thuật'] },
+          { title: `${aiPromptInput.trim()} - Triển khai thực hiện`, priority: 'medium', hoursEstimate: 4, tags: ['AI-Generated'], subtasks: ['Phát triển tính năng', 'Tích hợp hệ thống'] },
+          { title: `${aiPromptInput.trim()} - Đánh giá & Hoàn tất`, priority: 'medium', hoursEstimate: 2, tags: ['AI-Generated'], subtasks: ['Kiểm thử tính năng', 'Nghiệm thu'] },
         ];
       }
-      
-      generatedItems.forEach(item => {
+
+      generatedItems.forEach((item, itemIdx) => {
+        const subtasks = (item.subtasks || []).map((subTitle: string, subIdx: number) => ({
+          id: `sub-${Date.now()}-${itemIdx}-${subIdx}`,
+          title: subTitle,
+          completed: false,
+        }));
+
+        const tags = Array.from(new Set([...(item.tags || []), 'AI-Generated']));
+
         onAddTask({
           title: item.title,
           description: item.description || '',
@@ -1090,13 +1094,13 @@ export default function SpacePage({
           listId: targetListId,
           workspaceId: activeWorkspaceId || activeSpace.workspaceId,
           hoursEstimate: item.hoursEstimate || 2,
-          subtasks: [],
-          tags: ['AI-Generated']
+          subtasks,
+          tags,
         });
       });
-      
-      onAddSyncLog(`AI generated ${generatedItems.length} tasks from prompt: "${aiPromptInput.trim()}"`);
-      triggerToast?.('success', 'Costack AI', `Đã tạo ${generatedItems.length} công việc vào danh sách.`);
+
+      onAddSyncLog?.(`AI generated ${generatedItems.length} tasks from prompt: "${aiPromptInput.trim()}"`);
+      triggerToast?.('success', 'Costack AI', `Đã tạo ${generatedItems.length} công việc kèm phân việc con vào danh sách.`);
       setAiPromptInput('');
       setActiveView('list');
     } catch (err) {
@@ -3531,8 +3535,8 @@ export default function SpacePage({
           {/* Single Unified Header Row (UI/UX Upgraded, Clean & Compact) */}
           <div className="apexa-space-commandbar flex items-center justify-between px-3 sm:px-5 py-2 relative flex-wrap gap-2 sm:gap-3 min-h-[48px]">
             
-            {/* Left Side: Breadcrumbs, Divider, and View Switcher Tabs (Unified) */}
-            <div className="apexa-space-header-left flex w-full sm:w-auto items-center gap-2 overflow-visible flex-grow flex-shrink min-w-0 sm:pr-2">
+            {/* Left Side: Breadcrumbs and Favorites */}
+            <div className="apexa-space-header-left flex items-center gap-2 overflow-visible min-w-0 max-w-[calc(100%-140px)] sm:max-w-none order-1">
               {/* Mobile Spaces sub-sidebar trigger drawer button */}
               <button
                 onClick={() => setIsMobileSidebarOpen(true)}
@@ -3833,11 +3837,11 @@ export default function SpacePage({
               >
                 <Star className={`w-3.5 h-3.5 transition-transform duration-150 ${activeSpace?.isFavorite ? 'fill-amber-500 text-amber-500 scale-105' : 'hover:scale-110'}`} />
               </button>
+            </div>
 
-              <div className="w-px h-4.5 bg-slate-200/90 dark:bg-zinc-800 shrink-0 mx-1" />
-
-              {/* Modern View Switcher Tabs Bar */}
-              <div className="apexa-space-view-switcher">
+            {/* Modern View Switcher Tabs Bar (Full-width scrollable row on mobile, unified center on desktop) */}
+            <div className="apexa-space-view-switcher w-full md:w-auto md:flex-1 flex items-center gap-2 order-3 md:order-2 overflow-x-auto no-scrollbar">
+              <div className="hidden md:block w-px h-4.5 bg-slate-200/90 dark:bg-zinc-800 shrink-0 mx-1" />
               <SpaceViewTabBar
                 tabs={staticTabs}
                 onTabsChange={setStaticTabs}
@@ -3871,12 +3875,10 @@ export default function SpacePage({
                 onAddSyncLog={onAddSyncLog}
                 onOpenCustomizeView={() => setShowCustomizeViewModal(true)}
               />
-              </div>
-
             </div>
 
             {/* Right Side: Share, Cog Settings, and "+ Task" primary action */}
-            <div className="apexa-space-header-actions flex w-full sm:w-auto items-center justify-end gap-1.5 sm:gap-2 shrink-0">
+            <div className="apexa-space-header-actions flex items-center justify-end gap-1.5 sm:gap-2 shrink-0 order-2 md:order-3 ml-auto">
 
               {/* Share button (Sleek Ghost Pill) */}
               <button 

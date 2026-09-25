@@ -78,6 +78,128 @@ export async function callAiApi(endpoint: string, body: Record<string, unknown> 
   return response;
 }
 
+export interface AiStreamOptions {
+  onChunk?: (text: string) => void;
+  onMeta?: (meta: any) => void;
+  signal?: AbortSignal;
+}
+
+/**
+ * Calls Apexa's AI endpoint with streaming response (SSE).
+ * Reads the text/event-stream chunks and calls onChunk as text tokens arrive.
+ * Returns the aggregated fullText and any optional metadata.
+ */
+export async function callAiStreamApi(
+  endpoint: string,
+  body: Record<string, unknown> = {},
+  options?: AiStreamOptions,
+): Promise<{ fullText: string; meta?: any }> {
+  let savedModel = "";
+  let savedTemp = "";
+  let searchGrounding = false;
+
+  requirePaidAiAccess();
+
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("apexa_gemini_api_key");
+    savedModel = localStorage.getItem("apexa_ai_model") || "";
+    savedTemp = localStorage.getItem("apexa_ai_temperature") || "";
+    searchGrounding = localStorage.getItem("apexa_ai_search_grounding") === "true";
+  }
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  if (typeof window !== 'undefined') {
+    const { supabase } = await import('@/lib/supabaseClient');
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) {
+      headers.Authorization = `Bearer ${data.session.access_token}`;
+    }
+  }
+
+  const googleSearchEnabled = body.googleSearch !== undefined ? body.googleSearch : searchGrounding;
+
+  const requestBody = {
+    ...body,
+    stream: true,
+    model: savedModel || undefined,
+    temperature: savedTemp ? parseFloat(savedTemp) : undefined,
+    googleSearch: googleSearchEnabled,
+  };
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(requestBody),
+    signal: options?.signal,
+  });
+
+  if (response.status === 403) {
+    useUiStore.getState().setShowPremiumModal(true);
+    throw new AiAccessError();
+  }
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || `AI request failed: ${response.statusText}`);
+  }
+
+  if (!response.body) {
+    throw new Error("Phản hồi từ máy chủ không hỗ trợ luồng dữ liệu (streaming).");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let fullText = "";
+  let metaData: any = undefined;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const dataStr = trimmed.slice(5).trim();
+        if (dataStr === "[DONE]") {
+          return { fullText, meta: metaData };
+        }
+
+        try {
+          const parsed = JSON.parse(dataStr);
+          if (parsed.error) {
+            throw new Error(parsed.error);
+          }
+          if (parsed.text) {
+            fullText += parsed.text;
+            options?.onChunk?.(parsed.text);
+          }
+          if (parsed.meta) {
+            metaData = parsed.meta;
+            options?.onMeta?.(parsed.meta);
+          }
+        } catch (e: any) {
+          if (e.message && e.message !== dataStr && !dataStr.startsWith("{")) {
+            throw e;
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return { fullText, meta: metaData };
+}
+
 /**
  * Generate subtasks breakdown for a task using Gemini AI with intelligent fallback.
  */

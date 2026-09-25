@@ -124,3 +124,51 @@ export const getAiErrorStatus = (error: unknown) => {
 
 export const getAiErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message.replace(/^AI_(?:BAD_REQUEST|UNAUTHORIZED|PAYLOAD_TOO_LARGE|RATE_LIMITED|QUOTA_EXCEEDED|PLAN_REQUIRED|UNAVAILABLE):\s*/, '') : fallback;
+
+/**
+ * Convert a Gemini generateContentStream async iterable into a standard
+ * SSE (text/event-stream) Response.  Each chunk emits `data: <json>\n\n`
+ * with `{ text: string }`.  The stream ends with `data: [DONE]\n\n`.
+ */
+export function createAiStreamResponse(
+  stream: AsyncIterable<{ text?: string | null }>,
+  extraPayload?: Record<string, unknown>,
+): Response {
+  const encoder = new TextEncoder();
+  const readable = new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const chunk of stream) {
+          const text = chunk.text ?? '';
+          if (text) {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ text })}\n\n`),
+            );
+          }
+        }
+        // Send optional extra data (e.g. intelligence metadata) before closing
+        if (extraPayload) {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ meta: extraPayload })}\n\n`),
+          );
+        }
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        controller.close();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Stream error';
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`),
+        );
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(readable, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+    },
+  });
+}

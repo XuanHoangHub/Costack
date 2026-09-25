@@ -36,44 +36,46 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
   title: {
-    default: "Costack — Vận hành cả doanh nghiệp trong một workspace",
+    default: "Costack · Không gian làm việc thông minh & Trợ lý AI",
     template: "%s · Costack",
   },
-  description: "Kết nối công việc, kiến thức, khách hàng, tài chính và AI trong một nhịp vận hành rõ ràng cho đội ngũ hiện đại.",
+  description: "Ứng dụng thuộc bản quyền của Avaxa. Kết nối công việc, kiến thức, khách hàng, tài chính và AI trong một nhịp vận hành rõ ràng cho đội ngũ hiện đại.",
   applicationName: "Costack",
-  authors: [{ name: "Costack" }],
-  creator: "Costack",
-  publisher: "Costack",
+  authors: [{ name: "Avaxa" }, { name: "Costack" }],
+  creator: "Avaxa",
+  publisher: "Avaxa",
   category: "productivity",
-  keywords: ["quản lý công việc", "workspace", "kanban", "CRM", "ERP", "tài liệu", "trợ lý AI", "Costack"],
+  keywords: ["quản lý công việc", "workspace", "kanban", "CRM", "ERP", "tài liệu", "trợ lý AI", "Costack", "Avaxa"],
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     locale: "vi_VN",
     alternateLocale: "en_US",
     url: "/",
-    siteName: "Costack",
-    title: "Costack — Vận hành cả doanh nghiệp",
-    description: "Công việc, kiến thức, khách hàng và dòng tiền — trong một nhịp vận hành.",
+    siteName: "Costack · Avaxa",
+    title: "Costack · Không gian làm việc thông minh & Trợ lý AI",
+    description: "Công việc, kiến thức, khách hàng và dòng tiền — trong một nhịp vận hành. Bản quyền thuộc Avaxa.",
     images: [{ url: "/og.png", alt: "Costack — Vận hành cả doanh nghiệp" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Costack — Vận hành cả doanh nghiệp",
-    description: "Một workspace cho công việc, kiến thức, khách hàng, tài chính và AI.",
+    title: "Costack · Không gian làm việc thông minh & Trợ lý AI",
+    description: "Một workspace cho công việc, kiến thức, khách hàng, tài chính và AI. Bản quyền thuộc Avaxa.",
     images: ["/og.png"],
   },
   robots: { index: true, follow: true },
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       { url: "/icon.png", sizes: "512x512", type: "image/png" },
-      { url: "/favicon.ico", sizes: "32x32" },
     ],
     apple: [
-      { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
+    shortcut: "/favicon.ico",
   },
 };
 
@@ -85,8 +87,24 @@ const structuredData = {
   applicationSubCategory: "Productivity",
   operatingSystem: "Web",
   url: APP_URL,
-  description: "Không gian làm việc hợp nhất cho công việc, tài liệu, cộng tác, CRM, ERP, tài chính và trợ lý AI.",
+  description: "Không gian làm việc hợp nhất cho công việc, tài liệu, cộng tác, CRM, ERP, tài chính và trợ lý AI. Ứng dụng thuộc bản quyền của Avaxa.",
   inLanguage: ["vi", "en"],
+  author: {
+    "@type": "Organization",
+    name: "Avaxa",
+  },
+  creator: {
+    "@type": "Organization",
+    name: "Avaxa",
+  },
+  publisher: {
+    "@type": "Organization",
+    name: "Avaxa",
+  },
+  copyrightHolder: {
+    "@type": "Organization",
+    name: "Avaxa",
+  },
   offers: {
     "@type": "Offer",
     price: "0",
@@ -107,6 +125,10 @@ export default function RootLayout({
       className={`${inter.variable} ${plusJakarta.variable} ${geistMono.variable} h-full antialiased dark`}
     >
       <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <InlineHeadScript id="initial-theme" html={INITIAL_THEME_SCRIPT} />
         <InlineHeadScript id="initial-locale" html={INITIAL_LOCALE_SCRIPT} />
         <InlineHeadScript id="chunk-recovery" html={CHUNK_RECOVERY_SCRIPT} />
