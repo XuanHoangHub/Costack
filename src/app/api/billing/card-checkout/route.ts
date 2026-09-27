@@ -9,6 +9,7 @@ import {
   getStripe,
   requireBillingUser,
 } from '@/lib/billing/server';
+import { checkRateLimit, pruneRateLimitBuckets } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 
@@ -31,6 +32,16 @@ function getCheckoutUrls(request: Request, returnPath: unknown) {
 
 export async function POST(request: Request) {
   try {
+    pruneRateLimitBuckets();
+    const rateLimit = checkRateLimit(request, 'billing-card-checkout', 10, 60_000);
+    if (!rateLimit.allowed) {
+      throw new BillingHttpError(429, 'Quá nhiều yêu cầu tạo đơn thanh toán. Vui lòng thử lại sau.');
+    }
+    const contentLength = Number(request.headers.get('content-length') || 0);
+    if (contentLength > 32_000) {
+      throw new BillingHttpError(413, 'Nội dung yêu cầu vượt quá giới hạn cho phép.');
+    }
+
     const { user } = await requireBillingUser(request);
     const body = await request.json().catch(() => ({}));
     if (body?.cycle !== 'monthly' && body?.cycle !== 'yearly') {

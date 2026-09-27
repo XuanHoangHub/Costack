@@ -20,6 +20,10 @@ const securityHeaders = [
     value: 'nosniff',
   },
   {
+    key: 'X-Permitted-Cross-Domain-Policies',
+    value: 'none',
+  },
+  {
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
@@ -84,6 +88,14 @@ const privateApiHeaders = [
   {
     key: 'Cache-Control',
     value: 'private, no-store, max-age=0, must-revalidate',
+  },
+  {
+    key: 'X-Content-Type-Options',
+    value: 'nosniff',
+  },
+  {
+    key: 'Referrer-Policy',
+    value: 'no-referrer',
   },
 ];
 

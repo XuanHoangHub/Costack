@@ -127,90 +127,55 @@ export function TeamCommandCenter({
   ).slice(0, 6);
 
   const stats = [
-    { label: isVietnamese ? 'Thành viên' : 'Members', value: scopedMembers.length, note: isVietnamese ? `${onlineCount} đang hoạt động` : `${onlineCount} active now`, icon: Users, iconClass: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400' },
-    { label: isVietnamese ? 'Công việc mở' : 'Open Tasks', value: openTasks.length, note: isVietnamese ? `${unassignedCount} chưa giao` : `${unassignedCount} unassigned`, icon: FolderKanban, iconClass: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-950/40 dark:text-cyan-400' },
-    { label: isVietnamese ? 'Hoàn thành' : 'Completion', value: `${completionRate}%`, note: isVietnamese ? `${completedTasks.length}/${scopedTasks.length} công việc` : `${completedTasks.length}/${scopedTasks.length} tasks`, icon: CheckCircle2, iconClass: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400' },
-  ] as const;
+    { 
+      label: isVietnamese ? 'Thành viên' : 'Members', 
+      value: scopedMembers.length, 
+      note: isVietnamese ? `${onlineCount} đang hoạt động` : `${onlineCount} active now`, 
+      icon: Users, 
+      iconClass: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400' 
+    },
+    { 
+      label: isVietnamese ? 'Công việc mở' : 'Open Tasks', 
+      value: openTasks.length, 
+      note: isVietnamese ? `${unassignedCount} chưa giao` : `${unassignedCount} unassigned`, 
+      icon: FolderKanban, 
+      iconClass: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-950/40 dark:text-cyan-400' 
+    },
+    { 
+      label: isVietnamese ? 'Hoàn thành' : 'Completion', 
+      value: `${completionRate}%`, 
+      note: isVietnamese ? `${completedTasks.length}/${scopedTasks.length} công việc` : `${completedTasks.length}/${scopedTasks.length} tasks`, 
+      icon: CheckCircle2, 
+      iconClass: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400' 
+    },
+    { 
+      label: isVietnamese ? 'Chỉ số vận hành' : 'Operating Health', 
+      value: `${teamHealth}/100`, 
+      note: healthMeta.label, 
+      icon: CircleGauge, 
+      iconClass: teamHealth >= 80 
+        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400' 
+        : teamHealth >= 60 
+          ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400' 
+          : 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400' 
+    },
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Hero Command Center Banner */}
-      <section className="relative overflow-hidden rounded-3xl border border-indigo-500/25 bg-gradient-to-br from-slate-950 via-indigo-950/90 to-slate-900 p-6 text-white shadow-2xl shadow-indigo-950/30 md:p-8 backdrop-blur-xl">
-        <div className="absolute -right-20 -top-28 h-80 w-80 rounded-full bg-gradient-to-br from-blue-500/25 to-indigo-500/20 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-cyan-500/20 blur-3xl pointer-events-none" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] pointer-events-none" />
-        
-        <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
-          <div className="max-w-2xl space-y-3 text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-[10px] font-black uppercase tracking-widest text-indigo-300 backdrop-blur-md shadow-xs">
-              <Sparkles className="h-3.5 w-3.5 text-indigo-400 animate-pulse" />
-              <span>{isVietnamese ? 'Trung tâm Vận hành Đội ngũ' : 'Team Operations Center'}</span>
-            </div>
-            
-            <h3 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight text-white leading-tight">
-              {isVietnamese ? 'Nắm nhịp đội ngũ. Gỡ vướng tức thì.' : 'Stay in sync. Resolve bottlenecks instantly.'}
-            </h3>
-            
-            <p className="max-w-xl text-xs md:text-sm font-medium leading-relaxed text-slate-300">
-              {isVietnamese ? 'Không gian ' : 'Workspace '}
-              <span className="font-extrabold text-white bg-white/10 px-2 py-0.5 rounded-lg border border-white/10">{workspace?.name || (isVietnamese ? 'Không gian làm việc' : 'Workspace')}</span>
-              {isVietnamese ? ' hiện có ' : ' currently has '}
-              <span className="text-indigo-300 font-extrabold">{scopedMembers.length} {isVietnamese ? 'thành viên' : 'members'}</span>
-              {isVietnamese ? ' và ' : ' and '}
-              <span className="text-cyan-300 font-extrabold">{openTasks.length} {isVietnamese ? 'công việc đang mở' : 'open tasks'}</span>.
-            </p>
-          </div>
-
-          {/* Quick Actions and Health Summary Badge */}
-          <div className="flex flex-col sm:flex-row xl:flex-col gap-3 shrink-0">
-            <div className="flex items-center gap-2.5">
-              <button 
-                type="button" 
-                onClick={onInvite} 
-                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 px-5 py-3 text-xs font-black text-white shadow-xl shadow-indigo-600/30 transition-all hover:scale-103 active:scale-97 cursor-pointer"
-              >
-                <UserPlus className="h-4 w-4" />
-                <span>{isVietnamese ? 'Mời thành viên' : 'Invite Members'}</span>
-              </button>
-
-              <button 
-                type="button" 
-                onClick={onOpenWorkload} 
-                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 hover:bg-white/20 px-4 py-3 text-xs font-bold text-white backdrop-blur-md transition-all hover:scale-103 active:scale-97 cursor-pointer"
-              >
-                <CircleGauge className="h-4 w-4 text-cyan-300" />
-                <span>{isVietnamese ? 'Khối lượng công việc' : 'Workload'}</span>
-              </button>
-            </div>
-
-            {/* Micro Health Indicator */}
-            <div className="flex items-center justify-between sm:justify-start gap-3 bg-white/5 border border-white/10 rounded-2xl px-3.5 py-2 backdrop-blur-md">
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-                </span>
-                <span className="text-[11px] font-bold text-slate-300">{isVietnamese ? 'Chỉ số vận hành' : 'Operating Health'}</span>
-              </div>
-              <span className="text-xs font-black text-emerald-400 ml-auto font-sans tabular-nums">{teamHealth}/100</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Metric Cards Grid - Modern Bento Design */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {stats.map((stat, idx) => (
+      {/* Metric Cards Bento Grid: Clean, compact 4-card operational overview */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map((stat) => (
           <div 
             key={stat.label} 
-            className="group relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white/80 dark:bg-slate-900/80 p-5 shadow-xs backdrop-blur-md transition-all duration-300 hover:shadow-lg hover:border-indigo-500/30 dark:border-slate-800/80 dark:hover:border-indigo-400/30 hover:-translate-y-0.5"
+            className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 dark:bg-slate-900/90 p-5 shadow-xs backdrop-blur-md transition-all duration-300 hover:shadow-md hover:border-indigo-500/30 dark:border-slate-800/80 dark:hover:border-indigo-400/30 hover:-translate-y-0.5"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="text-left space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">{stat.label}</p>
+                <p className="text-[10.5px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">{stat.label}</p>
                 <p className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">{stat.value}</p>
               </div>
-              <div className={`rounded-2xl p-3 shadow-sm transition-transform duration-300 group-hover:scale-110 ${stat.iconClass}`}>
+              <div className={`rounded-2xl p-3 shadow-xs transition-transform duration-300 group-hover:scale-105 ${stat.iconClass}`}>
                 <stat.icon className="h-5 w-5" />
               </div>
             </div>

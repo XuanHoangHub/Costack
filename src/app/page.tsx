@@ -5,7 +5,7 @@ import { applyCustomFieldDefaults, validateTaskCustomFields } from "@/lib/custom
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Task, User, Document, SyncLog, Space, TaskStatus, Priority, NotificationSettings, BaseApp, Workspace } from '../types';
-import { supabase, getCleanChannel } from '../lib/supabaseClient';
+import { supabase, getCleanChannel, setRealtimeStatus } from '../lib/supabaseClient';
 import { useAppActions } from '@/hooks/useAppActions';
 import { useWorkspaceInvitations } from '@/hooks/useRealtimeSync';
 import { disconnectUserPresence, setUserPresenceStatus, useUserPresence } from '@/hooks/useUserPresence';
@@ -13,6 +13,7 @@ import { presenceDotClass, uiStatusToPresence } from '@/lib/presence';
 import { isCreationConfirmation, shouldPersistInInbox, isSelfChatMessage } from '@/lib/notificationPolicy';
 import { embedTaskRelationships, extractTaskRelationships, getIncompleteBlockers, getNextRecurringDate } from '@/lib/taskRelationships';
 import { checkAndFirePendingReminders, saveTaskReminder } from '@/lib/notificationManager';
+import { getTrashRetentionDays, getExpiredDeletedTasks } from '@/lib/trashUtils';
 import { normalizeTaskCompletion, resolveTaskLocation } from '@/lib/taskLifecycle';
 import { getTaskAssigneeIds, isUserAssignedToTask } from '@/lib/taskAssignees';
 import { useUiStore, SidebarZone } from '@/store/uiStore';
@@ -38,14 +39,16 @@ import { ApexaAiIcon } from '@/components/ApexaAiIcon';
 import { Select } from '@/components/ui/Select';
 import { renderSpaceIcon } from '@/components/RenderSpaceIcon';
 import SignedImage from '../components/SignedImage';
-import { useTranslation } from '../contexts/TranslationContext';
-import ToastNotification, { Toast } from '../components/ToastNotification';
+import GlobalToaster from '../components/GlobalToaster';
+import AppDocumentTitle from '../components/header/AppDocumentTitle';
 import ThemeSwitch from '../components/ThemeSwitch';
 import LanguageDropdown from '../components/LanguageDropdown';
+import { useTranslation } from '@/contexts/TranslationContext';
 import type { PromptModalConfig } from '../components/PromptModal';
 import HeaderLiveClockPill from '../components/header/HeaderLiveClockPill';
 import GlobalTimerPill from '../components/timer/GlobalTimerPill';
 import { useGlobalTimerStore } from '@/store/globalTimerStore';
+import TabErrorBoundary from '../components/TabErrorBoundary';
 import dynamic from 'next/dynamic';
 
 const ComponentLoading = () => (
@@ -112,6 +115,8 @@ const WorkspaceSettingsModal = dynamic(retryLoader(() => import('../components/W
 const InboxView = dynamic(retryLoader(() => import('../components/InboxView')), { loading: ComponentLoading });
 const AnalyticsHub = dynamic(retryLoader(() => import('../components/AnalyticsHub')), { loading: ComponentLoading, ssr: false });
 const AddListModal = dynamic(retryLoader(() => import('../components/AddListModal')));
+const AddSpaceModal = dynamic(() => import('../components/spaces/AddSpaceModal'), { ssr: false });
+const EditSpaceModal = dynamic(() => import('../components/spaces/EditSpaceModal'), { ssr: false });
 const FinanceHub = dynamic(retryLoader(() => import('../components/FinanceHub')), { loading: ComponentLoading });
 const SidebarOrderModal = dynamic(retryLoader(() => import('../components/SidebarOrderModal')), { ssr: false });
 const GlobalSearchModal = dynamic(() => import('../components/GlobalSearchModal').then(m => m.GlobalSearchModal), { ssr: false });
@@ -206,6 +211,9 @@ const buildTaskCustomFields = (task: Partial<Task> | any) => {
   if (task?.isMilestone !== undefined) {
     base.isMilestone = task.isMilestone;
   }
+  if (task?.checklists) {
+    base.checklists = task.checklists;
+  }
   return embedTaskRelationships(base, extractTaskRelationships(task));
 };
 
@@ -237,12 +245,13 @@ export default function App() {
     useAuthStore.getState().setCurrentUser(normalized);
     if (normalized) {
       try {
-        const saved = localStorage.getItem('avaxa_session');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          parsed.user = { ...(parsed.user || {}), ...normalized };
-          localStorage.setItem('avaxa_session', JSON.stringify(parsed));
-        }
+        const sessionPayload = {
+          user: normalized,
+          expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
+        };
+        const sessionJson = JSON.stringify(sessionPayload);
+        localStorage.setItem('avaxa_session', sessionJson);
+        localStorage.setItem('apexa_session', sessionJson);
       } catch {}
     }
   }, []);
@@ -368,7 +377,6 @@ export default function App() {
   const showPomoSettings = usePomodoroStore((s) => s.showPomoSettings);
   const setShowPomoSettings = usePomodoroStore((s) => s.setShowPomoSettings);
   const setPomodoroTime = usePomodoroStore((s) => s.setPomodoroTime);
-  const pomodoroTime = usePomodoroStore((s) => s.pomodoroTime);
   const pomodoroActive = usePomodoroStore((s) => s.pomodoroActive);
   const setPomodoroActive = usePomodoroStore((s) => s.setPomodoroActive);
   const previousStatus = usePomodoroStore((s) => s.previousStatus);
@@ -421,13 +429,19 @@ export default function App() {
       }
 
       const u = verifiedIdentity.user;
-      const cachedRaw = localStorage.getItem('avaxa_session');
+      const cachedRaw = localStorage.getItem('avaxa_session') || localStorage.getItem('apexa_session');
       let cachedUser: any = null;
       try { cachedUser = cachedRaw ? JSON.parse(cachedRaw)?.user : null; } catch {}
+      if (!cachedUser) {
+        try {
+          const authState = localStorage.getItem('apexa_auth');
+          if (authState) cachedUser = JSON.parse(authState)?.state?.currentUser;
+        } catch {}
+      }
 
       const isSuper = isApexaSuperAdmin(u.id);
-      const displayName = u.user_metadata?.full_name || u.user_metadata?.name || cachedUser?.name || u.email?.split('@')[0] || 'Costack Champion';
-      const displayAvatar = u.user_metadata?.avatar_url || u.user_metadata?.avatar || cachedUser?.avatar || '';
+      const displayName = u.user_metadata?.full_name || u.user_metadata?.name || u.user_metadata?.display_name || cachedUser?.name || u.email?.split('@')[0] || 'Costack Champion';
+      const displayAvatar = u.user_metadata?.avatar_url || u.user_metadata?.picture || u.user_metadata?.avatar || cachedUser?.avatar || '';
       const userObj = {
         id: u.id,
         name: displayName,
@@ -440,10 +454,12 @@ export default function App() {
         billingStatus: isSuper ? 'active' : cachedUser?.billingStatus,
       };
       updateCurrentUser(userObj);
-      localStorage.setItem('avaxa_session', JSON.stringify({
+      const sessionPayload = {
         user: userObj,
         expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
-      }));
+      };
+      localStorage.setItem('avaxa_session', JSON.stringify(sessionPayload));
+      localStorage.setItem('apexa_session', JSON.stringify(sessionPayload));
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -544,101 +560,14 @@ export default function App() {
   const [isOtherAppsExpanded, setIsOtherAppsExpanded] = useState<boolean>(true);
   const notificationsList = useNotificationStore((s) => s.notificationsList);
 
-  // Dynamic Browser Tab Document Title sync
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
 
-    if (!currentUser) {
-      document.title = 'Costack · Không gian làm việc thông minh & Trợ lý AI';
-      return;
-    }
-
-    // 1. Pomodoro Focus Timer countdown takes top priority if active
-    if (pomodoroActive && pomodoroMode) {
-      const m = Math.floor(pomodoroTime / 60);
-      const s = pomodoroTime % 60;
-      const timeStr = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-      const modeLabel = pomodoroMode === 'work'
-        ? (locale === 'vi' ? 'Tập trung' : 'Focus')
-        : (locale === 'vi' ? 'Nghỉ ngơi' : 'Break');
-      document.title = `⏱ ${timeStr} (${modeLabel}) · Costack`;
-      return;
-    }
-
-    // 2. Tab title based on activeTab
-    const TAB_LABELS: Record<string, string> = {
-      dashboard: locale === 'vi' ? 'Tổng quan' : 'Dashboard',
-      tasks: locale === 'vi' ? 'Công việc' : 'Tasks',
-      inbox: locale === 'vi' ? 'Hộp thư đến' : 'Inbox',
-      finance: locale === 'vi' ? 'Tài chính & Thu chi' : 'Finance',
-      team: locale === 'vi' ? 'Đội ngũ' : 'Team Directory',
-      calendar: locale === 'vi' ? 'Lịch biểu' : 'Calendar',
-      chat: locale === 'vi' ? 'Kênh trao đổi' : 'Chat',
-      docs: locale === 'vi' ? 'Tài liệu' : 'Docs',
-      whiteboard: locale === 'vi' ? 'Bảng vẽ' : 'Whiteboard',
-      analytics: locale === 'vi' ? 'Báo cáo năng suất' : 'Analytics',
-      settings: locale === 'vi' ? 'Cài đặt' : 'Settings',
-      profile: locale === 'vi' ? 'Hồ sơ cá nhân' : 'Profile',
-      productivity: locale === 'vi' ? 'Năng suất' : 'Productivity Hub',
-    };
-
-    let titlePart = TAB_LABELS[activeTab] || 'Workspace';
-
-    // If viewing tasks inside a specific Space
-    if (activeTab === 'tasks' && activeSpaceId) {
-      const activeSpace = spaces.find((sp) => sp.id === activeSpaceId);
-      if (activeSpace?.name) {
-        titlePart = `${activeSpace.name} · ${locale === 'vi' ? 'Công việc' : 'Tasks'}`;
-      }
-    }
-
-    // Unread notifications badge prefix e.g. (3)
-    const unreadCount = (notificationsList || []).filter((n: any) => !n.isRead && !n.read).length;
-    const badgePrefix = unreadCount > 0 ? `(${unreadCount}) ` : '';
-
-    const wsName = currentWorkspace?.name && currentWorkspace.name !== 'U' ? currentWorkspace.name.trim() : 'Costack';
-    if (wsName.toLowerCase() === 'costack') {
-      document.title = `${badgePrefix}${titlePart} · Costack`;
-    } else if (wsName.toLowerCase().includes('costack')) {
-      document.title = `${badgePrefix}${titlePart} · ${wsName}`;
-    } else {
-      document.title = `${badgePrefix}${titlePart} · ${wsName} · Costack`;
-    }
-  }, [currentUser, activeTab, activeSpaceId, spaces, currentWorkspace?.name, pomodoroActive, pomodoroMode, pomodoroTime, notificationsList, locale]);
   // Modals for Spaces & Lists - consumed from useUiStore
   const showAddSpaceModal = useUiStore((s) => s.showAddSpaceModal);
   const setShowAddSpaceModal = useUiStore((s) => s.setShowAddSpaceModal);
-  const newSpaceName = useUiStore((s) => s.newSpaceName);
-  const setNewSpaceName = useUiStore((s) => s.setNewSpaceName);
-  const newSpaceEmoji = useUiStore((s) => s.newSpaceEmoji);
-  const setNewSpaceEmoji = useUiStore((s) => s.setNewSpaceEmoji);
-  const newSpaceColor = useUiStore((s) => s.newSpaceColor);
-  const setNewSpaceColor = useUiStore((s) => s.setNewSpaceColor);
   const showAddListSpaceId = useUiStore((s) => s.showAddListSpaceId);
   const setShowAddListSpaceId = useUiStore((s) => s.setShowAddListSpaceId);
-  const newListName = useUiStore((s) => s.newListName);
-  const setNewListName = useUiStore((s) => s.setNewListName);
   const showSpaceSettingsId = useUiStore((s) => s.showSpaceSettingsId);
   const setShowSpaceSettingsId = useUiStore((s) => s.setShowSpaceSettingsId);
-  const newSpaceDescription = useUiStore((s) => s.newSpaceDescription);
-  const setNewSpaceDescription = useUiStore((s) => s.setNewSpaceDescription);
-  const newSpaceIsPrivate = useUiStore((s) => s.newSpaceIsPrivate);
-  const setNewSpaceIsPrivate = useUiStore((s) => s.setNewSpaceIsPrivate);
-  const newSpacePermission = useUiStore((s) => s.newSpacePermission);
-  const setNewSpacePermission = useUiStore((s) => s.setNewSpacePermission);
-  const [showSpacePermissionMenu, setShowSpacePermissionMenu] = useState(false);
-
-  // Localized Space Settings Modal States - consumed from useUiStore
-  const editSpaceName = useUiStore((s) => s.editSpaceName);
-  const setEditSpaceName = useUiStore((s) => s.setEditSpaceName);
-  const editSpaceEmoji = useUiStore((s) => s.editSpaceEmoji);
-  const setEditSpaceEmoji = useUiStore((s) => s.setEditSpaceEmoji);
-  const editSpaceColor = useUiStore((s) => s.editSpaceColor);
-  const setEditSpaceColor = useUiStore((s) => s.setEditSpaceColor);
-  const editSpaceClickApps = useUiStore((s) => s.editSpaceClickApps);
-  const setEditSpaceClickApps = useUiStore((s) => s.setEditSpaceClickApps);
-  const editSpaceStatuses = useUiStore((s) => s.editSpaceStatuses);
-  const setEditSpaceStatuses = useUiStore((s) => s.setEditSpaceStatuses);
 
   // Load / Seed Spaces (Offline/Fallback)
   useEffect(() => {
@@ -795,9 +724,8 @@ export default function App() {
     setShowAddSpaceModal(true);
   };
 
-  const handleAddSpace = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newSpaceName.trim()) return;
+  const handleAddSpace = (data: { name: string; emoji: string; color: string; description: string; isPrivate: boolean; permission: string }) => {
+    if (!data.name.trim()) return;
 
     // Check Free Plan limit: Max 5 spaces per workspace
     const currentWorkspaceSpaces = spaces.filter(s => !s.workspaceId || s.workspaceId === (activeWorkspaceId || workspaces[0]?.id));
@@ -812,9 +740,9 @@ export default function App() {
     const targetWsId = activeWorkspaceId || workspaces[0]?.id || 'w2';
     const newSpace: Space & { description?: string; isPrivate?: boolean; defaultPermission?: string } = {
       id: `s-${Date.now()}`,
-      name: newSpaceName.trim(),
-      emoji: newSpaceEmoji || '📦',
-      themeColor: newSpaceColor || 'indigo',
+      name: data.name.trim(),
+      emoji: data.emoji || '📦',
+      themeColor: data.color || 'indigo',
       workspaceId: targetWsId,
       lists: [{ id: `l-${Date.now()}`, name: 'General Tasks' }],
       folders: [],
@@ -827,9 +755,9 @@ export default function App() {
         { id: 'completed', label: 'Completed', color: '#10b981', type: 'completed' }
       ],
       clickApps: { subtasks: true, priorities: true, customFields: true },
-      description: newSpaceDescription,
-      isPrivate: newSpaceIsPrivate,
-      defaultPermission: newSpacePermission as Space['defaultPermission']
+      description: data.description,
+      isPrivate: data.isPrivate,
+      defaultPermission: data.permission as Space['defaultPermission']
     };
     const updated = [...spaces, newSpace];
     handleSaveSpaces(updated);
@@ -838,13 +766,6 @@ export default function App() {
       setActiveListId(newSpace.lists[0].id);
     }
     setActiveTab('tasks');
-    setNewSpaceName('');
-    setNewSpaceEmoji('📦');
-    setNewSpaceColor('indigo');
-    setNewSpaceDescription('');
-    setNewSpaceIsPrivate(false);
-    setNewSpacePermission('Full edit');
-    setShowSpacePermissionMenu(false);
     setShowAddSpaceModal(false);
     triggerToast('success', 'Space Created! 🎉', `Đã tạo space "${newSpace.name}" thành công.`);
     addSyncLog(`Created new Space: "${newSpace.name}"`);
@@ -876,7 +797,6 @@ export default function App() {
     });
 
     handleSaveSpaces(updated);
-    setNewListName('');
     setShowAddListSpaceId(null);
     triggerToast('success', 'New List Created', locale === 'vi' ? `Đã tạo danh sách "${name}" thành công` : `Created list "${name}" successfully`);
     addSyncLog(`Created List "${name}" in Space`);
@@ -951,17 +871,17 @@ export default function App() {
     triggerToast('info', 'Space Deleted', 'Workspace has been deleted.');
   };
 
-  const handleSaveSpaceSettings = () => {
-    if (!showSpaceSettingsId || !editSpaceName.trim()) return;
+  const handleSaveSpaceSettings = (data: { id: string; name: string; emoji: string; themeColor: string; clickApps: any; statuses: any[] }) => {
+    if (!data.id || !data.name.trim()) return;
     const updated = spaces.map(s => {
-      if (s.id === showSpaceSettingsId) {
+      if (s.id === data.id) {
         return {
           ...s,
-          name: editSpaceName.trim(),
-          emoji: editSpaceEmoji,
-          themeColor: editSpaceColor,
-          clickApps: editSpaceClickApps,
-          statuses: editSpaceStatuses
+          name: data.name.trim(),
+          emoji: data.emoji,
+          themeColor: data.themeColor,
+          clickApps: data.clickApps,
+          statuses: data.statuses
         };
       }
       return s;
@@ -973,16 +893,6 @@ export default function App() {
 
   const openSpaceSettings = (space: Space) => {
     setShowSpaceSettingsId(space.id);
-    setEditSpaceName(space.name);
-    setEditSpaceEmoji(space.emoji || '📦');
-    setEditSpaceColor(space.themeColor || 'indigo');
-    setEditSpaceClickApps(space.clickApps || { subtasks: true, priorities: true });
-    setEditSpaceStatuses(space.statuses || [
-      { id: 'todo', label: 'To Do', color: '#94a3b8', type: 'todo' },
-      { id: 'inprogress', label: 'In Progress', color: '#f59e0b', type: 'inprogress' },
-      { id: 'review', label: 'Review', color: '#06b6d4', type: 'review' },
-      { id: 'completed', label: 'Done', color: '#10b981', type: 'completed' }
-    ]);
   };
 
   // Map tasks helper
@@ -1299,7 +1209,6 @@ export default function App() {
   const setIsOffline = useUiStore((s) => s.setIsOffline);
   const syncing = useUiStore((s) => s.syncing);
   const setSyncing = useUiStore((s) => s.setSyncing);
-  const syncProgress = useUiStore((s) => s.syncProgress);
   const setSyncProgress = useUiStore((s) => s.setSyncProgress);
   const viewingMemberProfileId = useUiStore((s) => s.viewingMemberProfileId);
   const setViewingMemberProfileId = useUiStore((s) => s.setViewingMemberProfileId);
@@ -1382,8 +1291,6 @@ export default function App() {
   }, [spaces, activeWorkspaceId]);
 
   // Toast notification state - consumed from useNotificationStore
-  const toasts = useNotificationStore((s) => s.toasts);
-  const removeToast = useNotificationStore((s) => s.removeToast);
   const addToast = useNotificationStore((s) => s.addToast);
   const lastToastsRef = useRef<Record<string, number>>({});
 
@@ -1616,41 +1523,7 @@ export default function App() {
     return orderedItems.filter(item => !zoneItemIds.has(item.id));
   }, [orderedItems, sidebarZones]);
 
-  // Filtered lists for the Global Search modal
-  const filteredTasks = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return [];
-    return currentWorkspaceTasks.filter(t => 
-      t.title.toLowerCase().includes(query) || 
-      t.description.toLowerCase().includes(query)
-    );
-  }, [currentWorkspaceTasks, searchQuery]);
 
-  const filteredDocs = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return [];
-    return currentWorkspaceDocs.filter(d => 
-      d.title.toLowerCase().includes(query) || 
-      d.content.toLowerCase().includes(query)
-    );
-  }, [currentWorkspaceDocs, searchQuery]);
-
-  const filteredChannels = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return [];
-    const workspaceChannels = [
-      { id: `${activeWorkspaceId}:general`, name: 'general', description: 'General discussion for the department', type: 'public' },
-      { id: `${activeWorkspaceId}:project-planning`, name: 'project-planning', description: 'Project planning & KPI tracking', type: 'public' },
-      { id: `${activeWorkspaceId}:apexa-ai`, name: 'costack-ai', description: 'Costack AI support assistant online', type: 'public' },
-      { id: `${activeWorkspaceId}:design-review`, name: 'design-review', description: 'Design whiteboard reviews', type: 'public' }
-    ];
-    return workspaceChannels.filter(c => 
-      c.name.toLowerCase().includes(query) || 
-      c.description.toLowerCase().includes(query)
-    );
-  }, [activeWorkspaceId, searchQuery]);
-
-  const totalResultsCount = filteredTasks.length + filteredDocs.length + filteredChannels.length;
 
   useEffect(() => {
     try {
@@ -1850,6 +1723,10 @@ export default function App() {
       const inviteToken = params.get('invite_token');
       const inviteWs = params.get('invite_ws');
       const inviteRole = params.get('role') || 'member';
+      const tabParam = params.get('tab');
+      const VALID_URL_TABS = new Set([
+        'dashboard', 'tasks', 'my-tasks', 'inbox', 'calendar', 'analytics', 'finance', 'team', 'chat', 'profile', 'settings'
+      ]);
 
       if (inviteToken) {
         setInviteTokenParam(inviteToken);
@@ -1884,9 +1761,60 @@ export default function App() {
       } else if (listParam) {
         setActiveListId(listParam);
         setActiveTab('tasks');
+      } else if (tabParam && VALID_URL_TABS.has(tabParam)) {
+        setActiveTab(tabParam as any);
       }
     }
   }, [setActiveTab, triggerToast, setActiveSpaceId, setActiveListId, setInitialSelectedTaskId]);
+
+  // Two-way synchronization between activeTab and URL query string (?tab=...)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const VALID_URL_TABS = new Set([
+      'dashboard', 'tasks', 'my-tasks', 'inbox', 'calendar', 'analytics', 'finance', 'team', 'chat', 'profile', 'settings'
+    ]);
+    if (!VALID_URL_TABS.has(activeTab)) return;
+
+    try {
+      const url = new URL(window.location.href);
+      const currentTabInUrl = url.searchParams.get('tab');
+
+      if (activeTab === 'dashboard') {
+        if (currentTabInUrl) {
+          url.searchParams.delete('tab');
+          const newPath = url.pathname + (url.search ? url.search : '') + url.hash;
+          window.history.replaceState({ ...window.history.state, tab: 'dashboard' }, '', newPath);
+        }
+      } else if (currentTabInUrl !== activeTab) {
+        url.searchParams.set('tab', activeTab);
+        const newPath = url.pathname + url.search + url.hash;
+        window.history.replaceState({ ...window.history.state, tab: activeTab }, '', newPath);
+      }
+    } catch {
+      // Ignore URL manipulation errors in restricted environments
+    }
+  }, [activeTab]);
+
+  // Listen to browser Back/Forward (popstate) buttons to update activeTab seamlessly
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handlePopState = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const tabFromUrl = params.get('tab') || 'dashboard';
+        const VALID_URL_TABS = new Set([
+          'dashboard', 'tasks', 'my-tasks', 'inbox', 'calendar', 'analytics', 'finance', 'team', 'chat', 'profile', 'settings'
+        ]);
+        if (VALID_URL_TABS.has(tabFromUrl) && tabFromUrl !== activeTab) {
+          setActiveTab(tabFromUrl as any);
+        }
+      } catch {
+        // Ignore popstate read errors
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [activeTab, setActiveTab]);
 
   // Safety fallback: if activeTab is in removed modules, redirect to dashboard
   useEffect(() => {
@@ -2669,7 +2597,12 @@ export default function App() {
       ]);
 
       // 4. Create/Update Profile
-      const myAvatar = '';
+      const myAvatar = 
+        session.user.user_metadata?.avatar_url || 
+        session.user.user_metadata?.picture || 
+        session.user.user_metadata?.avatar || 
+        currentUser?.avatar || 
+        '';
       const newProfile = {
         id: myMemberId,
         name: onboardingName.trim(),
@@ -2727,6 +2660,19 @@ export default function App() {
     let listsChannel: any = null;
     let baseAppsChannel: any = null;
     let invitationsChannel: any = null;
+    let teamsChannel: any = null;
+    let teamMembersChannel: any = null;
+
+    const handleSubStatus = (channelName: string) => (status: string, err?: any) => {
+      if (status === 'SUBSCRIBED') {
+        setRealtimeStatus('connected');
+      } else if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
+        console.warn(`[Supabase Realtime] ${channelName} subscription error:`, err || status);
+        setRealtimeStatus('error');
+      } else if (status === 'CLOSED') {
+        setRealtimeStatus('disconnected');
+      }
+    };
 
     const loadAndSubscribe = async () => {
       try {
@@ -2850,7 +2796,7 @@ export default function App() {
         if (myDbProfile) {
           // Synchronize database profile details back to currentUser
           const dbAvatar = myDbProfile.avatar && !myDbProfile.avatar.includes('api.dicebear.com') ? myDbProfile.avatar : '';
-          const syncedAvatar = googleAvatar || dbAvatar || myAvatar;
+          const syncedAvatar = dbAvatar || googleAvatar || myAvatar || '';
           const syncedName = myDbProfile.name || googleName || myName;
           const syncedRole = myDbProfile.role || myRole;
           const isSuper = isApexaSuperAdmin(userId);
@@ -2886,7 +2832,7 @@ export default function App() {
             id: myMemberId,
             name: myName,
             email: session.user.email || '',
-            avatar: myAvatar,
+            avatar: googleAvatar || myAvatar || '',
             role: myRole,
             status: 'offline',
             user_id: userId,
@@ -3155,7 +3101,10 @@ export default function App() {
             workspaceId: t.workspace_id || undefined,
             spaceId: t.space_id || undefined,
             listId: t.list_id || undefined,
-            recurrence: t.recurrence || undefined
+            recurrence: t.recurrence || undefined,
+            checklists: Array.isArray(t.checklists) ? t.checklists : Array.isArray(t.custom_fields?.checklists) ? t.custom_fields.checklists : [],
+            teamId: t.teamId || t.team_id || t.custom_fields?.teamId || undefined,
+            teamIds: Array.isArray(t.teamIds) ? t.teamIds : Array.isArray(t.team_ids) ? t.team_ids : Array.isArray(t.custom_fields?.teamIds) ? t.custom_fields.teamIds : (t.teamId || t.team_id) ? [t.teamId || t.team_id] : []
           })));
         } else {
           setTasks([]);
@@ -3486,7 +3435,10 @@ export default function App() {
                     workspaceId: t.workspace_id || undefined,
                     spaceId: t.space_id || undefined,
                     listId: t.list_id || undefined,
-                    recurrence: t.recurrence || undefined
+                    recurrence: t.recurrence || undefined,
+                    checklists: Array.isArray(t.checklists) ? t.checklists : Array.isArray(t.custom_fields?.checklists) ? t.custom_fields.checklists : [],
+                    teamId: t.teamId || t.team_id || t.custom_fields?.teamId || undefined,
+                    teamIds: Array.isArray(t.teamIds) ? t.teamIds : Array.isArray(t.team_ids) ? t.team_ids : Array.isArray(t.custom_fields?.teamIds) ? t.custom_fields.teamIds : (t.teamId || t.team_id) ? [t.teamId || t.team_id] : []
                   };
                   setTasks(prev => {
                     const exists = prev.some(item => item.id === mappedTask.id);
@@ -3503,7 +3455,7 @@ export default function App() {
                 }
               }
             )
-            .subscribe();
+            .subscribe(handleSubStatus('tasks'));
 
           docsChannel = getCleanChannel('realtime-docs')
             .on(
@@ -3545,7 +3497,7 @@ export default function App() {
                 }
               }
             )
-            .subscribe();
+            .subscribe(handleSubStatus('docs'));
 
           membersChannel = getCleanChannel('realtime-members')
             .on(
@@ -3619,7 +3571,7 @@ export default function App() {
                 }
               }
             )
-            .subscribe();
+            .subscribe(handleSubStatus('members'));
 
           workspacesChannel = getCleanChannel('realtime-workspaces')
             .on(
@@ -3659,7 +3611,7 @@ export default function App() {
                 }
               }
             )
-            .subscribe();
+            .subscribe(handleSubStatus('workspaces'));
 
           spacesChannel = getCleanChannel('realtime-spaces')
             .on(
@@ -3740,7 +3692,7 @@ export default function App() {
                 }
               }
             )
-            .subscribe();
+            .subscribe(handleSubStatus('spaces'));
 
           listsChannel = getCleanChannel('realtime-lists')
             .on(
@@ -3789,7 +3741,7 @@ export default function App() {
                 }
               }
             )
-            .subscribe();
+            .subscribe(handleSubStatus('lists'));
 
           baseAppsChannel = getCleanChannel('realtime-base-apps')
             .on(
@@ -3829,7 +3781,7 @@ export default function App() {
                 }
               }
             )
-            .subscribe();
+            .subscribe(handleSubStatus('base_apps'));
 
           invitationsChannel = getCleanChannel('realtime-workspace-invitations')
             .on(
@@ -3845,7 +3797,37 @@ export default function App() {
                 window.dispatchEvent(new CustomEvent('avaxa-invitation-updated'));
               }
             )
-            .subscribe();
+            .subscribe(handleSubStatus('workspace_invitations'));
+
+          teamsChannel = getCleanChannel('realtime-teams')
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'teams'
+              },
+              () => {
+                window.dispatchEvent(new CustomEvent('apexa-teams-updated'));
+                window.dispatchEvent(new CustomEvent('avaxa-teams-updated'));
+              }
+            )
+            .subscribe(handleSubStatus('teams'));
+
+          teamMembersChannel = getCleanChannel('realtime-team-members')
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'team_members'
+              },
+              () => {
+                window.dispatchEvent(new CustomEvent('apexa-teams-updated'));
+                window.dispatchEvent(new CustomEvent('avaxa-teams-updated'));
+              }
+            )
+            .subscribe(handleSubStatus('team_members'));
         }
       } catch (err) {
         console.error('Error during realtime data sync:', err);
@@ -3863,6 +3845,8 @@ export default function App() {
       if (listsChannel) supabase.removeChannel(listsChannel);
       if (baseAppsChannel) supabase.removeChannel(baseAppsChannel);
       if (invitationsChannel) supabase.removeChannel(invitationsChannel);
+      if (teamsChannel) supabase.removeChannel(teamsChannel);
+      if (teamMembersChannel) supabase.removeChannel(teamMembersChannel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id, isOffline]);
@@ -4536,6 +4520,74 @@ export default function App() {
     }
   }, [deletedWorkspaceTasks, triggerToast, addSyncLog, setTasks, isOffline, setOfflineDeletedTasks, locale]);
 
+  const handleBatchPermanentDelete = useCallback(async (idsToDelete: string[], isAutoPurge = false) => {
+    if (!idsToDelete || idsToDelete.length === 0) return;
+    const idSet = new Set(idsToDelete);
+
+    setTasks(prev => prev.filter(t => !idSet.has(t.id)));
+    idsToDelete.forEach(id => {
+      useTaskStore.getState().permanentDeleteTask(id);
+      saveTaskReminder(id, '', '', 'none');
+    });
+
+    if (isAutoPurge) {
+      triggerToast(
+        'info',
+        locale === 'vi' ? 'Tự động dọn dẹp thùng rác' : 'Trash Auto-Cleaned',
+        locale === 'vi'
+          ? `Đã tự động xóa vĩnh viễn ${idsToDelete.length} công việc quá hạn lưu trữ.`
+          : `Automatically removed ${idsToDelete.length} expired tasks.`
+      );
+      addSyncLog(`Hệ thống đã tự động dọn dẹp ${idsToDelete.length} công việc quá hạn trong thùng rác`, 'task');
+    } else {
+      triggerToast(
+        'info',
+        locale === 'vi' ? 'Đã xóa vĩnh viễn' : 'Tasks Permanently Deleted',
+        locale === 'vi' ? `Đã xóa vĩnh viễn ${idsToDelete.length} công việc.` : `Permanently removed ${idsToDelete.length} tasks.`
+      );
+      addSyncLog(`Đã xóa vĩnh viễn ${idsToDelete.length} công việc`, 'task');
+    }
+
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { error } = await supabase.from('tasks').delete().in('id', idsToDelete);
+          if (error) throw error;
+        }
+      } catch (err: any) {
+        const errorMsg = err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+        console.error('Batch permanent task delete sync failure:', errorMsg, err);
+        setOfflineDeletedTasks(prev => Array.from(new Set([...prev, ...idsToDelete])));
+      }
+    }
+  }, [triggerToast, addSyncLog, setTasks, isOffline, setOfflineDeletedTasks, locale]);
+
+  // Background auto-clean for expired trash tasks
+  const hasAutoCleanedTrashRef = useRef(false);
+  useEffect(() => {
+    if (hasAutoCleanedTrashRef.current || tasks.length === 0) return;
+    hasAutoCleanedTrashRef.current = true;
+    const retentionDays = getTrashRetentionDays();
+    const expiredTasks = getExpiredDeletedTasks(tasks, retentionDays);
+    if (expiredTasks.length > 0) {
+      const expiredIds = expiredTasks.map(t => t.id);
+      handleBatchPermanentDelete(expiredIds, true);
+    }
+  }, [tasks, handleBatchPermanentDelete]);
+
+  useEffect(() => {
+    const handleRetentionChange = (e: any) => {
+      const days = e?.detail?.days || getTrashRetentionDays();
+      const expiredTasks = getExpiredDeletedTasks(tasks, days);
+      if (expiredTasks.length > 0) {
+        handleBatchPermanentDelete(expiredTasks.map(t => t.id), true);
+      }
+    };
+    window.addEventListener('costack:trash-retention-change', handleRetentionChange);
+    return () => window.removeEventListener('costack:trash-retention-change', handleRetentionChange);
+  }, [tasks, handleBatchPermanentDelete]);
+
   const handleUpdateTaskOrder = useCallback(async (workspaceId: string, orderedIds: string[]) => {
     if (currentUser && !isOffline) {
       try {
@@ -4821,6 +4873,19 @@ export default function App() {
   const handleUpdateMember = async (updated: User) => {
     const previousMember = members.find(m => m.id === updated.id);
     setMembers(prev => prev.map(m => m.id === updated.id ? { ...updated, status: m.status } : m));
+
+    // Keep currentUser in sync if the updated member is the logged-in user
+    if (
+      updated.id === 'user' || 
+      (currentUser?.id && (updated.id === currentUser.id || updated.id === `user-${currentUser.id}`)) ||
+      (currentUser?.email && updated.email && updated.email.toLowerCase().trim() === currentUser.email.toLowerCase().trim())
+    ) {
+      updateCurrentUser({
+        ...currentUser,
+        ...updated,
+        id: currentUser?.id || updated.id,
+      });
+    }
 
     if (!isOffline) {
       try {
@@ -6807,6 +6872,24 @@ export default function App() {
                         : 'apexa-route-scroll overflow-y-auto p-2.5 pb-12 sm:p-3 md:p-4 lg:p-6 custom-scrollbar'
                   }`}
                 >
+                  <TabErrorBoundary
+                    tabId={activeTab}
+                    tabTitle={
+                      activeTab === 'dashboard' ? (locale === 'vi' ? 'Bảng điều khiển' : 'Dashboard') :
+                      activeTab === 'inbox' ? (locale === 'vi' ? 'Hộp thư' : 'Inbox') :
+                      activeTab === 'tasks' || activeTab === 'my-tasks' ? (locale === 'vi' ? 'Không gian công việc' : 'Workspace & Tasks') :
+                      activeTab === 'calendar' ? (locale === 'vi' ? 'Lịch' : 'Calendar') :
+                      activeTab === 'analytics' ? (locale === 'vi' ? 'Phân tích' : 'Analytics') :
+                      activeTab === 'finance' ? (locale === 'vi' ? 'Tài chính' : 'Finance') :
+                      activeTab === 'team' ? (locale === 'vi' ? 'Đội ngũ' : 'Team') :
+                      activeTab === 'chat' ? (locale === 'vi' ? 'Trò chuyện' : 'Chat') :
+                      activeTab === 'profile' ? (locale === 'vi' ? 'Hồ sơ cá nhân' : 'Profile') :
+                      activeTab === 'settings' ? (locale === 'vi' ? 'Cài đặt' : 'Settings') :
+                      activeTab
+                    }
+                    onNavigateHome={() => setActiveTab('dashboard')}
+                    isVietnamese={locale === 'vi'}
+                  >
                   {activeTab === 'dashboard' && (
                     <DashboardOverview
                       tasks={currentWorkspaceTasks}
@@ -6875,6 +6958,7 @@ export default function App() {
                       onRestoreTask={handleRestoreTask}
                       onPermanentDeleteTask={handlePermanentDeleteTask}
                       onEmptyTrash={handleEmptyTrash}
+                      onBatchPermanentDelete={handleBatchPermanentDelete}
                       isOffline={isOffline}
                       onAddSyncLog={addSyncLog}
                       triggerToast={triggerToast}
@@ -7074,6 +7158,7 @@ export default function App() {
                       onSendWorkspaceInvites={handleSendWorkspaceInvites}
                     />
                   )}
+                  </TabErrorBoundary>
                 </motion.div>
               </AnimatePresence>
             </main>
@@ -7084,324 +7169,12 @@ export default function App() {
       </div>
 
       {/* ── ADD SPACE MODAL ── */}
-      <AnimatePresence>
-        {showAddSpaceModal && (
-          <div 
-            className="fixed inset-0 z-[999] flex items-center justify-center p-4"
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                setShowSpacePermissionMenu(false);
-                setShowAddSpaceModal(false);
-              }
-            }}
-          >
-            <motion.div
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }} 
-              onClick={() => {
-                setShowSpacePermissionMenu(false);
-                setShowAddSpaceModal(false);
-              }} 
-              className="absolute inset-0 bg-slate-950/50 cursor-pointer" 
-            />
-            <motion.div 
-              initial={{ scale: 0.95, y: 12, opacity: 0 }} 
-              animate={{ scale: 1, y: 0, opacity: 1 }} 
-              exit={{ scale: 0.95, y: 12, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 420, damping: 30 }}
-              className="relative w-full max-w-[450px] rounded-2xl bg-white dark:bg-[#111216] border border-slate-200/90 dark:border-white/[0.08] overflow-hidden z-10 text-left font-sans select-none shadow-2xl flex flex-col"
-            >
-              {/* Top Accent Light Line */}
-              <div 
-                className="h-1 w-full shrink-0 transition-all duration-300"
-                style={{
-                  background: {
-                    indigo: 'linear-gradient(90deg, #38bdf8, #2563eb, #6366f1)',
-                    purple: 'linear-gradient(90deg, #c084fc, #8b5cf6, #6d28d9)',
-                    rose: 'linear-gradient(90deg, #fb7185, #e11d48, #be123c)',
-                    sky: 'linear-gradient(90deg, #38bdf8, #0284c7, #0369a1)',
-                    emerald: 'linear-gradient(90deg, #34d399, #059669, #047857)',
-                    amber: 'linear-gradient(90deg, #fbbf24, #d97706, #b45309)',
-                    sunset: 'linear-gradient(90deg, #fb923c, #ea580c, #c2410c)',
-                  }[newSpaceColor as string] || 'linear-gradient(90deg, #38bdf8, #2563eb)'
-                }}
-              />
-
-              {/* Modal Body */}
-              <div className="p-5 sm:p-6 flex-1 relative z-10">
-                <form onSubmit={handleAddSpace} className="space-y-4 relative z-10">
-                  {/* ── Header ── */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div 
-                        className="w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-xs shrink-0 transition-all duration-300"
-                        style={{
-                          background: {
-                            indigo: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-                            purple: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
-                            sky: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
-                            emerald: 'linear-gradient(135deg, #10b981, #059669)',
-                            amber: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                            sunset: 'linear-gradient(135deg, #f97316, #ea580c)',
-                            rose: 'linear-gradient(135deg, #f43f5e, #e11d48)',
-                          }[newSpaceColor as string] || 'linear-gradient(135deg, #3b82f6, #1d4ed8)'
-                        }}
-                      >
-                        <FolderPlus className="w-4.5 h-4.5" />
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight truncate">
-                          {t('createSpace') || (locale === 'vi' ? 'Tạo Không gian mới' : 'Create Space')}
-                        </h3>
-                        <p className="text-[11px] font-medium text-slate-500 dark:text-zinc-400 mt-0.5 truncate">
-                          {locale === 'vi' ? 'Không gian làm việc cho dự án và đội nhóm' : 'Workspaces & team project hubs'}
-                        </p>
-                      </div>
-                    </div>
-
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        setShowSpacePermissionMenu(false);
-                        setShowAddSpaceModal(false);
-                      }} 
-                      className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/[0.08] flex items-center justify-center transition-colors cursor-pointer shrink-0"
-                      aria-label="Đóng cửa sổ"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* ── Space Name & Identity Card ── */}
-                  <div className="p-3.5 rounded-xl bg-slate-50/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08] space-y-3">
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-700 dark:text-zinc-300 block mb-1.5">
-                        {t('spaceName') || (locale === 'vi' ? 'Tên Không gian' : 'Space Name')} <span className="text-rose-500">*</span>
-                      </label>
-                      <div className="flex items-center gap-2">
-                        {/* Icon Picker Trigger */}
-                        <div className="shrink-0">
-                          <EmojiIconPicker
-                            value={newSpaceEmoji || 'Package'}
-                            onChange={setNewSpaceEmoji}
-                          />
-                        </div>
-
-                        {/* Space Name Input */}
-                        <input 
-                          type="text" 
-                          required 
-                          autoFocus
-                          value={newSpaceName} 
-                          onChange={e => setNewSpaceName(e.target.value)} 
-                          placeholder={locale === 'vi' ? 'Ví dụ: Kỹ thuật, Marketing, HR, Vận hành...' : 'e.g. Engineering, Marketing, HR...'} 
-                          className="flex-1 min-w-0 h-10 px-3 text-xs font-bold rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.04] focus:bg-white dark:focus:bg-black/50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-white outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Description Input */}
-                    <div>
-                      <input 
-                        type="text" 
-                        value={newSpaceDescription} 
-                        onChange={e => setNewSpaceDescription(e.target.value)} 
-                        placeholder={locale === 'vi' ? 'Mô tả ngắn về mục đích không gian này (không bắt buộc)...' : 'Brief description of this space (optional)...'} 
-                        className="w-full h-8.5 px-3 text-[11px] font-medium rounded-xl border border-slate-200/80 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] focus:bg-white dark:focus:bg-black/50 focus:border-blue-500 text-slate-800 dark:text-zinc-200 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-600"
-                      />
-                    </div>
-
-                    {/* Color Swatches */}
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/70 dark:border-white/[0.06]">
-                      <span className="text-[11px] font-semibold text-slate-600 dark:text-zinc-400">
-                        {locale === 'vi' ? 'Màu chủ đề' : 'Color theme'}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        {[
-                          { key: 'indigo', hex: '#2563eb', label: 'Blue' },
-                          { key: 'purple', hex: '#8b5cf6', label: 'Purple' },
-                          { key: 'sky', hex: '#0284c7', label: 'Ocean' },
-                          { key: 'emerald', hex: '#10b981', label: 'Emerald' },
-                          { key: 'amber', hex: '#f59e0b', label: 'Amber' },
-                          { key: 'sunset', hex: '#ea580c', label: 'Orange' },
-                          { key: 'rose', hex: '#e11d48', label: 'Rose' },
-                        ].map(col => (
-                          <button
-                            key={col.key}
-                            type="button"
-                            onClick={() => setNewSpaceColor(col.key)}
-                            className={`w-5 h-5 rounded-full transition-all flex items-center justify-center cursor-pointer ${
-                              newSpaceColor === col.key 
-                                ? 'ring-2 ring-blue-500 dark:ring-white ring-offset-2 ring-offset-white dark:ring-offset-[#111216] scale-110' 
-                                : 'opacity-65 hover:opacity-100 hover:scale-105'
-                            }`}
-                            style={{ backgroundColor: col.hex }}
-                            title={col.label}
-                            aria-label={col.label}
-                          >
-                            {newSpaceColor === col.key && <Check className="w-2.5 h-2.5 text-white stroke-[3.5]" />}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* ── Settings: Permissions & Privacy (Unified Card) ── */}
-                  <div className="rounded-xl bg-slate-50/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08] divide-y divide-slate-200/70 dark:divide-white/[0.06]">
-                    {/* Permission Row */}
-                    <div className="relative z-20 flex items-center justify-between p-2.5 px-3 rounded-t-xl">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-7 h-7 rounded-lg bg-sky-500/15 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
-                          <Users className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="text-left min-w-0">
-                          <span className="block text-[11.5px] font-bold text-slate-900 dark:text-zinc-100 leading-tight truncate">
-                            {t('defaultPermission') || (locale === 'vi' ? 'Quyền thành viên mặc định' : 'Default Permission')}
-                          </span>
-                          <span className="block text-[9.5px] font-medium text-slate-500 dark:text-zinc-400 mt-0.5 truncate">
-                            {locale === 'vi' ? 'Quyền hạn khi thêm thành viên mới' : 'Initial role for members'}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="relative shrink-0 ml-2">
-                        <button
-                          type="button"
-                          onClick={() => setShowSpacePermissionMenu(!showSpacePermissionMenu)}
-                          className="flex items-center gap-1.5 bg-white dark:bg-white/[0.06] border border-slate-200 dark:border-white/10 rounded-lg text-[11px] px-2.5 py-1 text-slate-700 dark:text-zinc-200 font-bold outline-none hover:bg-slate-100 dark:hover:bg-white/10 hover:border-slate-300 dark:hover:border-white/20 cursor-pointer shadow-xs transition-all"
-                        >
-                          <span>
-                            {newSpacePermission === 'Full edit' ? (locale === 'vi' ? 'Toàn quyền sửa' : 'Full edit') :
-                             newSpacePermission === 'Edit only' ? (locale === 'vi' ? 'Chỉ chỉnh sửa' : 'Edit only') :
-                             newSpacePermission === 'Read only' ? (locale === 'vi' ? 'Chỉ xem' : 'Read only') :
-                             (locale === 'vi' ? 'Chỉ bình luận' : 'Comment only')}
-                          </span>
-                          <ChevronDown className={`w-3 h-3 text-slate-400 dark:text-zinc-400 transition-transform duration-150 ${showSpacePermissionMenu ? 'rotate-180' : ''}`} />
-                        </button>
-
-                        <AnimatePresence>
-                          {showSpacePermissionMenu && (
-                            <>
-                              <div className="fixed inset-0 z-40" onClick={() => setShowSpacePermissionMenu(false)} />
-                              <motion.div
-                                initial={{ opacity: 0, y: 4, scale: 0.96 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 4, scale: 0.96 }}
-                                transition={{ duration: 0.12 }}
-                                className="absolute right-0 bottom-full mb-1.5 w-52 p-1.5 bg-white dark:bg-[#16171d] border border-slate-200 dark:border-white/15 rounded-xl shadow-2xl backdrop-blur-xl z-50 space-y-0.5 text-left origin-bottom-right"
-                              >
-                                {[
-                                  { value: 'Full edit', labelEn: 'Full edit', labelVi: 'Toàn quyền sửa', descEn: 'Full access to edit & manage', descVi: 'Toàn quyền chỉnh sửa & quản lý' },
-                                  { value: 'Edit only', labelEn: 'Edit only', labelVi: 'Chỉ chỉnh sửa', descEn: 'Can edit tasks & content', descVi: 'Chỉnh sửa task & nội dung' },
-                                  { value: 'Comment only', labelEn: 'Comment only', labelVi: 'Chỉ bình luận', descEn: 'Can comment & review', descVi: 'Bình luận & góp ý' },
-                                  { value: 'Read only', labelEn: 'Read only', labelVi: 'Chỉ xem', descEn: 'View-only access', descVi: 'Chỉ xem, không chỉnh sửa' },
-                                ].map((opt) => {
-                                  const isSelected = newSpacePermission === opt.value;
-                                  return (
-                                    <button
-                                      key={opt.value}
-                                      type="button"
-                                      onClick={() => {
-                                        setNewSpacePermission(opt.value);
-                                        setShowSpacePermissionMenu(false);
-                                      }}
-                                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-all cursor-pointer ${
-                                        isSelected 
-                                          ? 'bg-blue-50 text-blue-600 font-bold dark:bg-blue-600/20 dark:text-sky-400' 
-                                          : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] text-slate-700 dark:text-zinc-300 font-medium'
-                                      }`}
-                                    >
-                                      <div>
-                                        <div className="text-[11.5px] leading-tight font-semibold">
-                                          {locale === 'vi' ? opt.labelVi : opt.labelEn}
-                                        </div>
-                                        <div className="text-[9px] text-slate-400 dark:text-zinc-400 mt-0.5">
-                                          {locale === 'vi' ? opt.descVi : opt.descEn}
-                                        </div>
-                                      </div>
-                                      {isSelected && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 shrink-0 ml-2 stroke-[3]" />}
-                                    </button>
-                                  );
-                                })}
-                              </motion.div>
-                            </>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    </div>
-
-                    {/* Private Toggle */}
-                    <div className="relative z-10 flex items-center justify-between p-2.5 px-3 rounded-b-xl">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${newSpaceIsPrivate ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-slate-200/70 dark:bg-white/[0.06] text-slate-500 dark:text-zinc-400'}`}>
-                          <Lock className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="text-left min-w-0">
-                          <span className="block text-[11.5px] font-bold text-slate-900 dark:text-zinc-100 leading-tight truncate">
-                            {t('makePrivateSpace') || (locale === 'vi' ? 'Không gian riêng tư' : 'Private Space')}
-                          </span>
-                          <span className="block text-[9.5px] font-medium text-slate-500 dark:text-zinc-400 mt-0.5 truncate">
-                            {locale === 'vi' ? 'Chỉ bạn và người được mời xem được' : 'Only invited members can access'}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <button
-                        type="button"
-                        onClick={() => setNewSpaceIsPrivate(!newSpaceIsPrivate)}
-                        className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-200 outline-none shrink-0 ${
-                          newSpaceIsPrivate ? 'bg-blue-600' : 'bg-slate-200 dark:bg-zinc-800 border border-slate-300 dark:border-white/10'
-                        }`}
-                        aria-pressed={newSpaceIsPrivate}
-                        aria-label="Bật chế độ riêng tư"
-                      >
-                        <div 
-                          className={`bg-white w-4 h-4 rounded-full transform transition-transform duration-200 ease-out shadow-xs ${
-                            newSpaceIsPrivate ? 'translate-x-4' : 'translate-x-0'
-                          }`}
-                        />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* ── Footer Actions ── */}
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-200/80 dark:border-white/10">
-                    <div className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-zinc-500 font-medium select-none">
-                      <kbd className="inline-flex items-center justify-center h-4.5 px-1.5 text-[9.5px] font-mono font-semibold rounded bg-slate-100 dark:bg-white/[0.08] text-slate-500 dark:text-zinc-400 border border-slate-200/80 dark:border-white/10 shadow-xs">
-                        ↵
-                      </kbd>
-                      <span>{locale === 'vi' ? 'để tạo' : 'to create'}</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 shrink-0 ml-auto">
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          setShowAddSpaceModal(false);
-                          setShowSpacePermissionMenu(false);
-                        }}
-                        className="h-8.5 px-3.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/[0.06] transition-all cursor-pointer"
-                      >
-                        {t('cancel') || (locale === 'vi' ? 'Hủy' : 'Cancel')}
-                      </button>
-                      
-                      <button 
-                        type="submit" 
-                        disabled={!newSpaceName.trim()}
-                        className="h-8.5 px-4 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-blue-500/25 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
-                      >
-                        <span>{t('createSpace') || (locale === 'vi' ? 'Tạo Không gian' : 'Create Space')}</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </form>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <AddSpaceModal
+        isOpen={showAddSpaceModal}
+        onClose={() => setShowAddSpaceModal(false)}
+        onAddSpace={handleAddSpace}
+        locale={locale}
+      />
 
       {/* ── ADD LIST MODAL ── */}
       <AddListModal
@@ -7414,133 +7187,30 @@ export default function App() {
       />
 
       {/* ── SPACE SETTINGS MODAL ── */}
-      <AnimatePresence>
-        {showSpaceSettingsId && (
-          <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowSpaceSettingsId(null)} className="absolute inset-0 bg-slate-950/60 cursor-pointer" />
-            <motion.div initial={{ scale: 0.95, y: 15, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 15, opacity: 0 }} className="relative w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 overflow-hidden z-10 text-left">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
-                <h3 className="text-sm font-extrabold text-slate-850 dark:text-white flex items-center gap-2">
-                  <Cog className="w-4 h-4 text-indigo-500" />
-                  <span>{t('spaceSettingsTitle') || 'Space Settings'}</span>
-                </h3>
-                <button onClick={() => setShowSpaceSettingsId(null)} className="p-1.5 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"><X className="w-4 h-4" /></button>
-              </div>
+      <EditSpaceModal
+        isOpen={!!showSpaceSettingsId}
+        space={spaces.find(s => s.id === showSpaceSettingsId) || null}
+        onClose={() => setShowSpaceSettingsId(null)}
+        onSave={handleSaveSpaceSettings}
+        onDelete={(id) => {
+          handleDeleteSpace(id);
+          setShowSpaceSettingsId(null);
+        }}
+        setPromptModalConfig={setPromptModalConfig}
+        triggerToast={triggerToast}
+        locale={locale}
+      />
 
-              <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-                <div className="space-y-1 text-left">
-                  <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500">{t('spaceName') || 'Space Name'}</label>
-                  <input type="text" value={editSpaceName} onChange={e => setEditSpaceName(e.target.value)} className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 outline-none bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-slate-800 dark:text-slate-100 font-semibold transition-all focus:ring-2 focus:ring-indigo-500/20" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1 text-left">
-                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500">{t('iconEmoji') || 'Biểu tượng (Emoji)'}</label>
-                    <input type="text" value={editSpaceEmoji} onChange={e => setEditSpaceEmoji(e.target.value)} className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 outline-none bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-slate-800 dark:text-slate-100 font-semibold text-center transition-all focus:ring-2 focus:ring-indigo-500/20" />
-                  </div>
-                  <div className="space-y-1 text-left">
-                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500">{t('themeColor') || 'Màu chủ đề'}</label>
-                    <Select
-                      value={editSpaceColor}
-                      onChange={v => setEditSpaceColor(v)}
-                      options={[
-                        { value: 'indigo', label: 'Tím chàm' },
-                        { value: 'rose', label: 'Hồng phấn' },
-                        { value: 'sky', label: 'Xanh da trời' },
-                        { value: 'emerald', label: 'Xanh ngọc' },
-                        { value: 'sunset', label: 'Hoàng hôn' }
-                      ]}
-                      className="w-full"
-                      ariaLabel="Màu chủ đề"
-                    />
-                  </div>
-                </div>
-
-                {/* ClickApps Configuration */}
-                <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                  <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 block">{t('activeClickApps') || 'ClickApps (Active Features)'}</span>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {[
-                      { key: 'timeTracking', label: 'Time Tracking' },
-                      { key: 'multipleAssignees', label: 'Multiple Assignees' },
-                      { key: 'customFields', label: 'Custom Fields' },
-                      { key: 'relationships', label: 'Relationships & References' },
-                      { key: 'subtasks', label: 'Subtasks' },
-                      { key: 'priorities', label: 'Task Priorities' }
-                    ].map(app => (
-                      <label key={app.key} className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700 cursor-pointer text-xs font-bold text-slate-700 dark:text-slate-300 transition-all">
-                        <input type="checkbox" checked={!!editSpaceClickApps[app.key]} onChange={e => setEditSpaceClickApps({ ...editSpaceClickApps, [app.key]: e.target.checked })} className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500/20" />
-                        <span>{app.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Custom Statuses Configuration */}
-                <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                  <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 block">{t('customStatuses') || 'Task Statuses'}</span>
-                  <div className="space-y-1.5">
-                    {editSpaceStatuses.map((status, index) => (
-                      <div key={status.id} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-100 dark:border-slate-700">
-                        <span className="w-3 h-3 rounded-full shrink-0 shadow-xs" style={{ backgroundColor: status.color }} />
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase flex-1">{status.label}</span>
-                        <span className="text-[9px] bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-black uppercase">{status.type}</span>
-                        <button 
-                          type="button" 
-                          onClick={() => {
-                            if (editSpaceStatuses.length <= 2) {
-                              triggerToast('info', t('notification') || 'Notification', 'You must keep at least 2 statuses.');
-                              return;
-                            }
-                            setEditSpaceStatuses(prev => prev.filter(s => s.id !== status.id));
-                          }}
-                          className="text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 p-1 rounded-lg cursor-pointer transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                    <button 
-                      type="button" 
-                      onClick={() => {
-                        setPromptModalConfig({
-                          isOpen: true,
-                          type: 'status',
-                          title: t('addCustomStatus') || 'Thêm trạng thái công việc',
-                          placeholder: t('enterNewStatus') || 'Nhập tên trạng thái mới...',
-                          confirmText: 'Thêm trạng thái',
-                          onConfirm: (name) => {
-                            setPromptModalConfig(null);
-                            if (!name) return;
-                            const colors = ['#94a3b8', '#f59e0b', '#06b6d4', '#10b981', '#ef4444', '#a855f7'];
-                            const newStatus = {
-                              id: `status-${Date.now()}`,
-                              label: name,
-                              color: colors[Math.floor(Math.random() * colors.length)],
-                              type: 'inprogress' as TaskStatus
-                            };
-                            setEditSpaceStatuses(prev => [...prev, newStatus]);
-                          },
-                          onCancel: () => setPromptModalConfig(null)
-                        });
-                      }}
-                      className="w-full py-2 border border-dashed border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-extrabold text-indigo-600 dark:text-indigo-400 rounded-xl cursor-pointer text-center transition-colors"
-                    >
-                      {t('addCustomStatus') || '+ Add new task status'}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                  <button type="button" onClick={() => { handleDeleteSpace(showSpaceSettingsId); setShowSpaceSettingsId(null); }} className="mr-auto py-2 px-4 rounded-xl border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-xs font-bold text-rose-600 dark:text-rose-400 cursor-pointer transition-colors">{t('deleteSpace') || 'Delete Space'}</button>
-                  <button type="button" onClick={() => setShowSpaceSettingsId(null)} className="py-2 px-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold text-slate-500 dark:text-slate-400 cursor-pointer transition-colors">{t('cancel') || 'Cancel'}</button>
-                  <button type="button" onClick={handleSaveSpaceSettings} className="py-2 px-4 rounded-xl text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer transition-colors shadow-md shadow-blue-500/20">{t('saveSettings') || 'Save Settings'}</button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* ── Global Toaster & Browser Tab Title Sync ── */}
+      <GlobalToaster />
+      <AppDocumentTitle
+        currentUser={currentUser}
+        activeTab={activeTab}
+        activeSpaceId={activeSpaceId}
+        spaces={spaces}
+        workspaceName={currentWorkspace?.name}
+        locale={locale}
+      />
 
       {/* ── Global Time Tracker Widget (Isolated & Memoized) ── */}
       <GlobalTimerPill
@@ -7565,6 +7235,7 @@ export default function App() {
         onUpdateTask={handleUpdateTask}
         onAddTask={handleAddTask}
         onAddSyncLog={addSyncLog}
+        triggerToast={triggerToast}
       />
 
       <PricingModal

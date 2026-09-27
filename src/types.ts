@@ -52,6 +52,19 @@ export interface SubTask {
   completed: boolean;
 }
 
+export interface ChecklistItem {
+  id: string;
+  title: string;
+  completed: boolean;
+  assigneeId?: string;
+}
+
+export interface TaskChecklist {
+  id: string;
+  title: string;
+  items: ChecklistItem[];
+}
+
 export interface TaskAttachment {
   id: string;
   name: string;
@@ -231,6 +244,7 @@ export interface Task {
   reminder?: 'none' | 'at_time' | '5m' | '10m' | '30m' | '1h' | '1d';
   isPrivate?: boolean;
   shareSettings?: Record<string, ShareRole>;
+  checklists?: TaskChecklist[];
 }
 
 export interface Document {
@@ -369,12 +383,15 @@ export interface ChatMessage {
     isVideoMeet?: boolean;
     meetingUrl?: string;
     meetingTitle?: string;
+    isSticker?: boolean;
   };
   parentId?: string;
   isPinned?: boolean;
   createdAt?: string;
   editedAt?: string;
-  deliveryState?: 'sending' | 'sent' | 'failed';
+  deliveryState?: 'sending' | 'sent' | 'delivered' | 'seen' | 'failed';
+  isRevoked?: boolean;
+  forwardedFrom?: string;
 }
 
 export interface ChatChannel {

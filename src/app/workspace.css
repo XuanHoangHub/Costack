@@ -175,8 +175,7 @@
 .apexa-app-shell.apexa-design-system .apexa-app-header { min-height: 52px; background: var(--cu-surface); border-bottom: 1px solid var(--apple-hairline) !important; box-shadow: none; }
 .apexa-app-shell.apexa-design-system .apexa-header-sidebar { border-bottom: none !important; }
 .apexa-app-shell.apexa-design-system .apexa-header-content { gap: 16px; border-bottom: none !important; }
-.dark .apexa-app-shell.apexa-design-system .apexa-header-content { border-bottom: none !important; }
-.apexa-app-shell.apexa-design-system .apexa-header-context { max-width: 38%; }
+.apexa-app-shell.apexa-design-system .apexa-header-context { min-width: 0; flex: 1 1 auto; max-width: clamp(240px, 48vw, 680px); }
 .apexa-app-shell.apexa-design-system .apexa-header-actions { gap: 8px; padding-right: 0; }
 .apexa-app-shell.apexa-design-system .apexa-header-icon-button { box-shadow: none; border-color: var(--cu-border); border-radius: 9px; }
 .apexa-app-shell.apexa-design-system .apexa-header-upgrade { background: #edf3ff !important; color: #2859cb !important; border: 1px solid #dbe6ff !important; box-shadow: none !important; font-weight: 600; }

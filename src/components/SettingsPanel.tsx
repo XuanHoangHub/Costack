@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Activity, AlertTriangle, Archive, Bell, Brain, BriefcaseBusiness, Building2, Check,
@@ -9,7 +9,7 @@ import {
   LayoutGrid, Link2, LockKeyhole, LogOut, Mail, Menu, MonitorCog, Moon, Palette, Play, Plus,
   RefreshCw, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles,
   Sun, Timer, Trash2, Upload, UserRoundCog, Users, UsersRound, Volume2, VolumeX, X,
-  Zap, Smartphone, ShieldAlert
+  Zap, Smartphone, ShieldAlert, ArrowRight, Shield, RotateCcw
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import OtpCodeInput from './auth/OtpCodeInput';
@@ -33,6 +33,11 @@ import {
   sendTestNotification, 
   isBrowserNotificationSupported 
 } from '@/lib/notificationManager';
+import {
+  getTrashRetentionDays,
+  setTrashRetentionDays,
+  TRASH_RETENTION_OPTIONS,
+} from '@/lib/trashUtils';
 
 export const WORKSPACE_COVERS = [
   { id: 'cover1', name: 'Amethyst Quartz', url: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=800&auto=format&fit=crop&q=80' },
@@ -83,7 +88,7 @@ interface SettingsPanelProps {
   onSendWorkspaceInvites?: (emails: string[], role: string) => void;
 }
 
-const inputClass = 'w-full h-10 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-950 px-3 text-sm font-semibold text-slate-850 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-3 focus:ring-indigo-500/10 placeholder:text-slate-400';
+const inputClass = 'w-full h-10 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900/90 px-3.5 text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 placeholder:text-slate-400';
 
 function Toggle({ checked, onChange, disabled = false, label }: { checked: boolean; onChange: (value: boolean) => void; disabled?: boolean; label: string }) {
   return (
@@ -94,7 +99,7 @@ function Toggle({ checked, onChange, disabled = false, label }: { checked: boole
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none ${checked ? 'bg-sky-500' : 'bg-slate-200 dark:bg-slate-700'} ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none ${checked ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'} ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
     >
       <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
     </button>
@@ -103,13 +108,13 @@ function Toggle({ checked, onChange, disabled = false, label }: { checked: boole
 
 function SectionHeader({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-4 border-b border-slate-200/70 pb-6 dark:border-slate-800 sm:flex-row sm:items-end sm:justify-between">
+    <div className="flex flex-col gap-4 border-b border-slate-200/70 pb-5 dark:border-slate-800 sm:flex-row sm:items-end sm:justify-between">
       <div className="max-w-2xl">
-        <p className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-sky-500 dark:text-sky-400">{eyebrow}</p>
-        <h2 className="text-2xl font-black tracking-tight text-slate-950 dark:text-white">{title}</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{description}</p>
+        <p className="mb-1 text-[10px] font-black uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-400">{eyebrow}</p>
+        <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white">{title}</h2>
+        <p className="mt-1.5 text-xs sm:text-sm leading-relaxed text-slate-500 dark:text-slate-400">{description}</p>
       </div>
-      {action}
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }
@@ -119,12 +124,12 @@ function SettingsCard({ title, description, icon: Icon, children, tone = 'defaul
     <section className={`overflow-hidden rounded-2xl border transition-all ${
       tone === 'danger' 
         ? 'border-rose-200/80 bg-rose-500/[0.02] dark:border-rose-900/40 dark:bg-rose-950/10' 
-        : 'border-slate-200/70 bg-white/90 dark:border-slate-800/80 dark:bg-slate-900/70 shadow-3xs'
+        : 'border-slate-200/70 bg-white/90 dark:border-slate-800/80 dark:bg-slate-900/70 shadow-2xs'
     }`}>
       <div className={`flex items-center justify-between gap-3 border-b px-5 py-4 ${
         tone === 'danger' 
-          ? 'border-rose-100/80 dark:border-rose-900/30' 
-          : 'border-slate-100 dark:border-slate-800/60'
+          ? 'border-rose-100/80 dark:border-rose-900/30 bg-rose-50/30 dark:bg-rose-950/20' 
+          : 'border-slate-100 dark:border-slate-800/60 bg-slate-50/40 dark:bg-slate-900/40'
       }`}>
         <div className="flex items-center gap-3 min-w-0">
           {Icon && (
@@ -155,7 +160,7 @@ function SettingRow({ title, description, children, last = false }: { title: str
     <div className={`flex items-center justify-between gap-4 py-3.5 w-full ${last ? '' : 'border-b border-slate-100 dark:border-slate-800/60'}`}>
       <div className="min-w-0 flex-1 pr-4">
         <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">{title}</p>
-        <p className="mt-0.5 text-[11px] sm:text-xs leading-5 text-slate-500 dark:text-slate-400">{description}</p>
+        <p className="mt-0.5 text-[11px] sm:text-xs leading-relaxed text-slate-500 dark:text-slate-400">{description}</p>
       </div>
       <div className="shrink-0 flex items-center justify-end">{children}</div>
     </div>
@@ -178,36 +183,37 @@ export default function SettingsPanel({
   const setDefaultStartupTab = useUiStore(state => state.setDefaultStartupTab);
 
   const accentOptions: Array<{ id: AccentPreset; name: string; hex: string; className: string }> = useMemo(() => [
-    { id: 'indigo', name: isVietnamese ? 'Xanh Costack (Mặc định)' : 'Costack Blue (Default)', hex: '#2563EB', className: 'bg-blue-600' },
+    { id: 'indigo', name: isVietnamese ? 'Xanh Costack' : 'Costack Blue', hex: '#2563EB', className: 'bg-blue-600' },
     { id: 'ocean', name: isVietnamese ? 'Xanh biển' : 'Ocean Blue', hex: '#0284C7', className: 'bg-sky-600' },
     { id: 'forest', name: isVietnamese ? 'Xanh lục' : 'Forest Green', hex: '#10B981', className: 'bg-emerald-600' },
     { id: 'sunset', name: isVietnamese ? 'Hồng hoàng hôn' : 'Sunset Rose', hex: '#F43F5E', className: 'bg-rose-600' }
   ], [isVietnamese]);
 
-  const navigationSections: Array<{ label: string; items: Array<{ id: SettingsTab; label: string; description: string; icon: React.ElementType }> }> = useMemo(() => [
+  const navigationSections: Array<{ label: string; items: Array<{ id: SettingsTab; label: string; description: string; icon: React.ElementType; badge?: string | number }> }> = useMemo(() => [
     {
       label: t('workspaceCategory') || (isVietnamese ? 'Không gian làm việc' : 'Workspace'),
       items: [
         { id: 'general', label: t('settingsGeneral') || (isVietnamese ? 'Không gian làm việc' : 'Workspace'), description: t('settingsGeneralDesc') || (isVietnamese ? 'Nhận diện và thương hiệu' : 'Identity and branding'), icon: BriefcaseBusiness },
-        { id: 'people', label: t('settingsPeople') || (isVietnamese ? 'Thành viên' : 'Members'), description: t('settingsPeopleDesc') || (isVietnamese ? 'Thành viên và quyền truy cập' : 'Members and access permissions'), icon: UsersRound },
-        { id: 'ai_usage', label: t('settingsAi') || 'Costack AI', description: t('settingsAiDesc') || (isVietnamese ? 'Cấu hình mô hình' : 'AI Copilot & model config'), icon: ApexaAiIcon },
+        { id: 'people', label: t('settingsPeople') || (isVietnamese ? 'Thành viên & Đội ngũ' : 'Members & Teams'), description: t('settingsPeopleDesc') || (isVietnamese ? 'Thành viên và phân quyền' : 'Members and access permissions'), icon: UsersRound, badge: members.length },
+        { id: 'ai_usage', label: 'Costack AI', description: t('settingsAiDesc') || (isVietnamese ? 'Cấu hình mô hình' : 'AI Copilot & model config'), icon: ApexaAiIcon, badge: 'Pro' },
         { id: 'audit_logs', label: t('settingsAuditLogs') || (isVietnamese ? 'Nhật ký hoạt động' : 'Activity Log'), description: t('settingsAuditLogsDesc') || (isVietnamese ? 'Sự kiện trong không gian' : 'Workspace events & history'), icon: FileClock },
-        { id: 'data_export', label: t('settingsDataExport') || (isVietnamese ? 'Dữ liệu và lưu trữ' : 'Data & Storage'), description: t('settingsDataExportDesc') || (isVietnamese ? 'Xuất dữ liệu và bộ nhớ đệm' : 'Export data & storage'), icon: Database }
+        { id: 'data_export', label: t('settingsDataExport') || (isVietnamese ? 'Dữ liệu & Lưu trữ' : 'Data & Storage'), description: t('settingsDataExportDesc') || (isVietnamese ? 'Xuất dữ liệu và thùng rác' : 'Export data & trash retention'), icon: Database }
       ]
     },
     {
-      label: t('personalCategory') || (isVietnamese ? 'Cá nhân' : 'Personal'),
+      label: t('personalCategory') || (isVietnamese ? 'Cá nhân & Bảo mật' : 'Personal & Security'),
       items: [
-        { id: 'preferences', label: t('settingsPreferences') || (isVietnamese ? 'Giao diện' : 'Appearance'), description: t('settingsPreferencesDesc') || (isVietnamese ? 'Chủ đề và ngôn ngữ' : 'Theme, language and visuals'), icon: Palette },
-        { id: 'notifications', label: t('settingsNotifications') || (isVietnamese ? 'Thông báo' : 'Notifications'), description: t('settingsNotificationsDesc') || (isVietnamese ? 'Cảnh báo và tập trung' : 'Alerts and focus mode'), icon: Bell },
-        { id: 'security', label: t('settingsSecurity') || (isVietnamese ? 'Bảo mật' : 'Security'), description: t('settingsSecurityDesc') || (isVietnamese ? 'Tài khoản và phiên đăng nhập' : 'Account & active sessions'), icon: ShieldCheck }
+        { id: 'preferences', label: t('settingsPreferences') || (isVietnamese ? 'Giao diện & Trải nghiệm' : 'Appearance'), description: t('settingsPreferencesDesc') || (isVietnamese ? 'Chủ đề và ngôn ngữ' : 'Theme, language and visuals'), icon: Palette },
+        { id: 'notifications', label: t('settingsNotifications') || (isVietnamese ? 'Thông báo & Tập trung' : 'Notifications'), description: t('settingsNotificationsDesc') || (isVietnamese ? 'Cảnh báo và không làm phiền' : 'Alerts and focus mode'), icon: Bell },
+        { id: 'security', label: t('settingsSecurity') || (isVietnamese ? 'Bảo mật & Tài khoản' : 'Security'), description: t('settingsSecurityDesc') || (isVietnamese ? 'Mật khẩu và xác thực 2FA' : 'Account & active sessions'), icon: ShieldCheck }
       ]
     }
-  ], [t, isVietnamese]);
+  ], [t, isVietnamese, members.length]);
 
   const validTabs = navigationSections.flatMap(section => section.items.map(item => item.id));
   const [localTab, setLocalTab] = useState<SettingsTab>('general');
   const activeTab = validTabs.includes(activeSettingsTab as SettingsTab) ? activeSettingsTab as SettingsTab : localTab;
+  
   const setActiveTab = (tab: SettingsTab) => {
     setLocalTab(tab);
     setActiveSettingsTab?.(tab);
@@ -218,6 +224,8 @@ export default function SettingsPanel({
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const [settingsSearch, setSettingsSearch] = useState('');
   const [logCategory, setLogCategory] = useState<string>('all');
+
+  // Workspace form state
   const [workspaceName, setWorkspaceName] = useState('');
   const [workspaceCover, setWorkspaceCover] = useState('');
   const [workspaceLogo, setWorkspaceLogo] = useState('');
@@ -242,11 +250,14 @@ export default function SettingsPanel({
     subtasks: true,
     priorities: true,
   });
+
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const [isSavingWorkspace, setIsSavingWorkspace] = useState(false);
+  
+  // Modals state
   const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [newWorkspaceTheme, setNewWorkspaceTheme] = useState<AccentPreset>('indigo');
@@ -254,14 +265,22 @@ export default function SettingsPanel({
   const [deleteWorkspace, setDeleteWorkspace] = useState<Workspace | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
 
+  // AI state
   const [aiModel, setAiModel] = useState('gemini-3.6-flash');
   const [aiTemperature, setAiTemperature] = useState(0.7);
   const [aiSearchGrounding, setAiSearchGrounding] = useState(false);
   const [aiDailyBriefingEnabled, setAiDailyBriefingEnabled] = useState(true);
   const [aiDailyBriefingTime, setAiDailyBriefingTime] = useState('08:00');
   const [testingAi, setTestingAi] = useState(false);
+
+  // Trash retention state
+  const [trashRetention, setTrashRetention] = useState<number>(() => getTrashRetentionDays());
+
+  // Logs state
   const [logSearch, setLogSearch] = useState('');
   const [copiedLogs, setCopiedLogs] = useState(false);
+
+  // Security state
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -279,28 +298,10 @@ export default function SettingsPanel({
   const [copiedSecret, setCopiedSecret] = useState(false);
   const [browserPerm, setBrowserPerm] = useState<NotificationPermission>(() => getBrowserNotificationPermission());
 
-  const passwordStrength = useMemo(() => {
-    const hasLength = newPassword.length >= 10;
-    const hasUpper = /[A-Z]/.test(newPassword);
-    const hasLower = /[a-z]/.test(newPassword);
-    const hasNumber = /\d/.test(newPassword);
-    const isMatch = Boolean(newPassword && confirmPassword && newPassword === confirmPassword);
-    let score = 0;
-    if (hasLength) score++;
-    if (hasUpper) score++;
-    if (hasLower) score++;
-    if (hasNumber) score++;
-    return { score, hasLength, hasUpper, hasLower, hasNumber, isMatch };
-  }, [newPassword, confirmPassword]);
-
-  useEffect(() => {
-    if (activeTab === 'notifications') {
-      setBrowserPerm(getBrowserNotificationPermission());
-    }
-  }, [activeTab]);
   const backupInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  // Sync workspace fields from activeWorkspace
+  const syncWorkspaceFields = useCallback(() => {
     if (!activeWorkspace) return;
     setWorkspaceName(activeWorkspace.name || '');
     setWorkspaceCover(activeWorkspace.coverUrl || '');
@@ -322,6 +323,50 @@ export default function SettingsPanel({
     });
   }, [activeWorkspace]);
 
+  useEffect(() => {
+    syncWorkspaceFields();
+  }, [syncWorkspaceFields]);
+
+  // Dirty state detection for general workspace settings
+  const isWorkspaceDirty = useMemo(() => {
+    if (!activeWorkspace) return false;
+    const wsSettings = (activeWorkspace.settings || {}) as any;
+    return (
+      workspaceName !== (activeWorkspace.name || '') ||
+      workspaceCover !== (activeWorkspace.coverUrl || '') ||
+      workspaceLogo !== (activeWorkspace.logoUrl || '') ||
+      workspaceTheme !== ((activeWorkspace.theme as AccentPreset) || 'indigo') ||
+      workspaceDescription !== (wsSettings.description || '') ||
+      workspaceTimezone !== (wsSettings.timezone || 'Asia/Ho_Chi_Minh') ||
+      workspaceWeekStartsOn !== (wsSettings.weekStartsOn || 'monday') ||
+      workspaceDefaultRole !== (wsSettings.defaultRole || 'member') ||
+      workspaceAllowInvites !== Boolean(wsSettings.allowMemberInvites) ||
+      JSON.stringify(workspaceClickApps) !== JSON.stringify(wsSettings.defaultClickApps || {
+        timeTracking: true,
+        multipleAssignees: true,
+        customFields: true,
+        relationships: true,
+        subtasks: true,
+        priorities: true,
+      })
+    );
+  }, [activeWorkspace, workspaceName, workspaceCover, workspaceLogo, workspaceTheme, workspaceDescription, workspaceTimezone, workspaceWeekStartsOn, workspaceDefaultRole, workspaceAllowInvites, workspaceClickApps]);
+
+  // Keyboard shortcut Ctrl+S / Cmd+S
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        if (activeTab === 'general' && isWorkspaceDirty) {
+          e.preventDefault();
+          void saveWorkspace();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab, isWorkspaceDirty]);
+
+  // Load AI configuration
   useEffect(() => {
     localStorage.removeItem('apexa_gemini_api_key');
     const savedModel = localStorage.getItem('apexa_ai_model') || 'gemini-3.6-flash';
@@ -362,12 +407,50 @@ export default function SettingsPanel({
     if (activeTab === 'security') void loadSecurityState();
   }, [activeTab, loadSecurityState]);
 
+  useEffect(() => {
+    if (activeTab === 'notifications') {
+      setBrowserPerm(getBrowserNotificationPermission());
+    }
+  }, [activeTab]);
+
+  // Settings Search Items Index for smart navigation search
+  const searchIndex = useMemo(() => [
+    { tab: 'general' as SettingsTab, title: isVietnamese ? 'Tên & Nhận diện Workspace' : 'Workspace Name & Identity', desc: isVietnamese ? 'Logo, tên không gian, mô tả và ảnh bìa' : 'Logo, name, description and cover image' },
+    { tab: 'general' as SettingsTab, title: isVietnamese ? 'Màu thương hiệu & Múi giờ' : 'Brand Theme & Timezone', desc: isVietnamese ? 'Tùy chỉnh màu sắc và múi giờ làm việc' : 'Custom theme color and working calendar timezone' },
+    { tab: 'general' as SettingsTab, title: isVietnamese ? 'Tính năng chuyên sâu (ClickApps)' : 'Workspace Features (ClickApps)', desc: isVietnamese ? 'Time tracking, subtasks, mối liên kết, trường tùy chỉnh' : 'Time tracking, subtasks, relations, custom fields' },
+    { tab: 'general' as SettingsTab, title: isVietnamese ? 'Xóa không gian làm việc' : 'Delete Workspace', desc: isVietnamese ? 'Khu vực nguy hiểm và xóa vĩnh viễn' : 'Danger zone and permanent deletion' },
+    { tab: 'people' as SettingsTab, title: isVietnamese ? 'Thành viên & Đội ngũ' : 'Members & Teams', desc: isVietnamese ? 'Mời đồng đội, tổ chức nhóm và phân quyền' : 'Invite teammates, manage teams and permissions' },
+    { tab: 'preferences' as SettingsTab, title: isVietnamese ? 'Ngôn ngữ & Khu vực' : 'Language & Region', desc: isVietnamese ? 'Chuyển đổi Tiếng Việt và Tiếng Anh' : 'Switch between Vietnamese and English' },
+    { tab: 'preferences' as SettingsTab, title: isVietnamese ? 'Chế độ Sáng / Tối' : 'Color Mode (Dark / Light)', desc: isVietnamese ? 'Giao diện sáng, tối hoặc theo thiết bị' : 'Light, dark, or system mode' },
+    { tab: 'preferences' as SettingsTab, title: isVietnamese ? 'Màu nhấn & Độ sâu giao diện' : 'Accent & Visual Depth', desc: isVietnamese ? 'Màu nhấn, mật độ hiển thị, âm thanh phản hồi' : 'Accent color, UI density, system sound feedback' },
+    { tab: 'preferences' as SettingsTab, title: isVietnamese ? 'Sắp xếp module thanh bên' : 'Sidebar Modules Reorder', desc: isVietnamese ? 'Kéo thả sắp xếp vị trí các module thanh bên' : 'Rearrange navigation modules on sidebar' },
+    { tab: 'notifications' as SettingsTab, title: isVietnamese ? 'Thông báo trên máy tính (Popup)' : 'Desktop Browser Notifications', desc: isVietnamese ? 'Nhận thông báo khi đến hạn công việc' : 'Receive instant desktop popups for deadlines' },
+    { tab: 'notifications' as SettingsTab, title: isVietnamese ? 'Khung giờ yên tĩnh & Không làm phiền' : 'Quiet Hours & Focus Mode', desc: isVietnamese ? 'Tự động tắt tiếng thông báo trong giờ tập trung' : 'Mute non-urgent alerts during deep focus' },
+    { tab: 'ai_usage' as SettingsTab, title: isVietnamese ? 'Mô hình Costack AI (Gemini)' : 'Costack AI Models (Gemini)', desc: isVietnamese ? 'Lựa chọn mô hình Gemini 3.6 Flash, 2.5 Pro và nhiệt độ' : 'Select Gemini models and creativity temperature' },
+    { tab: 'ai_usage' as SettingsTab, title: isVietnamese ? 'Bản tin công việc buổi sáng' : 'Daily Morning Briefing', desc: isVietnamese ? 'Tự động rà soát việc quá hạn và ưu tiên mỗi ngày' : 'Automatic morning summary of deadlines and tasks' },
+    { tab: 'audit_logs' as SettingsTab, title: isVietnamese ? 'Nhật ký hoạt động Workspace' : 'Workspace Activity Audit', desc: isVietnamese ? 'Lịch sử thao tác của các thành viên' : 'Detailed timeline of member actions' },
+    { tab: 'security' as SettingsTab, title: isVietnamese ? 'Đổi mật khẩu tài khoản' : 'Change Password', desc: isVietnamese ? 'Cập nhật mật khẩu bảo mật' : 'Update your account password' },
+    { tab: 'security' as SettingsTab, title: isVietnamese ? 'Xác thực hai bước 2FA / TOTP' : 'Two-Factor Authentication (2FA)', desc: isVietnamese ? 'Quét mã QR bằng Google Authenticator' : 'Protect login with authenticator app' },
+    { tab: 'security' as SettingsTab, title: isVietnamese ? 'Phiên đăng nhập & Thiết bị' : 'Active Sessions & Devices', desc: isVietnamese ? 'Thu hồi phiên đăng nhập trên các thiết bị khác' : 'Sign out other active devices' },
+    { tab: 'data_export' as SettingsTab, title: isVietnamese ? 'Xuất dữ liệu JSON / CSV' : 'Export JSON / CSV Backup', desc: isVietnamese ? 'Tải bản sao lưu công việc và dữ liệu không gian' : 'Download workspace tasks and backups' },
+    { tab: 'data_export' as SettingsTab, title: isVietnamese ? 'Chính sách tự động dọn Thùng rác' : 'Trash Auto-Purge Policy', desc: isVietnamese ? 'Cấu hình tự động xóa vĩnh viễn sau 7, 14, 30 ngày' : 'Configure 7, 14, 30 days auto-deletion' },
+  ], [isVietnamese]);
+
+  const searchResults = useMemo(() => {
+    if (!settingsSearch.trim()) return [];
+    const query = settingsSearch.toLowerCase();
+    return searchIndex.filter(item => 
+      item.title.toLowerCase().includes(query) || 
+      item.desc.toLowerCase().includes(query)
+    );
+  }, [settingsSearch, searchIndex]);
+
   const visibleNavigation = navigationSections.map(section => ({
     ...section,
     items: section.items.filter(item => `${item.label} ${item.description}`.toLowerCase().includes(settingsSearch.toLowerCase()))
   })).filter(section => section.items.length > 0);
 
-  // Clean out low-level backend synchronization noise from UI activity feed
+  // Filter logs
   const cleanLogs = useMemo(() => {
     return syncLogs.filter(log => {
       const act = (log.action || '').toLowerCase();
@@ -624,7 +707,7 @@ export default function SettingsPanel({
     const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
     const link = document.createElement('a');
     link.href = url;
-    link.download = `apexa-${activeWorkspace?.name || 'workspace'}-${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `costack-${activeWorkspace?.name || 'workspace'}-${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
     URL.revokeObjectURL(url);
     triggerToast?.('success', t('exportReady') || 'Data ready', t('exportReadyDesc') || 'JSON backup downloaded.');
@@ -695,6 +778,20 @@ export default function SettingsPanel({
       triggerToast?.('error', isVietnamese ? 'Không thể sao chép' : 'Copy failed', isVietnamese ? 'Trình duyệt đã từ chối quyền truy cập clipboard.' : 'Clipboard permission was denied.');
     }
   };
+
+  const passwordStrength = useMemo(() => {
+    const hasLength = newPassword.length >= 10;
+    const hasUpper = /[A-Z]/.test(newPassword);
+    const hasLower = /[a-z]/.test(newPassword);
+    const hasNumber = /\d/.test(newPassword);
+    const isMatch = Boolean(newPassword && confirmPassword && newPassword === confirmPassword);
+    let score = 0;
+    if (hasLength) score++;
+    if (hasUpper) score++;
+    if (hasLower) score++;
+    if (hasNumber) score++;
+    return { score, hasLength, hasUpper, hasLower, hasNumber, isMatch };
+  }, [newPassword, confirmPassword]);
 
   const updatePassword = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -848,37 +945,112 @@ export default function SettingsPanel({
   };
 
   return (
-    <div className="relative flex flex-col md:flex-row h-full w-full overflow-hidden rounded-none border-0 bg-white dark:bg-slate-950">
+    <div className="relative flex flex-col md:flex-row h-full w-full overflow-hidden bg-slate-50 dark:bg-slate-950">
 
-      <aside className="flex flex-col border-b md:border-b-0 md:border-r border-slate-200/80 bg-white/95 p-3 md:p-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95 md:relative md:flex md:w-[276px] shrink-0 z-10">
-        <div className="mb-5 flex items-center justify-between px-1">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-500/20">
+      {/* ── DESKTOP & MOBILE SIDEBAR ── */}
+      {/* Mobile Slide-Over Drawer Backdrop */}
+      <AnimatePresence>
+        {mobileNavigationOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setMobileNavigationOpen(false)}
+            className="fixed inset-0 z-40 bg-black/50 md:hidden cursor-pointer backdrop-blur-xs"
+          />
+        )}
+      </AnimatePresence>
+
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 flex flex-col w-[280px] bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800 shadow-2xl md:shadow-none transition-transform duration-250 ease-out md:static md:translate-x-0 md:z-10 shrink-0
+        ${mobileNavigationOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
+        {/* Sidebar Header */}
+        <div className="p-4 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-500/20">
               <Settings2 className="h-4.5 w-4.5" />
             </div>
             <div>
-              <h1 className="text-sm font-black text-slate-950 dark:text-white">{t('settings') || 'Settings'}</h1>
-              <p className="text-[10px] font-medium text-slate-400">{t('settingsSubtitle') || 'Workspace Control Center'}</p>
+              <h1 className="text-sm font-black text-slate-900 dark:text-white leading-tight">
+                {isVietnamese ? 'Cài đặt hệ thống' : 'Costack Settings'}
+              </h1>
+              <p className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500 truncate max-w-[150px]">
+                {activeWorkspace?.name || 'Workspace'}
+              </p>
             </div>
           </div>
-          <button type="button" onClick={() => setMobileNavigationOpen(false)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 md:hidden"><X className="h-4 w-4" /></button>
+          <button
+            type="button"
+            onClick={() => setMobileNavigationOpen(false)}
+            className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 md:hidden cursor-pointer"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
-        <div className="relative mb-5">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-          <input 
-            value={settingsSearch} 
-            onChange={event => setSettingsSearch(event.target.value)} 
-            placeholder={t('searchSettings') || 'Search settings...'} 
-            className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-400 focus:bg-white dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200" 
-          />
+        {/* Search inside settings */}
+        <div className="p-3 border-b border-slate-100 dark:border-slate-800/60 relative">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <input 
+              value={settingsSearch} 
+              onChange={event => setSettingsSearch(event.target.value)} 
+              placeholder={isVietnamese ? 'Tìm nhanh cài đặt...' : 'Search settings...'} 
+              className="h-8.5 w-full rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 pl-8.5 pr-7 text-xs font-medium text-slate-700 dark:text-slate-200 outline-none transition focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900" 
+            />
+            {settingsSearch && (
+              <button
+                onClick={() => setSettingsSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Quick Search Dropdown Results */}
+          <AnimatePresence>
+            {settingsSearch.trim() && searchResults.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="absolute left-3 right-3 top-full mt-1 z-30 max-h-64 overflow-y-auto rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl p-1.5 space-y-1"
+              >
+                <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  {isVietnamese ? `Kết quả (${searchResults.length})` : `Matches (${searchResults.length})`}
+                </p>
+                {searchResults.map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(item.tab);
+                      setSettingsSearch('');
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs hover:bg-indigo-50 dark:hover:bg-slate-700/60 transition-colors group cursor-pointer"
+                  >
+                    <div className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 flex items-center justify-between">
+                      <span>{item.title}</span>
+                      <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                    <p className="text-[10.5px] text-slate-400 truncate">{item.desc}</p>
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        <nav className="min-h-0 flex-1 flex md:flex-col gap-2 md:gap-0 md:space-y-5 overflow-x-auto md:overflow-x-hidden md:overflow-y-auto pr-1 pb-2 md:pb-0 scrollbar-none">
+        {/* Navigation list */}
+        <nav className="flex-1 overflow-y-auto p-3 space-y-5 scrollbar-thin">
           {visibleNavigation.map(section => (
-            <div key={section.label} className="flex md:block gap-2">
-              <p className="hidden md:block mb-1.5 px-2 text-[9px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">{section.label}</p>
-              <div className="flex md:block space-x-2 md:space-x-0 md:space-y-1">
+            <div key={section.label} className="space-y-1">
+              <p className="px-2.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500 mb-1.5">
+                {section.label}
+              </p>
+              <div className="space-y-0.5">
                 {section.items.map(item => {
                   const Icon = item.icon;
                   const selected = item.id === activeTab;
@@ -887,25 +1059,35 @@ export default function SettingsPanel({
                       key={item.id} 
                       type="button" 
                       onClick={() => setActiveTab(item.id)} 
-                      className={`relative group flex shrink-0 md:w-full items-center gap-2 md:gap-3 rounded-xl px-3 py-2 md:py-2.5 text-left transition-colors cursor-pointer select-none ${
+                      className={`relative group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors cursor-pointer select-none ${
                         selected 
                           ? 'text-indigo-700 dark:text-indigo-300 font-bold' 
-                          : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100/60 dark:hover:bg-slate-900/60'
+                          : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
                       }`}
                     >
                       {selected && (
                         <motion.div
                           layoutId="settingsNavActivePill"
                           transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-                          className="absolute inset-0 rounded-xl bg-indigo-50 border border-indigo-100/90 dark:bg-indigo-950/40 dark:border-indigo-900/50 shadow-2xs pointer-events-none"
+                          className="absolute inset-0 rounded-xl bg-indigo-50 border border-indigo-200/70 dark:bg-indigo-950/40 dark:border-indigo-900/50 shadow-2xs pointer-events-none"
                         />
                       )}
                       <Icon className={`relative z-10 h-4 w-4 shrink-0 transition-colors ${selected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'}`} />
-                      <span className="relative z-10 min-w-0 flex-1">
-                        <span className="block truncate text-xs font-bold">{item.label}</span>
-                        <span className={`hidden md:block mt-0.5 truncate text-[10px] ${selected ? 'text-indigo-500/80 dark:text-indigo-400/70' : 'text-slate-400 dark:text-slate-500'}`}>{item.description}</span>
+                      <span className="relative z-10 min-w-0 flex-1 truncate text-xs font-semibold">
+                        {item.label}
                       </span>
-                      <ChevronRight className={`relative z-10 hidden md:block h-3.5 w-3.5 transition-opacity ${selected ? 'opacity-100 text-indigo-500' : 'opacity-0 group-hover:opacity-40'}`} />
+                      {item.badge !== undefined && (
+                        <span className={`relative z-10 text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
+                          selected 
+                            ? 'bg-indigo-200/70 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200' 
+                            : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                        }`}>
+                          {item.badge}
+                        </span>
+                      )}
+                      {selected && (
+                        <div className="relative z-10 w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400 shrink-0" />
+                      )}
                     </button>
                   );
                 })}
@@ -914,1455 +1096,1738 @@ export default function SettingsPanel({
           ))}
         </nav>
 
-        <div className="mt-4 border-t border-slate-200/70 pt-4 dark:border-slate-800">
+        {/* Sidebar Footer User Card */}
+        <div className="p-3 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50">
           {currentUser && (
-            <div className="mb-2 flex items-center gap-2.5 rounded-xl bg-slate-50 p-2.5 dark:bg-slate-900">
-              <SignedImage filePath={currentUser.avatar} alt={currentUser.name} className="h-8 w-8 shrink-0 overflow-hidden rounded-full" />
-              <div className="min-w-0 flex-1"><p className="truncate text-xs font-extrabold text-slate-800 dark:text-slate-200">{currentUser.name}</p><p className="truncate text-[10px] text-slate-400">{currentUser.email}</p></div>
+            <div className="flex items-center gap-2.5 rounded-xl bg-white dark:bg-slate-800/80 p-2.5 border border-slate-200/60 dark:border-slate-700/60 shadow-2xs mb-2">
+              <SignedImage filePath={currentUser.avatar} alt={currentUser.name} className="h-8 w-8 shrink-0 overflow-hidden rounded-full ring-1 ring-slate-200 dark:ring-slate-700" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-bold text-slate-800 dark:text-slate-100">{currentUser.name}</p>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-slate-400 truncate">{currentUser.email}</span>
+                </div>
+              </div>
+              <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-900/50">
+                {currentUser.role === 'admin' ? 'Admin' : 'Member'}
+              </span>
             </div>
           )}
-          <button type="button" onClick={onLogout} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-rose-600 transition hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/20 cursor-pointer">
-            <LogOut className="h-4 w-4" />{t('signOut') || (isVietnamese ? 'Đăng xuất' : 'Sign Out')}
+          <button 
+            type="button" 
+            onClick={onLogout} 
+            className="flex w-full items-center justify-center gap-2 rounded-xl px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30 transition-colors cursor-pointer border border-transparent hover:border-rose-200 dark:hover:border-rose-900/50"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span>{t('signOut') || (isVietnamese ? 'Đăng xuất tài khoản' : 'Sign Out')}</span>
           </button>
         </div>
       </aside>
 
-      <section className="min-w-0 flex-1 overflow-y-auto bg-white dark:bg-slate-950" aria-label="Settings Content">
-        <div className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-200/70 bg-white/90 px-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90 md:px-7">
+      {/* ── MAIN CONTENT AREA ── */}
+      <section className="min-w-0 flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950" aria-label="Settings Content">
+        {/* Sticky Header */}
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 md:px-8 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-900/90 shrink-0">
           <div className="flex items-center gap-3">
-            <button type="button" onClick={() => setMobileNavigationOpen(true)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900 md:hidden"><Menu className="h-4 w-4" /></button>
-            <div>
-              <p className="text-xs font-black text-slate-800 dark:text-slate-200">
+            <button 
+              type="button" 
+              onClick={() => setMobileNavigationOpen(true)} 
+              className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 md:hidden cursor-pointer"
+            >
+              <Menu className="h-4 w-4" />
+            </button>
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-slate-400 dark:text-slate-500 font-medium">
+                {isVietnamese ? 'Cài đặt' : 'Settings'}
+              </span>
+              <ChevronRight className="h-3 w-3 text-slate-300 dark:text-slate-600" />
+              <span className="font-bold text-slate-800 dark:text-slate-100">
                 {navigationSections.flatMap(section => section.items).find(item => item.id === activeTab)?.label}
-              </p>
-              <p className="hidden text-[10px] text-slate-400 sm:block">
-                {isVietnamese ? 'Thay đổi được lưu an toàn và đồng bộ tức thì' : 'Changes saved safely and synced instantly'}
-              </p>
+              </span>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            {t('systemOperational') || (isVietnamese ? 'Hệ thống hoạt động bình thường' : 'System Operational')}
-          </div>
-        </div>
 
-        <AnimatePresence mode="wait">
-          <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }} className="mx-auto max-w-5xl space-y-6 p-3 sm:p-5 md:p-7 lg:p-9 pb-16">
-            {activeTab === 'general' && (
-              <>
-                <SectionHeader 
-                  eyebrow={t('workspaceAdmin') || (isVietnamese ? 'Quản trị không gian' : 'Workspace Admin')} 
-                  title={t('workspaceIdentity') || (isVietnamese ? 'Nhận diện không gian làm việc' : 'Workspace Identity')} 
-                  description={t('workspaceIdentityDesc') || (isVietnamese ? 'Quản lý tên, hình ảnh nhận diện và các thiết lập mặc định mà đội ngũ sử dụng mỗi ngày.' : 'Manage name, branding and default settings for your team.')} 
-                  action={
-                    <button type="button" onClick={() => setCreateWorkspaceOpen(true)} className="inline-flex h-9 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-extrabold text-white shadow-lg shadow-blue-500/15 transition hover:bg-indigo-700 cursor-pointer">
-                      <Plus className="h-3.5 w-3.5" />{t('createWorkspaceBtn') || (isVietnamese ? 'Tạo không gian' : 'Create Workspace')}
-                    </button>
-                  } 
-                />
-                {activeWorkspace ? (
-                  <>
-                    <div className="relative h-48 overflow-hidden rounded-2xl border border-slate-200 bg-slate-900 dark:border-slate-800">
-                      {workspaceCover ? <img src={workspaceCover} alt="Workspace Cover" className="h-full w-full object-cover opacity-80" /> : <div className="h-full w-full bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400" />}
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-950/10 to-transparent" />
-                      <div className="absolute inset-x-5 bottom-5 flex items-end gap-3">
-                        <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-white/30 bg-white/95 text-xl font-black text-indigo-600 shadow-xl">
-                          {workspaceLogo ? <img src={workspaceLogo} alt="Logo" className="h-full w-full object-cover" /> : workspaceName.charAt(0).toUpperCase()}
+          <div className="flex items-center gap-3">
+            {activeTab === 'general' && isWorkspaceDirty && (
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-semibold animate-pulse">
+                <span className="w-2 h-2 rounded-full bg-amber-500" />
+                {isVietnamese ? 'Chưa lưu thay đổi' : 'Unsaved changes'}
+              </span>
+            )}
+            <div className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10.5px] font-bold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-400 shadow-2xs">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="hidden sm:inline">{t('systemOperational') || (isVietnamese ? 'Hệ thống trực tuyến' : 'Online')}</span>
+            </div>
+          </div>
+        </header>
+
+        {/* Scrollable Tab Content Container */}
+        <div className="flex-1 overflow-y-auto">
+          <AnimatePresence mode="wait">
+            <motion.div 
+              key={activeTab} 
+              initial={{ opacity: 0, y: 8 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0, y: -4 }} 
+              transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }} 
+              className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6 md:p-8 pb-24"
+            >
+              
+              {/* ── TAB 1: GENERAL (WORKSPACE) ── */}
+              {activeTab === 'general' && (
+                <>
+                  <SectionHeader 
+                    eyebrow={t('workspaceAdmin') || (isVietnamese ? 'Quản trị không gian' : 'Workspace Admin')} 
+                    title={t('workspaceIdentity') || (isVietnamese ? 'Nhận diện & Cấu hình không gian' : 'Workspace Identity & Config')} 
+                    description={t('workspaceIdentityDesc') || (isVietnamese ? 'Quản lý tên, thương hiệu, múi giờ và các tính năng mặc định trong không gian làm việc.' : 'Manage name, branding, timezone and default modules for your team.')} 
+                    action={
+                      <div className="flex items-center gap-2">
+                        {isWorkspaceDirty && (
+                          <button
+                            type="button"
+                            onClick={saveWorkspace}
+                            disabled={isSavingWorkspace}
+                            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 text-xs font-bold shadow-md shadow-indigo-500/15 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                          >
+                            {isSavingWorkspace ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                            <span>{isVietnamese ? 'Lưu thay đổi' : 'Save Changes'}</span>
+                          </button>
+                        )}
+                        <button 
+                          type="button" 
+                          onClick={() => setCreateWorkspaceOpen(true)} 
+                          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-3.5 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors shadow-2xs cursor-pointer"
+                        >
+                          <Plus className="h-3.5 w-3.5 text-indigo-500" />
+                          <span>{t('createWorkspaceBtn') || (isVietnamese ? 'Tạo không gian mới' : 'New Workspace')}</span>
+                        </button>
+                      </div>
+                    } 
+                  />
+
+                  {activeWorkspace ? (
+                    <>
+                      {/* Workspace Hero Banner Preview */}
+                      <div className="relative h-44 sm:h-52 overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-900 shadow-md group">
+                        {workspaceCover ? (
+                          <img src={workspaceCover} alt="Workspace Cover" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-102 opacity-85" />
+                        ) : (
+                          <div className="h-full w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 opacity-90" />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-transparent" />
+                        
+                        {/* Change cover button overlay */}
+                        <div className="absolute top-3 right-3 opacity-90 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+                          <input
+                            ref={coverInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            onChange={handleCoverUpload}
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => coverInputRef.current?.click()}
+                            disabled={isUploadingCover}
+                            className="px-2.5 py-1.5 rounded-xl bg-black/50 hover:bg-black/70 text-white backdrop-blur-md text-[11px] font-semibold border border-white/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                          >
+                            {isUploadingCover ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                            <span>{isUploadingCover ? (isVietnamese ? 'Đang tải...' : 'Uploading...') : (isVietnamese ? 'Đổi ảnh bìa' : 'Change Cover')}</span>
+                          </button>
+                          {workspaceCover && (
+                            <button
+                              type="button"
+                              onClick={() => setWorkspaceCover('')}
+                              className="p-1.5 rounded-xl bg-black/50 hover:bg-rose-900/60 text-white backdrop-blur-md border border-white/20 transition-all cursor-pointer"
+                              title={isVietnamese ? 'Xóa ảnh bìa' : 'Remove cover'}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          )}
                         </div>
-                        <div>
-                          <p className="text-lg font-black text-white">{workspaceName || activeWorkspace.name}</p>
-                          <p className="text-xs font-medium text-white/70">
-                            {members.length} {t('members') || 'members'} · {tasks.filter(task => task.workspaceId === activeWorkspace.id).length} {t('tasks') || 'tasks'}
-                          </p>
+
+                        {/* Workspace Identity in Banner */}
+                        <div className="absolute inset-x-5 bottom-4 flex items-end gap-3.5">
+                          <div 
+                            onClick={() => logoInputRef.current?.click()}
+                            className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-white/40 bg-white dark:bg-slate-900 text-xl font-black text-indigo-600 shadow-xl cursor-pointer group/logo"
+                            title={isVietnamese ? 'Nhấn để đổi logo' : 'Click to change logo'}
+                          >
+                            {workspaceLogo ? (
+                              <img src={workspaceLogo} alt="Logo" className="h-full w-full object-cover" />
+                            ) : (
+                              <span>{(workspaceName || activeWorkspace.name || 'W').charAt(0).toUpperCase()}</span>
+                            )}
+                            <div className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center">
+                              <Upload className="h-4 w-4" />
+                            </div>
+                          </div>
+                          <div className="min-w-0 flex-1 pb-0.5">
+                            <h3 className="text-lg sm:text-xl font-black text-white truncate drop-shadow-sm">
+                              {workspaceName || activeWorkspace.name}
+                            </h3>
+                            <p className="text-xs font-medium text-white/75 truncate">
+                              {members.length} {t('members') || 'members'} · {tasks.filter(task => task.workspaceId === activeWorkspace.id).length} {t('tasks') || 'tasks'}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <SettingsCard title={t('basicInformation') || (isVietnamese ? 'Thông tin cơ bản' : 'Basic Information')} description={t('basicInformationDesc') || (isVietnamese ? 'Sử dụng tên rõ ràng và hình ảnh nhận diện dễ nhớ.' : 'Use a clear name and memorable logo.')} icon={CircleUserRound}>
-                      <div className="grid gap-5 sm:grid-cols-2">
-                        <label className="space-y-1.5">
-                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{t('workspaceName') || (isVietnamese ? 'Tên không gian' : 'Workspace Name')}</span>
-                          <input value={workspaceName} onChange={event => setWorkspaceName(event.target.value)} maxLength={60} className={inputClass} />
-                        </label>
-                        <div>
-                          <div className="flex items-center justify-between gap-3 mb-1.5">
+
+                      {/* Basic Identity Card */}
+                      <SettingsCard 
+                        title={t('basicInformation') || (isVietnamese ? 'Thông tin cơ bản' : 'Basic Information')} 
+                        description={t('basicInformationDesc') || (isVietnamese ? 'Tên hiển thị, logo và giới thiệu ngắn về không gian làm việc.' : 'Display name, branding logo and brief description.')} 
+                        icon={CircleUserRound}
+                      >
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <label className="space-y-1.5">
                             <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                              {isVietnamese ? 'Logo không gian' : 'Workspace Logo'}
+                              {t('workspaceName') || (isVietnamese ? 'Tên không gian' : 'Workspace Name')}
                             </span>
-                            {workspaceLogo && (
-                              <button
-                                type="button"
-                                onClick={() => setWorkspaceLogo('')}
-                                className="text-[10px] font-bold text-rose-500 hover:underline cursor-pointer"
-                              >
-                                {t('removeLogo') || (isVietnamese ? 'Gỡ logo' : 'Remove logo')}
-                              </button>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <input
-                              ref={logoInputRef}
-                              type="file"
-                              accept="image/png,image/jpeg,image/webp"
-                              onChange={handleLogoUpload}
-                              className="hidden"
+                            <input 
+                              value={workspaceName} 
+                              onChange={event => setWorkspaceName(event.target.value)} 
+                              maxLength={60} 
+                              className={inputClass} 
                             />
-                            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-black text-xs text-slate-700 dark:text-slate-200 shadow-2xs">
-                              {workspaceLogo ? (
-                                <img src={workspaceLogo} alt="Logo" className="h-full w-full object-cover" />
-                              ) : (
-                                <span>{(workspaceName || activeWorkspace.name || 'A').charAt(0).toUpperCase()}</span>
+                          </label>
+
+                          <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                                {isVietnamese ? 'Logo không gian' : 'Workspace Logo'}
+                              </span>
+                              {workspaceLogo && (
+                                <button
+                                  type="button"
+                                  onClick={() => setWorkspaceLogo('')}
+                                  className="text-[10px] font-bold text-rose-500 hover:underline cursor-pointer"
+                                >
+                                  {isVietnamese ? 'Gỡ logo' : 'Remove'}
+                                </button>
                               )}
                             </div>
-                            <div className="flex flex-1 items-center gap-2.5 min-w-0">
+                            <div className="flex items-center gap-2.5">
+                              <input
+                                ref={logoInputRef}
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                onChange={handleLogoUpload}
+                                className="hidden"
+                              />
                               <button
                                 type="button"
                                 onClick={() => logoInputRef.current?.click()}
                                 disabled={isUploadingLogo}
-                                className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors shadow-3xs cursor-pointer disabled:opacity-50"
+                                className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-50"
                               >
                                 {isUploadingLogo ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                                <span>
-                                  {isUploadingLogo
-                                    ? (isVietnamese ? 'Đang tải lên...' : 'Uploading...')
-                                    : (workspaceLogo
-                                        ? (isVietnamese ? 'Thay đổi logo' : 'Change logo')
-                                        : (t('uploadLogo') || (isVietnamese ? 'Tải logo lên' : 'Upload logo')))}
-                                </span>
+                                <span>{isUploadingLogo ? (isVietnamese ? 'Đang tải...' : 'Uploading...') : (isVietnamese ? 'Tải ảnh logo' : 'Upload Logo')}</span>
                               </button>
-                              <span className="text-[11px] text-slate-400 dark:text-slate-500 truncate">
-                                {workspaceLogo 
-                                  ? (isVietnamese ? 'Đã tải lên logo' : 'Logo uploaded')
-                                  : (isVietnamese ? 'Hỗ trợ PNG, JPG, WebP' : 'Supports PNG, JPG, WebP')}
+                              <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                                {isVietnamese ? 'Hỗ trợ PNG, JPG, WebP < 2MB' : 'PNG, JPG, WebP up to 2MB'}
                               </span>
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="mt-5">
-                        <label className="space-y-1.5">
-                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                            {t('workspaceDescription') || (isVietnamese ? 'Mô tả không gian làm việc' : 'Workspace Description')}
-                          </span>
-                          <textarea
-                            value={workspaceDescription}
-                            onChange={event => setWorkspaceDescription(event.target.value)}
-                            rows={2}
-                            maxLength={300}
-                            placeholder={t('workspaceDescriptionPlaceholder') || (isVietnamese ? 'Mô tả ngắn gọn mục tiêu, phòng ban hoặc phạm vi của không gian này...' : 'Briefly describe the goal, team or scope of this workspace...')}
-                            className="w-full rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-950 p-3 text-xs font-semibold text-slate-850 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-3 focus:ring-indigo-500/10 placeholder:text-slate-400 resize-none"
-                          />
-                        </label>
-                      </div>
-
-                      <div className="mt-5">
-                        <div className="mb-2 flex items-center justify-between gap-3">
-                          <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{isVietnamese ? 'Ảnh bìa không gian' : 'Workspace Cover'}</p>
-                          <div className="flex items-center gap-2">
-                            <input
-                              ref={coverInputRef}
-                              type="file"
-                              accept="image/png,image/jpeg,image/webp"
-                              onChange={handleCoverUpload}
-                              className="hidden"
+                        <div className="mt-4">
+                          <label className="space-y-1.5">
+                            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                              {t('workspaceDescription') || (isVietnamese ? 'Mô tả không gian' : 'Workspace Description')}
+                            </span>
+                            <textarea
+                              value={workspaceDescription}
+                              onChange={event => setWorkspaceDescription(event.target.value)}
+                              rows={2}
+                              maxLength={300}
+                              placeholder={isVietnamese ? 'Mô tả ngắn gọn mục tiêu, phòng ban hoặc định hướng của không gian...' : 'Brief description of this workspace purpose...'}
+                              className="w-full rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900/90 p-3 text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 placeholder:text-slate-400 resize-none"
                             />
-                            <button
-                              type="button"
-                              onClick={() => coverInputRef.current?.click()}
-                              disabled={isUploadingCover}
-                              className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-600 hover:underline dark:text-sky-400 cursor-pointer"
-                            >
-                              {isUploadingCover ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
-                              <span>{isUploadingCover ? (isVietnamese ? 'Đang tải...' : 'Uploading...') : (t('uploadCover') || (isVietnamese ? 'Tải ảnh bìa' : 'Upload cover'))}</span>
-                            </button>
-                            {workspaceCover && (
+                          </label>
+                        </div>
+
+                        {/* Cover Image Presets */}
+                        <div className="mt-4">
+                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-2">
+                            {isVietnamese ? 'Ảnh bìa mẫu có sẵn' : 'Cover Image Presets'}
+                          </span>
+                          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                            {WORKSPACE_COVERS.map(cover => (
                               <button
                                 type="button"
-                                onClick={() => setWorkspaceCover('')}
-                                className="text-[10px] font-bold text-rose-500 hover:underline cursor-pointer"
+                                key={cover.id}
+                                onClick={() => setWorkspaceCover(cover.url)}
+                                className={`aspect-[16/9] overflow-hidden rounded-xl border transition-all cursor-pointer ${
+                                  workspaceCover === cover.url
+                                    ? 'border-indigo-500 ring-2 ring-indigo-500/30 scale-102'
+                                    : 'border-slate-200 dark:border-slate-800 opacity-75 hover:opacity-100'
+                                }`}
                               >
-                                {t('removeCover') || (isVietnamese ? 'Xóa ảnh bìa' : 'Remove cover')}
+                                <img src={cover.url} alt={cover.name} className="h-full w-full object-cover" />
                               </button>
-                            )}
+                            ))}
                           </div>
                         </div>
-                        <input type="url" value={workspaceCover} onChange={event => setWorkspaceCover(event.target.value)} placeholder="https://…/cover.jpg" className={inputClass} />
-                        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
-                          {WORKSPACE_COVERS.map(cover => (
-                            <button type="button" key={cover.id} onClick={() => setWorkspaceCover(cover.url)} aria-label={cover.name} aria-pressed={workspaceCover === cover.url} className={`aspect-[16/9] overflow-hidden rounded-lg border transition cursor-pointer ${workspaceCover === cover.url ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-slate-200 opacity-75 hover:opacity-100 dark:border-slate-800'}`}>
-                              <img src={cover.url} alt="" className="h-full w-full object-cover" />
-                            </button>
-                          ))}
+
+                        {/* Brand Theme Swatches */}
+                        <div className="mt-5">
+                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-2">
+                            {t('brandColor') || (isVietnamese ? 'Màu chủ đề không gian' : 'Brand Theme Color')}
+                          </span>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                            {accentOptions.map(option => (
+                              <button
+                                type="button"
+                                key={option.id}
+                                onClick={() => setWorkspaceTheme(option.id)}
+                                className={`flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition-all cursor-pointer ${
+                                  workspaceTheme === option.id
+                                    ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 ring-1 ring-indigo-500'
+                                    : 'border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-700'
+                                }`}
+                              >
+                                <span className={`h-6 w-6 rounded-lg shrink-0 shadow-xs ${option.className}`} />
+                                <span className="min-w-0 flex-1">
+                                  <span className="block text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{option.name}</span>
+                                  <span className="text-[10px] font-mono text-slate-400">{option.hex}</span>
+                                </span>
+                                {workspaceTheme === option.id && <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                      <div className="mt-5">
-                        <p className="mb-2 text-[11px] font-bold text-slate-600 dark:text-slate-300">{t('brandColor') || (isVietnamese ? 'Màu thương hiệu' : 'Brand Color')}</p>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                          {accentOptions.map(option => (
-                            <button type="button" key={option.id} onClick={() => setWorkspaceTheme(option.id)} className={`flex items-center gap-2 rounded-xl border p-2.5 text-left transition cursor-pointer ${workspaceTheme === option.id ? 'border-indigo-400 bg-indigo-50 ring-2 ring-indigo-500/10 dark:bg-indigo-950/20' : 'border-slate-200 hover:border-slate-300 dark:border-slate-800'}`}>
-                              <span className={`h-7 w-7 rounded-lg ${option.className}`} />
-                              <span>
-                                <span className="block text-[11px] font-extrabold text-slate-700 dark:text-slate-200">{option.name}</span>
-                                <span className="text-[9px] font-mono text-slate-400">{option.hex}</span>
-                              </span>
-                              {workspaceTheme === option.id && <Check className="ml-auto h-3.5 w-3.5 text-indigo-600" />}
-                            </button>
-                          ))}
+                      </SettingsCard>
+
+                      {/* Timezone & Working Calendar Card */}
+                      <SettingsCard
+                        title={isVietnamese ? 'Múi giờ & Lịch làm việc' : 'Timezone & Working Calendar'}
+                        description={isVietnamese ? 'Định cấu hình múi giờ và ngày bắt đầu tuần áp dụng cho các hạn chót và lịch biểu.' : 'Set timezone and first day of week for tasks and calendars.'}
+                        icon={Clock}
+                      >
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <label className="space-y-1.5">
+                            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                              {t('workspaceTimezone') || (isVietnamese ? 'Múi giờ chính' : 'Primary Timezone')}
+                            </span>
+                            <Select
+                              value={workspaceTimezone}
+                              onChange={setWorkspaceTimezone}
+                              className="w-full"
+                              ariaLabel="Workspace Timezone"
+                              options={[
+                                { value: 'Asia/Ho_Chi_Minh', label: 'Asia/Ho Chi Minh (GMT+7)' },
+                                { value: 'Asia/Bangkok', label: 'Asia/Bangkok (GMT+7)' },
+                                { value: 'Asia/Singapore', label: 'Asia/Singapore (GMT+8)' },
+                                { value: 'Asia/Tokyo', label: 'Asia/Tokyo (GMT+9)' },
+                                { value: 'UTC', label: 'UTC (GMT+0)' },
+                                { value: 'Europe/London', label: 'Europe/London (GMT+0 / GMT+1)' },
+                                { value: 'America/New_York', label: 'America/New York (GMT-5 / GMT-4)' },
+                                { value: 'America/Los_Angeles', label: 'America/Los Angeles (GMT-8 / GMT-7)' },
+                                { value: 'Australia/Sydney', label: 'Australia/Sydney (GMT+10 / GMT+11)' },
+                              ]}
+                            />
+                          </label>
+
+                          <label className="space-y-1.5">
+                            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                              {t('weekStartsOn') || (isVietnamese ? 'Ngày bắt đầu tuần' : 'Week Starts On')}
+                            </span>
+                            <Select
+                              value={workspaceWeekStartsOn}
+                              onChange={v => setWorkspaceWeekStartsOn(v as 'monday' | 'sunday')}
+                              className="w-full"
+                              ariaLabel="Week Starts On"
+                              options={[
+                                { value: 'monday', label: isVietnamese ? 'Thứ Hai (Mặc định)' : 'Monday (Default)' },
+                                { value: 'sunday', label: isVietnamese ? 'Chủ Nhật' : 'Sunday' },
+                              ]}
+                            />
+                          </label>
                         </div>
-                      </div>
-                      <div className="mt-5 flex justify-end">
-                        <button type="button" onClick={saveWorkspace} disabled={!workspaceName.trim() || isSavingWorkspace} className="inline-flex h-9 items-center gap-2 rounded-xl bg-slate-950 px-4 text-xs font-extrabold text-white transition hover:bg-slate-800 disabled:opacity-50 dark:bg-white dark:text-slate-950 cursor-pointer">
-                          {isSavingWorkspace ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                          {t('saveChanges') || (isVietnamese ? 'Lưu thay đổi' : 'Save Changes')}
-                        </button>
-                      </div>
-                    </SettingsCard>
+                      </SettingsCard>
 
-                    <SettingsCard
-                      title={isVietnamese ? 'Múi giờ & Lịch làm việc' : 'Timezone & Working Calendar'}
-                      description={isVietnamese ? 'Định cấu hình múi giờ chính và ngày bắt đầu tuần cho các công việc trong không gian.' : 'Set the primary timezone and first day of the week for all workspace schedules.'}
-                      icon={Clock}
-                    >
-                      <div className="grid gap-5 sm:grid-cols-2">
-                        <label className="space-y-1.5">
-                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{t('workspaceTimezone') || (isVietnamese ? 'Múi giờ chính' : 'Primary Timezone')}</span>
-                          <Select
-                            value={workspaceTimezone}
-                            onChange={setWorkspaceTimezone}
-                            className="w-full"
-                            ariaLabel="Workspace Timezone"
-                            options={[
-                              { value: 'Asia/Ho_Chi_Minh', label: 'Asia/Ho Chi Minh (GMT+7)' },
-                              { value: 'Asia/Bangkok', label: 'Asia/Bangkok (GMT+7)' },
-                              { value: 'Asia/Singapore', label: 'Asia/Singapore (GMT+8)' },
-                              { value: 'Asia/Tokyo', label: 'Asia/Tokyo (GMT+9)' },
-                              { value: 'UTC', label: 'UTC (GMT+0)' },
-                              { value: 'Europe/London', label: 'Europe/London (GMT+0 / GMT+1)' },
-                              { value: 'America/New_York', label: 'America/New York (GMT-5 / GMT-4)' },
-                              { value: 'America/Los_Angeles', label: 'America/Los Angeles (GMT-8 / GMT-7)' },
-                              { value: 'Australia/Sydney', label: 'Australia/Sydney (GMT+10 / GMT+11)' },
-                            ]}
-                          />
-                        </label>
-                        <label className="space-y-1.5">
-                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{t('weekStartsOn') || (isVietnamese ? 'Ngày bắt đầu tuần' : 'Week Starts On')}</span>
-                          <Select
-                            value={workspaceWeekStartsOn}
-                            onChange={v => setWorkspaceWeekStartsOn(v as 'monday' | 'sunday')}
-                            className="w-full"
-                            ariaLabel="Week Starts On"
-                            options={[
-                              { value: 'monday', label: t('monday') || (isVietnamese ? 'Thứ Hai (Mặc định)' : 'Monday (Default)') },
-                              { value: 'sunday', label: t('sunday') || (isVietnamese ? 'Chủ Nhật' : 'Sunday') },
-                            ]}
-                          />
-                        </label>
-                      </div>
-                      <div className="mt-5 flex justify-end">
-                        <button type="button" onClick={saveWorkspace} disabled={!workspaceName.trim() || isSavingWorkspace} className="inline-flex h-9 items-center gap-2 rounded-xl bg-slate-950 px-4 text-xs font-extrabold text-white transition hover:bg-slate-800 disabled:opacity-50 dark:bg-white dark:text-slate-950 cursor-pointer">
-                          {isSavingWorkspace ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                          {t('saveChanges') || (isVietnamese ? 'Lưu thay đổi' : 'Save Changes')}
-                        </button>
-                      </div>
-                    </SettingsCard>
+                      {/* Member Permissions Card */}
+                      <SettingsCard
+                        title={isVietnamese ? 'Quyền hạn & Thành viên mới' : 'Permissions & New Members'}
+                        description={isVietnamese ? 'Thiết lập vai trò mặc định và quyền gửi lời mời tham gia.' : 'Configure default roles and teammate invitation rules.'}
+                        icon={Users}
+                      >
+                        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                          <SettingRow
+                            title={t('defaultMemberRole') || (isVietnamese ? 'Vai trò mặc định cho người mới' : 'Default Role for New Members')}
+                            description={isVietnamese ? 'Vai trò được gán tự động khi thành viên tham gia qua liên kết hoặc lời mời.' : 'Role assigned automatically when someone joins.'}
+                          >
+                            <Select
+                              value={workspaceDefaultRole}
+                              onChange={v => setWorkspaceDefaultRole(v as 'member' | 'guest')}
+                              className="w-44"
+                              ariaLabel="Default Member Role"
+                              options={[
+                                { value: 'member', label: isVietnamese ? 'Thành viên (Member)' : 'Member' },
+                                { value: 'guest', label: isVietnamese ? 'Khách (Guest)' : 'Guest' },
+                              ]}
+                            />
+                          </SettingRow>
 
-                    <SettingsCard
-                      title={isVietnamese ? 'Quyền hạn & Thành viên mặc định' : 'Member Defaults & Permissions'}
-                      description={isVietnamese ? 'Cài đặt vai trò mặc định cho thành viên mới tham gia và quyền mời thành viên.' : 'Configure default roles for newly joined teammates and invitation privileges.'}
-                      icon={Users}
-                    >
-                      <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                        <SettingRow
-                          title={t('defaultMemberRole') || (isVietnamese ? 'Vai trò mặc định cho thành viên mới' : 'Default Role for New Members')}
-                          description={isVietnamese ? 'Vai trò được gán tự động khi người dùng tham gia qua liên kết hoặc lời mời.' : 'Role assigned automatically when someone joins via invite or link.'}
-                        >
-                          <Select
-                            value={workspaceDefaultRole}
-                            onChange={v => setWorkspaceDefaultRole(v as 'member' | 'guest')}
-                            className="w-48"
-                            ariaLabel="Default Member Role"
-                            options={[
-                              { value: 'member', label: t('roleMember') || (isVietnamese ? 'Thành viên (Member)' : 'Member') },
-                              { value: 'guest', label: t('roleGuest') || (isVietnamese ? 'Khách (Guest)' : 'Guest') },
-                            ]}
-                          />
-                        </SettingRow>
-                        <SettingRow
-                          title={t('allowMemberInvites') || (isVietnamese ? 'Cho phép thành viên gửi lời mời' : 'Allow Members to Invite')}
-                          description={t('allowMemberInvitesDesc') || (isVietnamese ? 'Thành viên thông thường có thể mời người khác vào không gian này.' : 'Regular members can invite other people to this workspace.')}
-                          last
-                        >
-                          <Toggle
-                            checked={workspaceAllowInvites}
-                            onChange={setWorkspaceAllowInvites}
-                            label={t('allowMemberInvites') || 'Allow Member Invites'}
-                          />
-                        </SettingRow>
-                      </div>
-                      <div className="mt-5 flex justify-end">
-                        <button type="button" onClick={saveWorkspace} disabled={!workspaceName.trim() || isSavingWorkspace} className="inline-flex h-9 items-center gap-2 rounded-xl bg-slate-950 px-4 text-xs font-extrabold text-white transition hover:bg-slate-800 disabled:opacity-50 dark:bg-white dark:text-slate-950 cursor-pointer">
-                          {isSavingWorkspace ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                          {t('saveChanges') || (isVietnamese ? 'Lưu thay đổi' : 'Save Changes')}
-                        </button>
-                      </div>
-                    </SettingsCard>
-
-                    <SettingsCard
-                      title={t('workspaceClickApps') || (isVietnamese ? 'Tính năng không gian (ClickApps)' : 'Workspace Features (ClickApps)')}
-                      description={t('workspaceClickAppsDesc') || (isVietnamese ? 'Bật hoặc tắt các module chức năng chuyên sâu trong không gian này.' : 'Enable or disable functional modules in this workspace.')}
-                      icon={LayoutGrid}
-                    >
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {[
-                          { key: 'timeTracking', title: t('appTimeTracking') || (isVietnamese ? 'Theo dõi thời gian' : 'Time Tracking'), desc: t('appTimeTrackingDesc') || (isVietnamese ? 'Ghi nhận giờ làm việc và ước lượng thời gian.' : 'Log hours and estimate task duration.'), icon: Timer },
-                          { key: 'subtasks', title: t('appSubtasks') || (isVietnamese ? 'Công việc con' : 'Subtasks'), desc: t('appSubtasksDesc') || (isVietnamese ? 'Chia nhỏ công việc thành nhiều bước cụ thể.' : 'Break down work into smaller, actionable steps.'), icon: CheckSquare },
-                          { key: 'priorities', title: t('appPriorities') || (isVietnamese ? 'Mức độ ưu tiên' : 'Task Priorities'), desc: t('appPrioritiesDesc') || (isVietnamese ? 'Phân loại Khẩn cấp, Cao, Trung bình, Thấp.' : 'Classify tasks as Urgent, High, Normal, or Low.'), icon: Zap },
-                          { key: 'relationships', title: t('appRelationships') || (isVietnamese ? 'Mối liên kết & Phụ thuộc' : 'Task Relationships'), desc: t('appRelationshipsDesc') || (isVietnamese ? 'Thiết lập phụ thuộc và liên kết giữa các công việc.' : 'Set up blockers, waiting on, and linked task relations.'), icon: Link2 },
-                          { key: 'customFields', title: t('appCustomFields') || (isVietnamese ? 'Trường tùy chỉnh' : 'Custom Fields'), desc: t('appCustomFieldsDesc') || (isVietnamese ? 'Thêm các trường dữ liệu tùy biến theo nhu cầu.' : 'Add custom data fields tailored to your workflow.'), icon: SlidersHorizontal },
-                        ].map(app => (
-                          <div key={app.key} className="flex items-center justify-between gap-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 transition-all hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/40 dark:hover:border-slate-700">
-                            <div className="flex items-start gap-3 min-w-0 flex-1">
-                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400">
-                                <app.icon className="h-4 w-4" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{app.title}</p>
-                                <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">{app.desc}</p>
-                              </div>
-                            </div>
+                          <SettingRow
+                            title={t('allowMemberInvites') || (isVietnamese ? 'Cho phép thành viên gửi lời mời' : 'Allow Members to Invite')}
+                            description={isVietnamese ? 'Thành viên thông thường có thể mời người khác vào không gian làm việc.' : 'Allow regular members to invite coworkers to this workspace.'}
+                            last
+                          >
                             <Toggle
-                              checked={Boolean((workspaceClickApps as any)[app.key])}
-                              onChange={val => setWorkspaceClickApps(prev => ({ ...prev, [app.key]: val }))}
-                              label={app.title}
+                              checked={workspaceAllowInvites}
+                              onChange={setWorkspaceAllowInvites}
+                              label="Allow Member Invites"
                             />
-                          </div>
-                        ))}
-                      </div>
-                      <div className="mt-5 flex justify-end">
-                        <button type="button" onClick={saveWorkspace} disabled={!workspaceName.trim() || isSavingWorkspace} className="inline-flex h-9 items-center gap-2 rounded-xl bg-slate-950 px-4 text-xs font-extrabold text-white transition hover:bg-slate-800 disabled:opacity-50 dark:bg-white dark:text-slate-950 cursor-pointer">
-                          {isSavingWorkspace ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                          {t('saveChanges') || (isVietnamese ? 'Lưu thay đổi' : 'Save Changes')}
-                        </button>
-                      </div>
-                    </SettingsCard>
-
-                    <SettingsCard title={t('dangerZoneTitle') || (isVietnamese ? 'Khu vực nguy hiểm' : 'Danger Zone')} description={t('dangerZoneDesc') || (isVietnamese ? 'Các thao tác này ảnh hưởng đến mọi người có quyền truy cập không gian.' : 'These actions are permanent and affect all members.')} icon={AlertTriangle} tone="danger">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{t('deleteThisWorkspace') || (isVietnamese ? 'Xóa không gian này' : 'Delete this workspace')}</p>
-                          <p className="mt-1 text-xs text-slate-500">{t('deleteThisWorkspaceDesc') || (isVietnamese ? 'Xóa vĩnh viễn không gian và toàn bộ cấu trúc liên quan.' : 'Permanently delete this workspace and all associated data.')}</p>
+                          </SettingRow>
                         </div>
-                        <button type="button" onClick={() => setDeleteWorkspace(activeWorkspace)} disabled={workspaces.length <= 1} className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-rose-200 bg-white px-4 text-xs font-extrabold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-rose-900 dark:bg-slate-950 cursor-pointer">
-                          <Trash2 className="h-3.5 w-3.5" />{t('deleteWorkspace') || (isVietnamese ? 'Xóa không gian' : 'Delete Workspace')}
-                        </button>
-                      </div>
-                    </SettingsCard>
-                  </>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-300 p-12 text-center dark:border-slate-700">
-                    <BriefcaseBusiness className="mx-auto h-8 w-8 text-slate-300" />
-                    <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-300">{t('noWorkspaceSelected') || 'No workspace selected'}</p>
-                  </div>
-                )}
-              </>
-            )}
+                      </SettingsCard>
 
-            {activeTab === 'people' && (
-              <>
-                <SectionHeader 
-                  eyebrow={t('team') || (isVietnamese ? 'Quản trị đội ngũ' : 'Team Admin')} 
-                  title={t('membersAndAccess') || (isVietnamese ? 'Thành viên và quyền truy cập' : 'Members & Access')} 
-                  description={t('membersAndAccessDesc') || (isVietnamese ? 'Mời đồng đội, tổ chức phòng ban và theo dõi cách phân bổ công việc.' : 'Invite teammates, manage departments and organize access.')} 
-                />
-                <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
-                  <TeamDirectory members={members} tasks={tasks} workspaces={workspaces} activeWorkspaceId={activeWorkspaceId} onAddMember={onAddMember || (() => {})} onUpdateMember={onUpdateMember || (() => {})} onDeleteMember={onDeleteMember || (() => {})} onAddSyncLog={onAddSyncLog || (() => {})} currentUser={currentUser} onSendWorkspaceInvites={onSendWorkspaceInvites} />
-                </div>
-              </>
-            )}
-
-            {activeTab === 'preferences' && (
-              <>
-                <SectionHeader 
-                  eyebrow={t('settingsPersonal') || (isVietnamese ? 'Cài đặt cá nhân' : 'Personal Settings')} 
-                  title={t('appearanceAndTheme') || (isVietnamese ? 'Giao diện và trải nghiệm' : 'Appearance & Experience')} 
-                  description={t('appearanceAndThemeDesc') || (isVietnamese ? 'Điều chỉnh Costack phù hợp với môi trường và cách tập trung của bạn.' : 'Tailor Costack to your environment and focus preferences.')} 
-                />
-
-                {/* 🌐 Language & Region Setting Card */}
-                <SettingsCard 
-                  title={t('languageAndRegion') || (isVietnamese ? 'Ngôn ngữ & Khu vực' : 'Language & Region')} 
-                  description={t('languageAndRegionDesc') || (isVietnamese ? 'Chuyển đổi linh hoạt giữa Tiếng Việt và Tiếng Anh.' : 'Choose your preferred interface language for Costack.')} 
-                  icon={Globe2}
-                >
-                  <LanguageDropdown variant="cards" />
-                </SettingsCard>
-
-                {/* Color Mode */}
-                <SettingsCard 
-                  title={t('colorMode') || (isVietnamese ? 'Chế độ màu' : 'Color Mode')} 
-                  description={t('colorModeDesc') || (isVietnamese ? 'Chọn giao diện dễ chịu nhất trong suốt ngày làm việc.' : 'Choose the most comfortable view for your workday.')} 
-                  icon={MonitorCog}
-                >
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    {[
-                      { id: 'light', label: t('lightMode') || (isVietnamese ? 'Sáng' : 'Light'), icon: Sun }, 
-                      { id: 'dark', label: t('darkMode') || (isVietnamese ? 'Tối' : 'Dark'), icon: Moon }, 
-                      { id: 'system', label: t('systemMode') || (isVietnamese ? 'Theo hệ thống' : 'System'), icon: Laptop }
-                    ].map(option => {
-                      const selected = option.id === themePreference;
-                      const Icon = option.icon;
-                      return (
-                        <button key={option.id} type="button" aria-pressed={selected} onClick={() => setThemePreference(option.id as ThemePreference)} className={`rounded-2xl border p-4 text-left transition cursor-pointer ${selected ? 'border-indigo-400 bg-indigo-50 ring-2 ring-indigo-500/10 dark:bg-indigo-950/20' : 'border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700'}`}>
-                          <Icon className={`h-5 w-5 ${selected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
-                          <p className="mt-4 text-sm font-extrabold text-slate-800 dark:text-slate-200">{option.label}</p>
-                          <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">{option.id === 'system' ? (isVietnamese ? `Theo thiết bị · hiện đang ${isDarkMode ? 'tối' : 'sáng'}` : `Follows device · currently ${isDarkMode ? 'dark' : 'light'}`) : (isVietnamese ? `Giao diện ${option.label.toLowerCase()}` : `${option.label} mode`)}</p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </SettingsCard>
-
-                {/* Accent and Effects */}
-                <SettingsCard 
-                  title={t('accentAndEffects') || (isVietnamese ? 'Màu nhấn & Hiệu ứng' : 'Accent & Effects')} 
-                  description={t('accentAndEffectsDesc') || (isVietnamese ? 'Làm nổi bật thao tác quan trọng mà không gây rối mắt.' : 'Highlight key actions without visual clutter.')} 
-                  icon={Palette}
-                >
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {accentOptions.map(option => (
-                      <button key={option.id} type="button" onClick={() => setAccentPreset(option.id)} className={`rounded-xl border p-3 text-left transition cursor-pointer ${accentPreset === option.id ? 'border-indigo-400 ring-2 ring-indigo-500/10' : 'border-slate-200 dark:border-slate-800'}`}>
-                        <span className={`block h-9 rounded-lg ${option.className}`} />
-                        <span className="mt-2 block text-[11px] font-extrabold text-slate-700 dark:text-slate-200">{option.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="mt-5 divide-y divide-slate-100 dark:divide-slate-800">
-                    <SettingRow title={t('interfaceDepth') || (isVietnamese ? 'Độ sâu giao diện' : 'Interface Depth')} description={isVietnamese ? 'Điều chỉnh độ mờ kính và mức phân tách bề mặt.' : 'Adjust glassmorphism blur and surface elevation.'}>
-                      <Select value={blurIntensity} onChange={v => setBlurIntensity(v as BlurIntensity)} className="w-40" ariaLabel={isVietnamese ? 'Độ sâu giao diện' : 'Interface Depth'} options={[
-                        { value: 'soft', label: t('depthSoft') || (isVietnamese ? 'Nhẹ' : 'Soft') },
-                        { value: 'default', label: t('depthBalanced') || (isVietnamese ? 'Cân bằng' : 'Balanced') },
-                        { value: 'immersive', label: t('depthImmersive') || (isVietnamese ? 'Nổi bật' : 'Immersive') },
-                      ]} />
-                    </SettingRow>
-                    <SettingRow title={isVietnamese ? 'Mật độ giao diện' : 'Interface Density'} description={isVietnamese ? 'Thu gọn khoảng cách để hiển thị nhiều dữ liệu hơn.' : 'Adjust spacing to show more information on screen.'}>
-                      <Select value={uiDensity} onChange={v => setUiDensity(v as 'comfortable' | 'compact')} className="w-40" ariaLabel={isVietnamese ? 'Mật độ giao diện' : 'Interface Density'} options={[
-                        { value: 'comfortable', label: isVietnamese ? 'Thoải mái' : 'Comfortable' },
-                        { value: 'compact', label: isVietnamese ? 'Thu gọn' : 'Compact' },
-                      ]} />
-                    </SettingRow>
-                    <SettingRow title={isVietnamese ? 'Định dạng ngày giờ' : 'Date & Time Format'} description={isVietnamese ? 'Áp dụng thống nhất trong task, lịch và báo cáo.' : 'Used consistently across tasks, calendars and reports.'}>
-                      <Select value={dateFormat} onChange={v => setDateFormat(v as typeof dateFormat)} className="w-44" ariaLabel={isVietnamese ? 'Định dạng ngày giờ' : 'Date & Time Format'} options={[
-                        { value: 'short', label: '20/08/2026' },
-                        { value: 'full', label: '20 tháng 8, 2026' },
-                        { value: 'vi', label: 'Thứ Năm, 20/08' },
-                        { value: 'numeric', label: '2026-08-20' },
-                        { value: 'clock', label: '20/08 · 14:30' },
-                      ]} />
-                    </SettingRow>
-                    <SettingRow
-                      title={t('defaultStartupTab') || (isVietnamese ? 'Màn hình khởi động mặc định' : 'Default Startup Screen')}
-                      description={t('defaultStartupTabDesc') || (isVietnamese ? 'Chọn màn hình hiển thị đầu tiên khi bạn mở Costack.' : 'Choose which screen opens by default when you launch Costack.')}
-                    >
-                      <Select
-                        value={defaultStartupTab}
-                        onChange={setDefaultStartupTab}
-                        className="w-48"
-                        ariaLabel={t('defaultStartupTab') || 'Default Startup Screen'}
-                        options={[
-                          { value: 'dashboard', label: t('dashboard') || (isVietnamese ? 'Tổng quan (Dashboard)' : 'Dashboard') },
-                          { value: 'tasks', label: t('tasks') || (isVietnamese ? 'Công việc (Tasks)' : 'Tasks') },
-                          { value: 'inbox', label: t('inbox') || (isVietnamese ? 'Hộp thư (Inbox)' : 'Inbox') },
-                          { value: 'calendar', label: t('calendar') || (isVietnamese ? 'Lịch biểu (Calendar)' : 'Calendar') },
-                          { value: 'finance', label: t('finance') || (isVietnamese ? 'Tài chính (Finance)' : 'Finance') },
-                          { value: 'chat', label: t('chat') || (isVietnamese ? 'Trò chuyện (Chat)' : 'Chat') },
-                        ]}
-                      />
-                    </SettingRow>
-                    <SettingRow title={t('uiSounds') || (isVietnamese ? 'Âm thanh giao diện' : 'Interface Sounds')} description={t('uiSoundsDesc') || (isVietnamese ? 'Phát âm thanh phản hồi nhẹ cho các thao tác quan trọng.' : 'Play subtle audio feedback for key interactions.')} last>
-                      <div className="flex items-center gap-2.5">
-                        {soundEnabled && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (typeof window !== 'undefined') {
-                                (window as any).playSystemSound?.('toggle');
-                              }
-                            }}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
-                            title={t('testSound') || 'Play test'}
-                          >
-                            <Play className="h-3 w-3 fill-current text-sky-500" />
-                            <span>{t('testSound') || (isVietnamese ? 'Thử âm' : 'Play test')}</span>
-                          </button>
-                        )}
-                        <Toggle checked={soundEnabled} onChange={setSoundEnabled} label={t('uiSounds') || 'Interface Sounds'} />
-                      </div>
-                    </SettingRow>
-                  </div>
-                </SettingsCard>
-
-                {/* 🧭 Sidebar & Navigation Customization Card */}
-                <SettingsCard 
-                  title={isVietnamese ? 'Thanh điều hướng & Sắp xếp Module' : 'Navigation & Sidebar Modules'} 
-                  description={isVietnamese ? 'Tùy biến vị trí và thứ tự các tính năng trên thanh bên theo thói quen sử dụng của bạn.' : 'Customize the order and placement of navigation modules to match your daily workflow.'} 
-                  icon={SlidersHorizontal}
-                  action={
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowSidebarOrderModal(true);
-                        if (typeof window !== 'undefined') {
-                          (window as any).playSystemSound?.('click');
-                        }
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-sky-500/10 text-sky-600 dark:text-sky-400 hover:bg-sky-500/20 border border-sky-500/20 transition-all cursor-pointer"
-                    >
-                      <SlidersHorizontal className="h-3.5 w-3.5" />
-                      <span>{isVietnamese ? 'Sắp xếp module' : 'Arrange modules'}</span>
-                    </button>
-                  }
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-1">
-                    <div>
-                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                        {isVietnamese ? 'Quản lý thứ tự hiển thị các module' : 'Manage module display order'}
-                      </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        {isVietnamese 
-                          ? 'Kéo thả trực tiếp trên thanh bên hoặc sử dụng bảng điều khiển này để di chuyển các module Lên/Xuống.' 
-                          : 'Drag and drop directly on the sidebar or use this manager to move modules Up/Down.'}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowSidebarOrderModal(true);
-                        if (typeof window !== 'undefined') {
-                          (window as any).playSystemSound?.('click');
-                        }
-                      }}
-                      className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-sky-500 text-white hover:bg-sky-400 active:scale-95 transition-all shadow-sm hover:shadow-md cursor-pointer shrink-0"
-                    >
-                      <SlidersHorizontal className="h-4 w-4" />
-                      <span>{isVietnamese ? 'Mở bảng sắp xếp' : 'Open Reorder Dialog'}</span>
-                    </button>
-                  </div>
-                </SettingsCard>
-              </>
-            )}
-
-            {activeTab === 'notifications' && (
-              <>
-                <SectionHeader 
-                  eyebrow={t('notificationSettings') || (isVietnamese ? 'Quản lý thông báo' : 'Notification Settings')} 
-                  title={t('notificationsAndFocus') || (isVietnamese ? 'Thông báo và tập trung' : 'Notifications & Focus')} 
-                  description={t('notificationsAndFocusDesc') || (isVietnamese ? 'Luôn nắm bắt thông tin mà không để cập nhật làm gián đoạn ngày làm việc.' : 'Stay informed without disrupting deep work.')} 
-                />
-                <SettingsCard title={t('notificationDelivery') || (isVietnamese ? 'Phân phối thông báo' : 'Notification Delivery')} description={t('notificationDeliveryDesc') || (isVietnamese ? 'Điều khiển toàn bộ cảnh báo trên thiết bị này.' : 'Control all notification alerts on this device.')} icon={Bell}>
-                  <SettingRow title={t('enableAllNotifications') || (isVietnamese ? 'Bật thông báo' : 'Enable Notifications')} description={t('enableAllNotificationsDesc') || (isVietnamese ? 'Nhận cập nhật hoạt động và lời nhắc.' : 'Receive activity updates and reminders.')}>
-                    <Toggle checked={notificationSettings.enableAll} onChange={value => setNotificationSettings(previous => ({ ...previous, enableAll: value }))} label="Enable Notifications" />
-                  </SettingRow>
-                  <SettingRow title={t('enableNotificationSound') || (isVietnamese ? 'Âm thanh thông báo' : 'Notification Sound')} description={t('enableNotificationSoundDesc') || (isVietnamese ? 'Phát âm thanh ngắn khi có cảnh báo.' : 'Play a chime when a notification arrives.')}>
-                    <div className="flex items-center gap-2.5">
-                      {notificationSettings.enableSound && notificationSettings.enableAll && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (typeof window !== 'undefined') {
-                              (window as any).playSystemSound?.('notification');
-                            }
-                          }}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
-                          title={t('testSound') || 'Play test'}
-                        >
-                          <Play className="h-3 w-3 fill-current text-sky-500" />
-                          <span>{t('testSound') || (isVietnamese ? 'Thử chuông' : 'Play test')}</span>
-                        </button>
-                      )}
-                      <Toggle checked={notificationSettings.enableSound} disabled={!notificationSettings.enableAll} onChange={value => { setNotificationSettings(previous => ({ ...previous, enableSound: value })); setSoundEnabled(value); }} label="Notification Sound" />
-                    </div>
-                  </SettingRow>
-                  <SettingRow title={t('onlyImportantUpdates') || (isVietnamese ? 'Chỉ cập nhật quan trọng' : 'Only Important Updates')} description={t('onlyImportantUpdatesDesc') || (isVietnamese ? 'Giảm nhiễu bằng cách ưu tiên việc được giao và hạn chót.' : 'Reduce noise by prioritizing assignments and deadlines.')}>
-                    <Toggle checked={notificationSettings.onlyImportant} disabled={!notificationSettings.enableAll} onChange={value => setNotificationSettings(previous => ({ ...previous, onlyImportant: value }))} label="Only Important Updates" />
-                  </SettingRow>
-                  {isBrowserNotificationSupported() && (
-                    <SettingRow 
-                      title={isVietnamese ? 'Thông báo trên màn hình máy tính (Browser Desktop Notifications)' : 'Browser Desktop Notifications'} 
-                      description={isVietnamese ? 'Gửi thông báo pop-up trực tiếp lên màn hình khi đến hạn công việc ngay cả khi bạn đang chuyển sang tab hay ứng dụng khác.' : 'Get system notifications when tasks reach deadlines even if you are on another tab.'}
-                      last
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                          browserPerm === 'granted' 
-                            ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800' 
-                            : browserPerm === 'denied'
-                              ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
-                              : 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
-                        }`}>
-                          {browserPerm === 'granted' 
-                            ? (isVietnamese ? 'Đã cho phép' : 'Allowed') 
-                            : browserPerm === 'denied' 
-                              ? (isVietnamese ? 'Đã bị chặn' : 'Blocked') 
-                              : (isVietnamese ? 'Chưa cấp quyền' : 'Default')}
-                        </span>
-                        <Toggle 
-                          checked={Boolean(notificationSettings.enableBrowserNotifications && browserPerm === 'granted')} 
-                          disabled={!notificationSettings.enableAll} 
-                          onChange={async (value) => {
-                            if (value) {
-                              const res = await requestBrowserNotificationPermission();
-                              setBrowserPerm(res);
-                              if (res === 'granted') {
-                                setNotificationSettings(previous => ({ ...previous, enableBrowserNotifications: true }));
-                                sendTestNotification();
-                              } else {
-                                setNotificationSettings(previous => ({ ...previous, enableBrowserNotifications: false }));
-                              }
-                            } else {
-                              setNotificationSettings(previous => ({ ...previous, enableBrowserNotifications: false }));
-                            }
-                          }} 
-                          label="Browser Desktop Notifications" 
-                        />
-                        {browserPerm === 'granted' && (
-                          <button
-                            type="button"
-                            onClick={() => sendTestNotification()}
-                            className="h-8 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[10px] font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all cursor-pointer shadow-3xs"
-                          >
-                            {isVietnamese ? 'Bắn thử' : 'Test popup'}
-                          </button>
-                        )}
-                      </div>
-                    </SettingRow>
-                  )}
-                </SettingsCard>
-
-                <SettingsCard title={t('notificationContentTitle') || (isVietnamese ? 'Nội dung cần thông báo' : 'Notification Triggers')} description={t('notificationContentSubtitle') || (isVietnamese ? 'Tinh chỉnh những hoạt động có thể làm gián đoạn sự tập trung.' : 'Fine-tune which activities can interrupt your focus.')} icon={SlidersHorizontal}>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {[
-                      ['enableAssignments', t('notifyAssignments') || (isVietnamese ? 'Việc được giao' : 'Assignments'), t('notifyAssignmentsDesc') || (isVietnamese ? 'Khi có công việc được giao cho bạn' : 'When tasks are assigned to you')],
-                      ['enableDeadlines', t('notifyDeadlines') || (isVietnamese ? 'Hạn chót' : 'Deadlines'), t('notifyDeadlinesDesc') || (isVietnamese ? 'Nhắc việc sắp đến hạn và quá hạn' : 'Due soon and overdue task reminders')],
-                      ['enableComments', t('notifyComments') || (isVietnamese ? 'Bình luận & Nhắc tên' : 'Comments & Mentions'), t('notifyCommentsDesc') || (isVietnamese ? 'Phản hồi và lượt nhắc tên trong thảo luận' : 'Replies and @mentions in discussions')],
-                      ['enableStatusChanges', t('notifyStatusChanges') || (isVietnamese ? 'Thay đổi trạng thái' : 'Status Changes'), t('notifyStatusChangesDesc') || (isVietnamese ? 'Cập nhật tiến độ của công việc đang theo dõi' : 'Progress updates on tracked tasks')],
-                      ['enableFilteringTags', t('notifyFilteringTags') || (isVietnamese ? 'Hoạt động nhãn' : 'Tag Activity'), t('notifyFilteringTagsDesc') || (isVietnamese ? 'Cập nhật cho các nhãn đang theo dõi' : 'Updates on tagged items you follow')],
-                      ['enableChatMessages', t('notifyChatMessages') || (isVietnamese ? 'Tin nhắn chat' : 'Chat Messages'), t('notifyChatMessagesDesc') || (isVietnamese ? 'Thông báo khi có tin nhắn mới trong phòng chat' : 'New messages in team chat rooms')],
-                      ['enableSystemNotify', t('notifySystemEvents') || (isVietnamese ? 'Sự kiện hệ thống' : 'System Events'), t('notifySystemEventsDesc') || (isVietnamese ? 'Đồng bộ, bảo mật và hoạt động tài khoản' : 'Sync, security and account alerts')]
-                    ].map(([key, title, description]) => (
-                      <div key={key} className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 p-4 transition-all hover:border-slate-300 dark:hover:border-slate-700">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{title}</p>
-                          <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">{description}</p>
-                        </div>
-                        <div className="shrink-0">
-                          <Toggle checked={Boolean(notificationSettings[key as keyof NotificationSettings])} disabled={!notificationSettings.enableAll} onChange={value => setNotificationSettings(previous => ({ ...previous, [key]: value }))} label={title} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </SettingsCard>
-
-                <SettingsCard title={t('focusSchedule') || (isVietnamese ? 'Lịch tập trung' : 'Focus Schedule')} description={t('focusScheduleDesc') || (isVietnamese ? 'Tự động tắt tiếng cảnh báo thông thường trong giờ làm việc sâu.' : 'Automatically mute non-urgent alerts during deep work.')} icon={Moon}>
-                  <SettingRow title={t('dndMode') || (isVietnamese ? 'Không làm phiền' : 'Do Not Disturb')} description={isVietnamese ? 'Tạm dừng thông báo thông thường cho đến khi bạn tắt chế độ này.' : 'Pause notifications until turned off.'}>
-                    <Toggle checked={notificationSettings.dndActive} onChange={value => setNotificationSettings(previous => ({ ...previous, dndActive: value }))} label="Do Not Disturb" />
-                  </SettingRow>
-                  <SettingRow title={t('quietHours') || (isVietnamese ? 'Khung giờ yên tĩnh' : 'Quiet Hours')} description={t('quietHoursDesc') || (isVietnamese ? 'Đặt khoảng thời gian tập trung lặp lại hằng ngày.' : 'Set recurring daily quiet focus hours.')}>
-                    <Toggle checked={!!notificationSettings.dndScheduleEnabled} onChange={value => setNotificationSettings(previous => ({ ...previous, dndScheduleEnabled: value }))} label="Quiet Hours" />
-                  </SettingRow>
-                  {notificationSettings.dndScheduleEnabled && (
-                    <div className="grid gap-3 border-b border-slate-100 py-4 dark:border-slate-800 sm:grid-cols-2">
-                      <label className="space-y-1.5">
-                        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t('quietStart') || (isVietnamese ? 'Bắt đầu' : 'Start')}</span>
-                        <input type="time" value={notificationSettings.dndScheduleStart || '18:00'} onChange={event => setNotificationSettings(previous => ({ ...previous, dndScheduleStart: event.target.value }))} className={inputClass} />
-                      </label>
-                      <label className="space-y-1.5">
-                        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t('quietEnd') || (isVietnamese ? 'Kết thúc' : 'End')}</span>
-                        <input type="time" value={notificationSettings.dndScheduleEnd || '08:00'} onChange={event => setNotificationSettings(previous => ({ ...previous, dndScheduleEnd: event.target.value }))} className={inputClass} />
-                      </label>
-                    </div>
-                  )}
-                  <SettingRow title={isVietnamese ? 'Cho phép cảnh báo khẩn cấp' : 'Allow Urgent Alerts'} description={isVietnamese ? 'Hạn chót và cảnh báo quan trọng vẫn được gửi trong Không làm phiền.' : 'Deadlines and critical alerts can bypass Do Not Disturb.'}>
-                    <Toggle checked={!!notificationSettings.dndAllowUrgent} onChange={value => setNotificationSettings(previous => ({ ...previous, dndAllowUrgent: value }))} label="Allow urgent alerts" />
-                  </SettingRow>
-                  <SettingRow title={t('alertFrequency') || (isVietnamese ? 'Tần suất cảnh báo' : 'Alert Frequency')} description={t('alertFrequencyDesc') || (isVietnamese ? 'Gom nhóm thông báo để giảm gián đoạn.' : 'Group notifications to minimize disruptions.')}>
-                    <Select value={notificationSettings.frequencyLimit} onChange={v => setNotificationSettings(previous => ({ ...previous, frequencyLimit: v as NotificationSettings['frequencyLimit'] }))} className="w-44" ariaLabel={t('alertFrequency') || 'Alert Frequency'} options={[
-                      { value: 'all', label: t('freqAll') || (isVietnamese ? 'Mọi cập nhật' : 'All updates') },
-                      { value: 'throttled', label: t('freqThrottled') || (isVietnamese ? 'Nhóm thông minh' : 'Smart throttling') },
-                      { value: 'minimal', label: t('freqMinimal') || (isVietnamese ? 'Tối thiểu' : 'Minimal only') },
-                    ]} />
-                  </SettingRow>
-                  <SettingRow title={isVietnamese ? 'Thời gian hiển thị' : 'Display Duration'} description={isVietnamese ? 'Khoảng thời gian toast xuất hiện trước khi tự đóng.' : 'How long each toast remains visible.'} last>
-                    <div className="flex items-center gap-2">
-                      <Select<number> value={notificationSettings.toastDuration} onChange={v => setNotificationSettings(previous => ({ ...previous, toastDuration: v }))} className="w-32" ariaLabel={isVietnamese ? 'Thời gian hiển thị' : 'Display Duration'} options={[
-                        { value: 2500, label: '2.5 giây' },
-                        { value: 4000, label: '4 giây' },
-                        { value: 6000, label: '6 giây' },
-                        { value: 10000, label: '10 giây' },
-                      ]} />
-                      <button type="button" onClick={() => triggerToast?.('deadline', isVietnamese ? 'Thông báo thử nghiệm' : 'Test notification', isVietnamese ? 'Các thiết lập âm thanh, thời lượng và tập trung đang hoạt động.' : 'Sound, duration and focus settings are working.')} className="h-10 rounded-xl border border-slate-200 px-3 text-[10px] font-extrabold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
-                        {isVietnamese ? 'Gửi thử' : 'Send test'}
-                      </button>
-                    </div>
-                  </SettingRow>
-                </SettingsCard>
-              </>
-            )}
-
-            {activeTab === 'ai_usage' && (
-              <>
-                <SectionHeader 
-                  eyebrow={t('aiCopilotConfig') || (isVietnamese ? 'Lớp trí tuệ' : 'Intelligence Layer')} 
-                  title={t('aiCopilotConfig') || (isVietnamese ? 'Cấu hình Costack AI' : 'Costack AI Configuration')} 
-                  description={t('aiCopilotConfigDesc') || (isVietnamese ? 'Kiểm soát mô hình dùng để tóm tắt, tạo công việc và hỗ trợ năng suất.' : 'Control AI models for task creation, summarization and productivity reports.')} 
-                  action={<div className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wide ${currentUser?.isPremium ? 'border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400' : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-400'}`}>{currentUser?.isPremium ? (isVietnamese ? 'Đã kích hoạt' : 'Active') : (isVietnamese ? 'Yêu cầu gói trả phí' : 'Paid plan required')}</div>} 
-                />
-                
-                <div className="rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50 via-white to-blue-50 p-5 dark:border-sky-900/60 dark:from-sky-950/30 dark:via-slate-900 dark:to-blue-950/20">
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-500/20">
-                      <Sparkles className="h-5 w-5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-sm font-black text-slate-900 dark:text-white">{isVietnamese ? 'AI được Costack quản lý an toàn' : 'Secure, Costack-managed AI'}</h3>
-                      <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                        {isVietnamese ? 'Khóa nhà cung cấp chỉ tồn tại trên máy chủ. Costack không nhận, lưu hoặc gửi khóa AI cá nhân từ trình duyệt của người dùng.' : 'Provider credentials stay on the server. Costack never accepts, stores, or forwards personal AI keys from the browser.'}
-                      </p>
-                      {!currentUser?.isPremium && <button type="button" onClick={() => setShowPremiumModal(true)} className="mt-3 inline-flex h-9 items-center gap-2 rounded-xl bg-sky-600 px-4 text-xs font-extrabold text-white shadow-sm transition hover:bg-sky-700"><Sparkles className="h-3.5 w-3.5" />{isVietnamese ? 'Xem gói có AI' : 'View AI plans'}</button>}
-                    </div>
-                  </div>
-                </div>
-
-                <SettingsCard title={isVietnamese ? 'Môi trường Costack AI' : 'Costack AI Runtime'} description={isVietnamese ? 'Tùy chỉnh cách AI phản hồi trong phạm vi hạn mức của gói đăng ký.' : 'Customize AI responses within your subscription allowance.'} icon={Zap}>
-                  <div className="space-y-5">
-                    <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60">
-                      <div className="min-w-0"><p className="text-xs font-extrabold text-slate-800 dark:text-slate-100">{isVietnamese ? 'Thông tin xác thực do máy chủ quản lý' : 'Server-managed credentials'}</p><p className="mt-0.5 text-[11px] leading-5 text-slate-500 dark:text-slate-400">{isVietnamese ? 'Không hỗ trợ khóa API cá nhân (BYOK).' : 'Personal API keys (BYOK) are not supported.'}</p></div>
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"><ShieldCheck className="h-4 w-4" /></div>
-                    </div>
-
-                    <fieldset disabled={!currentUser?.isPremium} className="grid gap-4 sm:grid-cols-2 disabled:opacity-50">
-                      <label className="space-y-1.5">
-                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{t('aiModelLabel') || (isVietnamese ? 'Mô hình AI' : 'AI Model')}</span>
-                        <Select value={aiModel} onChange={setAiModel} className="w-full" menuWidth={320} ariaLabel={t('aiModelLabel') || 'AI Model'} options={[
-                          { value: 'gemini-3.6-flash', label: 'Gemini 3.6 Flash', description: isVietnamese ? 'Khuyên dùng · Stable mới nhất' : 'Recommended · Latest stable' },
-                          { value: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', description: isVietnamese ? 'Phân tích và tác vụ agentic' : 'Analysis and agentic tasks' },
-                          { value: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite', description: isVietnamese ? 'Nhanh và tiết kiệm' : 'Fast and cost-efficient' },
-                          { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', description: isVietnamese ? 'Tư duy chuyên sâu · Stable' : 'Deep reasoning · Stable' },
-                          { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', description: isVietnamese ? 'Cân bằng · Stable' : 'Balanced · Stable' },
-                          { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite', description: isVietnamese ? 'Tải lớn · Stable' : 'High throughput · Stable' },
-                        ]} />
-                      </label>
-                      <label className="space-y-1.5">
-                        <span className="flex justify-between text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                          <span>{t('temperatureLabel') || (isVietnamese ? 'Mức sáng tạo (Temperature)' : 'Creativity (Temperature)')}</span>
-                          <span className="font-mono text-sky-500 font-bold">{aiTemperature.toFixed(1)}</span>
-                        </span>
-                        <input 
-                          type="range" 
-                          min="0" 
-                          max="1" 
-                          step="0.1" 
-                          value={aiTemperature} 
-                          onChange={event => setAiTemperature(Number(event.target.value))} 
-                          className="mt-3 w-full accent-sky-500 cursor-pointer" 
-                        />
-                      </label>
-                    </fieldset>
-
-                    <SettingRow title={t('searchGrounding') || (isVietnamese ? 'Tìm kiếm làm cơ sở (Google Search Grounding)' : 'Google Search Grounding')} description={t('searchGroundingDesc') || (isVietnamese ? 'Cho phép AI tra cứu và cập nhật dữ liệu web thời gian thực khi cần.' : 'Allow AI to browse live web data for accurate context.')} last>
-                      <Toggle checked={aiSearchGrounding} onChange={setAiSearchGrounding} disabled={!currentUser?.isPremium} label="Google Search Grounding" />
-                    </SettingRow>
-
-                    <div className="flex flex-wrap justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-                      <button 
-                        type="button" 
-                        onClick={testAiConnection} 
-                        disabled={testingAi} 
-                        className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-4 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                      {/* ClickApps Modular Features Card */}
+                      <SettingsCard
+                        title={t('workspaceClickApps') || (isVietnamese ? 'Tính năng mở rộng (ClickApps)' : 'Workspace Modules (ClickApps)')}
+                        description={t('workspaceClickAppsDesc') || (isVietnamese ? 'Bật hoặc tắt các module chuyên sâu theo nhu cầu quản trị dự án của bạn.' : 'Enable or disable advanced project management modules.')}
+                        icon={LayoutGrid}
                       >
-                        {testingAi ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Activity className="h-3.5 w-3.5" />}
-                        {testingAi ? (t('testingAiConnection') || 'Testing...') : currentUser?.isPremium ? (isVietnamese ? 'Kiểm tra dịch vụ' : 'Test service') : (isVietnamese ? 'Nâng cấp để kiểm tra' : 'Upgrade to test')}
-                      </button>
-                      <button 
-                        type="button" 
-                        onClick={saveAiSettings} 
-                        className="inline-flex h-9 items-center gap-2 rounded-xl bg-sky-500 hover:bg-sky-600 px-4 text-xs font-extrabold text-white transition-colors shadow-sm cursor-pointer"
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                        {currentUser?.isPremium ? (t('saveSettings') || (isVietnamese ? 'Lưu cấu hình' : 'Save Configuration')) : (isVietnamese ? 'Nâng cấp để dùng AI' : 'Upgrade for AI')}
-                      </button>
-                    </div>
-                  </div>
-                </SettingsCard>
-
-                <SettingsCard title={t('dailyBriefingToggle') || (isVietnamese ? 'Bản tin công việc hằng ngày' : 'Daily Morning Briefing')} description={t('dailyBriefingToggleDesc') || (isVietnamese ? 'Cho phép Costack Brain xem xét không gian và gửi một bản tin hành động mỗi ngày.' : 'Automatically analyze overdue and upcoming tasks each morning.')} icon={Brain}>
-                  <SettingRow title={t('dailyBriefingToggle') || (isVietnamese ? 'Bản tin AI hằng ngày' : 'Daily AI Briefing')} description={isVietnamese ? 'Rà soát việc quá hạn, đến hạn hôm nay, bị chặn và ưu tiên cao mỗi ngày một lần.' : 'Review overdue, due today, blocked and high priority tasks daily.'}>
-                    <Toggle checked={aiDailyBriefingEnabled} onChange={setAiDailyBriefingEnabled} disabled={!currentUser?.isPremium} label="Daily AI Briefing" />
-                  </SettingRow>
-                  <SettingRow title={t('briefingTime') || (isVietnamese ? 'Giờ gửi bản tin' : 'Briefing Time')} description={isVietnamese ? 'Nếu Costack được mở muộn hơn, bản tin sẽ được gửi trong lần mở ứng dụng tiếp theo.' : 'If opened later, the briefing will show on next launch.'} last>
-                    <input type="time" value={aiDailyBriefingTime} disabled={!currentUser?.isPremium || !aiDailyBriefingEnabled} onChange={event => setAiDailyBriefingTime(event.target.value)} className={`${inputClass} w-36 disabled:opacity-50`} />
-                  </SettingRow>
-                </SettingsCard>
-              </>
-            )}
-
-            {activeTab === 'audit_logs' && (
-              <>
-                <SectionHeader 
-                  eyebrow={t('activityAuditLogs') || (isVietnamese ? 'Nhật ký hoạt động' : 'Activity Audit')} 
-                  title={t('activityAuditLogs') || (isVietnamese ? 'Nhật ký hoạt động Workspace' : 'Workspace Activity Logs')} 
-                  description={t('activityAuditLogsDesc') || (isVietnamese ? 'Ghi nhận chi tiết mọi thay đổi từ chủ sở hữu và các thành viên: tạo mới, chỉnh sửa, phân quyền và cộng tác.' : 'Detailed record of workspace actions: creation, edits, assignments, and collaboration.')} 
-                  action={
-                    <div className="flex items-center gap-2">
-                      <button 
-                        type="button" 
-                        onClick={copyAuditLogs}
-                        className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3.5 text-xs font-extrabold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                      >
-                        {copiedLogs ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-slate-400" />}
-                        {copiedLogs ? (t('copied') || 'Copied!') : (t('copyCode') || (isVietnamese ? 'Sao chép nhật ký' : 'Copy Logs'))}
-                      </button>
-                    </div>
-                  } 
-                />
-
-                <SettingsCard 
-                  title={isVietnamese ? 'Lịch sử hoạt động của người dùng' : 'User Activity Feed'} 
-                  description={isVietnamese ? `Đang hiển thị ${filteredLogs.length} hoạt động gần nhất trong Workspace` : `Showing ${filteredLogs.length} recent actions in Workspace`} 
-                  icon={FileClock}
-                >
-                  <div className="space-y-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="relative flex-1">
-                        <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                        <input 
-                          value={logSearch} 
-                          onChange={event => setLogSearch(event.target.value)} 
-                          placeholder={isVietnamese ? 'Tìm người thực hiện, thao tác hoặc thời gian...' : 'Search author, action, or timestamp...'} 
-                          className={`${inputClass} pl-9`} 
-                        />
-                      </div>
-
-                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                        {[
-                          { id: 'all', label: isVietnamese ? 'Tất cả' : 'All' },
-                          { id: 'task', label: isVietnamese ? 'Công việc' : 'Tasks' },
-                          { id: 'space', label: isVietnamese ? 'Không gian & Danh sách' : 'Spaces & Lists' },
-                          { id: 'doc', label: isVietnamese ? 'Tài liệu' : 'Docs' },
-                          { id: 'workspace', label: isVietnamese ? 'Workspace' : 'Workspace' },
-                          { id: 'member', label: isVietnamese ? 'Thành viên' : 'Members' },
-                        ].map(tab => (
-                          <button
-                            key={tab.id}
-                            type="button"
-                            onClick={() => setLogCategory(tab.id)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                              logCategory === tab.id
-                                ? 'bg-sky-500 text-white shadow-xs'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                            }`}
-                          >
-                            {tab.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="max-h-[520px] divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800 rounded-2xl border border-slate-100 dark:border-slate-800/80 px-4">
-                      {filteredLogs.length ? (
-                        filteredLogs.map(log => {
-                          const isTask = log.category === 'task' || log.action.toLowerCase().includes('công việc') || log.action.toLowerCase().includes('task');
-                          const isSpace = log.category === 'space' || log.action.toLowerCase().includes('không gian') || log.action.toLowerCase().includes('thư mục') || log.action.toLowerCase().includes('danh sách') || log.action.toLowerCase().includes('space');
-                          const isDoc = log.category === 'doc' || log.action.toLowerCase().includes('tài liệu') || log.action.toLowerCase().includes('doc');
-                          const isMember = log.category === 'member' || log.action.toLowerCase().includes('thành viên') || log.action.toLowerCase().includes('lời mời') || log.action.toLowerCase().includes('member');
-
-                          return (
-                            <div key={log.id} className="flex items-center gap-3.5 py-3.5 transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-800/30 -mx-4 px-4">
-                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                                isTask ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/50' :
-                                isSpace ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-300 border border-sky-200/50 dark:border-sky-800/50' :
-                                isDoc ? 'bg-amber-50 dark:bg-amber-955/40 text-amber-600 dark:text-amber-400 border border-amber-200/50 dark:border-amber-800/50' :
-                                isMember ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-200/50 dark:border-purple-800/50' :
-                                'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/50'
-                              }`}>
-                                {isTask ? <CheckSquare className="w-4 h-4" /> :
-                                 isSpace ? <FolderTree className="w-4 h-4" /> :
-                                 isDoc ? <FileText className="w-4 h-4" /> :
-                                 isMember ? <Users className="w-4 h-4" /> :
-                                 <Building2 className="w-4 h-4" />}
-                              </div>
-
-                              <div className="min-w-0 flex-1">
-                                <p className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-snug">
-                                  {log.action}
-                                </p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-400">
-                                    {isVietnamese ? 'Bởi' : 'By'} <span className="font-extrabold text-slate-600 dark:text-slate-300">{log.userName || currentUser?.name || (isVietnamese ? 'Chủ sở hữu' : 'Owner')}</span>
-                                  </span>
-                                  <span className="text-[10px] text-slate-300 dark:text-slate-600">•</span>
-                                  <span className="text-[10px] text-slate-400 dark:text-slate-400 font-medium">
-                                    {log.time}
-                                  </span>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {[
+                            { key: 'timeTracking', title: t('appTimeTracking') || (isVietnamese ? 'Theo dõi thời gian' : 'Time Tracking'), desc: isVietnamese ? 'Bấm giờ và ghi nhận thời gian làm việc trên từng task.' : 'Track hours and record logged time.', icon: Timer },
+                            { key: 'subtasks', title: t('appSubtasks') || (isVietnamese ? 'Công việc con (Subtasks)' : 'Subtasks'), desc: isVietnamese ? 'Chia nhỏ mục tiêu lớn thành các bước thực hiện chi tiết.' : 'Break down tasks into actionable subtasks.', icon: CheckSquare },
+                            { key: 'priorities', title: t('appPriorities') || (isVietnamese ? 'Mức độ ưu tiên' : 'Task Priorities'), desc: isVietnamese ? 'Gắn cờ Khẩn cấp, Cao, Trung bình, Thấp.' : 'Categorize tasks by urgency levels.', icon: Zap },
+                            { key: 'relationships', title: t('appRelationships') || (isVietnamese ? 'Liên kết & Phụ thuộc' : 'Task Relationships'), desc: isVietnamese ? 'Cài đặt việc chặn (blocking) và việc phụ thuộc.' : 'Set up task dependencies and links.', icon: Link2 },
+                            { key: 'customFields', title: t('appCustomFields') || (isVietnamese ? 'Trường tùy chỉnh (Custom Fields)' : 'Custom Fields'), desc: isVietnamese ? 'Tạo thêm trường dữ liệu tùy biến theo quy trình.' : 'Add custom data fields for tasks.', icon: SlidersHorizontal },
+                          ].map(app => (
+                            <div key={app.key} className="flex items-center justify-between gap-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/50 p-3.5 transition-all hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/40 dark:hover:border-slate-700">
+                              <div className="flex items-start gap-3 min-w-0 flex-1">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
+                                  <app.icon className="h-4 w-4" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{app.title}</p>
+                                  <p className="mt-0.5 text-[11px] leading-snug text-slate-500 dark:text-slate-400">{app.desc}</p>
                                 </div>
                               </div>
-
-                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 shrink-0">
-                                {isTask ? (isVietnamese ? 'Công việc' : 'Task') : isSpace ? (isVietnamese ? 'Không gian' : 'Space') : isDoc ? (isVietnamese ? 'Tài liệu' : 'Doc') : isMember ? (isVietnamese ? 'Thành viên' : 'Member') : (isVietnamese ? 'Hệ thống' : 'System')}
-                              </span>
+                              <Toggle
+                                checked={Boolean((workspaceClickApps as any)[app.key])}
+                                onChange={val => setWorkspaceClickApps(prev => ({ ...prev, [app.key]: val }))}
+                                label={app.title}
+                              />
                             </div>
-                          );
-                        })
-                      ) : (
-                        <div className="py-12 text-center">
-                          <FileClock className="mx-auto h-7 w-7 text-slate-300 dark:text-slate-600" />
-                          <p className="mt-2 text-xs font-bold text-slate-600 dark:text-slate-400">{isVietnamese ? 'Không tìm thấy hoạt động phù hợp' : 'No matching activities found'}</p>
-                          <p className="text-[11px] text-slate-400 mt-0.5">{isVietnamese ? 'Các thao tác tạo, sửa và quản lý workspace sẽ tự động xuất hiện tại đây.' : 'Created, updated, and managed items will automatically log here.'}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </SettingsCard>
-              </>
-            )}
-
-            {activeTab === 'security' && (
-              <>
-                <SectionHeader 
-                  eyebrow={t('settingsSecurity') || (isVietnamese ? 'Bảo vệ tài khoản' : 'Account Security')} 
-                  title={t('securityAndSessions') || (isVietnamese ? 'Bảo mật và xác thực' : 'Security & Authentication')} 
-                  description={t('securityAndSessionsDesc') || (isVietnamese ? 'Kiểm tra danh tính và trạng thái phiên đăng nhập của bạn.' : 'Review credentials, active sessions and account safeguards.')} 
-                />
-                <SettingsCard title={isVietnamese ? 'Tài khoản đang đăng nhập' : 'Active Account'} description={isVietnamese ? 'Danh tính Costack và vai trò hiện tại của bạn.' : 'Your Costack credentials and active role.'} icon={UserRoundCog}>
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                    <SignedImage filePath={currentUser?.avatar || ''} alt={currentUser?.name || 'User'} className="h-14 w-14 overflow-hidden rounded-2xl" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-black text-slate-900 dark:text-white">{currentUser?.name || 'Costack User'}</p>
-                      <p className="mt-1 text-xs text-slate-500">{currentUser?.email || 'No email set'}</p>
-                    </div>
-                    <span className="w-fit rounded-full bg-sky-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-sky-600 dark:bg-sky-950/40 dark:text-sky-400">
-                      {currentUser?.role === 'admin' ? (t('admin') || 'Admin') : (t('member') || 'Member')}
-                    </span>
-                  </div>
-                </SettingsCard>
-
-                <SettingsCard title={isVietnamese ? 'Đổi mật khẩu' : 'Change Password'} description={isVietnamese ? 'Dùng mật khẩu mạnh và không sử dụng lại từ dịch vụ khác.' : 'Use a strong password that is unique to Costack.'} icon={KeyRound}>
-                  <form onSubmit={updatePassword} className="space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-3">
-                      <label className="space-y-1.5">
-                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{isVietnamese ? 'Mật khẩu hiện tại' : 'Current password'}</span>
-                        <input type="password" autoComplete="current-password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} placeholder={isVietnamese ? 'Nếu tài khoản có mật khẩu' : 'If your account has one'} className={inputClass} />
-                      </label>
-                      <label className="space-y-1.5">
-                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{isVietnamese ? 'Mật khẩu mới' : 'New password'}</span>
-                        <input type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} className={inputClass} />
-                      </label>
-                      <label className="space-y-1.5">
-                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{isVietnamese ? 'Nhập lại mật khẩu' : 'Confirm password'}</span>
-                        <input type="password" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} className={inputClass} />
-                      </label>
-                    </div>
-                    {newPassword && (
-                      <div className="space-y-2.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 p-3.5 border border-slate-200/70 dark:border-slate-800">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-bold text-slate-700 dark:text-slate-300">
-                            {t('passwordStrengthTitle') || (isVietnamese ? 'Độ mạnh mật khẩu' : 'Password strength')}
-                          </span>
-                          <span className={`font-extrabold text-[11px] ${
-                            passwordStrength.score <= 1 
-                              ? 'text-rose-500' 
-                              : passwordStrength.score === 2 
-                                ? 'text-amber-500' 
-                                : passwordStrength.score === 3 
-                                  ? 'text-sky-500' 
-                                  : 'text-emerald-500'
-                          }`}>
-                            {passwordStrength.score <= 1
-                              ? (isVietnamese ? 'Yếu' : 'Weak')
-                              : passwordStrength.score === 2
-                                ? (isVietnamese ? 'Trung bình' : 'Fair')
-                                : passwordStrength.score === 3
-                                  ? (isVietnamese ? 'Khá tốt' : 'Good')
-                                  : (isVietnamese ? 'Mạnh' : 'Strong')}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-4 gap-1.5 h-1.5">
-                          {[1, 2, 3, 4].map(seg => (
-                            <div
-                              key={seg}
-                              className={`rounded-full transition-colors ${
-                                passwordStrength.score >= seg
-                                  ? passwordStrength.score <= 1
-                                    ? 'bg-rose-500'
-                                    : passwordStrength.score === 2
-                                      ? 'bg-amber-500'
-                                      : passwordStrength.score === 3
-                                        ? 'bg-sky-500'
-                                        : 'bg-emerald-500'
-                                  : 'bg-slate-200 dark:bg-slate-800'
-                              }`}
-                            />
                           ))}
                         </div>
+                      </SettingsCard>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
-                          <div className={`flex items-center gap-1.5 text-[11px] ${passwordStrength.hasLength ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-400'}`}>
-                            {passwordStrength.hasLength ? <Check className="h-3 w-3" /> : <div className="h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-700 ml-0.5 mr-1" />}
-                            <span>{t('passwordRequirementLength') || (isVietnamese ? 'Tối thiểu 10 ký tự' : 'At least 10 characters')}</span>
-                          </div>
-                          <div className={`flex items-center gap-1.5 text-[11px] ${passwordStrength.hasUpper ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-400'}`}>
-                            {passwordStrength.hasUpper ? <Check className="h-3 w-3" /> : <div className="h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-700 ml-0.5 mr-1" />}
-                            <span>{t('passwordRequirementUpper') || (isVietnamese ? 'Chữ hoa (A-Z)' : 'Uppercase letter (A-Z)')}</span>
-                          </div>
-                          <div className={`flex items-center gap-1.5 text-[11px] ${passwordStrength.hasLower ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-400'}`}>
-                            {passwordStrength.hasLower ? <Check className="h-3 w-3" /> : <div className="h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-700 ml-0.5 mr-1" />}
-                            <span>{t('passwordRequirementLower') || (isVietnamese ? 'Chữ thường (a-z)' : 'Lowercase letter (a-z)')}</span>
-                          </div>
-                          <div className={`flex items-center gap-1.5 text-[11px] ${passwordStrength.hasNumber ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-400'}`}>
-                            {passwordStrength.hasNumber ? <Check className="h-3 w-3" /> : <div className="h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-700 ml-0.5 mr-1" />}
-                            <span>{t('passwordRequirementNumber') || (isVietnamese ? 'Chữ số (0-9)' : 'Number (0-9)')}</span>
-                          </div>
-                          {confirmPassword && (
-                            <div className={`flex items-center gap-1.5 text-[11px] sm:col-span-2 ${passwordStrength.isMatch ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-rose-500 font-semibold'}`}>
-                              {passwordStrength.isMatch ? <Check className="h-3 w-3" /> : <div className="h-1.5 w-1.5 rounded-full bg-rose-400 ml-0.5 mr-1" />}
-                              <span>{t('passwordMatch') || (isVietnamese ? 'Mật khẩu khớp nhau' : 'Passwords match')}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {passwordError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/20 dark:text-rose-300">{passwordError}</p>}
-                    <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
-                      <p className="text-[10px] leading-4 text-slate-400">{isVietnamese ? 'Tối thiểu 10 ký tự, gồm chữ hoa, chữ thường và số.' : 'At least 10 characters with uppercase, lowercase and a number.'}</p>
-                      <button type="submit" disabled={updatingPassword || !newPassword || !confirmPassword} className="inline-flex h-9 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-extrabold text-white hover:bg-indigo-700 disabled:opacity-40">
-                        {updatingPassword && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}{isVietnamese ? 'Cập nhật mật khẩu' : 'Update password'}
-                      </button>
-                    </div>
-                  </form>
-                </SettingsCard>
-
-                <SettingsCard
-                  title={t('authenticatorApp') || (isVietnamese ? 'Ứng dụng Authenticator (TOTP)' : 'Authenticator App (TOTP)')}
-                  description={t('authenticatorDesc') || (isVietnamese ? 'Bảo vệ tài khoản bằng mã OTP 6 chữ số từ Google Authenticator, Microsoft Authenticator hoặc Apple Keychain khi đăng nhập.' : 'Protect your account with 6-digit TOTP codes from any authenticator app.')}
-                  icon={ShieldCheck}
-                  action={
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[11px] font-extrabold ${isMfaActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
-                        {isMfaActive
-                          ? (isVietnamese ? 'Đang bật' : 'Enabled')
-                          : (isVietnamese ? 'Đang tắt' : 'Disabled')}
-                      </span>
-                      <Toggle
-                        checked={isMfaActive || Boolean(mfaEnrollment)}
-                        onChange={handleToggleMfa}
-                        disabled={mfaBusy}
-                        label={isVietnamese ? 'Bật/tắt ứng dụng xác thực' : 'Toggle Authenticator 2FA'}
-                      />
-                    </div>
-                  }
-                >
-                  {mfaEnrollment ? (
-                    <div className="space-y-4 text-left">
-                      <div className="flex items-center justify-between gap-3 rounded-xl bg-blue-50/80 px-3.5 py-2.5 dark:bg-sky-950/30 border border-blue-200/80 dark:border-sky-900/40">
-                        <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-sky-300">
-                          <Smartphone className="h-4 w-4 shrink-0" />
-                          <span>{isVietnamese ? 'Đang thiết lập Authenticator (Bước 1/2)' : 'Setting up Authenticator (Step 1/2)'}</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={cancelMfaEnrollment}
-                          disabled={mfaBusy}
-                          className="text-xs font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
-                        >
-                          {t('cancel') || (isVietnamese ? 'Hủy' : 'Cancel')}
-                        </button>
-                      </div>
-
-                      <div className="grid gap-6 md:grid-cols-[200px_1fr] items-start">
-                        <div className="flex flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-white text-center">
-                          <div className="h-44 w-44 flex items-center justify-center overflow-hidden rounded-xl bg-white">
-                            <img
-                              src={mfaEnrollment.qrCode}
-                              alt="Authenticator QR Code"
-                              className="h-full w-full object-contain"
-                            />
-                          </div>
-                          <p className="text-[10px] font-bold text-slate-500">
-                            {isVietnamese ? 'Quét bằng camera trong app' : 'Scan in authenticator app'}
-                          </p>
-                        </div>
-
-                        <div className="space-y-4">
-                          <div className="space-y-2">
-                            <div className="flex items-start gap-2.5">
-                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black text-white">1</span>
-                              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                                {t('authenticatorStep1') || (isVietnamese ? 'Mở Google Authenticator, Microsoft Authenticator hoặc Apple Keychain trên điện thoại.' : 'Open Google Authenticator, Microsoft Authenticator or Apple Keychain.')}
-                              </p>
-                            </div>
-
-                            <div className="flex items-start gap-2.5">
-                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black text-white">2</span>
-                              <div className="space-y-1.5 flex-1">
-                                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                                  {t('authenticatorStep2') || (isVietnamese ? 'Quét mã QR bên cạnh hoặc sao chép khóa bí mật thiết lập thủ công:' : 'Scan the QR code or enter this secret key manually:')}
-                                </p>
-                                <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/70 dark:border-slate-800 px-3 py-1.5">
-                                  <code className="text-xs font-mono font-bold text-slate-900 dark:text-slate-100 select-all break-all">
-                                    {mfaEnrollment.secret}
-                                  </code>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      navigator.clipboard.writeText(mfaEnrollment.secret);
-                                      setCopiedSecret(true);
-                                      triggerToast?.('info', t('secretCopied') || (isVietnamese ? 'Đã sao chép khóa bí mật' : 'Secret copied'), mfaEnrollment.secret);
-                                      setTimeout(() => setCopiedSecret(false), 2500);
-                                    }}
-                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-600 hover:text-sky-700 dark:text-sky-400 shrink-0 cursor-pointer"
-                                  >
-                                    {copiedSecret ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                                    <span>{copiedSecret ? (isVietnamese ? 'Đã chép' : 'Copied') : (isVietnamese ? 'Sao chép' : 'Copy')}</span>
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="flex items-start gap-2.5 pt-1">
-                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black text-white">3</span>
-                              <div className="space-y-2 flex-1">
-                                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                                  {t('authenticatorStep3') || (isVietnamese ? 'Điền mã 6 chữ số xuất hiện trên ứng dụng để kích hoạt:' : 'Enter the 6-digit code from your app to activate:')}
-                                </p>
-                                <div className="pt-1 flex flex-col items-start gap-3">
-                                  <OtpCodeInput
-                                    id="enrollment-otp"
-                                    value={mfaCode}
-                                    onChange={(val) => {
-                                      setMfaCode(val);
-                                      if (mfaError) setMfaError('');
-                                    }}
-                                    onComplete={(code) => verifyMfaEnrollment(code)}
-                                    disabled={mfaBusy}
-                                    hasError={Boolean(mfaError)}
-                                    autoFocus
-                                  />
-                                  {mfaError && (
-                                    <p role="alert" className="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
-                                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                                      <span>{mfaError}</span>
-                                    </p>
-                                  )}
-                                  <div className="flex items-center gap-2 pt-1">
-                                    <button
-                                      type="button"
-                                      onClick={() => verifyMfaEnrollment()}
-                                      disabled={mfaBusy || mfaCode.length !== 6}
-                                      className="inline-flex h-9.5 items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 text-xs font-black text-white shadow-md transition disabled:opacity-40 cursor-pointer"
-                                    >
-                                      {mfaBusy ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
-                                      <span>{t('verifyAndEnable') || (isVietnamese ? 'Xác minh và Bật 2FA' : 'Verify & Enable 2FA')}</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={cancelMfaEnrollment}
-                                      disabled={mfaBusy}
-                                      className="h-9.5 rounded-xl border border-slate-200 px-4 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 cursor-pointer"
-                                    >
-                                      {t('cancel') || (isVietnamese ? 'Hủy' : 'Cancel')}
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : isMfaActive && verifiedMfaFactor ? (
-                    <div className="space-y-4 text-left">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4.5 dark:border-emerald-900/50 dark:bg-emerald-950/20">
-                        <div className="flex items-start gap-3.5">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                            <ShieldCheck className="h-5 w-5" />
-                          </div>
+                      {/* Danger Zone */}
+                      <SettingsCard 
+                        title={t('dangerZoneTitle') || (isVietnamese ? 'Khu vực nguy hiểm' : 'Danger Zone')} 
+                        description={t('dangerZoneDesc') || (isVietnamese ? 'Các thao tác này ảnh hưởng vĩnh viễn đến toàn bộ thành viên trong không gian.' : 'Permanent actions that affect all workspace members.')} 
+                        icon={AlertTriangle} 
+                        tone="danger"
+                      >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="text-sm font-black text-emerald-950 dark:text-emerald-200">
-                                {verifiedMfaFactor.friendly_name || 'Costack Authenticator'}
-                              </h4>
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[9.5px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                {isVietnamese ? 'Đang bảo vệ' : 'Active'}
-                              </span>
-                            </div>
-                            <p className="mt-1 text-xs leading-relaxed text-emerald-800/80 dark:text-emerald-300/80">
-                              {isVietnamese
-                                ? 'Tài khoản của bạn được bảo vệ bằng mã 6 số từ ứng dụng Authenticator mỗi lần đăng nhập.'
-                                : 'Your account is protected by 6-digit TOTP codes whenever you sign in.'}
+                            <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                              {t('deleteThisWorkspace') || (isVietnamese ? 'Xóa không gian này' : 'Delete this workspace')}
+                            </p>
+                            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                              {isVietnamese ? 'Xóa vĩnh viễn không gian làm việc này cùng toàn bộ không gian con, danh sách và công việc.' : 'Permanently remove this workspace and all associated resources.'}
                             </p>
                           </div>
+                          <button 
+                            type="button" 
+                            onClick={() => setDeleteWorkspace(activeWorkspace)} 
+                            disabled={workspaces.length <= 1} 
+                            className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-rose-200 bg-white px-4 text-xs font-extrabold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-rose-900/60 dark:bg-slate-950 cursor-pointer shrink-0 transition-colors shadow-2xs"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>{t('deleteWorkspace') || (isVietnamese ? 'Xóa không gian' : 'Delete Workspace')}</span>
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDisableMfaModal(verifiedMfaFactor.id)}
-                          disabled={mfaBusy}
-                          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3.5 text-xs font-bold text-rose-600 hover:bg-rose-50 shadow-sm transition dark:border-rose-900/60 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/30 cursor-pointer shrink-0"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          <span>{t('disable2FA') || (isVietnamese ? 'Tắt Authenticator' : 'Disable 2FA')}</span>
-                        </button>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 pt-1">
-                        <span className="font-semibold">{isVietnamese ? 'Ứng dụng tương thích:' : 'Supported apps:'}</span>
-                        {['Google Authenticator', 'Microsoft Authenticator', '1Password', 'Apple Keychain', 'Authy'].map(appName => (
-                          <span key={appName} className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-700 dark:text-slate-300">
-                            {appName}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+                      </SettingsCard>
+                    </>
                   ) : (
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-left">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                            {t('twoFactorDisabled') || (isVietnamese ? 'Chưa kích hoạt xác thực hai bước' : 'Two-factor authentication is off')}
-                          </p>
-                          <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                            {isVietnamese ? 'Tùy chọn' : 'Optional'}
+                    <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-12 text-center">
+                      <BriefcaseBusiness className="mx-auto h-8 w-8 text-slate-300" />
+                      <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-300">{t('noWorkspaceSelected') || 'No workspace selected'}</p>
+                    </div>
+                  )}
+
+                  {/* Floating Unsaved Changes Bar */}
+                  <AnimatePresence>
+                    {isWorkspaceDirty && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 30, scale: 0.95 }}
+                        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center justify-between gap-4 px-5 py-3 rounded-2xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xl border border-slate-700 dark:border-slate-200 w-[90%] max-w-lg"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Sparkles className="h-4 w-4 text-amber-400 shrink-0 animate-pulse" />
+                          <span className="text-xs font-bold truncate">
+                            {isVietnamese ? 'Bạn có thay đổi chưa lưu' : 'You have unsaved changes'}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-xl">
-                          {isVietnamese
-                            ? 'Bổ sung một lớp bảo mật thứ hai bằng mã xác thực 6 chữ số thay đổi mỗi 30 giây từ ứng dụng Google Authenticator, Microsoft Authenticator hoặc Apple Keychain.'
-                            : 'Add a second layer of defense requiring a 6-digit TOTP code that refreshes every 30s from your authenticator app.'}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={syncWorkspaceFields}
+                            className="px-3 py-1.5 text-xs font-semibold rounded-xl text-slate-300 hover:text-white dark:text-slate-600 dark:hover:text-slate-950 transition-colors cursor-pointer"
+                          >
+                            {isVietnamese ? 'Đặt lại' : 'Reset'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={saveWorkspace}
+                            disabled={isSavingWorkspace}
+                            className="px-4 py-1.5 text-xs font-extrabold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                          >
+                            {isSavingWorkspace ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                            <span>{isVietnamese ? 'Lưu ngay' : 'Save'}</span>
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </>
+              )}
+
+              {/* ── TAB 2: PEOPLE (MEMBERS & ACCESS) ── */}
+              {activeTab === 'people' && (
+                <>
+                  <SectionHeader 
+                    eyebrow={t('team') || (isVietnamese ? 'Quản trị đội ngũ' : 'Team Admin')} 
+                    title={t('membersAndAccess') || (isVietnamese ? 'Thành viên & Đội ngũ' : 'Members & Teams')} 
+                    description={t('membersAndAccessDesc') || (isVietnamese ? 'Mời đồng đội, tổ chức cơ cấu phòng ban và phân quyền truy cập không gian.' : 'Invite teammates, organize squads and configure access rights.')} 
+                  />
+                  <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-3 sm:p-4 dark:border-slate-800 dark:bg-slate-900 shadow-2xs">
+                    <TeamDirectory 
+                      members={members} 
+                      tasks={tasks} 
+                      workspaces={workspaces} 
+                      activeWorkspaceId={activeWorkspaceId} 
+                      onAddMember={onAddMember || (() => {})} 
+                      onUpdateMember={onUpdateMember || (() => {})} 
+                      onDeleteMember={onDeleteMember || (() => {})} 
+                      onAddSyncLog={onAddSyncLog || (() => {})} 
+                      currentUser={currentUser} 
+                      onSendWorkspaceInvites={onSendWorkspaceInvites} 
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* ── TAB 3: PREFERENCES (APPEARANCE & VISUALS) ── */}
+              {activeTab === 'preferences' && (
+                <>
+                  <SectionHeader 
+                    eyebrow={t('settingsPersonal') || (isVietnamese ? 'Cá nhân hóa' : 'Personalization')} 
+                    title={t('appearanceAndTheme') || (isVietnamese ? 'Giao diện & Trải nghiệm' : 'Appearance & Experience')} 
+                    description={t('appearanceAndThemeDesc') || (isVietnamese ? 'Tùy chỉnh chế độ hiển thị, màu nhấn, mật độ và thói quen làm việc của riêng bạn.' : 'Tailor visuals, colors, density and focus defaults to your daily workflow.')} 
+                  />
+
+                  {/* Language & Region */}
+                  <SettingsCard 
+                    title={t('languageAndRegion') || (isVietnamese ? 'Ngôn ngữ & Khu vực' : 'Language & Region')} 
+                    description={t('languageAndRegionDesc') || (isVietnamese ? 'Chuyển đổi giao diện song ngữ Tiếng Việt và Tiếng Anh.' : 'Select your primary language for Costack.')} 
+                    icon={Globe2}
+                  >
+                    <LanguageDropdown variant="cards" />
+                  </SettingsCard>
+
+                  {/* Color Mode */}
+                  <SettingsCard 
+                    title={t('colorMode') || (isVietnamese ? 'Chế độ màu giao diện' : 'Color Mode')} 
+                    description={t('colorModeDesc') || (isVietnamese ? 'Chọn giao diện sáng, tối hoặc tự động đồng bộ theo hệ điều hành.' : 'Choose light, dark, or system preference.')} 
+                    icon={MonitorCog}
+                  >
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      {[
+                        { id: 'light', label: t('lightMode') || (isVietnamese ? 'Giao diện Sáng' : 'Light Mode'), desc: isVietnamese ? 'Tối ưu độ tương phản ban ngày' : 'Clean daytime contrast', icon: Sun }, 
+                        { id: 'dark', label: t('darkMode') || (isVietnamese ? 'Giao diện Tối' : 'Dark Mode'), desc: isVietnamese ? 'Dịu mắt và tập trung cao' : 'Easy on eyes at night', icon: Moon }, 
+                        { id: 'system', label: t('systemMode') || (isVietnamese ? 'Theo hệ thống' : 'System Default'), desc: isVietnamese ? `Tự động (${isDarkMode ? 'Hiện đang tối' : 'Hiện đang sáng'})` : `Auto (${isDarkMode ? 'Dark' : 'Light'})`, icon: Laptop }
+                      ].map(option => {
+                        const selected = option.id === themePreference;
+                        const Icon = option.icon;
+                        return (
+                          <button 
+                            key={option.id} 
+                            type="button" 
+                            aria-pressed={selected} 
+                            onClick={() => setThemePreference(option.id as ThemePreference)} 
+                            className={`rounded-2xl border p-4 text-left transition-all cursor-pointer ${
+                              selected 
+                                ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 ring-1 ring-indigo-500' 
+                                : 'border-slate-200 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30 hover:border-slate-300 dark:hover:border-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <Icon className={`h-5 w-5 ${selected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
+                              {selected && <Check className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />}
+                            </div>
+                            <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{option.label}</p>
+                            <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500 leading-snug">{option.desc}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </SettingsCard>
+
+                  {/* Accent & Visual Depth */}
+                  <SettingsCard 
+                    title={t('accentAndEffects') || (isVietnamese ? 'Màu nhấn & Hiệu ứng' : 'Accent & Visual Effects')} 
+                    description={t('accentAndEffectsDesc') || (isVietnamese ? 'Tùy chỉnh sắc thái màu sắc và độ mờ nền giao diện.' : 'Configure theme accent colors and surface effects.')} 
+                    icon={Palette}
+                  >
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {accentOptions.map(option => (
+                        <button 
+                          key={option.id} 
+                          type="button" 
+                          onClick={() => setAccentPreset(option.id)} 
+                          className={`rounded-xl border p-3 text-left transition-all cursor-pointer ${
+                            accentPreset === option.id 
+                              ? 'border-indigo-500 bg-indigo-50/60 dark:bg-indigo-950/40 ring-1 ring-indigo-500' 
+                              : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                          }`}
+                        >
+                          <span className={`block h-8 rounded-lg ${option.className} shadow-2xs mb-2`} />
+                          <span className="block text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{option.name}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="mt-5 divide-y divide-slate-100 dark:divide-slate-800">
+                      <SettingRow 
+                        title={t('interfaceDepth') || (isVietnamese ? 'Độ mờ kính (Interface Depth)' : 'Interface Depth')} 
+                        description={isVietnamese ? 'Tùy chỉnh độ mờ kính mờ và phân tầng bề mặt giao diện.' : 'Adjust blur and glassmorphism levels.'}
+                      >
+                        <Select 
+                          value={blurIntensity} 
+                          onChange={v => setBlurIntensity(v as BlurIntensity)} 
+                          className="w-40" 
+                          ariaLabel="Interface Depth" 
+                          options={[
+                            { value: 'soft', label: isVietnamese ? 'Nhẹ (Soft)' : 'Soft' },
+                            { value: 'default', label: isVietnamese ? 'Cân bằng' : 'Balanced' },
+                            { value: 'immersive', label: isVietnamese ? 'Nổi bật (Deep)' : 'Immersive' },
+                          ]} 
+                        />
+                      </SettingRow>
+
+                      <SettingRow 
+                        title={isVietnamese ? 'Mật độ giao diện' : 'Interface Density'} 
+                        description={isVietnamese ? 'Khoảng cách giữa các dòng và thẻ trên màn hình làm việc.' : 'Adjust padding and spacing across workspaces.'}
+                      >
+                        <Select 
+                          value={uiDensity} 
+                          onChange={v => setUiDensity(v as 'comfortable' | 'compact')} 
+                          className="w-40" 
+                          ariaLabel="Interface Density" 
+                          options={[
+                            { value: 'comfortable', label: isVietnamese ? 'Thoải mái' : 'Comfortable' },
+                            { value: 'compact', label: isVietnamese ? 'Thu gọn (Compact)' : 'Compact' },
+                          ]} 
+                        />
+                      </SettingRow>
+
+                      <SettingRow 
+                        title={isVietnamese ? 'Định dạng ngày & giờ' : 'Date & Time Format'} 
+                        description={isVietnamese ? 'Định dạng hiển thị đồng bộ trên thẻ công việc, lịch biểu và báo cáo.' : 'Format used on task cards, calendars and timeline.'}
+                      >
+                        <Select 
+                          value={dateFormat} 
+                          onChange={v => setDateFormat(v as typeof dateFormat)} 
+                          className="w-44" 
+                          ariaLabel="Date Format" 
+                          options={[
+                            { value: 'short', label: '20/08/2026' },
+                            { value: 'full', label: '20 tháng 8, 2026' },
+                            { value: 'vi', label: 'Thứ Năm, 20/08' },
+                            { value: 'numeric', label: '2026-08-20' },
+                            { value: 'clock', label: '20/08 · 14:30' },
+                          ]} 
+                        />
+                      </SettingRow>
+
+                      <SettingRow
+                        title={t('defaultStartupTab') || (isVietnamese ? 'Màn hình khởi động mặc định' : 'Default Startup Screen')}
+                        description={isVietnamese ? 'Tab mở ra đầu tiên mỗi khi bạn truy cập vào ứng dụng.' : 'First tab displayed upon launch.'}
+                      >
+                        <Select
+                          value={defaultStartupTab}
+                          onChange={setDefaultStartupTab}
+                          className="w-48"
+                          ariaLabel="Default Startup Screen"
+                          options={[
+                            { value: 'dashboard', label: isVietnamese ? 'Tổng quan (Dashboard)' : 'Dashboard' },
+                            { value: 'tasks', label: isVietnamese ? 'Công việc (Tasks)' : 'Tasks' },
+                            { value: 'inbox', label: isVietnamese ? 'Hộp thư (Inbox)' : 'Inbox' },
+                            { value: 'calendar', label: isVietnamese ? 'Lịch biểu (Calendar)' : 'Calendar' },
+                            { value: 'finance', label: isVietnamese ? 'Tài chính (Finance)' : 'Finance' },
+                            { value: 'chat', label: isVietnamese ? 'Trò chuyện (Chat)' : 'Chat' },
+                          ]}
+                        />
+                      </SettingRow>
+
+                      <SettingRow 
+                        title={t('uiSounds') || (isVietnamese ? 'Âm thanh phản hồi giao diện' : 'System Audio Feedback')} 
+                        description={isVietnamese ? 'Phát âm thanh nhẹ khi hoàn thành công việc hoặc chuyển đổi trạng thái.' : 'Subtle sound effects for task completion and actions.'} 
+                        last
+                      >
+                        <div className="flex items-center gap-2.5">
+                          {soundEnabled && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (typeof window !== 'undefined') {
+                                  (window as any).playSystemSound?.('toggle');
+                                }
+                              }}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
+                            >
+                              <Play className="h-3 w-3 fill-current text-indigo-500" />
+                              <span>{isVietnamese ? 'Thử âm' : 'Test Sound'}</span>
+                            </button>
+                          )}
+                          <Toggle checked={soundEnabled} onChange={setSoundEnabled} label="System Audio Feedback" />
+                        </div>
+                      </SettingRow>
+                    </div>
+                  </SettingsCard>
+
+                  {/* Sidebar Navigation Customization */}
+                  <SettingsCard 
+                    title={isVietnamese ? 'Sắp xếp thứ tự Module trên Thanh bên' : 'Sidebar Navigation Modules'} 
+                    description={isVietnamese ? 'Tùy biến vị trí các tính năng trên thanh bên theo thói quen sử dụng hàng ngày.' : 'Customize the order of modules in the left sidebar.'} 
+                    icon={SlidersHorizontal}
+                    action={
+                      <button
+                        type="button"
+                        onClick={() => setShowSidebarOrderModal(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-900/60 hover:bg-indigo-100 transition-colors cursor-pointer"
+                      >
+                        <SlidersHorizontal className="h-3.5 w-3.5" />
+                        <span>{isVietnamese ? 'Mở bảng sắp xếp' : 'Reorder Modules'}</span>
+                      </button>
+                    }
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div>
+                        <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
+                          {isVietnamese ? 'Tự do di chuyển vị trí các tab chức năng' : 'Freely reorder functional navigation tabs'}
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                          {isVietnamese 
+                            ? 'Kéo thả trực tiếp trên thanh bên hoặc sử dụng công cụ sắp xếp để đưa các module thường dùng lên vị trí ưu tiên.' 
+                            : 'Drag and drop directly in the sidebar or use the manager to position frequently used tabs.'}
                         </p>
                       </div>
                       <button
                         type="button"
-                        onClick={startMfaEnrollment}
-                        disabled={mfaBusy}
-                        className="inline-flex h-9.5 items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 text-xs font-black text-white shadow-md transition disabled:opacity-50 cursor-pointer shrink-0"
+                        onClick={() => setShowSidebarOrderModal(true)}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all active:scale-95 cursor-pointer shrink-0"
                       >
-                        {mfaBusy ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
-                        <span>{t('enable2FA') || (isVietnamese ? 'Bật Authenticator' : 'Enable 2FA')}</span>
+                        <SlidersHorizontal className="h-3.5 w-3.5" />
+                        <span>{isVietnamese ? 'Tùy chỉnh ngay' : 'Customize Now'}</span>
                       </button>
                     </div>
-                  )}
-                </SettingsCard>
+                  </SettingsCard>
+                </>
+              )}
 
-                <SettingsCard title={isVietnamese ? 'Trạng thái phiên' : 'Session Status'} description={isVietnamese ? 'Trình duyệt này đang có một phiên xác thực hoạt động.' : 'This device has an active authenticated session.'} icon={LockKeyhole}>
-                  <SettingRow title={isVietnamese ? 'Thiết bị hiện tại' : 'Current Device'} description={`${typeof navigator !== 'undefined' ? navigator.platform : 'Browser'} · ${sessionDetails?.lastSignIn ? new Date(sessionDetails.lastSignIn).toLocaleString(locale) : (isVietnamese ? 'Đang hoạt động' : 'Active')}`}>
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      {isVietnamese ? 'Hiện tại' : 'Current'}
-                    </span>
-                  </SettingRow>
-                  <SettingRow title={isVietnamese ? 'Đăng xuất các thiết bị khác' : 'Sign Out Other Devices'} description={isVietnamese ? 'Thu hồi refresh token trên mọi phiên khác nhưng giữ thiết bị này.' : 'Revoke refresh tokens on every other session while keeping this device active.'}>
-                    <button type="button" onClick={revokeOtherSessions} disabled={revokingSessions} className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-4 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-200">
-                      {revokingSessions ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}{isVietnamese ? 'Thu hồi phiên khác' : 'Revoke others'}
-                    </button>
-                  </SettingRow>
-                  <SettingRow title={t('signOut') || (isVietnamese ? 'Đăng xuất' : 'Sign Out')} description={isVietnamese ? 'Kết thúc phiên trình duyệt hiện tại một cách an toàn.' : 'Safely end the current session.'} last>
-                    <button type="button" onClick={onLogout} className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-4 text-xs font-extrabold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 cursor-pointer">
-                      <LogOut className="h-3.5 w-3.5" />{t('signOut') || 'Sign Out'}
-                    </button>
-                  </SettingRow>
-                </SettingsCard>
-              </>
-            )}
+              {/* ── TAB 4: NOTIFICATIONS & FOCUS ── */}
+              {activeTab === 'notifications' && (
+                <>
+                  <SectionHeader 
+                    eyebrow={t('notificationSettings') || (isVietnamese ? 'Quản lý thông báo' : 'Notification Settings')} 
+                    title={t('notificationsAndFocus') || (isVietnamese ? 'Thông báo & Tập trung' : 'Notifications & Focus')} 
+                    description={t('notificationsAndFocusDesc') || (isVietnamese ? 'Kiểm soát cách thức và tần suất nhận thông báo để đảm bảo làm việc sâu hiệu quả.' : 'Fine-tune delivery channels, focus hours and alerts.')} 
+                  />
 
-            {activeTab === 'data_export' && (
-              <>
-                <SectionHeader 
-                  eyebrow={t('settingsDataExport') || (isVietnamese ? 'Quyền sở hữu dữ liệu' : 'Data Ownership')} 
-                  title={t('dataAndStorage') || (isVietnamese ? 'Dữ liệu và lưu trữ' : 'Data & Storage')} 
-                  description={t('dataAndStorageDesc') || (isVietnamese ? 'Nắm rõ dữ liệu được lưu, tạo bản sao lưu và quản lý bộ nhớ đệm giao diện.' : 'Export data backups and manage local caching.')} 
-                />
-                <div className="grid gap-4 sm:grid-cols-3">
-                  {[
-                    { label: t('tasks') || (isVietnamese ? 'Công việc' : 'Tasks'), value: tasks.filter(task => !activeWorkspace || task.workspaceId === activeWorkspace.id).length, icon: Archive, tone: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30' },
-                    { label: t('members') || (isVietnamese ? 'Thành viên' : 'Members'), value: members.length, icon: UsersRound, tone: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30' },
-                    { label: t('systemLogs') || (isVietnamese ? 'Sự kiện' : 'Events'), value: syncLogs.length, icon: Activity, tone: 'text-amber-600 bg-amber-50 dark:bg-amber-950/30' }
-                  ].map(metric => (
-                    <div key={metric.label} className="rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-                      <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${metric.tone}`}><metric.icon className="h-4 w-4" /></div>
-                      <p className="mt-4 text-2xl font-black text-slate-950 dark:text-white">{metric.value}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-400">{metric.label}</p>
+                  {/* Delivery Channels */}
+                  <SettingsCard 
+                    title={t('notificationDelivery') || (isVietnamese ? 'Phương thức phân phối thông báo' : 'Notification Delivery')} 
+                    description={isVietnamese ? 'Quản lý âm thanh và thông báo trên trình duyệt máy tính.' : 'Configure sounds and desktop notifications.'} 
+                    icon={Bell}
+                  >
+                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                      <SettingRow 
+                        title={t('enableAllNotifications') || (isVietnamese ? 'Bật thông báo ứng dụng' : 'Enable Notifications')} 
+                        description={isVietnamese ? 'Nhận các cập nhật về công việc, lời nhắc và phản hồi từ đồng đội.' : 'Receive task updates and teammate mentions.'}
+                      >
+                        <Toggle checked={notificationSettings.enableAll} onChange={value => setNotificationSettings(previous => ({ ...previous, enableAll: value }))} label="Enable Notifications" />
+                      </SettingRow>
+
+                      <SettingRow 
+                        title={t('enableNotificationSound') || (isVietnamese ? 'Âm thanh thông báo' : 'Notification Sound')} 
+                        description={isVietnamese ? 'Phát âm thanh chuông ngắn khi có cảnh báo mới.' : 'Play subtle chime when notifications arrive.'}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          {notificationSettings.enableSound && notificationSettings.enableAll && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (typeof window !== 'undefined') {
+                                  (window as any).playSystemSound?.('notification');
+                                }
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition cursor-pointer"
+                            >
+                              <Play className="h-3 w-3 fill-current text-indigo-500" />
+                              <span>{isVietnamese ? 'Thử chuông' : 'Test'}</span>
+                            </button>
+                          )}
+                          <Toggle 
+                            checked={notificationSettings.enableSound} 
+                            disabled={!notificationSettings.enableAll} 
+                            onChange={value => { setNotificationSettings(previous => ({ ...previous, enableSound: value })); setSoundEnabled(value); }} 
+                            label="Notification Sound" 
+                          />
+                        </div>
+                      </SettingRow>
+
+                      {isBrowserNotificationSupported() && (
+                        <SettingRow 
+                          title={isVietnamese ? 'Thông báo nổi trên màn hình máy tính (Desktop Popup)' : 'Desktop Browser Notifications'} 
+                          description={isVietnamese ? 'Hiển thị popup trực tiếp trên màn hình máy tính ngay cả khi bạn đang mở ứng dụng khác.' : 'Receive popups even when Costack is in the background.'}
+                          last
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded-md text-[10.5px] font-bold ${
+                              browserPerm === 'granted' 
+                                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800' 
+                                : browserPerm === 'denied'
+                                  ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+                                  : 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                            }`}>
+                              {browserPerm === 'granted' 
+                                ? (isVietnamese ? 'Đã cấp quyền' : 'Granted') 
+                                : browserPerm === 'denied' 
+                                  ? (isVietnamese ? 'Bị chặn' : 'Blocked') 
+                                  : (isVietnamese ? 'Chưa cấp quyền' : 'Not Granted')}
+                            </span>
+                            <Toggle 
+                              checked={Boolean(notificationSettings.enableBrowserNotifications && browserPerm === 'granted')} 
+                              disabled={!notificationSettings.enableAll} 
+                              onChange={async (value) => {
+                                if (value) {
+                                  const res = await requestBrowserNotificationPermission();
+                                  setBrowserPerm(res);
+                                  if (res === 'granted') {
+                                    setNotificationSettings(previous => ({ ...previous, enableBrowserNotifications: true }));
+                                    sendTestNotification();
+                                  } else {
+                                    setNotificationSettings(previous => ({ ...previous, enableBrowserNotifications: false }));
+                                  }
+                                } else {
+                                  setNotificationSettings(previous => ({ ...previous, enableBrowserNotifications: false }));
+                                }
+                              }} 
+                              label="Browser Desktop Notifications" 
+                            />
+                            {browserPerm === 'granted' && (
+                              <button
+                                type="button"
+                                onClick={() => sendTestNotification()}
+                                className="h-8 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[10.5px] font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-all cursor-pointer"
+                              >
+                                {isVietnamese ? 'Bắn thử' : 'Test'}
+                              </button>
+                            )}
+                          </div>
+                        </SettingRow>
+                      )}
                     </div>
-                  ))}
-                </div>
-                <SettingsCard title={t('exportWorkspaceData') || (isVietnamese ? 'Xuất dữ liệu không gian' : 'Export Workspace Data')} description={t('exportWorkspaceDataDesc') || (isVietnamese ? 'Tải bản JSON dễ đọc gồm cấu hình, công việc, thành viên và hoạt động.' : 'Download all tasks, documents and member data as a JSON file.')} icon={Download}>
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/30 dark:text-sky-400"><Cloud className="h-5 w-5" /></div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{isVietnamese ? 'Bản sao lưu JSON' : 'JSON Full Backup'}</p>
-                        <p className="mt-1 text-xs text-slate-500">{isVietnamese ? 'Được tạo an toàn cục bộ trong trình duyệt.' : 'Generated securely in your browser.'}</p>
+                  </SettingsCard>
+
+                  {/* Notification Triggers */}
+                  <SettingsCard 
+                    title={isVietnamese ? 'Sự kiện kích hoạt thông báo' : 'Notification Triggers'} 
+                    description={isVietnamese ? 'Lựa chọn các loại hoạt động gửi thông báo đến bạn.' : 'Select specific activity types that notify you.'} 
+                    icon={SlidersHorizontal}
+                  >
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {[
+                        ['enableAssignments', isVietnamese ? 'Việc được giao' : 'Task Assignments', isVietnamese ? 'Khi có công việc mới được giao cho bạn' : 'When tasks are assigned to you'],
+                        ['enableDeadlines', isVietnamese ? 'Hạn chót & Nhắc việc' : 'Deadlines & Reminders', isVietnamese ? 'Nhắc việc sắp đến hạn hoặc bị quá hạn' : 'Due date and overdue warnings'],
+                        ['enableComments', isVietnamese ? 'Bình luận & Nhắc tên (@)' : 'Comments & Mentions', isVietnamese ? 'Khi có người phản hồi hoặc gắn thẻ bạn' : 'Replies and @mentions in tasks'],
+                        ['enableStatusChanges', isVietnamese ? 'Thay đổi trạng thái' : 'Status Changes', isVietnamese ? 'Cập nhật tiến độ của task bạn tham gia' : 'Progress updates on followed tasks'],
+                        ['enableFilteringTags', isVietnamese ? 'Hoạt động gắn thẻ' : 'Tag Updates', isVietnamese ? 'Thông báo các nhãn bạn đang theo dõi' : 'Updates on monitored tags'],
+                        ['enableChatMessages', isVietnamese ? 'Tin nhắn phòng chat' : 'Chat Messages', isVietnamese ? 'Khi có tin nhắn mới trong phòng chat nhóm' : 'New messages in team chat'],
+                        ['enableSystemNotify', isVietnamese ? 'Cảnh báo hệ thống & Bảo mật' : 'System & Security', isVietnamese ? 'Đồng bộ dữ liệu, bảo mật và tài khoản' : 'Sync and security alerts']
+                      ].map(([key, title, description]) => (
+                        <div key={key} className="flex items-center justify-between gap-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 p-3.5 transition-all hover:border-slate-300 dark:hover:border-slate-700">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{title}</p>
+                            <p className="mt-0.5 text-[11px] leading-snug text-slate-500 dark:text-slate-400">{description}</p>
+                          </div>
+                          <Toggle 
+                            checked={Boolean(notificationSettings[key as keyof NotificationSettings])} 
+                            disabled={!notificationSettings.enableAll} 
+                            onChange={value => setNotificationSettings(previous => ({ ...previous, [key]: value }))} 
+                            label={title} 
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </SettingsCard>
+
+                  {/* Focus & Do Not Disturb */}
+                  <SettingsCard 
+                    title={t('focusSchedule') || (isVietnamese ? 'Chế độ Không làm phiền & Khung giờ tập trung' : 'Focus Mode & Quiet Hours')} 
+                    description={isVietnamese ? 'Tự động tắt tiếng thông báo không khẩn cấp để làm việc sâu.' : 'Mute non-urgent alerts during deep work hours.'} 
+                    icon={Moon}
+                  >
+                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                      <SettingRow 
+                        title={t('dndMode') || (isVietnamese ? 'Bật chế độ Không làm phiền ngay' : 'Do Not Disturb')} 
+                        description={isVietnamese ? 'Tạm ngưng toàn bộ thông báo thường cho đến khi bạn chủ động tắt.' : 'Silence regular notifications until toggled off.'}
+                      >
+                        <Toggle checked={notificationSettings.dndActive} onChange={value => setNotificationSettings(previous => ({ ...previous, dndActive: value }))} label="Do Not Disturb" />
+                      </SettingRow>
+
+                      <SettingRow 
+                        title={t('quietHours') || (isVietnamese ? 'Khung giờ yên tĩnh định kỳ hằng ngày' : 'Scheduled Quiet Hours')} 
+                        description={isVietnamese ? 'Tự động tắt tiếng thông báo mỗi ngày theo khung giờ bạn chọn.' : 'Automatically pause alerts during scheduled times.'}
+                      >
+                        <Toggle checked={!!notificationSettings.dndScheduleEnabled} onChange={value => setNotificationSettings(previous => ({ ...previous, dndScheduleEnabled: value }))} label="Quiet Hours" />
+                      </SettingRow>
+
+                      {notificationSettings.dndScheduleEnabled && (
+                        <div className="grid gap-3 py-3 sm:grid-cols-2 bg-slate-50/50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800 my-2">
+                          <label className="space-y-1">
+                            <span className="text-[10.5px] font-bold text-slate-500">{isVietnamese ? 'Bắt đầu lúc' : 'Start time'}</span>
+                            <input type="time" value={notificationSettings.dndScheduleStart || '18:00'} onChange={event => setNotificationSettings(previous => ({ ...previous, dndScheduleStart: event.target.value }))} className={inputClass} />
+                          </label>
+                          <label className="space-y-1">
+                            <span className="text-[10.5px] font-bold text-slate-500">{isVietnamese ? 'Kết thúc lúc' : 'End time'}</span>
+                            <input type="time" value={notificationSettings.dndScheduleEnd || '08:00'} onChange={event => setNotificationSettings(previous => ({ ...previous, dndScheduleEnd: event.target.value }))} className={inputClass} />
+                          </label>
+                        </div>
+                      )}
+
+                      <SettingRow 
+                        title={isVietnamese ? 'Vẫn cho phép cảnh báo khẩn cấp' : 'Allow Urgent Alerts'} 
+                        description={isVietnamese ? 'Các công việc ưu tiên khẩn cấp và quá hạn vẫn được thông báo.' : 'Urgent deadlines bypass Do Not Disturb.'}
+                      >
+                        <Toggle checked={!!notificationSettings.dndAllowUrgent} onChange={value => setNotificationSettings(previous => ({ ...previous, dndAllowUrgent: value }))} label="Allow urgent alerts" />
+                      </SettingRow>
+
+                      <SettingRow 
+                        title={isVietnamese ? 'Thời gian hiển thị Toast' : 'Toast Notification Duration'} 
+                        description={isVietnamese ? 'Số giây thông báo popup tồn tại trên màn hình.' : 'How long notification pills stay on screen.'}
+                        last
+                      >
+                        <div className="flex items-center gap-2">
+                          <Select<number> 
+                            value={notificationSettings.toastDuration} 
+                            onChange={v => setNotificationSettings(previous => ({ ...previous, toastDuration: v }))} 
+                            className="w-32" 
+                            ariaLabel="Toast Duration" 
+                            options={[
+                              { value: 2500, label: '2.5 giây' },
+                              { value: 4000, label: '4.0 giây' },
+                              { value: 6000, label: '6.0 giây' },
+                              { value: 10000, label: '10 giây' },
+                            ]} 
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => triggerToast?.('info', isVietnamese ? 'Thông báo thử nghiệm' : 'Test Notification', isVietnamese ? 'Cài đặt thông báo đang hoạt động hoàn hảo.' : 'Notification settings are working cleanly.')} 
+                            className="h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition cursor-pointer"
+                          >
+                            {isVietnamese ? 'Gửi thử' : 'Test'}
+                          </button>
+                        </div>
+                      </SettingRow>
+                    </div>
+                  </SettingsCard>
+                </>
+              )}
+
+              {/* ── TAB 5: AI USAGE (COSTACK AI) ── */}
+              {activeTab === 'ai_usage' && (
+                <>
+                  <SectionHeader 
+                    eyebrow={isVietnamese ? 'Trí tuệ nhân tạo' : 'Artificial Intelligence'} 
+                    title="Costack AI Copilot" 
+                    description={isVietnamese ? 'Cấu hình mô hình Gemini, mức độ sáng tạo và bản tin năng suất buổi sáng.' : 'Configure Gemini models, temperature and daily productivity briefings.'} 
+                    action={
+                      <div className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wide ${currentUser?.isPremium ? 'border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400' : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-400'}`}>
+                        {currentUser?.isPremium ? (isVietnamese ? 'Gói Pro đã kích hoạt' : 'Pro Active') : (isVietnamese ? 'Yêu cầu gói trả phí' : 'Pro Plan Required')}
                       </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <input ref={backupInputRef} type="file" accept="application/json,.json" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void importSettingsBackup(file); }} />
-                      <button type="button" onClick={() => backupInputRef.current?.click()} className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-xs font-extrabold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer">
-                        <Upload className="h-3.5 w-3.5" />{isVietnamese ? 'Nhập cài đặt' : 'Import Settings'}
-                      </button>
-                      <button type="button" onClick={exportWorkspaceData} className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-extrabold text-white hover:bg-indigo-700 cursor-pointer">
-                        <Download className="h-3.5 w-3.5" />{t('exportData') || (isVietnamese ? 'Xuất dữ liệu' : 'Export Data')}
-                      </button>
+                    } 
+                  />
+
+                  {/* Managed Security Banner */}
+                  <div className="rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50/80 via-white to-blue-50/80 p-5 dark:border-indigo-900/60 dark:from-indigo-950/30 dark:via-slate-900 dark:to-blue-950/20 shadow-2xs">
+                    <div className="flex items-start gap-3.5">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-500/20">
+                        <Sparkles className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm font-black text-slate-900 dark:text-white">
+                          {isVietnamese ? 'AI được quản lý và bảo mật qua máy chủ Costack' : 'Server-Managed Enterprise AI Security'}
+                        </h3>
+                        <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                          {isVietnamese 
+                            ? 'Khóa API Gemini được mã hóa an toàn trên máy chủ. Bạn không cần tự nhập API key cá nhân hay lo lắng về rò rỉ thông tin dữ liệu.' 
+                            : 'Gemini API keys remain protected server-side with enterprise encryption.'}
+                        </p>
+                        {!currentUser?.isPremium && (
+                          <button 
+                            type="button" 
+                            onClick={() => setShowPremiumModal(true)} 
+                            className="mt-3 inline-flex h-8.5 items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 transition cursor-pointer"
+                          >
+                            <Sparkles className="h-3.5 w-3.5" />
+                            <span>{isVietnamese ? 'Nâng cấp gói Pro' : 'Upgrade to Pro'}</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </SettingsCard>
 
-                <SettingsCard 
-                  title={t('exportTasksCsv') || (isVietnamese ? 'Xuất công việc ra bảng tính (CSV)' : 'Export Tasks (CSV)')} 
-                  description={t('exportTasksCsvDesc') || (isVietnamese ? 'Tải công việc dạng bảng tính CSV tương thích với Microsoft Excel và Google Sheets.' : 'Download tasks as a CSV spreadsheet compatible with Excel & Google Sheets.')} 
-                  icon={FileSpreadsheet}
-                >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">
-                        <FileSpreadsheet className="h-5 w-5" />
+                  {/* Model Runtime Config */}
+                  <SettingsCard 
+                    title={isVietnamese ? 'Mô hình & Cấu hình phản hồi' : 'Model & Response Config'} 
+                    description={isVietnamese ? 'Lựa chọn phiên bản Gemini và điều chỉnh mức độ sáng tạo.' : 'Choose Gemini engine and tune creativity.'} 
+                    icon={Zap}
+                  >
+                    <div className="space-y-4">
+                      <fieldset disabled={!currentUser?.isPremium} className="grid gap-4 sm:grid-cols-2 disabled:opacity-50">
+                        <label className="space-y-1.5">
+                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                            {isVietnamese ? 'Mô hình AI chủ đạo' : 'Primary AI Engine'}
+                          </span>
+                          <Select 
+                            value={aiModel} 
+                            onChange={setAiModel} 
+                            className="w-full" 
+                            ariaLabel="AI Model" 
+                            options={[
+                              { value: 'gemini-3.6-flash', label: 'Gemini 3.6 Flash', description: isVietnamese ? 'Nhanh nhất & Mới nhất (Khuyên dùng)' : 'Fastest & Latest (Recommended)' },
+                              { value: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', description: isVietnamese ? 'Cân bằng tốc độ và phân tích' : 'Balanced speed and analytics' },
+                              { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', description: isVietnamese ? 'Tư duy sâu và xử lý tài liệu lớn' : 'Deep reasoning and complex tasks' },
+                              { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', description: isVietnamese ? 'Ổn định cao' : 'High stability' },
+                            ]} 
+                          />
+                        </label>
+
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                            <span>{isVietnamese ? 'Mức sáng tạo (Temperature)' : 'Creativity (Temperature)'}</span>
+                            <span className="font-mono text-indigo-600 font-bold">{aiTemperature.toFixed(1)}</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max="1" 
+                            step="0.1" 
+                            value={aiTemperature} 
+                            onChange={event => setAiTemperature(Number(event.target.value))} 
+                            className="mt-3 w-full accent-indigo-600 cursor-pointer" 
+                          />
+                          <div className="flex justify-between text-[10px] text-slate-400">
+                            <span>{isVietnamese ? 'Chính xác / Logic' : 'Precise'}</span>
+                            <span>{isVietnamese ? 'Sáng tạo / Tự do' : 'Creative'}</span>
+                          </div>
+                        </div>
+                      </fieldset>
+
+                      <SettingRow 
+                        title={isVietnamese ? 'Tìm kiếm làm cơ sở (Google Search Grounding)' : 'Google Search Grounding'} 
+                        description={isVietnamese ? 'Cho phép AI tra cứu dữ liệu web thời gian thực khi cần thông tin bên ngoài.' : 'Allow AI to access live web search context.'}
+                        last
+                      >
+                        <Toggle checked={aiSearchGrounding} onChange={setAiSearchGrounding} disabled={!currentUser?.isPremium} label="Google Search Grounding" />
+                      </SettingRow>
+
+                      <div className="flex flex-wrap justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+                        <button 
+                          type="button" 
+                          onClick={testAiConnection} 
+                          disabled={testingAi} 
+                          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition cursor-pointer disabled:opacity-50"
+                        >
+                          {testingAi ? <RefreshCw className="h-3.5 w-3.5 animate-spin text-indigo-500" /> : <Activity className="h-3.5 w-3.5 text-indigo-500" />}
+                          <span>{testingAi ? (isVietnamese ? 'Đang kiểm tra...' : 'Testing...') : (isVietnamese ? 'Kiểm tra kết nối' : 'Test Connection')}</span>
+                        </button>
+                        <button 
+                          type="button" 
+                          onClick={saveAiSettings} 
+                          className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 text-xs font-bold transition shadow-sm cursor-pointer"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          <span>{isVietnamese ? 'Lưu cấu hình AI' : 'Save AI Settings'}</span>
+                        </button>
                       </div>
+                    </div>
+                  </SettingsCard>
+
+                  {/* Daily Morning Briefing */}
+                  <SettingsCard 
+                    title={isVietnamese ? 'Bản tin công việc buổi sáng (Daily Briefing)' : 'Daily Morning Briefing'} 
+                    description={isVietnamese ? 'Costack Brain tự động phân tích việc cần ưu tiên và gửi tóm tắt đầu ngày.' : 'Auto-review overdue, urgent and scheduled tasks every morning.'} 
+                    icon={Brain}
+                  >
+                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                      <SettingRow 
+                        title={isVietnamese ? 'Bật bản tin phân tích mỗi sáng' : 'Enable Daily Morning Summary'} 
+                        description={isVietnamese ? 'Nhận bản tóm tắt các việc quá hạn và việc quan trọng trong ngày.' : 'Daily action list on first login.'}
+                      >
+                        <Toggle checked={aiDailyBriefingEnabled} onChange={setAiDailyBriefingEnabled} disabled={!currentUser?.isPremium} label="Daily AI Briefing" />
+                      </SettingRow>
+
+                      <SettingRow 
+                        title={isVietnamese ? 'Khung giờ gửi bản tin' : 'Briefing Time'} 
+                        description={isVietnamese ? 'Thời gian thông báo bắt đầu xuất hiện.' : 'Time when daily briefing activates.'}
+                        last
+                      >
+                        <input 
+                          type="time" 
+                          value={aiDailyBriefingTime} 
+                          disabled={!currentUser?.isPremium || !aiDailyBriefingEnabled} 
+                          onChange={event => setAiDailyBriefingTime(event.target.value)} 
+                          className={`${inputClass} w-32 disabled:opacity-50`} 
+                        />
+                      </SettingRow>
+                    </div>
+                  </SettingsCard>
+                </>
+              )}
+
+              {/* ── TAB 6: AUDIT LOGS (ACTIVITY TIMELINE) ── */}
+              {activeTab === 'audit_logs' && (
+                <>
+                  <SectionHeader 
+                    eyebrow={isVietnamese ? 'Giám sát hệ thống' : 'System Monitoring'} 
+                    title={isVietnamese ? 'Nhật ký hoạt động Workspace' : 'Workspace Activity Audit Logs'} 
+                    description={isVietnamese ? 'Theo dõi minh bạch toàn bộ các thao tác tạo mới, cập nhật, xóa và phân quyền trong không gian làm việc.' : 'Real-time record of all member actions, updates and modifications.'} 
+                    action={
+                      <button 
+                        type="button" 
+                        onClick={copyAuditLogs}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition cursor-pointer shadow-2xs"
+                      >
+                        {copiedLogs ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-slate-400" />}
+                        <span>{copiedLogs ? (isVietnamese ? 'Đã sao chép!' : 'Copied!') : (isVietnamese ? 'Sao chép nhật ký' : 'Copy Logs')}</span>
+                      </button>
+                    } 
+                  />
+
+                  <SettingsCard 
+                    title={isVietnamese ? 'Dòng thời gian sự kiện' : 'Event Timeline'} 
+                    description={isVietnamese ? `Hiển thị ${filteredLogs.length} hoạt động gần nhất` : `Showing ${filteredLogs.length} recent events`} 
+                    icon={FileClock}
+                  >
+                    <div className="space-y-3.5">
+                      {/* Search & Category filter */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                          <input 
+                            value={logSearch} 
+                            onChange={event => setLogSearch(event.target.value)} 
+                            placeholder={isVietnamese ? 'Tìm theo người thực hiện, thao tác...' : 'Search author, action...'} 
+                            className={`${inputClass} pl-8.5`} 
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                          {[
+                            { id: 'all', label: isVietnamese ? 'Tất cả' : 'All' },
+                            { id: 'task', label: isVietnamese ? 'Công việc' : 'Tasks' },
+                            { id: 'space', label: isVietnamese ? 'Không gian' : 'Spaces' },
+                            { id: 'doc', label: isVietnamese ? 'Tài liệu' : 'Docs' },
+                            { id: 'member', label: isVietnamese ? 'Thành viên' : 'Members' },
+                          ].map(tab => (
+                            <button
+                              key={tab.id}
+                              type="button"
+                              onClick={() => setLogCategory(tab.id)}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                                logCategory === tab.id
+                                  ? 'bg-indigo-600 text-white shadow-2xs'
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                              }`}
+                            >
+                              {tab.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Log Rows List */}
+                      <div className="max-h-[480px] divide-y divide-slate-100 dark:divide-slate-800/80 overflow-y-auto rounded-xl border border-slate-200/70 dark:border-slate-800/80 px-4 bg-white dark:bg-slate-900/50">
+                        {filteredLogs.length === 0 ? (
+                          <div className="py-12 text-center text-slate-400">
+                            <FileClock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-xs font-semibold">{isVietnamese ? 'Không tìm thấy nhật ký phù hợp' : 'No matching activity logs'}</p>
+                          </div>
+                        ) : (
+                          filteredLogs.map((log, index) => (
+                            <div key={index} className="py-3 flex items-start justify-between gap-3 text-xs">
+                              <div className="flex items-start gap-2.5 min-w-0">
+                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="font-semibold text-slate-800 dark:text-slate-200 break-words">
+                                    {log.action}
+                                  </p>
+                                  {log.userName && (
+                                    <span className="text-[10.5px] text-slate-400 font-medium">
+                                      {isVietnamese ? 'Thực hiện bởi: ' : 'By: '}{log.userName}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 shrink-0">
+                                {log.time}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </SettingsCard>
+                </>
+              )}
+
+              {/* ── TAB 7: SECURITY & AUTHENTICATION ── */}
+              {activeTab === 'security' && (
+                <>
+                  <SectionHeader 
+                    eyebrow={isVietnamese ? 'Bảo vệ tài khoản' : 'Account Security'} 
+                    title={t('securityAndSessions') || (isVietnamese ? 'Bảo mật & Xác thực' : 'Security & Authentication')} 
+                    description={t('securityAndSessionsDesc') || (isVietnamese ? 'Quản lý mật khẩu, xác thực hai lớp (2FA) và giám sát các phiên đăng nhập hoạt động.' : 'Manage password, two-factor authentication and active sessions.')} 
+                  />
+
+                  {/* Active Account Identity Card */}
+                  <SettingsCard 
+                    title={isVietnamese ? 'Tài khoản đang đăng nhập' : 'Current Account'} 
+                    description={isVietnamese ? 'Thông tin đăng nhập và vai trò quản trị.' : 'Active credentials and role.'} 
+                    icon={UserRoundCog}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3.5">
+                        <SignedImage filePath={currentUser?.avatar || ''} alt={currentUser?.name || 'User'} className="h-12 w-12 rounded-2xl overflow-hidden ring-1 ring-slate-200 dark:ring-slate-700" />
+                        <div>
+                          <p className="text-sm font-black text-slate-900 dark:text-white">{currentUser?.name || 'Costack User'}</p>
+                          <p className="text-xs text-slate-400">{currentUser?.email || 'No email'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-900/60 px-3 py-1 text-[10.5px] font-black uppercase">
+                          {currentUser?.role === 'admin' ? 'Admin' : 'Member'}
+                        </span>
+                        {sessionDetails?.lastSignIn && (
+                          <span className="text-[10px] text-slate-400">
+                            {isVietnamese ? 'Đăng nhập: ' : 'Signed in: '}
+                            {new Date(sessionDetails.lastSignIn).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </SettingsCard>
+
+                  {/* Change Password Card */}
+                  <SettingsCard 
+                    title={isVietnamese ? 'Đổi mật khẩu tài khoản' : 'Change Password'} 
+                    description={isVietnamese ? 'Sử dụng mật khẩu mạnh tối thiểu 10 ký tự kết hợp chữ hoa, chữ thường và chữ số.' : 'Set a strong, unique password for Costack.'} 
+                    icon={KeyRound}
+                  >
+                    <form onSubmit={updatePassword} className="space-y-4">
+                      <div className="grid gap-3.5 sm:grid-cols-3">
+                        <label className="space-y-1">
+                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{isVietnamese ? 'Mật khẩu hiện tại' : 'Current password'}</span>
+                          <input type="password" autoComplete="current-password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} placeholder="••••••••" className={inputClass} />
+                        </label>
+                        <label className="space-y-1">
+                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{isVietnamese ? 'Mật khẩu mới' : 'New password'}</span>
+                          <input type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="••••••••" className={inputClass} />
+                        </label>
+                        <label className="space-y-1">
+                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{isVietnamese ? 'Xác nhận mật khẩu' : 'Confirm password'}</span>
+                          <input type="password" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} placeholder="••••••••" className={inputClass} />
+                        </label>
+                      </div>
+
+                      {/* Password strength checklist */}
+                      {newPassword && (
+                        <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800 space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-slate-700 dark:text-slate-300">{isVietnamese ? 'Độ an toàn mật khẩu' : 'Password Strength'}</span>
+                            <span className={`font-bold text-[11px] ${passwordStrength.score >= 3 ? 'text-emerald-500' : passwordStrength.score === 2 ? 'text-amber-500' : 'text-rose-500'}`}>
+                              {passwordStrength.score >= 4 ? (isVietnamese ? 'Rất mạnh' : 'Strong') : passwordStrength.score === 3 ? (isVietnamese ? 'Khá tốt' : 'Good') : (isVietnamese ? 'Chưa đủ mạnh' : 'Weak')}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-4 gap-1.5 h-1.5">
+                            {[1, 2, 3, 4].map(step => (
+                              <div key={step} className={`rounded-full transition-colors ${passwordStrength.score >= step ? (passwordStrength.score >= 3 ? 'bg-emerald-500' : 'bg-amber-500') : 'bg-slate-200 dark:bg-slate-800'}`} />
+                            ))}
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10.5px] pt-1 text-slate-500">
+                            <span className={passwordStrength.hasLength ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : ''}>✓ {isVietnamese ? '>= 10 ký tự' : '>= 10 chars'}</span>
+                            <span className={passwordStrength.hasUpper ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : ''}>✓ {isVietnamese ? 'Chữ hoa A-Z' : 'Uppercase'}</span>
+                            <span className={passwordStrength.hasLower ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : ''}>✓ {isVietnamese ? 'Chữ thường a-z' : 'Lowercase'}</span>
+                            <span className={passwordStrength.hasNumber ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : ''}>✓ {isVietnamese ? 'Chữ số 0-9' : 'Numbers'}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {passwordError && (
+                        <p className="text-xs text-rose-600 dark:text-rose-400 font-semibold bg-rose-50 dark:bg-rose-950/40 p-2.5 rounded-xl border border-rose-200 dark:border-rose-900/50">
+                          {passwordError}
+                        </p>
+                      )}
+
+                      <div className="flex justify-end pt-1">
+                        <button 
+                          type="submit" 
+                          disabled={updatingPassword || !newPassword || !confirmPassword} 
+                          className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 text-xs font-bold transition disabled:opacity-50 cursor-pointer"
+                        >
+                          {updatingPassword ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                          <span>{isVietnamese ? 'Cập nhật mật khẩu' : 'Update Password'}</span>
+                        </button>
+                      </div>
+                    </form>
+                  </SettingsCard>
+
+                  {/* Two-Factor Authentication (TOTP) */}
+                  <SettingsCard
+                    title={isVietnamese ? 'Xác thực hai bước (2FA Authenticator)' : 'Two-Factor Authentication (2FA)'}
+                    description={isVietnamese ? 'Bảo vệ đăng nhập bằng mã OTP 6 chữ số từ ứng dụng Google Authenticator hoặc Apple Keychain.' : 'Protect your login with standard 6-digit TOTP codes.'}
+                    icon={ShieldCheck}
+                    action={
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[11px] font-bold ${isMfaActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
+                          {isMfaActive ? (isVietnamese ? 'Đã bật' : 'Active') : (isVietnamese ? 'Đang tắt' : 'Disabled')}
+                        </span>
+                        <Toggle
+                          checked={isMfaActive || Boolean(mfaEnrollment)}
+                          onChange={handleToggleMfa}
+                          disabled={mfaBusy}
+                          label="Toggle Authenticator 2FA"
+                        />
+                      </div>
+                    }
+                  >
+                    {mfaEnrollment ? (
+                      <div className="space-y-4">
+                        <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/50 rounded-xl flex items-center justify-between text-xs text-indigo-800 dark:text-indigo-300">
+                          <div className="flex items-center gap-2">
+                            <Smartphone className="h-4 w-4 text-indigo-600" />
+                            <span className="font-bold">{isVietnamese ? 'Đang thiết lập Authenticator (Bước 1/2)' : 'Setup Authenticator (Step 1/2)'}</span>
+                          </div>
+                          <button onClick={cancelMfaEnrollment} className="font-bold text-slate-500 hover:text-slate-700 cursor-pointer">
+                            {isVietnamese ? 'Hủy' : 'Cancel'}
+                          </button>
+                        </div>
+
+                        <div className="grid gap-5 sm:grid-cols-[180px_1fr] items-center">
+                          <div className="flex flex-col items-center p-3 rounded-2xl bg-white dark:bg-white border border-slate-200 dark:border-slate-700 shadow-sm text-center">
+                            <img src={mfaEnrollment.qrCode} alt="2FA QR Code" className="h-36 w-36 object-contain" />
+                            <span className="text-[10px] text-slate-500 mt-1 font-semibold">{isVietnamese ? 'Quét bằng camera' : 'Scan in App'}</span>
+                          </div>
+
+                          <div className="space-y-3">
+                            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                              {isVietnamese 
+                                ? '1. Mở ứng dụng Google Authenticator hoặc Microsoft Authenticator trên điện thoại và quét mã QR ở bên.'
+                                : '1. Open Google Authenticator or Microsoft Authenticator and scan this QR code.'}
+                            </p>
+                            <div className="space-y-1">
+                              <span className="text-[11px] font-bold text-slate-500">{isVietnamese ? '2. Nhập mã OTP 6 chữ số để xác nhận:' : '2. Enter the 6-digit code:'}</span>
+                              <div className="flex items-center gap-2">
+                                <OtpCodeInput
+                                  value={mfaCode}
+                                  onChange={setMfaCode}
+                                  onComplete={(code) => verifyMfaEnrollment(code)}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => verifyMfaEnrollment()}
+                                  disabled={mfaBusy || mfaCode.length !== 6}
+                                  className="h-10 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition disabled:opacity-50 cursor-pointer"
+                                >
+                                  {mfaBusy ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : (isVietnamese ? 'Kích hoạt' : 'Verify')}
+                                </button>
+                              </div>
+                            </div>
+                            {mfaError && <p className="text-xs text-rose-500 font-bold">{mfaError}</p>}
+                          </div>
+                        </div>
+                      </div>
+                    ) : isMfaActive ? (
+                      <div className="flex items-center justify-between p-3.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 text-xs">
+                        <div className="flex items-center gap-2.5 text-emerald-800 dark:text-emerald-300 font-semibold">
+                          <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                          <span>{isVietnamese ? 'Tài khoản của bạn đã được bảo vệ an toàn bằng xác thực hai bước.' : 'Your account is protected by 2FA.'}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => verifiedMfaFactor && setConfirmDisableMfaModal(verifiedMfaFactor.id)}
+                          className="px-2.5 py-1 text-xs font-bold text-rose-600 hover:bg-rose-100 rounded-lg transition cursor-pointer"
+                        >
+                          {isVietnamese ? 'Tắt 2FA' : 'Disable'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-800 text-xs">
+                        <span className="text-slate-500">
+                          {isVietnamese ? 'Chưa bật 2FA. Bật ngay để chống xâm nhập trái phép vào tài khoản của bạn.' : '2FA is disabled. Enable to secure your account.'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={startMfaEnrollment}
+                          className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs cursor-pointer shadow-xs"
+                        >
+                          {isVietnamese ? 'Thiết lập 2FA' : 'Setup 2FA'}
+                        </button>
+                      </div>
+                    )}
+                  </SettingsCard>
+
+                  {/* Active Sessions Card */}
+                  <SettingsCard 
+                    title={isVietnamese ? 'Phiên đăng nhập & Thiết bị' : 'Active Sessions'} 
+                    description={isVietnamese ? 'Đăng xuất tài khoản khỏi các trình duyệt và thiết bị khác từ xa.' : 'Remotely sign out all other devices.'} 
+                    icon={Laptop}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                       <div>
-                        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{isVietnamese ? 'Tệp bảng tính công việc (.csv)' : 'Task Spreadsheet (.csv)'}</p>
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
+                          {isVietnamese ? 'Đăng xuất các thiết bị khác' : 'Sign out other sessions'}
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                           {isVietnamese 
-                            ? `Bao gồm ${tasks.filter(task => !activeWorkspace || task.workspaceId === activeWorkspace.id).length} công việc trong không gian này.` 
-                            : `Includes ${tasks.filter(task => !activeWorkspace || task.workspaceId === activeWorkspace.id).length} tasks in this workspace.`}
+                            ? 'Thu hồi quyền truy cập của mọi thiết bị khác đã đăng nhập vào tài khoản này.' 
+                            : 'Revoke access tokens on all other browsers and phones.'}
                         </p>
                       </div>
+                      <button 
+                        type="button" 
+                        onClick={revokeOtherSessions} 
+                        disabled={revokingSessions} 
+                        className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition cursor-pointer disabled:opacity-50 shrink-0"
+                      >
+                        {revokingSessions ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5 text-rose-500" />}
+                        <span>{isVietnamese ? 'Thu hồi phiên khác' : 'Revoke Others'}</span>
+                      </button>
                     </div>
-                    <button 
-                      type="button" 
-                      onClick={exportTasksToCsv} 
-                      className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-xs font-extrabold text-white hover:bg-emerald-700 transition cursor-pointer shrink-0"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      <span>{t('exportTasksCsv') || (isVietnamese ? 'Xuất tệp CSV' : 'Export CSV')}</span>
-                    </button>
-                  </div>
-                </SettingsCard>
+                  </SettingsCard>
+                </>
+              )}
 
-                <SettingsCard title={isVietnamese ? 'Bộ nhớ đệm cục bộ' : 'Local Cache'} description={isVietnamese ? 'Đặt lại tùy chọn hiển thị trên thiết bị mà không xóa dữ liệu không gian.' : 'Reset device display preferences without touching cloud data.'} icon={RefreshCw}>
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{isVietnamese ? 'Bộ nhớ đệm giao diện' : 'UI Display Cache'}</p>
-                      <p className="mt-1 text-xs text-slate-500">{isVietnamese ? 'Xóa cài đặt màu và bộ đệm tạm thời trên trình duyệt này.' : 'Clear temporary visual caches on this browser.'}</p>
-                    </div>
-                    <button 
-                      type="button" 
-                      onClick={resetDisplayPreferences}
-                      className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-xs font-extrabold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 cursor-pointer"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />{isVietnamese ? 'Đặt lại giao diện' : 'Reset Display'}
-                    </button>
+              {/* ── TAB 8: DATA & STORAGE ── */}
+              {activeTab === 'data_export' && (
+                <>
+                  <SectionHeader 
+                    eyebrow={t('settingsDataExport') || (isVietnamese ? 'Quyền sở hữu dữ liệu' : 'Data Ownership')} 
+                    title={t('dataAndStorage') || (isVietnamese ? 'Dữ liệu, Thùng rác & Lưu trữ' : 'Data, Trash & Storage')} 
+                    description={t('dataAndStorageDesc') || (isVietnamese ? 'Xuất dữ liệu dự phòng, quản lý chính sách tự động dọn dẹp thùng rác và bộ nhớ đệm.' : 'Export backups, manage trash auto-purge policies and local caching.')} 
+                  />
+
+                  {/* Summary Metric Cards */}
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {[
+                      { label: isVietnamese ? 'Công việc trong không gian' : 'Workspace Tasks', value: tasks.filter(t => !activeWorkspace || t.workspaceId === activeWorkspace.id).length, icon: Archive, tone: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40' },
+                      { label: isVietnamese ? 'Thành viên hợp tác' : 'Collaborators', value: members.length, icon: UsersRound, tone: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40' },
+                      { label: isVietnamese ? 'Nhật ký sự kiện' : 'Recorded Events', value: syncLogs.length, icon: Activity, tone: 'text-amber-600 bg-amber-50 dark:bg-amber-950/40' }
+                    ].map(metric => (
+                      <div key={metric.label} className="rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/80 shadow-2xs">
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${metric.tone}`}>
+                          <metric.icon className="h-4 w-4" />
+                        </div>
+                        <p className="mt-3 text-xl font-black text-slate-900 dark:text-white">{metric.value}</p>
+                        <p className="text-xs text-slate-400 font-medium">{metric.label}</p>
+                      </div>
+                    ))}
                   </div>
-                </SettingsCard>
-              </>
-            )}
-          </motion.div>
-        </AnimatePresence>
+
+                  {/* TRASH RETENTION POLICY CARD */}
+                  <SettingsCard
+                    title={isVietnamese ? 'Chính sách tự động dọn dẹp Thùng rác' : 'Trash Auto-Purge Policy'}
+                    description={isVietnamese ? 'Cấu hình khoảng thời gian công việc bị xóa được lưu giữ trước khi hệ thống tự động xóa vĩnh viễn.' : 'Configure retention window before deleted tasks are permanently removed.'}
+                    icon={Clock}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
+                          {isVietnamese ? 'Thời gian lưu giữ trong thùng rác' : 'Trash Retention Window'}
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                          {isVietnamese 
+                            ? `Hiện tại các công việc bị chuyển vào thùng rác sẽ tự động bị xóa vĩnh viễn sau ${trashRetention} ngày.`
+                            : `Tasks in trash will be automatically permanently deleted after ${trashRetention} days.`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Select<number>
+                          value={trashRetention}
+                          onChange={(days) => {
+                            setTrashRetention(days);
+                            setTrashRetentionDays(days);
+                            triggerToast?.('success', isVietnamese ? 'Đã lưu chính sách thùng rác' : 'Trash Policy Saved', isVietnamese ? `Tự động dọn sau ${days} ngày.` : `Auto-purge after ${days} days.`);
+                          }}
+                          className="w-48"
+                          ariaLabel="Trash Retention Days"
+                          options={TRASH_RETENTION_OPTIONS.map(opt => ({
+                            value: opt.value,
+                            label: isVietnamese ? opt.labelVi : opt.labelEn
+                          }))}
+                        />
+                      </div>
+                    </div>
+                  </SettingsCard>
+
+                  {/* JSON Backup Card */}
+                  <SettingsCard 
+                    title={isVietnamese ? 'Xuất bản sao lưu JSON toàn diện' : 'JSON Full Backup'} 
+                    description={isVietnamese ? 'Tải tệp JSON chứa cấu hình, công việc, thành viên và lịch sử hoạt động để lưu trữ dự phòng.' : 'Download complete JSON export for external backup or migration.'} 
+                    icon={Download}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
+                          <Cloud className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">{isVietnamese ? 'Bản sao lưu cấu trúc (.json)' : 'Full JSON Structure (.json)'}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{isVietnamese ? 'Tạo trực tiếp và an toàn trên thiết bị của bạn.' : 'Generated securely in-browser.'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input ref={backupInputRef} type="file" accept="application/json,.json" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void importSettingsBackup(file); }} />
+                        <button 
+                          type="button" 
+                          onClick={() => backupInputRef.current?.click()} 
+                          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition cursor-pointer"
+                        >
+                          <Upload className="h-3.5 w-3.5" />
+                          <span>{isVietnamese ? 'Nhập cài đặt' : 'Import'}</span>
+                        </button>
+                        <button 
+                          type="button" 
+                          onClick={exportWorkspaceData} 
+                          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 text-xs font-bold transition cursor-pointer shadow-sm"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          <span>{isVietnamese ? 'Xuất dữ liệu' : 'Export JSON'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </SettingsCard>
+
+                  {/* CSV Export Card */}
+                  <SettingsCard 
+                    title={isVietnamese ? 'Xuất công việc ra Excel / Google Sheets (CSV)' : 'Export Tasks to CSV'} 
+                    description={isVietnamese ? 'Tải tệp bảng tính CSV chuẩn UTF-8 chứa tiêu đề, trạng thái, người thực hiện và hạn chót.' : 'Download tasks spreadsheet compatible with Excel and Google Sheets.'} 
+                    icon={FileSpreadsheet}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                          <FileSpreadsheet className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">{isVietnamese ? 'Bảng tính công việc (.csv)' : 'Task Spreadsheet (.csv)'}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {isVietnamese 
+                              ? `Gồm ${tasks.filter(task => !activeWorkspace || task.workspaceId === activeWorkspace.id).length} công việc trong không gian này.` 
+                              : `Includes ${tasks.filter(task => !activeWorkspace || task.workspaceId === activeWorkspace.id).length} tasks.`}
+                          </p>
+                        </div>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={exportTasksToCsv} 
+                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 text-xs font-bold transition cursor-pointer shadow-sm shrink-0"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        <span>{isVietnamese ? 'Xuất tệp CSV' : 'Export CSV'}</span>
+                      </button>
+                    </div>
+                  </SettingsCard>
+
+                  {/* Reset Cache Card */}
+                  <SettingsCard 
+                    title={isVietnamese ? 'Bộ nhớ đệm cục bộ trên trình duyệt' : 'Local Browser Cache'} 
+                    description={isVietnamese ? 'Đặt lại tùy chọn hiển thị tạm thời trên thiết bị này mà không ảnh hưởng dữ liệu đám mây.' : 'Reset device display caches without modifying cloud data.'} 
+                    icon={RefreshCw}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div>
+                        <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">{isVietnamese ? 'Đặt lại bộ nhớ đệm giao diện' : 'Reset UI Preferences'}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{isVietnamese ? 'Xóa màu nhấn, hiệu ứng và đưa giao diện về trạng thái ban đầu.' : 'Restore theme and visual effects to factory defaults.'}</p>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={resetDisplayPreferences} 
+                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition cursor-pointer shrink-0"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
+                        <span>{isVietnamese ? 'Đặt lại giao diện' : 'Reset Cache'}</span>
+                      </button>
+                    </div>
+                  </SettingsCard>
+                </>
+              )}
+
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </section>
 
-      {/* Modal: Create Workspace */}
+      {/* ── MODALS ── */}
+      {/* Create Workspace Modal */}
       <AnimatePresence>
         {createWorkspaceOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.button type="button" aria-label="Close" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setCreateWorkspaceOpen(false)} className="absolute inset-0 bg-slate-950/50 cursor-pointer" />
-            <motion.form initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }} onSubmit={createWorkspace} className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
-              <div className="flex items-start justify-between border-b border-slate-100 p-5 dark:border-slate-800">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setCreateWorkspaceOpen(false)} 
+              className="fixed inset-0 bg-slate-950/50 cursor-pointer" 
+            />
+            <motion.form 
+              initial={{ opacity: 0, scale: 0.95, y: 12 }} 
+              animate={{ opacity: 1, scale: 1, y: 0 }} 
+              exit={{ opacity: 0, scale: 0.95, y: 8 }} 
+              onSubmit={createWorkspace} 
+              className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 p-4">
                 <div>
-                  <h3 className="text-base font-black text-slate-950 dark:text-white">{t('createWorkspace') || (isVietnamese ? 'Tạo không gian làm việc' : 'Create Workspace')}</h3>
-                  <p className="mt-1 text-xs text-slate-500">{isVietnamese ? 'Bắt đầu với tên, màu sắc và ảnh bìa tùy chọn.' : 'Start with name, theme color and optional cover.'}</p>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white">{isVietnamese ? 'Tạo không gian làm việc mới' : 'Create New Workspace'}</h3>
+                  <p className="text-[11px] text-slate-400">{isVietnamese ? 'Khởi tạo không gian cho phòng ban hoặc dự án mới.' : 'Set up a new space for your department or project.'}</p>
                 </div>
-                <button type="button" onClick={() => setCreateWorkspaceOpen(false)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="h-4 w-4" /></button>
+                <button type="button" onClick={() => setCreateWorkspaceOpen(false)} className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 cursor-pointer">
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <div className="space-y-5 p-5">
-                <label className="block space-y-1.5">
-                  <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{t('workspaceName') || (isVietnamese ? 'Tên không gian' : 'Workspace Name')}</span>
-                  <input autoFocus required value={newWorkspaceName} onChange={event => setNewWorkspaceName(event.target.value)} placeholder={isVietnamese ? 'Sản phẩm, Tiếp thị, Vận hành…' : 'Engineering, Marketing, Operations...'} className={inputClass} />
+              <div className="p-4 space-y-4">
+                <label className="block space-y-1">
+                  <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{isVietnamese ? 'Tên không gian' : 'Workspace Name'}</span>
+                  <input autoFocus required value={newWorkspaceName} onChange={event => setNewWorkspaceName(event.target.value)} placeholder={isVietnamese ? 'Kỹ thuật, Tiếp thị, Vận hành…' : 'Engineering, Marketing...'} className={inputClass} />
                 </label>
                 <div>
-                  <p className="mb-2 text-[11px] font-bold text-slate-600 dark:text-slate-300">{t('brandColor') || (isVietnamese ? 'Màu thương hiệu' : 'Brand Color')}</p>
+                  <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-2">{isVietnamese ? 'Màu thương hiệu' : 'Theme Color'}</span>
                   <div className="grid grid-cols-4 gap-2">
                     {accentOptions.map(option => (
-                      <button type="button" key={option.id} onClick={() => setNewWorkspaceTheme(option.id)} className={`h-11 rounded-xl ${option.className} cursor-pointer ${newWorkspaceTheme === option.id ? 'ring-3 ring-offset-2 ring-indigo-500 dark:ring-offset-slate-900' : 'opacity-70 hover:opacity-100'}`} aria-label={option.name} />
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="mb-2 text-[11px] font-bold text-slate-600 dark:text-slate-300">{t('changeCover') || (isVietnamese ? 'Ảnh bìa' : 'Cover Image')}</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {WORKSPACE_COVERS.slice(0, 3).map(cover => (
-                      <button type="button" key={cover.id} onClick={() => setNewWorkspaceCover(cover.url)} className={`aspect-[16/8] overflow-hidden rounded-lg cursor-pointer ${newWorkspaceCover === cover.url ? 'ring-3 ring-indigo-500' : ''}`}>
-                        <img src={cover.url} alt={cover.name} className="h-full w-full object-cover" />
-                      </button>
+                      <button 
+                        type="button" 
+                        key={option.id} 
+                        onClick={() => setNewWorkspaceTheme(option.id)} 
+                        className={`h-9 rounded-xl ${option.className} cursor-pointer transition-all ${newWorkspaceTheme === option.id ? 'ring-2 ring-offset-2 ring-indigo-500 dark:ring-offset-slate-900 scale-102' : 'opacity-70 hover:opacity-100'}`} 
+                        aria-label={option.name} 
+                      />
                     ))}
                   </div>
                 </div>
               </div>
-              <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
-                <button type="button" onClick={() => setCreateWorkspaceOpen(false)} className="h-9 rounded-xl px-4 text-xs font-extrabold text-slate-600 hover:bg-slate-200/70 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer">
-                  {t('cancel') || 'Cancel'}
+              <div className="flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 p-3.5">
+                <button type="button" onClick={() => setCreateWorkspaceOpen(false)} className="h-8.5 rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-200 dark:text-slate-300 cursor-pointer">
+                  {isVietnamese ? 'Hủy' : 'Cancel'}
                 </button>
-                <button type="submit" disabled={!newWorkspaceName.trim()} className="h-9 rounded-xl bg-indigo-600 px-4 text-xs font-extrabold text-white hover:bg-indigo-700 disabled:opacity-40 cursor-pointer">
-                  {t('createWorkspaceBtn') || 'Create Workspace'}
+                <button type="submit" disabled={!newWorkspaceName.trim()} className="h-8.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 text-xs font-bold transition disabled:opacity-50 cursor-pointer">
+                  {isVietnamese ? 'Tạo không gian' : 'Create Workspace'}
                 </button>
               </div>
             </motion.form>
           </div>
         )}
 
-        {/* Modal: Delete Workspace */}
+        {/* Delete Workspace Modal */}
         {deleteWorkspace && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <motion.button type="button" aria-label="Close" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDeleteWorkspace(null)} className="absolute inset-0 bg-slate-950/60 cursor-pointer" />
-            <motion.div initial={{ opacity: 0, scale: 0.96, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="relative z-10 w-full max-w-md rounded-3xl border border-rose-200 bg-white p-6 shadow-2xl dark:border-rose-900 dark:bg-slate-900">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setDeleteWorkspace(null)} 
+              className="fixed inset-0 bg-slate-950/60 cursor-pointer" 
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }} 
+              animate={{ opacity: 1, scale: 1, y: 0 }} 
+              className="relative z-10 w-full max-w-md rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-white dark:bg-slate-900 p-5 shadow-2xl"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 mb-3">
                 <AlertTriangle className="h-5 w-5" />
               </div>
-              <h3 className="mt-4 text-lg font-black text-slate-950 dark:text-white">
-                {isVietnamese ? `Xóa “${deleteWorkspace.name}”?` : `Delete "${deleteWorkspace.name}"?`}
+              <h3 className="text-base font-black text-slate-900 dark:text-white">
+                {isVietnamese ? `Xác nhận xóa “${deleteWorkspace.name}”?` : `Delete "${deleteWorkspace.name}"?`}
               </h3>
-              <p className="mt-2 text-xs leading-5 text-slate-500">
-                {isVietnamese ? 'Không thể hoàn tác thao tác này. Hãy nhập tên không gian để xác nhận xóa vĩnh viễn.' : 'This action cannot be undone. Type the workspace name to confirm.'}
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                {isVietnamese 
+                  ? 'Thao tác này sẽ xóa vĩnh viễn không gian làm việc cùng toàn bộ công việc và dữ liệu liên quan. Nhập chính xác tên không gian để xác nhận:' 
+                  : 'This permanently removes the workspace and all tasks. Type the workspace name to confirm:'}
               </p>
-              <input value={deleteConfirmation} onChange={event => setDeleteConfirmation(event.target.value)} placeholder={deleteWorkspace.name} className={`${inputClass} mt-5`} />
-              <div className="mt-5 flex justify-end gap-2">
-                <button type="button" onClick={() => { setDeleteWorkspace(null); setDeleteConfirmation(''); }} className="h-9 rounded-xl px-4 text-xs font-extrabold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer">
-                  {t('cancel') || 'Cancel'}
+              <input value={deleteConfirmation} onChange={event => setDeleteConfirmation(event.target.value)} placeholder={deleteWorkspace.name} className={`${inputClass} mt-3`} />
+              <div className="mt-4 flex justify-end gap-2">
+                <button type="button" onClick={() => { setDeleteWorkspace(null); setDeleteConfirmation(''); }} className="h-8.5 rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 cursor-pointer">
+                  {isVietnamese ? 'Hủy' : 'Cancel'}
                 </button>
-                <button type="button" disabled={deleteConfirmation !== deleteWorkspace.name} onClick={() => { onDeleteWorkspace?.(deleteWorkspace.id); onAddSyncLog?.(isVietnamese ? `Đã xóa không gian “${deleteWorkspace.name}”` : `Deleted workspace "${deleteWorkspace.name}"`); setDeleteWorkspace(null); setDeleteConfirmation(''); }} className="inline-flex h-9 items-center gap-2 rounded-xl bg-rose-600 px-4 text-xs font-extrabold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer">
-                  <Trash2 className="h-3.5 w-3.5" />{t('deletePermanently') || (isVietnamese ? 'Xóa vĩnh viễn' : 'Delete Permanently')}
+                <button 
+                  type="button" 
+                  disabled={deleteConfirmation !== deleteWorkspace.name} 
+                  onClick={() => { 
+                    onDeleteWorkspace?.(deleteWorkspace.id); 
+                    onAddSyncLog?.(isVietnamese ? `Đã xóa không gian “${deleteWorkspace.name}”` : `Deleted workspace "${deleteWorkspace.name}"`); 
+                    setDeleteWorkspace(null); 
+                    setDeleteConfirmation(''); 
+                  }} 
+                  className="inline-flex h-8.5 items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-3.5 text-xs font-bold transition disabled:opacity-40 cursor-pointer"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>{isVietnamese ? 'Xác nhận xóa' : 'Delete Permanently'}</span>
                 </button>
               </div>
             </motion.div>
           </div>
         )}
 
-        {/* Modal: Confirm Disable MFA */}
+        {/* Confirm Disable MFA Modal */}
         {confirmDisableMfaModal && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <motion.button type="button" aria-label="Close" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setConfirmDisableMfaModal(null)} className="absolute inset-0 bg-slate-950/60 cursor-pointer" />
-            <motion.div initial={{ opacity: 0, scale: 0.96, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="relative z-10 w-full max-w-md rounded-3xl border border-rose-200 bg-white p-6 shadow-2xl dark:border-rose-900 dark:bg-slate-900">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">
-                <ShieldAlert className="h-6 w-6" />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setConfirmDisableMfaModal(null)} 
+              className="fixed inset-0 bg-slate-950/60 cursor-pointer" 
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }} 
+              animate={{ opacity: 1, scale: 1, y: 0 }} 
+              className="relative z-10 w-full max-w-md rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-white dark:bg-slate-900 p-5 shadow-2xl"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 mb-3">
+                <ShieldAlert className="h-5 w-5" />
               </div>
-              <h3 className="mt-4 text-lg font-black text-slate-950 dark:text-white">
-                {t('disableAuthenticatorConfirmTitle') || (isVietnamese ? 'Xác nhận tắt Authenticator?' : 'Disable Authenticator?')}
+              <h3 className="text-base font-black text-slate-900 dark:text-white">
+                {isVietnamese ? 'Tắt xác thực hai bước (2FA)?' : 'Disable Two-Factor Authentication?'}
               </h3>
-              <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                {t('disableAuthenticatorConfirmDesc') || (isVietnamese ? 'Tài khoản của bạn sẽ không còn được yêu cầu mã bảo mật 6 chữ số khi đăng nhập. Bạn có thể bật lại bất kỳ lúc nào.' : 'Your account will no longer require a 6-digit verification code when logging in. You can re-enable it anytime.')}
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                {isVietnamese 
+                  ? 'Tài khoản của bạn sẽ không còn được bảo vệ bằng mã OTP 6 chữ số khi đăng nhập. Bạn có thể bật lại bất kỳ lúc nào.' 
+                  : 'Your account will no longer require a 6-digit OTP code when logging in.'}
               </p>
-              <div className="mt-6 flex justify-end gap-2">
-                <button type="button" onClick={() => setConfirmDisableMfaModal(null)} className="h-9 rounded-xl px-4 text-xs font-extrabold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer">
-                  {t('cancel') || (isVietnamese ? 'Hủy' : 'Cancel')}
+              <div className="mt-4 flex justify-end gap-2">
+                <button type="button" onClick={() => setConfirmDisableMfaModal(null)} className="h-8.5 rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 cursor-pointer">
+                  {isVietnamese ? 'Hủy' : 'Cancel'}
                 </button>
-                <button type="button" disabled={mfaBusy} onClick={() => removeMfaFactor(confirmDisableMfaModal)} className="inline-flex h-9 items-center gap-2 rounded-xl bg-rose-600 px-4 text-xs font-extrabold text-white hover:bg-rose-700 disabled:opacity-50 cursor-pointer">
-                  {mfaBusy && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
-                  {t('confirmDisable') || (isVietnamese ? 'Tắt 2FA' : 'Disable 2FA')}
+                <button 
+                  type="button" 
+                  disabled={mfaBusy} 
+                  onClick={() => removeMfaFactor(confirmDisableMfaModal)} 
+                  className="inline-flex h-8.5 items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-3.5 text-xs font-bold transition disabled:opacity-50 cursor-pointer"
+                >
+                  {mfaBusy && <RefreshCw className="h-3 w-3 animate-spin" />}
+                  <span>{isVietnamese ? 'Tắt 2FA' : 'Disable 2FA'}</span>
                 </button>
               </div>
             </motion.div>
@@ -2370,6 +2835,7 @@ export default function SettingsPanel({
         )}
       </AnimatePresence>
 
+      {/* Sidebar Order Modal */}
       {showSidebarOrderModal && (
         <SidebarOrderModal
           isOpen={showSidebarOrderModal}

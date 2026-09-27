@@ -10,14 +10,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { DropdownFieldSelect, LabelsFieldSelect, PriorityPillSelect, StatusPillSelect, PremiumDatePicker, SpacePillSelect, AssigneePillSelect, TeamPillSelect } from './TaskSelects';
 import { getTaskTeamIds } from '@/lib/teamStore';
-import { Task, TaskStatus, Priority, User, Space, Document, Workspace, TaskAttachment, SubTask } from '../../types';
+import { Task, TaskStatus, Priority, User, Space, Document, Workspace, TaskAttachment, SubTask, TaskChecklist, ChecklistItem } from '../../types';
 import { Select } from '../ui/Select';
 import NotionDocEditor from './NotionDocEditor';
 import SignedImage from '../SignedImage';
 import { supabase } from '../../lib/supabaseClient';
 import { useUiStore } from '../../store/uiStore';
-import { wouldCreateDependencyCycle } from '../../lib/taskRelationships';
-import { callAiApi } from '@/lib/aiClient';
+import { wouldCreateDependencyCycle, getIncompleteBlockers } from '../../lib/taskRelationships';
+import { callAiApi, generateSubtasksWithAi } from '@/lib/aiClient';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { saveTaskReminder, ReminderOption } from '@/lib/notificationManager';
 import { fireTaskCompleteConfetti } from '@/lib/confetti';
@@ -67,7 +67,8 @@ import {
   Hourglass, AlertTriangle, Folder, FolderInput, Download, Copy,
   FileDown, FileCode, Share2, Link2, Shield,
   PanelRightClose, PanelRightOpen,
-  AppWindow, Maximize2, PanelRight, Layout
+  AppWindow, Maximize2, PanelRight, Layout,
+  Repeat, ListChecks
 } from 'lucide-react';
 import ShareSettingsModal from '../ShareSettingsModal';
 
@@ -147,6 +148,7 @@ interface TaskDetailsPanelProps {
   visibleFields?: string[];
   onToggleFieldVisibility?: (fieldKey: string) => void;
   currentUser?: any;
+  onSelectTask?: (task: Task) => void;
 }
 
 export default function TaskDetailsPanel({
@@ -155,10 +157,10 @@ export default function TaskDetailsPanel({
    onAiSummary, isSummarizing, aiSummary, allTasks = [], allDocs = [], onOpenFieldsPanel,
    globalActiveTaskId = null, globalActiveElapsed = 0, globalIsPaused = false,
    onStartGlobalTimer, onStopGlobalTimer, onTogglePauseGlobalTimer,
-   visibleFields, onToggleFieldVisibility, currentUser
+   visibleFields, onToggleFieldVisibility, currentUser, onSelectTask
  }: TaskDetailsPanelProps) {
   const { t, isVietnamese } = useTranslation();
-  const [detailTab, setDetailTab] = useState<'overview' | 'subtasks' | 'files' | 'activity'>('overview');
+  const [detailTab, setDetailTab] = useState<'overview' | 'subtasks' | 'checklists' | 'files' | 'activity'>('overview');
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(task.title);
   const [descValue, setDescValue] = useState(task.description);
@@ -229,6 +231,163 @@ export default function TaskDetailsPanel({
   const [showTaskTypeMenu, setShowTaskTypeMenu] = useState(false);
   const [hideEmptyFields, setHideEmptyFields] = useState(false);
 
+  // Checklists state
+  const [newChecklistTitle, setNewChecklistTitle] = useState('');
+  const [showAddChecklistModal, setShowAddChecklistModal] = useState(false);
+  const [newItemTitleByChecklist, setNewItemTitleByChecklist] = useState<Record<string, string>>({});
+  const [aiGeneratingChecklist, setAiGeneratingChecklist] = useState(false);
+
+  // Recurrence & Estimate state
+  const [showRecurrencePopover, setShowRecurrencePopover] = useState(false);
+  const [showEstimateModal, setShowEstimateModal] = useState(false);
+  const [estimateInput, setEstimateInput] = useState<string>(task.hoursEstimate ? String(task.hoursEstimate) : '');
+
+  const incompleteBlockers = useMemo(() => {
+    return getIncompleteBlockers(task, allTasks);
+  }, [task, allTasks]);
+
+  const taskChecklists: TaskChecklist[] = useMemo(() => {
+    if (Array.isArray(task.checklists) && task.checklists.length > 0) return task.checklists;
+    if (Array.isArray((task.custom_fields as any)?.checklists)) return (task.custom_fields as any).checklists;
+    return [];
+  }, [task.checklists, task.custom_fields]);
+
+  const updateChecklists = useCallback((nextChecklists: TaskChecklist[]) => {
+    onUpdateTask({
+      ...task,
+      checklists: nextChecklists,
+      custom_fields: {
+        ...(task.custom_fields || {}),
+        checklists: nextChecklists,
+      },
+    });
+  }, [task, onUpdateTask]);
+
+  const handleAddChecklist = (customTitle?: string) => {
+    const title = (customTitle || newChecklistTitle).trim() || (isVietnamese ? 'Danh sách kiểm tra' : 'Checklist');
+    const newChecklist: TaskChecklist = {
+      id: `chk-${Date.now()}`,
+      title,
+      items: []
+    };
+    const nextChecklists = [...taskChecklists, newChecklist];
+    updateChecklists(nextChecklists);
+    setNewChecklistTitle('');
+    setShowAddChecklistModal(false);
+    onAddSyncLog(`Added checklist "${title}"`);
+    triggerToast?.('success', isVietnamese ? 'Đã thêm Checklist' : 'Checklist Created', `"${title}"`);
+  };
+
+  const handleDeleteChecklist = (checklistId: string) => {
+    const nextChecklists = taskChecklists.filter(c => c.id !== checklistId);
+    updateChecklists(nextChecklists);
+    onAddSyncLog('Deleted checklist');
+  };
+
+  const handleRenameChecklist = (checklistId: string, title: string) => {
+    if (!title.trim()) return;
+    const nextChecklists = taskChecklists.map(c => c.id === checklistId ? { ...c, title: title.trim() } : c);
+    updateChecklists(nextChecklists);
+  };
+
+  const handleToggleChecklistItem = (checklistId: string, itemId: string) => {
+    let completedNow = false;
+    const nextChecklists = taskChecklists.map(c => {
+      if (c.id !== checklistId) return c;
+      return {
+        ...c,
+        items: c.items.map(item => {
+          if (item.id !== itemId) return item;
+          completedNow = !item.completed;
+          return { ...item, completed: completedNow };
+        })
+      };
+    });
+    updateChecklists(nextChecklists);
+    if (completedNow) {
+      playSuccessSound();
+    } else {
+      playToggleSound();
+    }
+  };
+
+  const handleAddChecklistItem = (checklistId: string) => {
+    const text = (newItemTitleByChecklist[checklistId] || '').trim();
+    if (!text) return;
+    const newItem: ChecklistItem = {
+      id: `item-${Date.now()}`,
+      title: text,
+      completed: false
+    };
+    const nextChecklists = taskChecklists.map(c => {
+      if (c.id !== checklistId) return c;
+      return { ...c, items: [...c.items, newItem] };
+    });
+    updateChecklists(nextChecklists);
+    setNewItemTitleByChecklist(prev => ({ ...prev, [checklistId]: '' }));
+    onAddSyncLog(`Added checklist item "${text}"`);
+  };
+
+  const handleDeleteChecklistItem = (checklistId: string, itemId: string) => {
+    const nextChecklists = taskChecklists.map(c => {
+      if (c.id !== checklistId) return c;
+      return { ...c, items: c.items.filter(item => item.id !== itemId) };
+    });
+    updateChecklists(nextChecklists);
+  };
+
+  const handleConvertChecklistItemToSubtask = (checklistId: string, itemId: string, title: string) => {
+    handleDeleteChecklistItem(checklistId, itemId);
+    const newSub: SubTask = { id: `sub-${Date.now()}`, title, completed: false };
+    const nextSubtasks = [...task.subtasks, newSub];
+    const progress = Math.round((nextSubtasks.filter(s => s.completed).length / nextSubtasks.length) * 100);
+    onUpdateTask({ ...task, subtasks: nextSubtasks, progress });
+    triggerToast?.('success', isVietnamese ? 'Đã chuyển thành công việc con' : 'Converted to Subtask', `"${title}"`);
+    onAddSyncLog(`Converted checklist item "${title}" into subtask`);
+  };
+
+  const handleAiGenerateChecklist = async () => {
+    setAiGeneratingChecklist(true);
+    try {
+      const prompt = `Từ công việc "${task.title}" có mô tả: "${task.description || 'Không có mô tả chi tiết'}". Hãy lập danh sách 4 đến 6 tiêu chuẩn nghiệm thu và kiểm thử (Acceptance Criteria & QA Checklist) ngắn gọn, thực tế.`;
+      const items = await generateSubtasksWithAi(task.title, prompt);
+      if (items.length > 0) {
+        const newItems: ChecklistItem[] = items.map((it: string, idx: number) => ({
+          id: `chk-ai-${Date.now()}-${idx}`,
+          title: it,
+          completed: false
+        }));
+        const newChecklist: TaskChecklist = {
+          id: `chk-${Date.now()}`,
+          title: isVietnamese ? 'Tiêu chí nghiệm thu (AI QA)' : 'QA & Acceptance Criteria',
+          items: newItems
+        };
+        const nextChecklists = [...taskChecklists, newChecklist];
+        updateChecklists(nextChecklists);
+        triggerToast?.('success', isVietnamese ? 'Đã tạo Checklist từ AI' : 'AI Checklist Created', isVietnamese ? `Đã thêm ${items.length} mục kiểm tra chất lượng.` : `Added ${items.length} QA criteria.`);
+      }
+    } catch (err) {
+      console.error('AI Checklist Error:', err);
+    } finally {
+      setAiGeneratingChecklist(false);
+    }
+  };
+
+  const handleUpdateRecurrence = (frequency: 'daily' | 'weekly' | 'monthly' | 'none', interval: number = 1) => {
+    const recurrence = frequency === 'none' ? undefined : { frequency, interval: Math.max(1, interval) };
+    onUpdateTask({ ...task, recurrence });
+    onAddSyncLog(recurrence ? `Set recurring ${frequency} (interval: ${interval})` : 'Removed recurrence');
+    setShowRecurrencePopover(false);
+    triggerToast?.('success', isVietnamese ? 'Cập nhật lặp lại' : 'Recurrence Updated', frequency === 'none' ? (isVietnamese ? 'Đã tắt lặp lại định kỳ' : 'Recurrence disabled') : (isVietnamese ? `Lặp lại: ${frequency === 'daily' ? 'Hàng ngày' : frequency === 'weekly' ? 'Hàng tuần' : 'Hàng tháng'} (${interval})` : `Repeats: ${frequency}`));
+  };
+
+  const handleSaveEstimate = (value: number | undefined) => {
+    onUpdateTask({ ...task, hoursEstimate: value });
+    onAddSyncLog(value ? `Set estimate to ${value}h` : 'Cleared estimate');
+    setShowEstimateModal(false);
+    triggerToast?.('success', isVietnamese ? 'Cập nhật ước lượng' : 'Estimate Updated', value ? `${value}h` : (isVietnamese ? 'Đã xóa' : 'Cleared'));
+  };
+
   const handleLayoutChange = (newLayout: 'modal' | 'fullscreen' | 'sidebar') => {
     setModalLayout(newLayout);
     localStorage.setItem('apexa_task_modal_layout', newLayout);
@@ -267,6 +426,9 @@ export default function TaskDetailsPanel({
     onUpdateTask({ ...task, status: newStatus });
     onAddSyncLog(`Status → ${newStatus}`);
     if (newStatus === 'completed') {
+      if (incompleteBlockers.length > 0) {
+        triggerToast?.('warning', isVietnamese ? 'Cảnh báo việc bị chặn' : 'Blocked Task Warning', isVietnamese ? `Công việc này vẫn còn ${incompleteBlockers.length} việc chặn chưa hoàn thành ("${incompleteBlockers[0]?.title}").` : `This task is waiting on ${incompleteBlockers.length} incomplete blocker(s).`);
+      }
       fireTaskCompleteConfetti();
       playSuccessSound();
     } else {
@@ -474,6 +636,9 @@ export default function TaskDetailsPanel({
         if (showSharePopover) { setShowSharePopover(false); return; }
         if (showLogTimeModal) { setShowLogTimeModal(false); return; }
         if (showMoveModal) { setShowMoveModal(false); return; }
+        if (showRecurrencePopover) { setShowRecurrencePopover(false); return; }
+        if (showEstimateModal) { setShowEstimateModal(false); return; }
+        if (showAddChecklistModal) { setShowAddChecklistModal(false); return; }
         if (layoutMenuOpen || showMoreMenu || showSpaceDropdown || showListDropdown || showAssigneesDropdown || showTagsDropdown || showLinkTaskDropdown || showLinkDocDropdown || showBlockedByDropdown || showBlocksDropdown) {
           setLayoutMenuOpen(false);
           setShowMoreMenu(false);
@@ -1271,7 +1436,64 @@ export default function TaskDetailsPanel({
           
           <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium">
             <span>{(task.hoursLogged || 0)} {isVietnamese ? 'giờ đã ghi' : 'hrs logged'}</span>
-            {task.hoursEstimate ? <span>{task.hoursEstimate} {isVietnamese ? 'giờ dự kiến' : 'hrs estimate'}</span> : null}
+            <div className="relative">
+              <button 
+                type="button" 
+                onClick={() => {
+                  setEstimateInput(task.hoursEstimate ? String(task.hoursEstimate) : '');
+                  setShowEstimateModal(!showEstimateModal);
+                }}
+                className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer flex items-center gap-1"
+              >
+                <Clock className="w-3 h-3 text-indigo-500" />
+                <span>{task.hoursEstimate ? `${task.hoursEstimate} ${isVietnamese ? 'giờ dự kiến' : 'hrs estimate'}` : (isVietnamese ? '+ Ước lượng' : '+ Estimate')}</span>
+              </button>
+
+              {showEstimateModal && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setShowEstimateModal(false)} />
+                  <div className="absolute right-0 bottom-full mb-2 z-40 w-48 p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl space-y-2 text-left">
+                    <div className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500">
+                      {isVietnamese ? 'Ước lượng thời gian' : 'Time Estimate'}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.5}
+                        value={estimateInput}
+                        onChange={e => setEstimateInput(e.target.value)}
+                        placeholder="0"
+                        className="w-16 text-xs text-center border border-slate-200 dark:border-slate-700 rounded-lg py-1 font-bold text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 outline-none focus:border-indigo-500"
+                      />
+                      <span className="text-xs font-semibold text-slate-500">{isVietnamese ? 'giờ' : 'hrs'}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = parseFloat(estimateInput);
+                          handleSaveEstimate(val > 0 ? val : undefined);
+                        }}
+                        className="ml-auto px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold cursor-pointer"
+                      >
+                        {isVietnamese ? 'Lưu' : 'Save'}
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1 pt-1 border-t border-slate-100 dark:border-slate-800">
+                      {[1, 2, 4, 8].map(h => (
+                        <button
+                          key={h}
+                          type="button"
+                          onClick={() => handleSaveEstimate(h)}
+                          className="flex-1 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 transition-colors"
+                        >
+                          +{h}h
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
           {task.hoursEstimate && (task.hoursLogged || 0) > 0 ? (
             <div className="flex items-center gap-1.5 w-full mt-1">
@@ -1286,6 +1508,91 @@ export default function TaskDetailsPanel({
               </span>
             </div>
           ) : null}
+        </div>
+
+        {/* Recurrence Row */}
+        <div className="py-1.5 px-2 -mx-1 rounded-xl flex items-center justify-between min-h-[38px] group/row relative hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
+          <span className="w-28 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
+            <Repeat className="w-3.5 h-3.5 text-blue-500" /> {isVietnamese ? 'Lặp lại định kỳ' : 'Recurring'}
+          </span>
+          <div className="relative flex-1 min-w-0 flex items-center justify-end">
+            <button
+              type="button"
+              onClick={() => setShowRecurrencePopover(!showRecurrencePopover)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                task.recurrence && task.recurrence.frequency !== 'none'
+                  ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/50'
+                  : 'bg-slate-100/70 dark:bg-white/[0.04] text-slate-600 dark:text-zinc-300 border-transparent hover:border-slate-200 dark:hover:border-zinc-700'
+              }`}
+            >
+              <Repeat className="w-3 h-3 text-blue-500" />
+              <span className="truncate max-w-[130px]">
+                {!task.recurrence || task.recurrence.frequency === 'none'
+                  ? (isVietnamese ? 'Không lặp lại' : 'Do not repeat')
+                  : task.recurrence.frequency === 'daily'
+                  ? (isVietnamese ? `Hàng ngày (${task.recurrence.interval || 1})` : `Daily (${task.recurrence.interval || 1})`)
+                  : task.recurrence.frequency === 'weekly'
+                  ? (isVietnamese ? `Hàng tuần (${task.recurrence.interval || 1})` : `Weekly (${task.recurrence.interval || 1})`)
+                  : (isVietnamese ? `Hàng tháng (${task.recurrence.interval || 1})` : `Monthly (${task.recurrence.interval || 1})`)}
+              </span>
+              <ChevronDown className="w-3 h-3 opacity-60 shrink-0" />
+            </button>
+
+            {showRecurrencePopover && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setShowRecurrencePopover(false)} />
+                <div className="absolute right-0 bottom-full mb-1.5 z-40 w-56 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl space-y-1 text-left">
+                  <div className="px-2 py-1 text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500">
+                    {isVietnamese ? 'Chu kỳ lặp lại' : 'Recurrence cycle'}
+                  </div>
+                  {[
+                    { id: 'none', label: isVietnamese ? 'Không lặp lại' : 'Do not repeat' },
+                    { id: 'daily', label: isVietnamese ? 'Hàng ngày' : 'Daily' },
+                    { id: 'weekly', label: isVietnamese ? 'Hàng tuần' : 'Weekly' },
+                    { id: 'monthly', label: isVietnamese ? 'Hàng tháng' : 'Monthly' },
+                  ].map(opt => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => handleUpdateRecurrence(opt.id as any, task.recurrence?.interval || 1)}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                        (opt.id === 'none' && (!task.recurrence || task.recurrence.frequency === 'none')) ||
+                        task.recurrence?.frequency === opt.id
+                          ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400'
+                          : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      <span>{opt.label}</span>
+                      {((opt.id === 'none' && (!task.recurrence || task.recurrence.frequency === 'none')) ||
+                        task.recurrence?.frequency === opt.id) && <Check className="w-3.5 h-3.5 text-blue-500" />}
+                    </button>
+                  ))}
+                  {task.recurrence && task.recurrence.frequency !== 'none' && (
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 px-2 flex items-center justify-between text-xs">
+                      <span className="text-slate-500 font-medium">{isVietnamese ? 'Khoảng cách:' : 'Every:'}</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateRecurrence(task.recurrence!.frequency, Math.max(1, (task.recurrence!.interval || 1) - 1))}
+                          className="w-5 h-5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-slate-200"
+                        >
+                          -
+                        </button>
+                        <span className="font-mono font-bold px-1.5">{task.recurrence.interval || 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateRecurrence(task.recurrence!.frequency, (task.recurrence!.interval || 1) + 1)}
+                          className="w-5 h-5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-slate-200"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -3030,26 +3337,52 @@ export default function TaskDetailsPanel({
                 {/* Left: Main details (Scrollable) */}
                 <div className="task-studio-main custom-scrollbar">
                   
-                  {/* Blocked Warning Banner */}
+                  {/* Blocked Warning / Resolved Banner */}
                   {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
-                    <div className="flex items-start gap-2.5 p-3.5 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-2xl text-left select-none shadow-3xs relative z-10">
-                      <Hourglass className="w-4.5 h-4.5 text-amber-500 shrink-0 mt-0.5 animate-pulse" />
-                      <div className="space-y-1">
-                        <div className="text-xs font-black text-amber-900 dark:text-amber-200">Công việc này đang chờ các công việc khác</div>
-                        <div className="text-[11.5px] font-semibold text-amber-800 dark:text-amber-300 leading-relaxed">
-                          Trước khi bắt đầu, bạn phải hoàn thành: {' '}
-                          {task.relationships.blockedBy.map((id, index) => {
-                            const t = allTasks.find(item => item.id === id);
-                            return (
-                              <span key={id} className="font-extrabold text-amber-900 dark:text-amber-200">
-                                {index > 0 ? ', ' : ''}
-                                "{t?.title || id}"
-                              </span>
-                            );
-                          })}
+                    incompleteBlockers.length > 0 ? (
+                      <div className="flex items-start gap-3 p-3.5 bg-amber-500/10 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 rounded-2xl text-left select-none shadow-3xs relative z-10">
+                        <AlertTriangle className="w-4.5 h-4.5 text-amber-500 shrink-0 mt-0.5 animate-bounce" />
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className="text-xs font-black text-amber-900 dark:text-amber-200 uppercase tracking-wider flex items-center gap-1.5">
+                              {isVietnamese ? 'Công việc đang bị chặn (Waiting on)' : 'Task is blocked by dependencies'}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-200/80 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200">
+                              {incompleteBlockers.length} {isVietnamese ? 'việc chưa xong' : 'unresolved'}
+                            </span>
+                          </div>
+                          <div className="text-[11.5px] font-medium text-amber-800 dark:text-amber-300 leading-relaxed">
+                            {isVietnamese 
+                              ? 'Cần hoàn thành các công việc sau trước khi thực hiện hoặc hoàn thành công việc này:' 
+                              : 'Complete these blocking tasks before starting or completing this task:'}
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap pt-1">
+                            {incompleteBlockers.map((bTask) => (
+                              <button
+                                key={bTask.id}
+                                type="button"
+                                onClick={() => onSelectTask?.(bTask)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/90 dark:bg-slate-900/90 border border-amber-200 dark:border-amber-800/80 text-[11px] font-bold text-slate-800 dark:text-slate-100 hover:border-amber-400 hover:text-amber-600 transition-all cursor-pointer shadow-3xs"
+                                title={isVietnamese ? `Xem công việc: ${bTask.title}` : `Open blocker: ${bTask.title}`}
+                              >
+                                <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_META[bTask.status]?.dot || 'bg-slate-400'}`} />
+                                <span className="truncate max-w-[200px]">{bTask.title}</span>
+                                <ChevronRight className="w-3 h-3 text-amber-500 shrink-0" />
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="flex items-center gap-2.5 p-3 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl text-left select-none shadow-3xs relative z-10">
+                        <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={3} />
+                        <div className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                          {isVietnamese 
+                            ? 'Tất cả các công việc chặn đã hoàn thành! Bạn có thể tiếp tục tiến hành công việc này.'
+                            : 'All blocking dependencies are completed! You can now proceed with this task.'}
+                        </div>
+                      </div>
+                    )
                   )}
 
 
@@ -3249,6 +3582,67 @@ export default function TaskDetailsPanel({
                       </div>
                     </div>
 
+                    {/* Time Estimate */}
+                    <div className="flex items-center min-h-[34px] py-0.5">
+                      <div className="w-28 sm:w-32 flex items-center gap-2 text-slate-500 dark:text-zinc-400 font-semibold shrink-0">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{isVietnamese ? 'Ước lượng' : 'Estimate'}</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEstimateInput(task.hoursEstimate ? String(task.hoursEstimate) : '');
+                            setShowEstimateModal(true);
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                            task.hoursEstimate 
+                              ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/40' 
+                              : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
+                          }`}
+                        >
+                          <Clock className="w-3 h-3 text-indigo-500" />
+                          <span>{task.hoursEstimate ? `${task.hoursEstimate}h` : (isVietnamese ? 'Đặt thời gian dự kiến' : 'Set estimate')}</span>
+                        </button>
+                        {task.hoursEstimate && (task.hoursLogged || 0) > 0 && (
+                          <span className="text-[11px] text-slate-400 font-medium">
+                            ({task.hoursLogged}h / {task.hoursEstimate}h - {Math.round(((task.hoursLogged || 0) / task.hoursEstimate) * 100)}%)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Recurrence */}
+                    <div className="flex items-center min-h-[34px] py-0.5">
+                      <div className="w-28 sm:w-32 flex items-center gap-2 text-slate-500 dark:text-zinc-400 font-semibold shrink-0">
+                        <Repeat className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{isVietnamese ? 'Lặp lại' : 'Recurrence'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => setShowRecurrencePopover(!showRecurrencePopover)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                            task.recurrence && task.recurrence.frequency !== 'none'
+                              ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-900/40'
+                              : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
+                          }`}
+                        >
+                          <Repeat className="w-3 h-3 text-blue-500" />
+                          <span>
+                            {!task.recurrence || task.recurrence.frequency === 'none'
+                              ? (isVietnamese ? 'Không lặp lại' : 'Does not repeat')
+                              : task.recurrence.frequency === 'daily'
+                              ? (isVietnamese ? `Hàng ngày (${task.recurrence.interval || 1})` : `Daily (${task.recurrence.interval || 1})`)
+                              : task.recurrence.frequency === 'weekly'
+                              ? (isVietnamese ? `Hàng tuần (${task.recurrence.interval || 1})` : `Weekly (${task.recurrence.interval || 1})`)
+                              : (isVietnamese ? `Hàng tháng (${task.recurrence.interval || 1})` : `Monthly (${task.recurrence.interval || 1})`)}
+                          </span>
+                          <ChevronDown className="w-3 h-3 opacity-60" />
+                        </button>
+                      </div>
+                    </div>
+
                     {/* More */}
                     <div className="flex items-center min-h-[34px] py-0.5">
                       <div className="w-28 sm:w-32 flex items-center gap-2 text-slate-500 dark:text-zinc-400 font-semibold shrink-0">
@@ -3291,14 +3685,15 @@ export default function TaskDetailsPanel({
                     {([
                       { id: 'overview', label: isVietnamese ? 'Tổng quan' : 'Overview', icon: FileText, count: null },
                       { id: 'subtasks', label: isVietnamese ? 'Công việc con' : 'Subtasks', icon: CheckSquare, count: task.subtasks.length },
+                      { id: 'checklists', label: isVietnamese ? 'Checklist' : 'Checklists', icon: ListChecks, count: taskChecklists.reduce((acc, c) => acc + c.items.length, 0) },
                       { id: 'files', label: isVietnamese ? 'Tệp đính kèm' : 'Files', icon: Paperclip, count: task.attachments?.length || 0 },
                       { id: 'activity', label: isVietnamese ? 'Thảo luận' : 'Activity', icon: MessageSquare, count: task.comments?.length || 0 },
                     ] as const).map((tab, index) => <button key={tab.id} type="button" role="tab" id={'task-tab-' + tab.id}
                       aria-selected={detailTab === tab.id} aria-controls={'task-panel-' + tab.id} tabIndex={detailTab === tab.id ? 0 : -1}
                       onClick={() => setDetailTab(tab.id)}
                       onKeyDown={event => {
-                        const ids = ['overview', 'subtasks', 'files', 'activity'] as const;
-                        const next = event.key === 'ArrowRight' ? (index + 1) % 4 : event.key === 'ArrowLeft' ? (index + 3) % 4 : event.key === 'Home' ? 0 : event.key === 'End' ? 3 : -1;
+                        const ids = ['overview', 'subtasks', 'checklists', 'files', 'activity'] as const;
+                        const next = event.key === 'ArrowRight' ? (index + 1) % 5 : event.key === 'ArrowLeft' ? (index + 4) % 5 : event.key === 'Home' ? 0 : event.key === 'End' ? 4 : -1;
                         if (next < 0) return;
                         event.preventDefault(); setDetailTab(ids[next]); document.getElementById('task-tab-' + ids[next])?.focus();
                       }}><tab.icon size={15} /><span>{tab.label}</span>{tab.count !== null && <small>{tab.count}</small>}</button>)}
@@ -3410,13 +3805,13 @@ export default function TaskDetailsPanel({
                     <button
                       type="button"
                       onClick={() => {
-                        setDetailTab('subtasks');
-                        focusSubtaskComposer();
+                        setDetailTab('checklists');
+                        setShowAddChecklistModal(true);
                       }}
                       className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-600 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer font-semibold"
                     >
-                      <CheckSquare className="w-4 h-4 text-slate-400" />
-                      <span>Create checklist</span>
+                      <ListChecks className="w-4 h-4 text-slate-400" />
+                      <span>{isVietnamese ? 'Tạo danh sách kiểm tra (Checklist)' : 'Create checklist'}</span>
                     </button>
                     <button
                       type="button"
@@ -3541,6 +3936,216 @@ export default function TaskDetailsPanel({
                         </button>
                       )}
                     </div>
+                  </div>
+
+                  {/* Checklists Panel */}
+                  <div role="tabpanel" id="task-panel-checklists" aria-labelledby="task-tab-checklists" hidden={detailTab !== 'checklists'} className="task-studio-section space-y-4 text-left">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 select-none">
+                        <div className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                          <ListChecks className="w-3.5 h-3.5" />
+                        </div>
+                        <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                          {isVietnamese ? 'Danh sách kiểm tra (Checklists)' : 'Task Checklists'}
+                        </label>
+                        {taskChecklists.length > 0 && (
+                          <span className="text-[10px] font-bold text-slate-400">
+                            {taskChecklists.reduce((acc, c) => acc + c.items.filter(i => i.completed).length, 0)}/{taskChecklists.reduce((acc, c) => acc + c.items.length, 0)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleAiGenerateChecklist}
+                          disabled={aiGeneratingChecklist}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 cursor-pointer disabled:opacity-50 border border-indigo-100/60 dark:border-indigo-900/30 transition-colors"
+                        >
+                          <Sparkles className={`w-3.5 h-3.5 text-amber-500 ${aiGeneratingChecklist ? 'animate-spin' : ''}`} />
+                          <span>{aiGeneratingChecklist ? (isVietnamese ? 'Đang tạo…' : 'Generating…') : (isVietnamese ? 'AI gợi ý Checklist QA' : 'AI Generate QA')}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowAddChecklistModal(true)}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer transition-colors"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>{isVietnamese ? 'Thêm Checklist' : 'New Checklist'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Checklists List or Empty State */}
+                    {taskChecklists.length === 0 ? (
+                      <div className="p-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-center space-y-3">
+                        <div className="w-10 h-10 mx-auto rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                          <ListChecks className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                            {isVietnamese ? 'Chưa có danh sách kiểm tra' : 'No checklists created yet'}
+                          </h4>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
+                            {isVietnamese 
+                              ? 'Tạo danh sách kiểm tra (To-do, tiêu chí nghiệm thu QA) để chia nhỏ công việc và quản lý tiến độ chi tiết.'
+                              : 'Create checklists for QA acceptance criteria, to-do lists, and track completion progress.'}
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-center gap-2 pt-1 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => handleAddChecklist(isVietnamese ? 'Tiêu chí nghiệm thu' : 'Acceptance Criteria')}
+                            className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>{isVietnamese ? '+ Thêm Checklist mới' : '+ New Checklist'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleAiGenerateChecklist}
+                            disabled={aiGeneratingChecklist}
+                            className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                            <span>{isVietnamese ? 'Costack AI gợi ý Checklist' : 'Generate with AI'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {taskChecklists.map((chk) => {
+                          const totalItems = chk.items.length;
+                          const completedItems = chk.items.filter(i => i.completed).length;
+                          const progressPct = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+
+                          return (
+                            <div
+                              key={chk.id}
+                              className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 shadow-3xs space-y-3"
+                            >
+                              {/* Checklist Header */}
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  <ListChecks className="w-4 h-4 text-indigo-500 shrink-0" />
+                                  <input
+                                    defaultValue={chk.title}
+                                    onBlur={(e) => handleRenameChecklist(chk.id, e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        (e.target as HTMLInputElement).blur();
+                                      }
+                                    }}
+                                    className="text-xs font-bold text-slate-800 dark:text-slate-100 bg-transparent border-0 border-none outline-none focus:ring-1 focus:ring-indigo-500/30 rounded px-1 -ml-1 flex-1 truncate"
+                                    title={isVietnamese ? "Nhấp để đổi tên danh sách" : "Click to rename"}
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="text-[10px] font-bold text-slate-400 tabular-nums">
+                                    {completedItems}/{totalItems} ({progressPct}%)
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteChecklist(chk.id)}
+                                    className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+                                    title={isVietnamese ? "Xóa danh sách này" : "Delete checklist"}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Progress bar */}
+                              {totalItems > 0 && (
+                                <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-300"
+                                    style={{ width: `${progressPct}%` }}
+                                  />
+                                </div>
+                              )}
+
+                              {/* Checklist items list */}
+                              <div className="space-y-1.5 pt-1">
+                                {chk.items.map((item) => (
+                                  <div
+                                    key={item.id}
+                                    className="flex items-center gap-2.5 py-1.5 px-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-800/40 hover:bg-slate-100/70 dark:hover:bg-slate-800/70 border border-slate-200/50 dark:border-slate-800/60 group transition-all"
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleChecklistItem(chk.id, item.id)}
+                                      className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 cursor-pointer transition-all ${
+                                        item.completed
+                                          ? 'bg-emerald-500 border-emerald-500 text-white'
+                                          : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 hover:border-emerald-400'
+                                      }`}
+                                    >
+                                      {item.completed && <Check className="w-3 h-3 stroke-[3]" />}
+                                    </button>
+
+                                    <span
+                                      className={`flex-1 text-xs select-none transition-all ${
+                                        item.completed
+                                          ? 'line-through text-slate-400 dark:text-slate-500'
+                                          : 'text-slate-700 dark:text-slate-200 font-medium'
+                                      }`}
+                                    >
+                                      {item.title}
+                                    </span>
+
+                                    {/* Action: Convert to subtask */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleConvertChecklistItemToSubtask(chk.id, item.id, item.title)}
+                                      className="opacity-0 group-hover:opacity-100 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all cursor-pointer shrink-0"
+                                      title={isVietnamese ? "Chuyển thành công việc con riêng biệt" : "Convert to subtask"}
+                                    >
+                                      {isVietnamese ? '→ Việc con' : '→ Subtask'}
+                                    </button>
+
+                                    {/* Action: Delete item */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteChecklistItem(chk.id, item.id)}
+                                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-md transition-all cursor-pointer shrink-0"
+                                      title={isVietnamese ? "Xóa mục" : "Delete item"}
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Add Item Input for this checklist */}
+                              <div className="flex items-center gap-2 pt-1">
+                                <input
+                                  type="text"
+                                  value={newItemTitleByChecklist[chk.id] || ''}
+                                  onChange={(e) => setNewItemTitleByChecklist(prev => ({ ...prev, [chk.id]: e.target.value }))}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      handleAddChecklistItem(chk.id);
+                                    }
+                                  }}
+                                  placeholder={isVietnamese ? "Thêm mục kiểm tra mới (nhấn Enter)..." : "Add checklist item (press Enter)..."}
+                                  className="flex-1 text-xs px-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-slate-800 dark:text-slate-100 placeholder-slate-400 outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 transition-all"
+                                />
+                                {(newItemTitleByChecklist[chk.id] || '').trim() && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAddChecklistItem(chk.id)}
+                                    className="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all cursor-pointer shadow-xs"
+                                  >
+                                    {isVietnamese ? 'Thêm' : 'Add'}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   <div role="tabpanel" id="task-panel-files" aria-labelledby="task-tab-files" hidden={detailTab !== 'files'} className="task-studio-section">{renderAttachmentsSection()}</div>
@@ -3744,6 +4349,97 @@ export default function TaskDetailsPanel({
                 className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-xs cursor-pointer"
               >
                 {isVietnamese ? 'Xác nhận di chuyển' : 'Confirm move'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Checklist Modal */}
+      {showAddChecklistModal && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-5 max-w-md w-full space-y-4 text-left">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                  <ListChecks className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    {isVietnamese ? 'Thêm danh sách kiểm tra' : 'Add Checklist'}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {isVietnamese ? 'Tạo danh sách kiểm tra mới hoặc chọn mẫu' : 'Create a new checklist or select a template'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddChecklistModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  {isVietnamese ? 'Tên danh sách' : 'Checklist Title'}
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  value={newChecklistTitle}
+                  onChange={(e) => setNewChecklistTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleAddChecklist();
+                    }
+                  }}
+                  placeholder={isVietnamese ? 'Ví dụ: Tiêu chí nghiệm thu QA' : 'e.g. Acceptance Criteria'}
+                  className="w-full text-xs font-medium px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <span className="block text-[11px] font-semibold text-slate-400 mb-1.5 uppercase">
+                  {isVietnamese ? 'Mẫu nhanh' : 'Quick Templates'}
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    isVietnamese ? 'Tiêu chí nghiệm thu' : 'Acceptance Criteria',
+                    isVietnamese ? 'Kiểm thử QA' : 'QA Testing',
+                    isVietnamese ? 'Danh sách bàn giao' : 'Handover Checklist',
+                    isVietnamese ? 'Rà soát bảo mật' : 'Security Review'
+                  ].map(tmpl => (
+                    <button
+                      key={tmpl}
+                      type="button"
+                      onClick={() => handleAddChecklist(tmpl)}
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 transition-colors cursor-pointer"
+                    >
+                      {tmpl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowAddChecklistModal(false)}
+                className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+              >
+                {isVietnamese ? 'Hủy' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAddChecklist()}
+                className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-xs cursor-pointer"
+              >
+                {isVietnamese ? 'Tạo danh sách' : 'Create'}
               </button>
             </div>
           </div>

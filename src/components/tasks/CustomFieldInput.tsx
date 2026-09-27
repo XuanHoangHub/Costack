@@ -4,6 +4,7 @@ import React, { useId, useState } from 'react';
 import { ExternalLink, Flame, Heart, Star, ThumbsUp, MapPin, Globe, Paperclip, Calculator, PenTool, CheckCircle2, Play, Users } from 'lucide-react';
 import type { CustomFieldDefinition, User } from '@/types';
 import { fieldOptions, fieldSelections, validateCustomField } from '@/lib/customFields';
+import { isSafeUrl } from '@/lib/security';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { DropdownFieldSelect } from './TaskSelects';
 
@@ -126,7 +127,16 @@ export default function CustomFieldInput({ field, value, onChange, members = [],
     const votes = Number(value) || 0;
     control = <button type="button" onClick={() => commit(votes + 1)} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-700/80 bg-slate-50 dark:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 font-bold text-xs hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shadow-3xs cursor-pointer" title={vi ? 'Bình chọn' : 'Vote'}><ThumbsUp size={13} className="text-slate-500 dark:text-zinc-400" /><span>{votes}</span></button>;
   } else if (field.type === 'button') {
-    control = <button type="button" onClick={() => { if (field.buttonAction === 'open_url' && value) { window.open(String(value), '_blank'); } else { commit(new Date().toISOString()); } }} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-all shadow-xs cursor-pointer active:scale-95"><Play size={12} className="fill-current" /><span>{field.buttonText || (vi ? 'Thực hiện' : 'Action')}</span></button>;
+    control = <button type="button" onClick={() => {
+      if (field.buttonAction === 'open_url' && value) {
+        const urlStr = String(value);
+        if (isSafeUrl(urlStr)) {
+          window.open(urlStr, '_blank', 'noopener,noreferrer');
+        }
+      } else {
+        commit(new Date().toISOString());
+      }
+    }} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-all shadow-xs cursor-pointer active:scale-95"><Play size={12} className="fill-current" /><span>{field.buttonText || (vi ? 'Thực hiện' : 'Action')}</span></button>;
   } else if (field.type === 'location') {
     if (variant === 'table' && !isInlineEditing) {
       const isEmpty = value == null || String(value).trim() === '';
@@ -220,7 +230,7 @@ export default function CustomFieldInput({ field, value, onChange, members = [],
           step={numeric ? field.numberPrecision != null ? 10 ** -field.numberPrecision : 'any' : undefined} 
         />
         {unit && !(field.type === 'money' && field.currencyPosition === 'prefix') && <span className="text-xs text-slate-400 font-bold">{unit}</span>}
-        {isUrl && value && !validateCustomField(field, value) ? <a href={String(value)} target="_blank" rel="noopener noreferrer" className="p-1 text-slate-400 hover:text-blue-600 cursor-pointer" aria-label={vi ? 'Mở liên kết' : 'Open link'}><ExternalLink size={14} /></a> : null}
+        {isUrl && value && !validateCustomField(field, value) && isSafeUrl(String(value)) ? <a href={String(value)} target="_blank" rel="noopener noreferrer" className="p-1 text-slate-400 hover:text-blue-600 cursor-pointer" aria-label={vi ? 'Mở liên kết' : 'Open link'}><ExternalLink size={14} /></a> : null}
       </div>{isProgress && <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden"><div className="bg-blue-600 h-full rounded-full transition-all duration-300" style={{ width: `${Math.min(100, Math.max(0, Number(value) || 0))}%` }} /></div>}</div>;
     }
   }

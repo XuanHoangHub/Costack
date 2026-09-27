@@ -26,9 +26,23 @@ const PRESET_GRADIENTS = [
 ];
 
 const isDefaultAvatar = (path?: string) => {
-  if (!path) return true;
-  if (path.includes('api.dicebear.com')) return true;
+  if (!path || typeof path !== 'string') return true;
+  const trimmed = path.trim();
+  if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return true;
+  if (trimmed.includes('api.dicebear.com')) return true;
   return false;
+};
+
+const isDirectUrl = (p?: string): boolean => {
+  if (!p || typeof p !== 'string') return false;
+  const trimmed = p.trim();
+  return (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('blob:') ||
+    trimmed.startsWith('data:') ||
+    trimmed.startsWith('/')
+  );
 };
 
 const getInitial = (filePath?: string, fallback?: string, alt?: string): string => {
@@ -66,49 +80,67 @@ const getGradient = (name: string) => {
 };
 
 export default function SignedImage({ filePath, fallback, id, className, style, alt, title, bucket = 'avatars', src: providedSrc, onError, ...props }: SignedImageProps) {
-  const [src, setSrc] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
-  const [imageFailed, setImageFailed] = useState<boolean>(false);
-
   const providedSrcString = typeof providedSrc === 'string' ? providedSrc : undefined;
   const activePath = filePath || providedSrcString;
+
+  const getInitialSrc = () => {
+    if (isDirectUrl(activePath)) return activePath!;
+    if (isDirectUrl(fallback)) return fallback!;
+    return '';
+  };
+
+  const [src, setSrc] = useState<string>(getInitialSrc);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [imageFailed, setImageFailed] = useState<boolean>(false);
+  const attemptedSignedUrlRef = React.useRef<boolean>(false);
 
   useEffect(() => {
     let active = true;
     setImageFailed(false);
-    if (!filePath) {
-      setSrc(providedSrcString || fallback || '');
+    attemptedSignedUrlRef.current = false;
+
+    if (!activePath) {
+      setSrc(fallback || '');
+      setLoading(false);
       return;
     }
 
-    // Direct web, blob, relative or base64 image URLs
-    if (
-      filePath.startsWith('http://') || 
-      filePath.startsWith('https://') || 
-      filePath.startsWith('blob:') ||
-      filePath.startsWith('data:') ||
-      filePath.startsWith('/')
-    ) {
-      setSrc(filePath);
+    if (isDirectUrl(activePath)) {
+      setSrc(activePath);
+      setLoading(false);
       return;
     }
 
+    // Direct storage object path inside Supabase Storage bucket
     const loadSignedUrl = async () => {
       setLoading(true);
       try {
+        const cleanPath = activePath.startsWith(`${bucket}/`)
+          ? activePath.slice(bucket.length + 1)
+          : (activePath.startsWith('avatars/') ? activePath.slice('avatars/'.length) : activePath);
+
         const { data, error } = await supabase.storage
           .from(bucket)
-          .createSignedUrl(filePath, 86400); // Live for 24h
+          .createSignedUrl(cleanPath, 86400); // Live for 24h
+
+        if (!active) return;
 
         if (error) {
-          console.error('[SignedImage] Error getting signed URL:', filePath, error);
-          if (active) setSrc(fallback || '');
-        } else if (data?.signedUrl && active) {
+          console.warn('[SignedImage] Error getting signed URL:', cleanPath, error.message);
+          if (fallback) {
+            setSrc(fallback);
+          } else {
+            setImageFailed(true);
+          }
+        } else if (data?.signedUrl) {
           setSrc(data.signedUrl);
         }
       } catch (err) {
-        console.error('[SignedImage] Exception resolving signed URL:', err);
-        if (active) setSrc(fallback || '');
+        console.warn('[SignedImage] Exception resolving signed URL:', err);
+        if (active) {
+          if (fallback) setSrc(fallback);
+          else setImageFailed(true);
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -119,9 +151,37 @@ export default function SignedImage({ filePath, fallback, id, className, style, 
     return () => {
       active = false;
     };
-  }, [filePath, fallback, bucket, providedSrcString]);
+  }, [activePath, fallback, bucket]);
 
-  if (isDefaultAvatar(activePath) || imageFailed) {
+  const handleImageError = async (event: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    // If the image that failed was a Supabase storage URL, attempt a signed URL recovery once
+    if (!attemptedSignedUrlRef.current && src && (src.includes('/storage/v1/object/public/') || src.includes('/storage/v1/object/'))) {
+      attemptedSignedUrlRef.current = true;
+      try {
+        const match = src.match(/\/storage\/v1\/object\/(?:public\/)?([^/]+)\/(.+?)(?:\?.*)?$/);
+        if (match) {
+          const matchedBucket = match[1];
+          const objectPath = decodeURIComponent(match[2]);
+          const { data, error } = await supabase.storage
+            .from(matchedBucket)
+            .createSignedUrl(objectPath, 86400);
+          if (!error && data?.signedUrl) {
+            setSrc(data.signedUrl);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('[SignedImage] Fallback signed URL recovery failed:', e);
+      }
+    }
+
+    setImageFailed(true);
+    onError?.(event);
+  };
+
+  const effectiveSrc = src || fallback;
+
+  if (isDefaultAvatar(activePath) || imageFailed || (!loading && !effectiveSrc)) {
     const initial = getInitial(activePath, fallback, alt);
     const gradient = getGradient(alt || fallback || activePath || 'User');
     return (
@@ -147,11 +207,11 @@ export default function SignedImage({ filePath, fallback, id, className, style, 
     );
   }
 
-  if (loading) {
+  if (loading && !effectiveSrc) {
     return (
       <div 
         id={id ? `${id}_loading` : undefined}
-        className={`animate-pulse bg-slate-200/60 flex items-center justify-center ${className || ''}`}
+        className={`animate-pulse bg-slate-200/60 dark:bg-zinc-800 flex items-center justify-center ${className || ''}`}
         style={style}
       />
     );
@@ -160,20 +220,19 @@ export default function SignedImage({ filePath, fallback, id, className, style, 
   return (
     <img 
       id={id} 
-      src={src || fallback} 
+      src={effectiveSrc} 
       alt={alt || 'Costack Storage File'} 
       className={className}
       decoding="async"
       loading="eager"
+      referrerPolicy="no-referrer"
+      crossOrigin="anonymous"
       style={{
         imageRendering: '-webkit-optimize-contrast',
         ...style
       }}
       {...props}
-      onError={(event) => {
-        setImageFailed(true);
-        onError?.(event);
-      }}
+      onError={handleImageError}
     />
   );
 }

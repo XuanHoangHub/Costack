@@ -745,6 +745,7 @@ export default function TaskCommandCenter({
           workspaces={workspaces}
           spaces={spaces}
           onClose={() => setSelectedTaskId(null)}
+          onSelectTask={(t) => setSelectedTaskId(t.id)}
           onUpdateTask={onUpdateTask}
           onCreateTask={onAddTask as any}
           onDeleteTask={(id) => { onDeleteTask(id); setSelectedTaskId(null); }}

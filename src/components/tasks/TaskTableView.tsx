@@ -315,6 +315,7 @@ export default function TaskTableView({
   const [draftStatus, setDraftStatus] = useState<TaskStatus>('todo');
   const [draftPriority, setDraftPriority] = useState<Priority | undefined>('medium');
   const [draftAssigneeIds, setDraftAssigneeIds] = useState<string[]>([]);
+  const [draftTeamIds, setDraftTeamIds] = useState<string[]>([]);
   const [draftStartDate, setDraftStartDate] = useState<string>('');
   const [draftDueDate, setDraftDueDate] = useState<string>('');
   const [draftTags, setDraftTags] = useState<string[]>([]);
@@ -343,6 +344,7 @@ export default function TaskTableView({
     setDraftStatus('todo');
     setDraftPriority('medium');
     setDraftAssigneeIds([]);
+    setDraftTeamIds([]);
     setDraftStartDate('');
     setDraftDueDate('');
     setDraftTags([]);
@@ -609,10 +611,12 @@ export default function TaskTableView({
         listId: targetListId,
         assigneeIds: draftAssigneeIds,
         assigneeId: draftAssigneeIds[0] || undefined,
+        teamIds: draftTeamIds,
+        teamId: draftTeamIds[0] || undefined,
         startDate: draftStartDate || undefined,
         dueDate: draftDueDate || undefined,
         tags: draftTags,
-        custom_fields: { ...values, assigneeIds: draftAssigneeIds },
+        custom_fields: { ...values, assigneeIds: draftAssigneeIds, teamIds: draftTeamIds },
         subtasks: [],
         isPinned: false
       });
@@ -1286,6 +1290,9 @@ export default function TaskTableView({
             <AssigneePillSelect
               value={draftAssigneeIds}
               members={members}
+              teamIds={draftTeamIds}
+              onTeamChange={(val) => setDraftTeamIds(val || [])}
+              workspaceId={workspaces[0]?.id}
               onChange={(val) => setDraftAssigneeIds(val || [])}
             />
           </td>
@@ -1500,7 +1507,19 @@ export default function TaskTableView({
                 value={task.assigneeIds && task.assigneeIds.length > 0 ? task.assigneeIds : (task.assigneeId ? [task.assigneeId] : [])}
                 members={members}
                 teamIds={getTaskTeamIds(task)}
-                workspaceId={task.workspaceId}
+                onTeamChange={newTeams => {
+                  const nextTeams = newTeams || [];
+                  onUpdateTask({
+                    ...task,
+                    teamIds: nextTeams,
+                    teamId: nextTeams[0] || undefined,
+                    custom_fields: {
+                      ...(task.custom_fields || {}),
+                      teamIds: nextTeams
+                    }
+                  });
+                }}
+                workspaceId={task.workspaceId || workspaces[0]?.id}
                 onChange={newIds => {
                   const nextIds = newIds || [];
                   onUpdateTask({

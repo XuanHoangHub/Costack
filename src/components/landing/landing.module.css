@@ -430,11 +430,11 @@
 .scrollProgressTrack:hover,
 .scrollProgressTrack.isTrackHovered {
   height: 7px;
-  background: rgba(15, 23, 42, 0.1);
+  background: rgba(14, 165, 233, 0.14);
 }
 :global(.dark) .scrollProgressTrack:hover,
 :global(.dark) .scrollProgressTrack.isTrackHovered {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(56, 189, 248, 0.18);
 }
 
 .scrollProgressTrack.isScrolling {
@@ -448,7 +448,7 @@
 .scrollProgressBackdrop {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(14, 165, 233, 0.08) 0%, rgba(168, 85, 247, 0.08) 50%, rgba(244, 63, 94, 0.08) 100%);
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.1) 0%, rgba(14, 165, 233, 0.08) 55%, rgba(37, 99, 235, 0.1) 100%);
   pointer-events: none;
 }
 
@@ -458,24 +458,24 @@
   height: 100%;
   width: var(--scroll-percent, 0%);
   min-width: 0;
-  background: linear-gradient(90deg, #06b6d4 0%, #0284c7 20%, #3b82f6 40%, #6366f1 60%, #a855f7 80%, #ec4899 94%, #f43f5e 100%);
+  background: linear-gradient(90deg, #38bdf8 0%, #0ea5e9 38%, #0284c7 72%, #2563eb 100%);
   background-size: 200% 100%;
   border-radius: 999px;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.65), 0 0 20px rgba(168, 85, 247, 0.4);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.7), 0 0 24px rgba(37, 99, 235, 0.32);
   animation: readingShimmer 2.8s linear infinite;
   will-change: width;
   transition: box-shadow 0.25s ease, filter 0.25s ease;
   pointer-events: none;
 }
 :global(.dark) .scrollProgressBar {
-  background: linear-gradient(90deg, #22d3ee 0%, #38bdf8 20%, #818cf8 45%, #c084fc 70%, #f472b6 90%, #fb7185 100%);
+  background: linear-gradient(90deg, #67e8f9 0%, #38bdf8 36%, #0ea5e9 68%, #3b82f6 100%);
   background-size: 200% 100%;
-  box-shadow: 0 0 14px rgba(56, 189, 248, 0.8), 0 0 28px rgba(192, 132, 252, 0.55);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.82), 0 0 28px rgba(37, 99, 235, 0.42);
 }
 
 .scrollProgressTrack.isScrolling .scrollProgressBar,
 .scrollProgressTrack:hover .scrollProgressBar {
-  box-shadow: 0 0 16px rgba(56, 189, 248, 0.95), 0 0 32px rgba(168, 85, 247, 0.75), 0 0 48px rgba(236, 72, 153, 0.45);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.95), 0 0 32px rgba(14, 165, 233, 0.64), 0 0 46px rgba(37, 99, 235, 0.34);
   filter: brightness(1.2);
 }
 
@@ -515,7 +515,7 @@
   height: 7px;
   border-radius: 50%;
   background: #ffffff;
-  box-shadow: 0 0 8px #ffffff, 0 0 16px #38bdf8, 0 0 24px #a855f7;
+  box-shadow: 0 0 8px #ffffff, 0 0 16px #38bdf8, 0 0 24px #2563eb;
 }
 
 .scrollBeaconRing {
@@ -609,14 +609,14 @@
 
 .scrollWaypoint.waypointPassed .waypointPip {
   background: #ffffff;
-  box-shadow: 0 0 6px #38bdf8, 0 0 10px #a855f7;
+  box-shadow: 0 0 6px #38bdf8, 0 0 10px #2563eb;
 }
 
 .scrollWaypoint.waypointActive .waypointPip {
   width: 7px;
   height: 7px;
   background: #38bdf8;
-  box-shadow: 0 0 8px #38bdf8, 0 0 16px #6366f1;
+  box-shadow: 0 0 8px #38bdf8, 0 0 16px #2563eb;
 }
 
 /* Waypoint Hover Tooltip */
@@ -682,7 +682,7 @@
   color: #93c5fd;
 }
 .scrubberTooltipPct {
-  color: #34d399;
+  color: #7dd3fc;
   font-family: var(--font-numeric), monospace;
   font-weight: 700;
 }
@@ -784,31 +784,10 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: #059669;
+  color: #0284c7;
   font-weight: 700;
 }
 :global(.dark) .capsuleCompleted {
-  color: #34d399;
-}
-
-/* Footer Avaxa Copyright Pill */
-.footerAvaxaCopyright {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #0284c7;
-  background: rgba(14, 165, 233, 0.08);
-  border: 1px solid rgba(14, 165, 233, 0.2);
-  border-radius: 9999px;
-  padding: 4px 12px;
-  margin-top: 6px;
-  margin-bottom: 4px;
-}
-:global(.dark) .footerAvaxaCopyright {
-  background: rgba(14, 165, 233, 0.12);
-  border-color: rgba(56, 189, 248, 0.3);
   color: #38bdf8;
 }
 
@@ -859,44 +838,6 @@
   z-index: 2;
   text-align: center;
   padding: 0 24px;
-}
-
-.heroBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 16px 6px 6px;
-  border: 1px solid var(--line-strong);
-  background: var(--surface);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-radius: 9999px;
-  color: var(--ink-secondary);
-  font-size: 12px;
-  font-weight: 550;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.heroBadge:hover {
-  border-color: rgba(15, 23, 42, 0.25);
-  transform: translateY(-1px);
-}
-.heroBadgePill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border-radius: 9999px;
-  background: var(--blue-soft);
-  color: var(--blue);
-  padding: 3px 10px;
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  font-weight: 750;
-}
-:global(.dark) .heroBadge {
-  border-color: rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.04);
-  color: #e2e8f0;
 }
 
 .hero h1 {
@@ -3097,21 +3038,6 @@
   align-items: center;
   gap: 10px;
 }
-.footerDivider { color: var(--line-strong); }
-.footerBottomRight {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-}
-.backToTopBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--muted);
-  font-weight: 600;
-  transition: color 0.15s ease;
-}
-.backToTopBtn:hover { color: var(--ink); }
 
 /* ── KEYFRAME ANIMATIONS ── */
 @keyframes menuIn {
@@ -3252,7 +3178,9 @@
   .payosBadge { flex-direction: column; align-items: flex-start; }
   .footerGroups { grid-template-columns: 1fr; gap: 24px; }
   .footerBottom { flex-direction: column; align-items: flex-start; gap: 14px; }
-  .footerBottomRight { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .newsletterFields { flex-direction: column; }
+  .newsletterFields input,
+  .newsletterFields button { width: 100%; min-width: 0; }
 }
 
 /* ── BACK TO TOP FLOATING BUTTON WITH SVG PROGRESS RING ── */
@@ -3263,9 +3191,9 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  background: var(--surface-card);
+  border: 1px solid rgba(14, 165, 233, 0.32);
+  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   color: var(--ink);
@@ -3277,9 +3205,9 @@
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 :global(.dark) .backToTop {
-  background: rgba(15, 17, 23, 0.85);
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  background: rgba(8, 17, 31, 0.92);
+  border-color: rgba(56, 189, 248, 0.34);
+  box-shadow: 0 8px 26px rgba(2, 132, 199, 0.24), 0 3px 10px rgba(0, 0, 0, 0.38);
   color: #ffffff;
 }
 .backToTop:hover {
@@ -3306,15 +3234,21 @@
 }
 .backToTopTrack {
   fill: none;
-  stroke: var(--line);
+  stroke: rgba(100, 116, 139, 0.28);
   stroke-width: 2.5;
+}
+:global(.dark) .backToTopTrack {
+  stroke: rgba(148, 163, 184, 0.22);
 }
 .backToTopIndicator {
   fill: none;
-  stroke: url(#backToTopGradient);
+  stroke: #0ea5e9;
   stroke-width: 2.5;
   stroke-linecap: round;
-  transition: stroke-dashoffset 0.12s linear;
+  transition: stroke-dashoffset 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+:global(.dark) .backToTopIndicator {
+  stroke: #38bdf8;
 }
 
 @media (max-width: 640px) {

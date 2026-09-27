@@ -17,8 +17,6 @@ import {
 import { supabase } from '../lib/supabaseClient';
 import { resolveAppRole } from '../lib/authRole';
 import { useTranslation } from '../contexts/TranslationContext';
-import LanguageSwitch from './LanguageSwitch';
-import ThemeSwitch from './ThemeSwitch';
 import LandingPage from './landing/LandingPage';
 import AuthErrorAlert from './auth/AuthErrorAlert';
 import OtpCodeInput from './auth/OtpCodeInput';
@@ -482,7 +480,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
           id: sessionUser.id,
           name: displayName,
           email: sessionUser?.email || normalizedEmail,
-          avatar: sessionUser?.user_metadata?.avatar_url || sessionUser?.user_metadata?.avatar || '',
+          avatar: sessionUser?.user_metadata?.avatar_url || sessionUser?.user_metadata?.picture || sessionUser?.user_metadata?.avatar || '',
           role: 'member',
           status: 'online'
         }, rememberMe);
@@ -512,7 +510,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
           id: sessionUser.id,
           name: displayName,
           email: sessionUser?.email || normalizedEmail,
-          avatar: sessionUser?.user_metadata?.avatar_url || sessionUser?.user_metadata?.avatar || '',
+          avatar: sessionUser?.user_metadata?.avatar_url || sessionUser?.user_metadata?.picture || sessionUser?.user_metadata?.avatar || '',
           role: resolveAppRole(sessionUser),
           status: 'online'
         }, rememberMe);
@@ -560,7 +558,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
         id: mfaPendingUser.id,
         name: displayName,
         email: mfaPendingUser.email || email,
-        avatar: mfaPendingUser.user_metadata?.avatar_url || mfaPendingUser.user_metadata?.avatar || '',
+        avatar: mfaPendingUser.user_metadata?.avatar_url || mfaPendingUser.user_metadata?.picture || mfaPendingUser.user_metadata?.avatar || '',
         role: resolveAppRole(mfaPendingUser),
         status: 'online'
       }, mfaRememberMe);
@@ -687,9 +685,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 ml-auto">
-                    <ThemeSwitch size="sm" />
-                    <LanguageSwitch size="sm" />
+                  <div className="flex items-center ml-auto">
                     <button
                       type="button"
                       onClick={closeAuth}

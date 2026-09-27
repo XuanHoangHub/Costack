@@ -13,50 +13,80 @@ export function escapeHtml(str: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+    .replace(/'/g, '&#039;')
+    .replace(/`/g, '&#96;')
+    .replace(/\//g, '&#x2F;');
 }
 
 /**
- * Sanitizes input string by stripping script tags, javascript: protocols, and inline event handlers.
+ * Strips HTML tags and dangerous control characters from raw strings.
+ */
+export function stripHtml(input: string): string {
+  if (typeof input !== 'string') return '';
+  return input
+    .replace(/<[^>]*>/g, '')
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+}
+
+/**
+ * Sanitizes input string by removing executable tags and encoding unsafe characters.
  */
 export function sanitizeInput(input: string): string {
   if (typeof input !== 'string') return '';
-  return input
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/javascript:/gi, '')
-    .replace(/data:text\/html/gi, '')
-    .replace(/on\w+\s*=/gi, '');
+  return escapeHtml(stripHtml(input));
 }
 
 /**
  * Validates whether a given URL is safe to navigate to or render as href.
- * Only permits http:, https:, mailto:, and relative path URLs.
+ * Protects against XSS (javascript:, data:), Open Redirects (//attacker.com, /\\attacker.com),
+ * and local file access (file:).
+ * Only permits strictly http:, https:, mailto:, tel:, hash links (#), and safe relative paths.
  */
 export function isSafeUrl(url?: string): boolean {
   if (!url || typeof url !== 'string') return false;
-  const trimmed = url.trim().toLowerCase();
-  
-  // Reject javascript: or data: URIs
-  if (trimmed.startsWith('javascript:') || trimmed.startsWith('data:text/html') || trimmed.startsWith('vbscript:')) {
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+
+  // Reject protocol-relative URLs (e.g. //attacker.com or /\attacker.com or \\attacker.com)
+  if (trimmed.startsWith('//') || trimmed.startsWith('/\\') || trimmed.startsWith('\\\\')) {
     return false;
   }
-  
-  // Allow safe protocols or relative URLs
-  return (
-    trimmed.startsWith('http://') ||
-    trimmed.startsWith('https://') ||
-    trimmed.startsWith('mailto:') ||
-    trimmed.startsWith('/') ||
-    trimmed.startsWith('#')
-  );
+
+  // Reject javascript:, data:, vbscript:, blob:, file: even with control chars or whitespace
+  const normalizedScheme = trimmed.replace(/[\x00-\x20\s]/g, '').toLowerCase();
+  if (
+    normalizedScheme.startsWith('javascript:') ||
+    normalizedScheme.startsWith('vbscript:') ||
+    normalizedScheme.startsWith('data:') ||
+    normalizedScheme.startsWith('blob:') ||
+    normalizedScheme.startsWith('file:')
+  ) {
+    return false;
+  }
+
+  // Allow safe hash links (e.g. #section)
+  if (trimmed.startsWith('#')) return true;
+
+  // Allow strictly relative paths (e.g. /dashboard, /tasks?id=123)
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//') && !trimmed.startsWith('/\\')) {
+    return true;
+  }
+
+  // Validate absolute URLs against a strict whitelist of safe protocols
+  try {
+    const parsed = new URL(trimmed);
+    return ['http:', 'https:', 'mailto:', 'tel:'].includes(parsed.protocol);
+  } catch {
+    return false;
+  }
 }
 
 /**
- * Returns a safe href for anchor tags, defaulting to '#' if invalid.
+ * Returns a safe href for anchor tags, defaulting to fallback ('#') if invalid.
  */
-export function getSafeHref(url?: string): string {
+export function getSafeHref(url?: string, fallback = '#'): string {
   if (isSafeUrl(url)) return url!;
-  return '#';
+  return fallback;
 }
 
 /**

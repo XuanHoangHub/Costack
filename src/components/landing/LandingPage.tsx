@@ -1551,15 +1551,6 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
             <div className={s.heroGrid} aria-hidden="true" />
 
             <div className={s.heroContent}>
-              <a className={s.heroBadge} href="#ai" onClick={event => navigate(event, 'ai')}>
-                <span className={s.heroBadgePill}>
-                  <Sparkles size={12} className="animate-spin text-sky-400" />
-                  COSTACK 2.0
-                </span>
-                <span>{choose('Tích hợp Google Gemini AI & Thanh toán VietQR', 'Powered by Gemini AI & Instant VietQR')}</span>
-                <ArrowUpRight size={13} />
-              </a>
-
               <h1 id="hero-title">
                 {choose('Một không gian cho tất cả.', 'One unified space for work.')}
                 <br />
@@ -2325,6 +2316,8 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
               initial={{ opacity: 0, scale: 0.75, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.75, y: 16 }}
+              whileHover={{ y: -2, scale: 1.04 }}
+              whileTap={{ scale: 0.94 }}
               transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
               onClick={scrollToTop}
               className={s.backToTop}
@@ -2332,13 +2325,6 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
               title={choose(`Cuộn lên đầu trang (${scrollPercent}%)`, `Back to top (${scrollPercent}%)`)}
             >
               <svg className={s.backToTopSvg} viewBox="0 0 44 44">
-                <defs>
-                  <linearGradient id="backToTopGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#0ea5e9" />
-                    <stop offset="50%" stopColor="#6366f1" />
-                    <stop offset="100%" stopColor="#a855f7" />
-                  </linearGradient>
-                </defs>
                 <circle className={s.backToTopTrack} cx="22" cy="22" r="18" />
                 <circle
                   className={s.backToTopIndicator}

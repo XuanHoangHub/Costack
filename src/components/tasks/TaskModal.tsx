@@ -1075,25 +1075,11 @@ export default function TaskModal({
               </div>
 
               {/* ─── SECTION 3: Description ─── */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                    {isVietnamese ? 'Mô tả' : 'Description'}
-                  </p>
-                  <button
-                    type="button"
-                    disabled={isGeneratingAi || !title.trim()}
-                    onClick={handleGenerateWithAi}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    {isGeneratingAi ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                    {isGeneratingAi ? (isVietnamese ? 'Đang viết…' : 'Writing…') : (isVietnamese ? 'AI viết' : 'AI Write')}
-                  </button>
-                </div>
+              <div className="pt-1">
                 <NotionDocEditor
                   value={description}
                   onChange={setDescription}
-                  placeholder={isVietnamese ? 'Thêm ghi chú, hướng dẫn, tiêu chí nghiệm thu...' : 'Add details, instructions, acceptance criteria...'}
+                  placeholder={isVietnamese ? 'Thêm ghi chú, hướng dẫn, tiêu chí nghiệm thu... (gõ / để mở danh mục khối)' : 'Add details, instructions, acceptance criteria... (type / for blocks)'}
                   taskTitle={title}
                 />
               </div>

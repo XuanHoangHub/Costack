@@ -8,6 +8,7 @@ import {
   getPayOSPrice,
 } from '@/lib/billing/payos';
 import { BillingHttpError, billingErrorResponse, getAppOrigin, getBillingAdmin, requireBillingUser } from '@/lib/billing/server';
+import { checkRateLimit, pruneRateLimitBuckets } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 
@@ -117,6 +118,16 @@ async function readPaidReceipt(userId: string, orderCode: number) {
 
 export async function POST(request: Request) {
   try {
+    pruneRateLimitBuckets();
+    const rateLimit = checkRateLimit(request, 'billing-checkout', 10, 60_000);
+    if (!rateLimit.allowed) {
+      throw new BillingHttpError(429, 'Quá nhiều yêu cầu tạo đơn thanh toán. Vui lòng thử lại sau.');
+    }
+    const contentLength = Number(request.headers.get('content-length') || 0);
+    if (contentLength > 32_000) {
+      throw new BillingHttpError(413, 'Nội dung yêu cầu vượt quá giới hạn cho phép.');
+    }
+
     const { user } = await requireBillingUser(request);
     const body = await request.json().catch(() => ({}));
     if (body?.cycle !== 'monthly' && body?.cycle !== 'yearly') {
@@ -267,6 +278,11 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
+    const rateLimit = checkRateLimit(request, 'billing-reconcile', 30, 60_000);
+    if (!rateLimit.allowed) {
+      throw new BillingHttpError(429, 'Vui lòng chờ một chút trước khi kiểm tra lại.');
+    }
+
     const { user } = await requireBillingUser(request);
     const body = await request.json().catch(() => ({}));
     const orderCode = Number(body?.orderCode);

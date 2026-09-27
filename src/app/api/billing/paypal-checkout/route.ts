@@ -2,12 +2,23 @@ import { createHash, randomUUID } from 'node:crypto';
 import { isSelfServeBillingPlan, type BillingCycle } from '@/lib/billing/plans';
 import { billingErrorResponse, BillingHttpError, getAppOrigin, getBillingAdmin, requireBillingUser } from '@/lib/billing/server';
 import { getPayPalMerchantEmail, getPayPalPrice, isPayPalConfigured, paypalRequest, reconcilePayPalOrder, type LocalPayPalOrder, type PayPalOrder } from '@/lib/billing/paypal';
+import { checkRateLimit, pruneRateLimitBuckets } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 const headers = { 'Cache-Control': 'private, no-store' };
 
 export async function POST(request: Request) {
   try {
+    pruneRateLimitBuckets();
+    const rateLimit = checkRateLimit(request, 'billing-paypal-checkout', 10, 60_000);
+    if (!rateLimit.allowed) {
+      throw new BillingHttpError(429, 'Quá nhiều yêu cầu tạo đơn PayPal. Vui lòng thử lại sau.');
+    }
+    const contentLength = Number(request.headers.get('content-length') || 0);
+    if (contentLength > 32_000) {
+      throw new BillingHttpError(413, 'Nội dung yêu cầu vượt quá giới hạn cho phép.');
+    }
+
     const { user } = await requireBillingUser(request);
     const body = await request.json().catch(() => null);
     if (!isSelfServeBillingPlan(body?.plan) || !['monthly', 'yearly'].includes(body?.cycle)) {

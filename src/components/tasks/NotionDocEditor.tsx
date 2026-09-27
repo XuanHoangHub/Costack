@@ -486,12 +486,12 @@ export default function NotionDocEditor({
 
       {/* ── Notion Formatting Toolbar (Available in Edit Mode) ── */}
       {mode === 'edit' && (
-        <div className="task-editor-toolbar flex flex-wrap items-center gap-1 p-1.5 bg-slate-50/80 dark:bg-slate-900/60 rounded-2xl border border-slate-200/70 dark:border-slate-800/70 text-slate-600 dark:text-slate-300 text-xs">
+        <div className="task-editor-toolbar flex flex-wrap items-center gap-0.5 py-1 px-1 rounded-lg bg-slate-50/70 dark:bg-zinc-800/40 text-slate-500 dark:text-zinc-400 text-xs transition-colors">
           {/* Headings */}
           <button
             type="button"
             onClick={() => insertSnippet('# ')}
-            className="px-2 py-1 hover:bg-white dark:hover:bg-slate-800 rounded-lg font-black transition-colors cursor-pointer"
+            className="px-1.5 py-1 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60 rounded-md font-black text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer text-xs"
             title="Heading 1"
           >
             H1
@@ -499,7 +499,7 @@ export default function NotionDocEditor({
           <button
             type="button"
             onClick={() => insertSnippet('## ')}
-            className="px-2 py-1 hover:bg-white dark:hover:bg-slate-800 rounded-lg font-bold transition-colors cursor-pointer"
+            className="px-1.5 py-1 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60 rounded-md font-bold text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer text-xs"
             title="Heading 2"
           >
             H2
@@ -507,19 +507,19 @@ export default function NotionDocEditor({
           <button
             type="button"
             onClick={() => insertSnippet('### ')}
-            className="px-2 py-1 hover:bg-white dark:hover:bg-slate-800 rounded-lg font-semibold transition-colors cursor-pointer"
+            className="px-1.5 py-1 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60 rounded-md font-semibold text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer text-xs"
             title="Heading 3"
           >
             H3
           </button>
 
-          <span className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+          <span className="w-px h-3.5 bg-slate-200 dark:bg-zinc-700 mx-1" />
 
           {/* Text Styles */}
           <button
             type="button"
             onClick={() => insertSnippet('**', '**')}
-            className="p-1.5 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60 rounded-md text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
             title="In đậm (Ctrl+B)"
           >
             <Bold className="w-3.5 h-3.5" />
@@ -527,7 +527,7 @@ export default function NotionDocEditor({
           <button
             type="button"
             onClick={() => insertSnippet('*', '*')}
-            className="p-1.5 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60 rounded-md text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
             title="In nghiêng (Ctrl+I)"
           >
             <Italic className="w-3.5 h-3.5" />
@@ -535,7 +535,7 @@ export default function NotionDocEditor({
           <button
             type="button"
             onClick={() => insertSnippet('~~', '~~')}
-            className="p-1.5 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60 rounded-md text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
             title="Gạch ngang"
           >
             <Strikethrough className="w-3.5 h-3.5" />
@@ -543,19 +543,19 @@ export default function NotionDocEditor({
           <button
             type="button"
             onClick={() => insertSnippet('`', '`')}
-            className="p-1.5 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60 rounded-md text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
             title="Mã nội dòng (Ctrl+E)"
           >
             <Code className="w-3.5 h-3.5" />
           </button>
 
-          <span className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+          <span className="w-px h-3.5 bg-slate-200 dark:bg-zinc-700 mx-1" />
 
           {/* Lists */}
           <button
             type="button"
             onClick={() => insertSnippet('\n- [ ] ')}
-            className="p-1.5 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer text-emerald-600 dark:text-emerald-400"
+            className="p-1.5 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60 rounded-md text-emerald-600 dark:text-emerald-400 transition-colors cursor-pointer"
             title="Checklist công việc"
           >
             <CheckSquare className="w-3.5 h-3.5" />
@@ -563,7 +563,7 @@ export default function NotionDocEditor({
           <button
             type="button"
             onClick={() => insertSnippet('\n- ')}
-            className="p-1.5 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60 rounded-md text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
             title="Danh sách dấu chấm"
           >
             <List className="w-3.5 h-3.5" />
@@ -571,19 +571,19 @@ export default function NotionDocEditor({
           <button
             type="button"
             onClick={() => insertSnippet('\n1. ')}
-            className="p-1.5 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60 rounded-md text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
             title="Danh sách đánh số"
           >
             <ListOrdered className="w-3.5 h-3.5" />
           </button>
 
-          <span className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+          <span className="w-px h-3.5 bg-slate-200 dark:bg-zinc-700 mx-1" />
 
           {/* Special Blocks */}
           <button
             type="button"
             onClick={() => insertSnippet('> 💡 **Lưu ý:** ')}
-            className="p-1.5 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer text-amber-500"
+            className="p-1.5 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60 rounded-md text-amber-500 transition-colors cursor-pointer"
             title="Khối Callout Box"
           >
             <Lightbulb className="w-3.5 h-3.5" />
@@ -591,7 +591,7 @@ export default function NotionDocEditor({
           <button
             type="button"
             onClick={() => insertSnippet('\n> ')}
-            className="p-1.5 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer text-violet-500"
+            className="p-1.5 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60 rounded-md text-violet-500 transition-colors cursor-pointer"
             title="Trích dẫn"
           >
             <Quote className="w-3.5 h-3.5" />
@@ -599,7 +599,7 @@ export default function NotionDocEditor({
           <button
             type="button"
             onClick={() => insertSnippet('\n| Tiêu chí | Mô tả | Trạng thái |\n| :--- | :--- | :--- |\n| Mục 1 | Nội dung... | Đạt |\n')}
-            className="p-1.5 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer text-blue-500"
+            className="p-1.5 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60 rounded-md text-blue-500 transition-colors cursor-pointer"
             title="Bảng Markdown"
           >
             <Table className="w-3.5 h-3.5" />
@@ -607,7 +607,7 @@ export default function NotionDocEditor({
           <button
             type="button"
             onClick={() => insertSnippet('\n```js\n// Code snippet\n```\n')}
-            className="p-1.5 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer text-indigo-500"
+            className="p-1.5 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60 rounded-md text-indigo-500 transition-colors cursor-pointer"
             title="Khối Code"
           >
             <Code className="w-3.5 h-3.5" />
@@ -615,7 +615,7 @@ export default function NotionDocEditor({
           <button
             type="button"
             onClick={() => insertSnippet('\n---\n\n')}
-            className="p-1.5 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer text-slate-400"
+            className="p-1.5 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60 rounded-md text-slate-400 dark:text-zinc-500 hover:text-slate-600 transition-colors cursor-pointer"
             title="Đường phân cách"
           >
             <Minus className="w-3.5 h-3.5" />
@@ -637,7 +637,7 @@ export default function NotionDocEditor({
               onBlur={onBlur}
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
-              className="w-full min-h-[160px] p-5 sm:p-6 rounded-2xl bg-white dark:bg-[var(--cu-surface)] border border-slate-200/80 dark:border-[var(--cu-border)] text-[13.5px] text-slate-850 dark:text-slate-100 outline-none focus:border-indigo-500/80 focus:ring-2 focus:ring-indigo-500/10 transition-all leading-relaxed placeholder-slate-350 dark:placeholder-slate-600 font-sans shadow-xs resize-none"
+              className="w-full min-h-[160px] py-2 px-1 text-[13.5px] text-slate-850 dark:text-slate-100 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 shadow-none transition-colors leading-relaxed placeholder:text-slate-400 dark:placeholder:text-slate-500 font-sans resize-none"
               style={{ lineHeight: '1.75' }}
             />
 
@@ -685,7 +685,7 @@ export default function NotionDocEditor({
           </div>
         ) : (
           /* ── Interactive Notion Preview Canvas ── */
-          <div className="task-document-preview w-full min-h-[160px] p-6 sm:p-7 rounded-2xl bg-white dark:bg-[var(--cu-surface)] border border-slate-200/80 dark:border-[var(--cu-border)] text-slate-800 dark:text-slate-200 font-sans shadow-xs space-y-3">
+          <div className="task-document-preview w-full min-h-[160px] py-2 px-1 text-slate-800 dark:text-slate-200 font-sans space-y-3 leading-relaxed">
             {!value.trim() ? (
               <div className="py-8 text-center text-slate-400 italic text-xs">
                 {isVietnamese ? 'Tài liệu chưa có nội dung. Chuyển sang chế độ Soạn thảo để viết.' : 'Empty document. Switch to Write mode to add content.'}

@@ -639,6 +639,8 @@ function ProfilePage({
             phone: phone.trim(),
             department: department.trim(),
             avatar: updatedUser.avatar,
+            avatar_url: updatedUser.avatar,
+            picture: updatedUser.avatar,
             bio: bio.trim(),
             joinedDate: myJoinedDate,
             skills,
@@ -673,6 +675,7 @@ function ProfilePage({
     }
 
     setCurrentUser(updatedUser);
+    localStorage.setItem('avaxa_session', JSON.stringify(sessionObj));
     localStorage.setItem('apexa_session', JSON.stringify(sessionObj));
     localStorage.setItem('apexa_user_skills', JSON.stringify(skills));
     localStorage.setItem('apexa_user_extended_meta', JSON.stringify(extendedMeta));

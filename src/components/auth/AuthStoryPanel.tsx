@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  ShieldCheck, Layers, Bot, Zap,
+  Layers, Bot, Zap,
   CheckCircle2, Circle, Star, MessageSquare, Check
 } from 'lucide-react';
 import { GsapCard3DTilt } from '@/components/animations';
@@ -109,14 +109,6 @@ export default function AuthStoryPanel({ isVietnamese = true }: AuthStoryPanelPr
           </div>
         </div>
 
-        {/* Live Users Presence Badge */}
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[10.5px] font-bold shrink-0 whitespace-nowrap">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-          </span>
-          <span>1,450+ {isVietnamese ? 'online' : 'active'}</span>
-        </div>
       </div>
 
       {/* Center Section: Value Pitch & Interactive Demo */}
@@ -355,16 +347,10 @@ export default function AuthStoryPanel({ isVietnamese = true }: AuthStoryPanelPr
       </div>
 
       {/* Reassurance Footer with clean spacing */}
-      <div className="relative z-10 flex items-center justify-between gap-2 text-[11px] font-medium text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200/80 dark:border-white/10 whitespace-nowrap">
-        <span className="flex items-center gap-1.5 shrink-0">
-          <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-          <span>AES-256 E2E • ISO 27001</span>
-        </span>
-        <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-cyan-300 transition-colors shrink-0">
-          <Link href="/legal/privacy" className="hover:underline">
-            {isVietnamese ? 'Bảo mật & Điều khoản' : 'Privacy & Terms'}
-          </Link>
-        </span>
+      <div className="relative z-10 flex items-center justify-end gap-2 text-[11px] font-medium text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200/80 dark:border-white/10 whitespace-nowrap">
+        <Link href="/legal/privacy" className="text-slate-700 transition-colors hover:text-blue-600 hover:underline dark:text-slate-300 dark:hover:text-cyan-300">
+          {isVietnamese ? 'Bảo mật & Điều khoản' : 'Privacy & Terms'}
+        </Link>
       </div>
     </aside>
   );

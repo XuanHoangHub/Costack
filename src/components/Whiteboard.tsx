@@ -868,8 +868,8 @@ export default function Whiteboard({
               if (user) {
                 void boardChannel.track({
                   userId: user.id,
-                  name: currentUser?.name || user.user_metadata?.full_name || 'Thành viên',
-                  avatar: currentUser?.avatar || user.user_metadata?.avatar_url || '',
+                  name: currentUser?.name || user.user_metadata?.full_name || user.user_metadata?.name || 'Thành viên',
+                  avatar: currentUser?.avatar || user.user_metadata?.avatar_url || user.user_metadata?.picture || user.user_metadata?.avatar || '',
                   color: '#6366f1'
                 });
               }

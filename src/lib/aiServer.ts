@@ -24,6 +24,11 @@ export async function readAiJson<T = Record<string, unknown>>(
   request: Request,
   maxPayloadSize: number = 512_000,
 ): Promise<T> {
+  const contentLength = Number(request.headers.get('content-length') || 0);
+  if (contentLength > maxPayloadSize) {
+    const sizeMb = (maxPayloadSize / (1024 * 1024)).toFixed(1);
+    throw new Error(`AI_PAYLOAD_TOO_LARGE: Nội dung yêu cầu vượt quá giới hạn ${maxPayloadSize >= 1_000_000 ? `${sizeMb} MB` : `${Math.round(maxPayloadSize / 1024)} KB`}.`);
+  }
   const raw = await request.text();
   if (new TextEncoder().encode(raw).byteLength > maxPayloadSize) {
     const sizeMb = (maxPayloadSize / (1024 * 1024)).toFixed(1);
@@ -111,18 +116,47 @@ export async function getAuthorizedGeminiClient(
 
 export const getAiErrorStatus = (error: unknown) => {
   if (!(error instanceof Error)) return 500;
-  if (error.message.startsWith('AI_BAD_REQUEST:')) return 400;
-  if (error.message.startsWith('AI_UNAUTHORIZED:')) return 401;
-  if (error.message.startsWith('AI_PAYLOAD_TOO_LARGE:')) return 413;
-  if (error.message.startsWith('AI_RATE_LIMITED:')) return 429;
-  if (error.message.startsWith('AI_QUOTA_EXCEEDED:')) return 429;
-  if (error.message.startsWith('AI_PLAN_REQUIRED:')) return 403;
-  if (error.message.startsWith('AI_UNAVAILABLE:')) return 503;
+  const msg = error.message;
+  if (msg.includes('API_KEY_INVALID') || msg.includes('API key not valid')) return 400;
+  if (msg.includes('RESOURCE_EXHAUSTED')) return 429;
+  if (msg.startsWith('AI_BAD_REQUEST:')) return 400;
+  if (msg.startsWith('AI_UNAUTHORIZED:')) return 401;
+  if (msg.startsWith('AI_PAYLOAD_TOO_LARGE:')) return 413;
+  if (msg.startsWith('AI_RATE_LIMITED:')) return 429;
+  if (msg.startsWith('AI_QUOTA_EXCEEDED:')) return 429;
+  if (msg.startsWith('AI_PLAN_REQUIRED:')) return 403;
+  if (msg.startsWith('AI_UNAVAILABLE:')) return 503;
   return 500;
 };
 
-export const getAiErrorMessage = (error: unknown, fallback: string) =>
-  error instanceof Error ? error.message.replace(/^AI_(?:BAD_REQUEST|UNAUTHORIZED|PAYLOAD_TOO_LARGE|RATE_LIMITED|QUOTA_EXCEEDED|PLAN_REQUIRED|UNAVAILABLE):\s*/, '') : fallback;
+export const getAiErrorMessage = (error: unknown, fallback: string): string => {
+  if (!(error instanceof Error)) return fallback;
+  const rawMsg = error.message;
+
+  if (rawMsg.includes('API_KEY_INVALID') || rawMsg.includes('API key not valid') || rawMsg.includes('API_KEY_SERVICE_BLOCKED')) {
+    return "Khóa GEMINI_API_KEY chưa hợp lệ. Vui lòng cấu hình API Key Google AI Studio hợp lệ (bắt đầu bằng 'AIzaSy...') trong file .env.local trên server.";
+  }
+
+  if (rawMsg.includes('RESOURCE_EXHAUSTED') || rawMsg.includes('quota') || rawMsg.includes('429')) {
+    return "Tài khoản Gemini API đã vượt hạn mức yêu cầu (Quota Exceeded). Vui lòng thử lại sau giây lát hoặc nâng cấp quota tại Google AI Studio.";
+  }
+
+  if (rawMsg.trim().startsWith('{') && rawMsg.trim().endsWith('}')) {
+    try {
+      const parsed = JSON.parse(rawMsg);
+      if (parsed?.error?.message) {
+        if (parsed.error.message.includes('API key not valid') || parsed.error.status === 'INVALID_ARGUMENT') {
+          return "Khóa GEMINI_API_KEY chưa hợp lệ. Vui lòng kiểm tra lại khóa API Google Gemini trong file .env.local.";
+        }
+        return String(parsed.error.message);
+      }
+    } catch {
+      // Fall through
+    }
+  }
+
+  return rawMsg.replace(/^AI_(?:BAD_REQUEST|UNAUTHORIZED|PAYLOAD_TOO_LARGE|RATE_LIMITED|QUOTA_EXCEEDED|PLAN_REQUIRED|UNAVAILABLE):\s*/, '') || fallback;
+};
 
 /**
  * Convert a Gemini generateContentStream async iterable into a standard

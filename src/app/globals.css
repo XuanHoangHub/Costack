@@ -351,14 +351,10 @@
 html, body, #root {
   margin: 0;
   padding: 0;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden !important;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
   background-color: #ffffff;
   color: #0f172a;
 }
@@ -770,10 +766,21 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur']:not(.modal-backdr
 
 .animate-liquid-1 {
   animation: liquid-drift 20s infinite alternate ease-in-out;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
 }
 
 .animate-liquid-2 {
   animation: liquid-drift 25s infinite alternate-reverse ease-in-out;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-liquid-1,
+  .animate-liquid-2 {
+    animation: none !important;
+  }
 }
 
 .space-card-active {
@@ -1371,7 +1378,7 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur']:not(.modal-backdr
 /* ── Mobile Phone & Web Responsiveness Enhancements ── */
 @media (max-width: 768px) {
   html, body, #root {
-    width: 100vw;
+    width: 100%;
     height: 100dvh;
     overflow-x: hidden !important;
     touch-action: manipulation;
@@ -2479,6 +2486,69 @@ html.dark input[type="checkbox"]:not(.sr-only):checked {
   background-color: #6366f1;
   border-color: #6366f1;
   box-shadow: 0 2px 8px -1px rgba(99, 102, 241, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.apexa-auth-dialog #input_signup_terms {
+  width: 1.25rem;
+  height: 1.25rem;
+  min-width: 1.25rem;
+  min-height: 1.25rem;
+  border-radius: 0.4rem;
+  border-color: rgba(100, 116, 139, 0.55);
+  transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark .apexa-auth-dialog #input_signup_terms,
+html.dark .apexa-auth-dialog #input_signup_terms {
+  border-color: rgba(148, 163, 184, 0.42);
+}
+
+.apexa-auth-dialog #input_signup_terms:hover:not(:disabled) {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.14), 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.dark .apexa-auth-dialog #input_signup_terms:hover:not(:disabled),
+html.dark .apexa-auth-dialog #input_signup_terms:hover:not(:disabled) {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.2), 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.apexa-auth-dialog #input_signup_terms:focus-visible {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.24);
+}
+
+.dark .apexa-auth-dialog #input_signup_terms:focus-visible,
+html.dark .apexa-auth-dialog #input_signup_terms:focus-visible {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.3);
+}
+
+.apexa-auth-dialog #input_signup_terms:checked {
+  background-color: #0284c7;
+  border-color: #0284c7;
+  box-shadow: 0 3px 8px -2px rgba(2, 132, 199, 0.5);
+  animation: signupCheckboxCheck 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark .apexa-auth-dialog #input_signup_terms:checked,
+html.dark .apexa-auth-dialog #input_signup_terms:checked {
+  background-color: #0ea5e9;
+  border-color: #38bdf8;
+  box-shadow: 0 3px 10px -2px rgba(14, 165, 233, 0.62);
+}
+
+@keyframes signupCheckboxCheck {
+  0% { transform: scale(0.78); }
+  70% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apexa-auth-dialog #input_signup_terms:checked {
+    animation: none;
+  }
 }
 
 input[type="checkbox"]:not(.sr-only):indeterminate {

@@ -18,7 +18,7 @@ import {
   ExternalLink, UserCheck, Clock, GitBranch, ShieldAlert, CheckCircle2, 
   AlertTriangle, MessageSquare, Megaphone, LayoutDashboard, PlugZap,
   List, Copy, Crown, ShieldCheck, Building2, UserCircle2, ArrowRight,
-  TrendingUp, Laptop, Palette, Filter, RefreshCw
+  TrendingUp, Laptop, Palette, Filter, RefreshCw, CircleGauge
 } from 'lucide-react';
 import { supabase, getCleanChannel } from '../supabaseClient';
 import SignedImage from './SignedImage';
@@ -269,7 +269,24 @@ export default function TeamDirectory({
   const [contactsCount, setContactsCount] = useState<number>(0);
   const [pendingInvitesCount, setPendingInvitesCount] = useState<number>(0);
   const [showAddExistingDropdown, setShowAddExistingDropdown] = useState(false);
+  const [showAddMemberMenu, setShowAddMemberMenu] = useState(false);
   const [scopeTab, setScopeTab] = useState<'workspace' | 'all'>('workspace');
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Global hotkey '/' to quickly focus the member search bar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '/' && teamOSView === 'directory') {
+        const activeTag = (document.activeElement?.tagName || '').toLowerCase();
+        if (activeTag !== 'input' && activeTag !== 'textarea') {
+          e.preventDefault();
+          searchInputRef.current?.focus();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [teamOSView]);
 
   // Load and listen for workspace pending invitations count
   const loadPendingInvitesCount = useCallback(async () => {
@@ -469,6 +486,35 @@ export default function TeamDirectory({
   const completedTasksCount = workspaceTasks.filter(t => t.status === 'completed').length;
   const overallCompletionRate = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
   const totalPendingTasks = totalTasksCount - completedTasksCount;
+
+  // Real-time team health score matching TeamCommandCenter formula
+  const teamHealth = useMemo(() => {
+    if (!workspaceTasks.length && !workspaceMembers.length) return 100;
+    const nowTime = Date.now();
+    const openTasks = workspaceTasks.filter(t => t.status !== 'completed');
+    if (!openTasks.length) return 100;
+    const overdueCount = openTasks.filter(t => t.dueDate && new Date(t.dueDate).getTime() < nowTime).length;
+    const unassignedCount = openTasks.filter(t => !t.assigneeId && !t.assigneeIds?.length).length;
+    const overdueRate = overdueCount / openTasks.length;
+    const unassignedRate = unassignedCount / openTasks.length;
+    
+    // Workload overload rate
+    const overloadedCount = workspaceMembers.filter(member => {
+      const assigned = openTasks.filter(t => t.assigneeId === member.id || t.assigneeIds?.includes(member.id));
+      const estimated = assigned.reduce((sum, task) => sum + (task.hoursEstimate || 0), 0);
+      const score = estimated || assigned.length * 4;
+      return Math.round((score / 40) * 100) > 90;
+    }).length;
+    const overloadRate = workspaceMembers.length ? overloadedCount / workspaceMembers.length : 0;
+
+    return Math.max(0, Math.min(100, Math.round(100 - overdueRate * 40 - unassignedRate * 25 - overloadRate * 25)));
+  }, [workspaceTasks, workspaceMembers]);
+
+  const healthBadgeClass = teamHealth >= 80
+    ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-800/80'
+    : teamHealth >= 60
+      ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200/80 dark:border-amber-800/80'
+      : 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-200/80 dark:border-rose-800/80';
 
   const statusColors = {
     online: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)] ring-2 ring-emerald-500/30',
@@ -710,7 +756,7 @@ export default function TeamDirectory({
                   <span>{currentWorkspaceName}</span>
                 </span>
               </div>
-              <div className="mt-1 flex items-center gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <div className="mt-1.5 flex flex-wrap items-center gap-2 sm:gap-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
                 <span>{workspaceMembers.length} {isVi ? 'thành viên' : 'members'}</span>
                 <span className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
                 <span className="inline-flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400">
@@ -722,81 +768,36 @@ export default function TeamDirectory({
                 </span>
                 <span className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
                 <span>{dbTeams.length} {isVi ? 'nhóm chuyên trách' : 'squads'}</span>
+                <span className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+                <span>{totalPendingTasks} {isVi ? 'việc đang mở' : 'open tasks'}</span>
+                <span className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-black border ${healthBadgeClass}`}>
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${teamHealth >= 80 ? 'bg-emerald-400' : teamHealth >= 60 ? 'bg-amber-400' : 'bg-rose-400'} opacity-75`} />
+                    <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${teamHealth >= 80 ? 'bg-emerald-500' : teamHealth >= 60 ? 'bg-amber-500' : 'bg-rose-500'}`} />
+                  </span>
+                  <span>{isVi ? 'Vận hành' : 'Operating Health'}: {teamHealth}/100</span>
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Quick enroll button for admins */}
-            {isOwner && membersAvailableToEnroll.length > 0 && (
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowAddExistingDropdown(!showAddExistingDropdown)}
-                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-xs"
-                >
-                  <Plus className="w-3.5 h-3.5 text-indigo-500" />
-                  <span>{isVi ? 'Thêm từ tổ chức' : 'Add from organization'}</span>
-                  <ChevronDown className="w-3 h-3 text-slate-400" />
-                </button>
-
-                <AnimatePresence>
-                  {showAddExistingDropdown && (
-                    <>
-                      <div className="fixed inset-0 z-20" onClick={() => setShowAddExistingDropdown(false)} />
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.96, y: 6 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.96, y: 6 }}
-                        className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-30 p-2 overflow-hidden"
-                      >
-                        <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 text-[10px] uppercase font-black tracking-wider text-slate-400">
-                          {isVi ? `Thêm vào ${currentWorkspaceName}` : `Add to ${currentWorkspaceName}`}
-                        </div>
-                        <div className="max-h-56 overflow-y-auto custom-scrollbar p-1 space-y-1">
-                          {membersAvailableToEnroll.map(m => (
-                            <button
-                              key={m.id}
-                              onClick={() => handleEnrollExisting(m)}
-                              className="w-full text-left p-2 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-xl flex items-center gap-2.5 transition-colors cursor-pointer"
-                            >
-                              <SignedImage 
-                                filePath={m.avatar} 
-                                className="w-7 h-7 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
-                                alt={m.name}
-                              />
-                              <div className="min-w-0 flex-1">
-                                <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{m.name}</p>
-                                <p className="text-[10px] text-slate-400 truncate">{m.email}</p>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
-
-            {/* Manual add member button */}
-            {isOwner && (
-              <button
-                type="button"
-                onClick={() => {
-                  (window as any).playSystemSound?.('click');
-                  setShowManualAddModal(true);
-                }}
-                className="px-3.5 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-xs hover:border-indigo-400"
-                title={isVi ? "Thêm tài khoản thủ công hoặc từ hệ thống" : "Manually add member profile"}
-              >
-                <Plus className="w-4 h-4 text-indigo-500" />
-                <span>{isVi ? 'Thêm thủ công' : 'Manual Add'}</span>
-              </button>
-            )}
-
-            {/* Pending Invites quick button */}
+          {/* Action buttons: Consolidated, clean action group */}
+          <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+            {/* Workload Quick Action */}
+            <button
+              type="button"
+              onClick={() => {
+                (window as any).playSystemSound?.('click');
+                setTeamOSView('overview');
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs active:scale-98"
+              title={isVi ? "Xem biểu đồ tải công việc và sức khỏe đội nhóm" : "View team workload and operating health"}
+            >
+              <CircleGauge className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+              <span>{isVi ? 'Tải việc' : 'Workload'}</span>
+            </button>
+            {/* Pending Invites quick badge */}
             {pendingInvitesCount > 0 && (
               <button
                 type="button"
@@ -804,71 +805,200 @@ export default function TeamDirectory({
                   (window as any).playSystemSound?.('click');
                   setShowInviteModal(true);
                 }}
-                className="px-3.5 py-2.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/80 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-xs animate-in fade-in"
+                className="inline-flex items-center gap-2 px-3 py-2 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/80 text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs group"
                 title={isVi ? "Xem và quản lý các lời mời đang chờ chấp nhận" : "View and manage pending invitations"}
               >
-                <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                <span>{isVi ? `${pendingInvitesCount} lời mời đang chờ` : `${pendingInvitesCount} pending`}</span>
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                </span>
+                <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>{isVi ? `${pendingInvitesCount} lời mời chờ` : `${pendingInvitesCount} pending`}</span>
               </button>
             )}
 
-            {/* Main Invite button */}
-            <button
-              type="button"
-              id="btn_open_invite_member"
-              onClick={() => {
-                (window as any).playSystemSound?.('click');
-                setShowInviteModal(true);
-              }}
-              className="px-4.5 py-2.5 bg-gradient-to-r from-indigo-600 via-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-500/20 transition-all flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>{isVi ? 'Mời thành viên' : 'Invite Members'}</span>
-            </button>
+            {/* Unified Add/Invite Split Action Button */}
+            {isOwner ? (
+              <div className="relative inline-flex items-center shadow-md shadow-indigo-500/20 rounded-xl">
+                <button
+                  type="button"
+                  id="btn_open_invite_member"
+                  onClick={() => {
+                    (window as any).playSystemSound?.('click');
+                    setShowInviteModal(true);
+                  }}
+                  className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-600 hover:from-indigo-700 hover:to-indigo-700 text-white text-xs font-bold rounded-l-xl transition-all flex items-center gap-2 cursor-pointer active:scale-[0.99]"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>{isVi ? 'Mời thành viên' : 'Invite Members'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowAddMemberMenu(!showAddMemberMenu)}
+                  className="px-2.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-r-xl border-l border-white/20 transition-all flex items-center justify-center cursor-pointer"
+                  title={isVi ? "Thêm tùy chọn thêm thành viên" : "More add options"}
+                >
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showAddMemberMenu ? 'rotate-180' : ''}`} />
+                </button>
+
+                <AnimatePresence>
+                  {showAddMemberMenu && (
+                    <>
+                      <div className="fixed inset-0 z-30" onClick={() => setShowAddMemberMenu(false)} />
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 6 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 6 }}
+                        className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-40 p-2 overflow-hidden"
+                      >
+                        <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 text-[10px] uppercase font-black tracking-wider text-slate-400">
+                          {isVi ? 'Tùy chọn thêm thành viên' : 'Member Options'}
+                        </div>
+                        
+                        <div className="p-1 space-y-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowAddMemberMenu(false);
+                              setShowInviteModal(true);
+                            }}
+                            className="w-full text-left p-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-xl flex items-center gap-3 transition-colors cursor-pointer"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                              <Mail className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{isVi ? 'Mời qua Email' : 'Invite via Email'}</p>
+                              <p className="text-[10px] text-slate-400">{isVi ? 'Gửi liên kết mời tham gia' : 'Send email invitation'}</p>
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowAddMemberMenu(false);
+                              setShowManualAddModal(true);
+                            }}
+                            className="w-full text-left p-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-xl flex items-center gap-3 transition-colors cursor-pointer"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                              <UserCheck className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{isVi ? 'Thêm thủ công' : 'Manual Add'}</p>
+                              <p className="text-[10px] text-slate-400">{isVi ? 'Tạo trực tiếp hồ sơ thành viên' : 'Directly create member profile'}</p>
+                            </div>
+                          </button>
+
+                          {membersAvailableToEnroll.length > 0 && (
+                            <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                              <div className="px-2.5 pb-1.5 flex items-center justify-between text-[10px] font-black uppercase text-slate-400">
+                                <span>{isVi ? 'Thêm từ tổ chức' : 'From Organization'}</span>
+                                <span className="px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-[9px] font-bold">
+                                  {membersAvailableToEnroll.length}
+                                </span>
+                              </div>
+                              <div className="max-h-44 overflow-y-auto custom-scrollbar space-y-1">
+                                {membersAvailableToEnroll.map(m => (
+                                  <button
+                                    key={m.id}
+                                    onClick={() => {
+                                      handleEnrollExisting(m);
+                                      setShowAddMemberMenu(false);
+                                    }}
+                                    className="w-full text-left p-2 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-xl flex items-center gap-2.5 transition-colors cursor-pointer group/item"
+                                  >
+                                    <SignedImage 
+                                      filePath={m.avatar} 
+                                      className="w-7 h-7 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                                      alt={m.name}
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{m.name}</p>
+                                      <p className="text-[10px] text-slate-400 truncate">{m.email}</p>
+                                    </div>
+                                    <Plus className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-indigo-600 shrink-0" />
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              <button
+                type="button"
+                id="btn_open_invite_member"
+                onClick={() => {
+                  (window as any).playSystemSound?.('click');
+                  setShowInviteModal(true);
+                }}
+                className="px-4.5 py-2.5 bg-gradient-to-r from-indigo-600 via-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-500/20 transition-all flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>{isVi ? 'Mời thành viên' : 'Invite Members'}</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* 2. PRIMARY NAVIGATION: 5 Core Focused Views */}
-        <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between flex-wrap gap-3">
-          <nav className="inline-flex rounded-xl bg-slate-100/90 dark:bg-slate-800/70 p-1 border border-slate-200/60 dark:border-slate-800 gap-1 flex-wrap">
-            {[
-              { id: 'overview', label: isVi ? 'Tổng quan' : 'Overview', icon: LayoutDashboard },
-              { id: 'directory', label: isVi ? 'Thành viên' : 'Members', icon: Users, count: totalWorkspaceCount },
-              { id: 'teams', label: isVi ? 'Phòng ban & Nhóm' : 'Departments & Teams', icon: Building2, count: dbTeams.length },
-              { id: 'org_chart', label: isVi ? 'Sơ đồ tổ chức' : 'Org Chart', icon: GitBranch },
-              { id: 'contacts', label: isVi ? 'Danh bạ đối tác' : 'Contacts', icon: Phone, count: contactsCount > 0 ? contactsCount : undefined },
-            ].map(tab => {
-              const isActive = teamOSView === tab.id;
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    setTeamOSView(tab.id as any);
-                    (window as any).playSystemSound?.('click');
-                  }}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    isActive
-                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  <span>{tab.label}</span>
-                  {tab.count !== undefined && (
-                    <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
-                      isActive 
-                        ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300' 
-                        : 'bg-slate-200 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300'
-                    }`}>
-                      {tab.count}
+        {/* 2. SMART NAVIGATION BAR: 5 Core Views with Smooth Indicator */}
+        <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between flex-wrap gap-3">
+          <div className="overflow-x-auto no-scrollbar py-0.5">
+            <nav className="inline-flex rounded-2xl bg-slate-100/90 dark:bg-slate-800/70 p-1 border border-slate-200/60 dark:border-slate-800 gap-1 shrink-0">
+              {[
+                { id: 'overview', label: isVi ? 'Tổng quan' : 'Overview', icon: LayoutDashboard },
+                { id: 'directory', label: isVi ? 'Thành viên' : 'Members', icon: Users, count: totalWorkspaceCount },
+                { id: 'teams', label: isVi ? 'Phòng ban & Nhóm' : 'Departments & Teams', icon: Building2, count: dbTeams.length },
+                { id: 'org_chart', label: isVi ? 'Sơ đồ tổ chức' : 'Org Chart', icon: GitBranch },
+                { id: 'contacts', label: isVi ? 'Danh bạ đối tác' : 'Contacts', icon: Phone, count: contactsCount > 0 ? contactsCount : undefined },
+              ].map(tab => {
+                const isActive = teamOSView === tab.id;
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => {
+                      setTeamOSView(tab.id as any);
+                      (window as any).playSystemSound?.('click');
+                    }}
+                    className={`relative flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer select-none ${
+                      isActive
+                        ? 'text-indigo-600 dark:text-indigo-400 font-black'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="team-active-tab-indicator"
+                        className="absolute inset-0 bg-white dark:bg-slate-900 rounded-xl shadow-xs"
+                        transition={{ type: 'spring', bounce: 0.15, duration: 0.3 }}
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-2">
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{tab.label}</span>
+                      {tab.count !== undefined && (
+                        <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+                          isActive 
+                            ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-300' 
+                            : 'bg-slate-200/80 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300'
+                        }`}>
+                          {tab.count}
+                        </span>
+                      )}
                     </span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
 
           {/* Current user quick status indicator with interactive Popover */}
           {me && (
@@ -1041,177 +1171,148 @@ export default function TeamDirectory({
         <div className="space-y-5">
           
           {/* A. QUICK METRICS RIBBON: High density, clean stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-            <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 shadow-2xs">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-2xs hover:border-indigo-500/30 transition-all">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  {isVi ? 'Thành viên Workspace' : 'Workspace Members'}
+                <span className="text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  {isVi ? 'Thành viên' : 'Members'}
                 </span>
-                <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
-                  <Users className="w-4 h-4" />
+                <div className="p-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
+                  <Users className="w-3.5 h-3.5" />
                 </div>
               </div>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-slate-900 dark:text-white tabular-nums tracking-tight">
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span className="text-xl font-black text-slate-900 dark:text-white tabular-nums">
                   {totalWorkspaceCount}
                 </span>
-                <span className="text-xs font-semibold text-slate-400">{isVi ? 'nhân sự' : 'members'}</span>
+                <span className="text-[11px] font-semibold text-slate-400">{isVi ? 'nhân sự' : 'members'}</span>
               </div>
-              <p className="mt-1 text-[11px] text-slate-400 truncate">
-                {isVi ? 'Trong không gian' : 'In workspace'} <span className="font-bold text-slate-700 dark:text-slate-300">{currentWorkspaceName}</span>
+              <p className="mt-0.5 text-[10.5px] text-slate-400 truncate">
+                {isVi ? 'Trong không gian' : 'In'} <span className="font-bold text-slate-700 dark:text-slate-300">{currentWorkspaceName}</span>
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 shadow-2xs">
+            <div className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-2xs hover:border-emerald-500/30 transition-all">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                <span className="text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                   {isVi ? 'Đang hoạt động' : 'Live Presence'}
                 </span>
-                <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
-                  <Activity className="w-4 h-4" />
+                <div className="p-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+                  <Activity className="w-3.5 h-3.5" />
                 </div>
               </div>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums tracking-tight">
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span className="text-xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums">
                   {onlineWorkspaceCount}
                 </span>
-                <span className="text-xs font-semibold text-slate-400">{isVi ? 'trực tuyến' : 'online'}</span>
+                <span className="text-[11px] font-semibold text-slate-400">{isVi ? 'trực tuyến' : 'online'}</span>
               </div>
-              <p className="mt-1 text-[11px] text-slate-400 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />
-                <span>{busyWorkspaceCount} {isVi ? 'đang bận / trong cuộc họp' : 'busy / in meetings'}</span>
+              <p className="mt-0.5 text-[10.5px] text-slate-400 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
+                <span>{busyWorkspaceCount} {isVi ? 'đang bận / trong cuộc họp' : 'busy / in meeting'}</span>
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 shadow-2xs">
+            <div className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-2xs hover:border-sky-500/30 transition-all">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                <span className="text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                   {isVi ? 'Tiến độ công việc' : 'Task Completion'}
                 </span>
-                <div className="p-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400">
-                  <CheckSquare className="w-4 h-4" />
+                <div className="p-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400">
+                  <CheckSquare className="w-3.5 h-3.5" />
                 </div>
               </div>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-slate-900 dark:text-white tabular-nums tracking-tight">
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span className="text-xl font-black text-slate-900 dark:text-white tabular-nums">
                   {overallCompletionRate}%
                 </span>
-                <span className="text-xs font-semibold text-slate-400">{completedTasksCount}/{totalTasksCount} {isVi ? 'việc' : 'tasks'}</span>
+                <span className="text-[11px] font-semibold text-slate-400">{completedTasksCount}/{totalTasksCount} {isVi ? 'việc' : 'tasks'}</span>
               </div>
-              <p className="mt-1 text-[11px] text-slate-400">
+              <p className="mt-0.5 text-[10.5px] text-slate-400">
                 <span className="font-bold text-indigo-600 dark:text-indigo-400">{totalPendingTasks}</span> {isVi ? 'việc đang thực hiện' : 'tasks pending'}
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 shadow-2xs">
+            <div className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-2xs hover:border-purple-500/30 transition-all">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                <span className="text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                   {isVi ? 'Cơ cấu tổ chức' : 'Org Structure'}
                 </span>
-                <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400">
-                  <Building2 className="w-4 h-4" />
+                <div className="p-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400">
+                  <Building2 className="w-3.5 h-3.5" />
                 </div>
               </div>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-slate-900 dark:text-white tabular-nums tracking-tight">
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span className="text-xl font-black text-slate-900 dark:text-white tabular-nums">
                   {dbTeams.length}
                 </span>
-                <span className="text-xs font-semibold text-slate-400">{isVi ? 'nhóm' : 'teams'}</span>
+                <span className="text-[11px] font-semibold text-slate-400">{isVi ? 'nhóm' : 'teams'}</span>
               </div>
-              <p className="mt-1 text-[11px] text-slate-400">
+              <p className="mt-0.5 text-[10.5px] text-slate-400">
                 {isVi ? 'Phân bổ qua' : 'Across'} <span className="font-bold text-slate-700 dark:text-slate-300">{dbDepts.length} {isVi ? 'phòng ban' : 'departments'}</span>
               </p>
             </div>
           </div>
 
-          {/* B. TOOLBAR: Search, Scope Switcher, Filters, and View Mode Toggle */}
-          <div className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-xs flex flex-col lg:flex-row items-center gap-3">
+          {/* B. SMART TOOLBAR: Search, Scope Switcher, Smart Filter Chips & View Mode */}
+          <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-xs space-y-2.5">
             
-            {/* Scope segmented control: Workspace vs Organization */}
-            <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-800/70 p-1 border border-slate-200/60 dark:border-slate-700/60 shrink-0 self-stretch sm:self-auto">
-              <button
-                type="button"
-                onClick={() => setScopeTab('workspace')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  scopeTab === 'workspace'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-                }`}
-              >
-                {isVi ? `Trong workspace (${totalWorkspaceCount})` : `In Workspace (${totalWorkspaceCount})`}
-              </button>
-              <button
-                type="button"
-                onClick={() => setScopeTab('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  scopeTab === 'all'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-                }`}
-              >
-                {isVi ? `Toàn tổ chức (${deduplicatedMembers.length})` : `All Org (${deduplicatedMembers.length})`}
-              </button>
-            </div>
+            {/* Row 1: Search, Scope & View Toggle */}
+            <div className="flex flex-col sm:flex-row items-center gap-2.5">
+              {/* Search Input with shortcut '/' */}
+              <div className="relative flex-1 w-full">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={isVi ? "Tìm theo tên, email, phòng ban, số điện thoại..." : "Search name, email, department, phone..."}
+                  className="w-full pl-9 pr-14 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 hover:bg-slate-50 focus:bg-white dark:bg-slate-950/70 dark:hover:bg-slate-950 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-semibold"
+                />
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                ) : (
+                  <span className="hidden sm:inline-flex items-center justify-center absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-200/70 dark:bg-slate-800 text-slate-400 pointer-events-none">
+                    /
+                  </span>
+                )}
+              </div>
 
-            {/* Search Input */}
-            <div className="relative flex-1 w-full">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={isVi ? "Tìm theo tên, email, phòng ban, số điện thoại..." : "Search name, email, department, phone..."}
-                className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 hover:bg-slate-50 focus:bg-white dark:bg-slate-950/70 dark:hover:bg-slate-950 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-semibold"
-              />
-              {searchQuery && (
+              {/* Scope segmented control: Workspace vs Organization */}
+              <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-800/70 p-1 border border-slate-200/60 dark:border-slate-700/60 shrink-0 self-stretch sm:self-auto">
                 <button
                   type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  onClick={() => setScopeTab('workspace')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    scopeTab === 'workspace'
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                  }`}
                 >
-                  <X className="w-3.5 h-3.5" />
+                  {isVi ? `Trong workspace (${totalWorkspaceCount})` : `In Workspace (${totalWorkspaceCount})`}
                 </button>
-              )}
-            </div>
-
-            {/* Dropdown Filters */}
-            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-              <select
-                value={filterDept}
-                onChange={(e) => setFilterDept(e.target.value)}
-                className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-500"
-              >
-                <option value="all">{isVi ? 'Tất cả phòng ban' : 'All departments'}</option>
-                {DEPARTMENTS.map(d => (
-                  <option key={d.id} value={d.id}>{isVi ? d.viLabel : d.label}</option>
-                ))}
-              </select>
-
-              <select
-                value={filterRole}
-                onChange={(e) => setFilterRole(e.target.value)}
-                className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-500"
-              >
-                <option value="all">{isVi ? 'Tất cả vai trò' : 'All roles'}</option>
-                <option value="admin">{isVi ? 'Quản trị viên (Admin)' : 'Admin'}</option>
-                <option value="member">{isVi ? 'Thành viên (Member)' : 'Member'}</option>
-                <option value="guest">{isVi ? 'Khách (Guest)' : 'Guest'}</option>
-              </select>
-
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-500"
-              >
-                <option value="all">{isVi ? 'Tất cả trạng thái' : 'All statuses'}</option>
-                <option value="online">{isVi ? 'Trực tuyến' : 'Online'}</option>
-                <option value="busy">{isVi ? 'Đang bận' : 'Busy'}</option>
-                <option value="away">{isVi ? 'Vắng mặt' : 'Away'}</option>
-                <option value="offline">{isVi ? 'Ngoại tuyến' : 'Offline'}</option>
-              </select>
+                <button
+                  type="button"
+                  onClick={() => setScopeTab('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    scopeTab === 'all'
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                  }`}
+                >
+                  {isVi ? `Toàn tổ chức (${deduplicatedMembers.length})` : `All Org (${deduplicatedMembers.length})`}
+                </button>
+              </div>
 
               {/* View switch: Grid vs Table */}
-              <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-1 border border-slate-200/60 dark:border-slate-700/60 shrink-0">
+              <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-1 border border-slate-200/60 dark:border-slate-700/60 shrink-0 self-end sm:self-auto">
                 <button
                   type="button"
                   onClick={() => setDirectoryViewMode('grid')}
@@ -1237,16 +1338,104 @@ export default function TeamDirectory({
                   <List className="w-4 h-4" />
                 </button>
               </div>
+            </div>
 
-              {(searchQuery || filterRole !== 'all' || filterStatus !== 'all' || filterDept !== 'all') && (
+            {/* Row 2: Smart Filter Chips & Dropdowns */}
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+              {/* Quick Chips */}
+              <div className="flex flex-wrap items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={clearAllFilters}
-                  className="px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl border border-rose-200 dark:border-rose-900/50 transition-all cursor-pointer"
+                  onClick={() => {
+                    setFilterStatus('all');
+                    setFilterRole('all');
+                    setFilterDept('all');
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    filterStatus === 'all' && filterRole === 'all' && filterDept === 'all'
+                      ? 'bg-indigo-600 text-white shadow-2xs'
+                      : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
                 >
-                  {isVi ? 'Đặt lại' : 'Reset'}
+                  {isVi ? 'Tất cả' : 'All'}
                 </button>
-              )}
+
+                <button
+                  type="button"
+                  onClick={() => setFilterStatus(filterStatus === 'online' ? 'all' : 'online')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    filterStatus === 'online'
+                      ? 'bg-emerald-600 text-white shadow-2xs'
+                      : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span>{isVi ? 'Trực tuyến' : 'Online'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFilterStatus(filterStatus === 'busy' ? 'all' : 'busy')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    filterStatus === 'busy'
+                      ? 'bg-rose-600 text-white shadow-2xs'
+                      : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                  <span>{isVi ? 'Đang bận' : 'Busy'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFilterRole(filterRole === 'admin' ? 'all' : 'admin')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    filterRole === 'admin'
+                      ? 'bg-indigo-600 text-white shadow-2xs'
+                      : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <Crown className="w-3 h-3 text-amber-400" />
+                  <span>{isVi ? 'Quản trị viên' : 'Admins'}</span>
+                </button>
+              </div>
+
+              {/* Dropdowns for fine-grained filters */}
+              <div className="flex flex-wrap items-center gap-2 ml-auto">
+                <select
+                  value={filterDept}
+                  onChange={(e) => setFilterDept(e.target.value)}
+                  className="px-2.5 py-1 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-500"
+                >
+                  <option value="all">{isVi ? 'Phòng ban: Tất cả' : 'Dept: All'}</option>
+                  {DEPARTMENTS.map(d => (
+                    <option key={d.id} value={d.id}>{isVi ? d.viLabel : d.label}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={filterRole}
+                  onChange={(e) => setFilterRole(e.target.value)}
+                  className="px-2.5 py-1 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-500"
+                >
+                  <option value="all">{isVi ? 'Vai trò: Tất cả' : 'Role: All'}</option>
+                  <option value="admin">{isVi ? 'Quản trị viên (Admin)' : 'Admin'}</option>
+                  <option value="member">{isVi ? 'Thành viên (Member)' : 'Member'}</option>
+                  <option value="guest">{isVi ? 'Khách (Guest)' : 'Guest'}</option>
+                </select>
+
+                {(searchQuery || filterRole !== 'all' || filterStatus !== 'all' || filterDept !== 'all') && (
+                  <button
+                    type="button"
+                    onClick={clearAllFilters}
+                    className="px-2.5 py-1 text-xs font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl border border-rose-200 dark:border-rose-900/50 transition-all cursor-pointer flex items-center gap-1"
+                    title={isVi ? "Đặt lại tất cả bộ lọc" : "Reset filters"}
+                  >
+                    <X className="w-3 h-3" />
+                    <span>{isVi ? 'Đặt lại' : 'Reset'}</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

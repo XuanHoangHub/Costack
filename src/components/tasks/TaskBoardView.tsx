@@ -30,7 +30,7 @@ import {
   useSortable, 
   verticalListSortingStrategy 
 } from '@dnd-kit/sortable';
-import { Plus, Calendar, MessageSquare, Check, Pin, Paperclip, ChevronDown, Play, Pause, Clock, GripVertical, User as UserIcon, Hourglass, Copy, Flag, Repeat, MoreHorizontal, Trash2, Edit2, X, AlignLeft, Tag, CircleDot, ChevronsLeft, ChevronsRight, ChevronRight, UserCircle2, Building2 } from 'lucide-react';
+import { Plus, Calendar, MessageSquare, Check, Pin, Paperclip, ChevronDown, Play, Pause, Clock, GripVertical, User as UserIcon, Hourglass, Copy, Flag, Repeat, MoreHorizontal, Trash2, Edit2, X, AlignLeft, Tag, CircleDot, ChevronsLeft, ChevronsRight, ChevronRight, UserCircle2, Building2, AlertTriangle } from 'lucide-react';
 import { Task, User, TaskStatus, Priority, Workspace } from '../../types';
 import { getTaskTeamIds, useWorkspaceTeams } from '@/lib/teamStore';
 import SignedImage from '../SignedImage';
@@ -272,6 +272,32 @@ function KanbanCard({
                   #{tag}
                 </span>
               ))}
+            </div>
+          )}
+
+          {/* Dependencies & Recurrence Badges */}
+          {((task.relationships?.blockedBy && task.relationships.blockedBy.length > 0) ||
+            (task.relationships?.blocks && task.relationships.blocks.length > 0) ||
+            (task.recurrence && task.recurrence.frequency !== 'none')) && (
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              {task.recurrence && task.recurrence.frequency !== 'none' && (
+                <span title={locale === 'vi' ? 'Lặp lại định kỳ' : 'Recurring'} className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/40 px-1.5 py-0.5 rounded-md shrink-0">
+                  <Repeat className="w-2.5 h-2.5 text-blue-500" />
+                  <span>{task.recurrence.frequency === 'daily' ? (locale === 'vi' ? 'Hàng ngày' : 'Daily') : task.recurrence.frequency === 'weekly' ? (locale === 'vi' ? 'Hàng tuần' : 'Weekly') : (locale === 'vi' ? 'Hàng tháng' : 'Monthly')}</span>
+                </span>
+              )}
+              {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
+                <span className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-900/40 text-amber-700 dark:text-amber-400 font-extrabold text-[9px] rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0" title={locale === 'vi' ? `Đang chờ ${task.relationships.blockedBy.length} việc` : `Waiting on ${task.relationships.blockedBy.length} tasks`}>
+                  <Hourglass className="w-2.5 h-2.5 animate-pulse" />
+                  <span>{locale === 'vi' ? 'Đang chờ' : 'Waiting'}</span>
+                </span>
+              )}
+              {task.relationships?.blocks && task.relationships.blocks.length > 0 && (
+                <span className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-900/40 text-rose-700 dark:text-rose-400 font-extrabold text-[9px] rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0" title={locale === 'vi' ? `Đang chặn ${task.relationships.blocks.length} việc` : `Blocking ${task.relationships.blocks.length} tasks`}>
+                  <AlertTriangle className="w-2.5 h-2.5" />
+                  <span>{locale === 'vi' ? 'Đang chặn' : 'Blocking'}</span>
+                </span>
+              )}
             </div>
           )}
 

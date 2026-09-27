@@ -1674,6 +1674,10 @@ export default function InboxView({
                 workspaces={workspaces}
                 spaces={spaces}
                 onClose={() => setSelectedNotificationId(null)}
+                onSelectTask={(t) => {
+                  const targetNotif = notificationsList.find(n => getAssociatedTaskId(n) === t.id);
+                  if (targetNotif) setSelectedNotificationId(targetNotif.id);
+                }}
                 onUpdateTask={onUpdateTask}
                 onCreateTask={onAddTask}
                 onDeleteTask={(id) => {

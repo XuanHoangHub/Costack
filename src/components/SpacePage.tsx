@@ -168,6 +168,7 @@ interface SpacePageProps {
   onRestoreTask?: (id: string) => void | Promise<void>;
   onPermanentDeleteTask?: (id: string) => void | Promise<void>;
   onEmptyTrash?: () => void | Promise<void>;
+  onBatchPermanentDelete?: (ids: string[], isAutoPurge?: boolean) => void | Promise<void>;
 }
 
 export default function SpacePage({
@@ -181,9 +182,9 @@ export default function SpacePage({
   onAddFolderToSpace, onAddDocToSpace, onAddWhiteboardToSpace, onAddListToFolder,
   onAddDoc, onUpdateDoc, onDeleteDoc, onDeleteSpace, onOpenAutomations,
   onStartGlobalTimer, onStopGlobalTimer, onTogglePauseGlobalTimer,
-  deletedTasks = [], onRestoreTask, onPermanentDeleteTask, onEmptyTrash
+  deletedTasks = [], onRestoreTask, onPermanentDeleteTask, onEmptyTrash, onBatchPermanentDelete
 }: SpacePageProps) {
-  const { t, locale } = useTranslation();
+  const { t, locale, isVietnamese } = useTranslation();
 
 // Local handler to insert space/list context
    const onAddTask = (taskObj: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress'> & { workspaceId?: string; spaceId?: string; listId?: string }) => {
@@ -2023,12 +2024,13 @@ export default function SpacePage({
     // Search query filter
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase();
+      const memberNameMap = new Map(members.map(m => [m.id, (m.name || '').toLowerCase()]));
       result = result.filter(t => 
         t.title.toLowerCase().includes(q) || 
         (t.description || '').toLowerCase().includes(q) ||
         (t.tags && t.tags.some(tag => tag.toLowerCase().includes(q))) ||
-        (t.assigneeId && members.find(m => m.id === t.assigneeId)?.name.toLowerCase().includes(q)) ||
-        (t.assigneeIds && t.assigneeIds.some(id => members.find(m => m.id === id)?.name.toLowerCase().includes(q))) ||
+        (t.assigneeId && memberNameMap.get(t.assigneeId)?.includes(q)) ||
+        (t.assigneeIds && t.assigneeIds.some(id => memberNameMap.get(id)?.includes(q))) ||
         customFields.some(field => String(t.custom_fields?.[field.name] ?? '').toLowerCase().includes(q))
       );
     }
@@ -2095,8 +2097,9 @@ export default function SpacePage({
         return sortDirection === 'asc' ? diff : -diff;
       });
     } else if (sortBy === 'title') {
+      const collator = new Intl.Collator('vi', { sensitivity: 'base', numeric: true });
       result = [...result].sort((a, b) => {
-        const diff = a.title.localeCompare(b.title, 'vi');
+        const diff = collator.compare(a.title, b.title);
         return sortDirection === 'asc' ? diff : -diff;
       });
     } else if (sortBy === 'createdAt') {
@@ -2343,7 +2346,7 @@ export default function SpacePage({
   // Breadcrumbs title for space page header
   const spaceBreadcrumb = activeListId 
     ? `${activeSpace.name} / ${activeSpace.lists.find(l => l.id === activeListId)?.name || 'List'}` 
-    : activeSpace.name;
+    : (activeSpaceId ? activeSpace.name : (myTasksOnly ? (isVietnamese ? 'Việc của tôi' : 'My Tasks') : (isVietnamese ? 'Tất cả công việc' : 'All Tasks')));
 
   const spacePulse = useMemo(() => {
     const contextTasks = tasks.filter(task => {
@@ -5422,6 +5425,7 @@ export default function SpacePage({
             workspaces={allWorkspaces || []}
             spaces={spaces}
             onClose={() => setSelectedTask(null)}
+            onSelectTask={(t) => setSelectedTask(t)}
             onUpdateTask={(t) => {
               guardedUpdateTask(t);
               if (activeViewProtectedRef.current) return;
@@ -6363,10 +6367,10 @@ export default function SpacePage({
                 top: Math.max(16, Math.min(activeSpaceSettings.y, typeof window !== 'undefined' ? window.innerHeight - 560 : activeSpaceSettings.y)), 
                 left: Math.max(16, Math.min(activeSpaceSettings.x, typeof window !== 'undefined' ? window.innerWidth - 295 : activeSpaceSettings.x))
               }}
-              className="w-[275px] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-[0_16px_40px_-8px_rgba(0,0,0,0.18),0_6px_16px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8),0_8px_20px_-4px_rgba(0,0,0,0.6)] z-50 text-left font-sans select-none overflow-hidden text-xs p-2 space-y-0.5"
+              className="w-[260px] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-[0_12px_32px_-6px_rgba(0,0,0,0.15),0_4px_12px_-2px_rgba(0,0,0,0.06)] dark:shadow-[0_16px_40px_-8px_rgba(0,0,0,0.7),0_6px_16px_-4px_rgba(0,0,0,0.5)] z-50 text-left font-sans select-none overflow-hidden text-xs p-1.5 space-y-0.5"
             >
               {/* Space Identity Banner / Quick Edit Header */}
-              <div className="p-2 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-800 mb-1">
+              <div className="p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 mb-1">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <EmojiIconPicker
@@ -6375,8 +6379,8 @@ export default function SpacePage({
                       onChange={(newIcon) => updateSpaceProperties(space.id, { emoji: newIcon }, 'Đã cập nhật biểu tượng không gian.')}
                       title="Đổi biểu tượng không gian"
                     >
-                      <div className="w-7 h-7 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700/80 flex items-center justify-center shrink-0 shadow-3xs hover:border-blue-500 hover:scale-105 transition-all cursor-pointer">
-                        {renderSpaceIcon(space.emoji || 'Folder', "w-4 h-4")}
+                      <div className="w-6.5 h-6.5 rounded-md bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700/80 flex items-center justify-center shrink-0 shadow-3xs hover:border-indigo-500 hover:scale-105 transition-all cursor-pointer">
+                        {renderSpaceIcon(space.emoji || 'Folder', "w-3.5 h-3.5")}
                       </div>
                     </EmojiIconPicker>
                     
@@ -6392,7 +6396,7 @@ export default function SpacePage({
                               if (e.key === 'Enter') handleSaveRename();
                               if (e.key === 'Escape') setInlineRenameSpaceId(null);
                             }}
-                            className="w-full bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-md px-2 py-0.5 text-xs font-semibold text-slate-800 dark:text-zinc-100 outline-none focus:ring-1.5 focus:ring-indigo-500/30 focus:border-indigo-500/40 shadow-3xs"
+                            className="w-full bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-md px-1.5 py-0.5 text-xs font-semibold text-slate-800 dark:text-zinc-100 outline-none focus:ring-1.5 focus:ring-indigo-500/30 focus:border-indigo-500/40 shadow-3xs"
                             placeholder="Tên không gian..."
                           />
                           <button
@@ -6412,7 +6416,7 @@ export default function SpacePage({
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className={`inline-flex items-center gap-0.5 text-[9.5px] font-bold px-1.5 py-0.2 rounded-md ${
+                            <span className={`inline-flex items-center gap-0.5 text-[9.5px] font-semibold px-1.5 py-0.2 rounded ${
                               space.isPrivate 
                                 ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400' 
                                 : 'bg-slate-500/10 text-slate-600 dark:text-slate-400'
@@ -6420,7 +6424,7 @@ export default function SpacePage({
                               {space.isPrivate ? <Lock className="w-2.5 h-2.5 inline" /> : null}
                               {space.isPrivate ? 'Riêng tư' : 'Công khai'}
                             </span>
-                            <span className="text-[9.5px] text-slate-400 dark:text-zinc-400 font-semibold">
+                            <span className="text-[9.5px] text-slate-400 dark:text-zinc-500 font-medium">
                               {space.lists?.length || 0} danh sách
                             </span>
                           </div>
@@ -6453,17 +6457,17 @@ export default function SpacePage({
                     setActiveSpaceSettings(null);
                     toggleSpaceFavorite(space);
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
+                  className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/80 text-left cursor-pointer transition-colors group"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-6.5 h-6.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200/60 dark:border-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5.5 h-5.5 rounded-md bg-slate-100 dark:bg-zinc-800 group-hover:bg-white dark:group-hover:bg-zinc-700 flex items-center justify-center text-slate-500 dark:text-zinc-400 group-hover:text-slate-800 dark:group-hover:text-zinc-100 transition-colors shrink-0">
                       <Star className={`w-3.5 h-3.5 ${space.isFavorite ? 'fill-amber-500 text-amber-500' : ''}`} />
                     </div>
-                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                    <span className="font-semibold text-xs text-slate-700 dark:text-zinc-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
                       {space.isFavorite ? 'Bỏ yêu thích' : 'Yêu thích'}
                     </span>
                   </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all duration-200" />
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-zinc-600 group-hover:text-slate-500 dark:group-hover:text-zinc-400 transition-colors" />
                 </button>
 
                 {/* Rename */}
@@ -6474,13 +6478,13 @@ export default function SpacePage({
                     setInlineRenameSpaceId(space.id);
                     setInlineRenameSpaceName(space.name);
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
+                  className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/80 text-left cursor-pointer transition-colors group"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-6.5 h-6.5 rounded-lg bg-blue-50 dark:bg-blue-950/50 border border-blue-200/60 dark:border-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5.5 h-5.5 rounded-md bg-slate-100 dark:bg-zinc-800 group-hover:bg-white dark:group-hover:bg-zinc-700 flex items-center justify-center text-slate-500 dark:text-zinc-400 group-hover:text-slate-800 dark:group-hover:text-zinc-100 transition-colors shrink-0">
                       <Pencil className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    <span className="font-semibold text-xs text-slate-700 dark:text-zinc-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
                       Đổi tên
                     </span>
                   </div>
@@ -6504,13 +6508,13 @@ export default function SpacePage({
                     }
                     onAddSyncLog(`Copied space link for space ${space.name}`);
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
+                  className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/80 text-left cursor-pointer transition-colors group"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-6.5 h-6.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200/60 dark:border-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5.5 h-5.5 rounded-md bg-slate-100 dark:bg-zinc-800 group-hover:bg-white dark:group-hover:bg-zinc-700 flex items-center justify-center text-slate-500 dark:text-zinc-400 group-hover:text-slate-800 dark:group-hover:text-zinc-100 transition-colors shrink-0">
                       <LinkIcon className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                    <span className="font-semibold text-xs text-slate-700 dark:text-zinc-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
                       Sao chép liên kết
                     </span>
                   </div>
@@ -6533,47 +6537,47 @@ export default function SpacePage({
                       y: activeSpaceSettings.y
                     });
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
+                  className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/80 text-left cursor-pointer transition-colors group"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-6.5 h-6.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5.5 h-5.5 rounded-md bg-slate-100 dark:bg-zinc-800 group-hover:bg-white dark:group-hover:bg-zinc-700 flex items-center justify-center text-slate-500 dark:text-zinc-400 group-hover:text-slate-800 dark:group-hover:text-zinc-100 transition-colors shrink-0">
                       <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                     </div>
-                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                      Tạo mới
+                    <span className="font-semibold text-xs text-slate-700 dark:text-zinc-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+                      Tạo mới danh sách/thư mục
                     </span>
                   </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 group-hover:translate-x-0.5 transition-all duration-200" />
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-zinc-600 group-hover:text-slate-500 dark:group-hover:text-zinc-400 transition-colors" />
                 </button>
 
                 {/* Color & Icon */}
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); onOpenSpaceSettings?.(space); }}
-                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
+                  className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/80 text-left cursor-pointer transition-colors group"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-6.5 h-6.5 rounded-lg bg-violet-50 dark:bg-violet-950/50 border border-violet-200/60 dark:border-violet-900/40 flex items-center justify-center text-violet-600 dark:text-violet-400 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5.5 h-5.5 rounded-md bg-slate-100 dark:bg-zinc-800 group-hover:bg-white dark:group-hover:bg-zinc-700 flex items-center justify-center text-slate-500 dark:text-zinc-400 group-hover:text-slate-800 dark:group-hover:text-zinc-100 transition-colors shrink-0">
                       <Droplet className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+                    <span className="font-semibold text-xs text-slate-700 dark:text-zinc-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
                       Màu sắc & biểu tượng
                     </span>
                   </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-violet-500 group-hover:translate-x-0.5 transition-all duration-200" />
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-zinc-600 group-hover:text-slate-500 dark:group-hover:text-zinc-400 transition-colors" />
                 </button>
 
                 {/* Automations */}
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); onOpenAutomations?.(); }}
-                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
+                  className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/80 text-left cursor-pointer transition-colors group"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-6.5 h-6.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200/60 dark:border-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
-                      <Zap className="w-3.5 h-3.5 fill-amber-500/20" />
+                  <div className="flex items-center gap-2">
+                    <div className="w-5.5 h-5.5 rounded-md bg-slate-100 dark:bg-zinc-800 group-hover:bg-white dark:group-hover:bg-zinc-700 flex items-center justify-center text-slate-500 dark:text-zinc-400 group-hover:text-slate-800 dark:group-hover:text-zinc-100 transition-colors shrink-0">
+                      <Zap className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                    <span className="font-semibold text-xs text-slate-700 dark:text-zinc-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
                       Tự động hóa
                     </span>
                   </div>
@@ -6593,20 +6597,15 @@ export default function SpacePage({
                     updateSpaceProperties(space.id, { isHidden: !space.isHidden }, space.isHidden ? `Đã hiển thị lại ${space.name}.` : `Đã ẩn ${space.name} khỏi danh sách mặc định.`);
                     onAddSyncLog(`${space.isHidden ? 'Unhid' : 'Hid'} Space "${space.name}"`);
                   }}
-                  className="w-full p-2 rounded-xl text-left border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group flex items-center justify-between"
+                  className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/80 text-left cursor-pointer transition-colors group"
                 >
-                  <div className="flex items-start gap-2.5">
-                    <div className="w-6.5 h-6.5 rounded-lg bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-600 dark:text-slate-400 shrink-0 mt-0.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5.5 h-5.5 rounded-md bg-slate-100 dark:bg-zinc-800 group-hover:bg-white dark:group-hover:bg-zinc-700 flex items-center justify-center text-slate-500 dark:text-zinc-400 group-hover:text-slate-800 dark:group-hover:text-zinc-100 transition-colors shrink-0">
                       <EyeOff className="w-3.5 h-3.5" />
                     </div>
-                    <div>
-                      <span className="font-bold text-xs text-slate-700 dark:text-zinc-200 block group-hover:text-slate-950 dark:group-hover:text-white transition-colors">
-                        {space.isHidden ? 'Hiển thị Space' : 'Ẩn Space'}
-                      </span>
-                      <span className="block text-[9.5px] text-slate-400 dark:text-zinc-400 font-medium leading-tight mt-0.5">
-                        {space.isHidden ? 'Đưa Space trở lại danh sách mặc định' : 'Vẫn giữ quyền truy cập và toàn bộ dữ liệu'}
-                      </span>
-                    </div>
+                    <span className="font-semibold text-xs text-slate-700 dark:text-zinc-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+                      {space.isHidden ? 'Hiển thị Space' : 'Ẩn Space'}
+                    </span>
                   </div>
                 </button>
 
@@ -6618,13 +6617,13 @@ export default function SpacePage({
                     setActiveSpaceSettings(null);
                     duplicateSpace(space);
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
+                  className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/80 text-left cursor-pointer transition-colors group"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-6.5 h-6.5 rounded-lg bg-sky-50 dark:bg-sky-950/50 border border-sky-200/60 dark:border-sky-900/40 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5.5 h-5.5 rounded-md bg-slate-100 dark:bg-zinc-800 group-hover:bg-white dark:group-hover:bg-zinc-700 flex items-center justify-center text-slate-500 dark:text-zinc-400 group-hover:text-slate-800 dark:group-hover:text-zinc-100 transition-colors shrink-0">
                       <Copy className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
+                    <span className="font-semibold text-xs text-slate-700 dark:text-zinc-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
                       Nhân bản cấu trúc
                     </span>
                   </div>
@@ -6644,13 +6643,13 @@ export default function SpacePage({
                     }
                     onAddSyncLog(`${space.isArchived ? 'Restored' : 'Archived'} Space "${space.name}"`);
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-zinc-700/80 bg-transparent hover:bg-slate-100/90 dark:hover:bg-zinc-800/80 cursor-pointer transition-all duration-150 group"
+                  className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/80 text-left cursor-pointer transition-colors group"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-6.5 h-6.5 rounded-lg bg-orange-50 dark:bg-orange-950/50 border border-orange-200/60 dark:border-orange-900/40 flex items-center justify-center text-orange-600 dark:text-orange-400 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5.5 h-5.5 rounded-md bg-slate-100 dark:bg-zinc-800 group-hover:bg-white dark:group-hover:bg-zinc-700 flex items-center justify-center text-slate-500 dark:text-zinc-400 group-hover:text-slate-800 dark:group-hover:text-zinc-100 transition-colors shrink-0">
                       <Archive className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-bold text-xs text-slate-800 dark:text-zinc-200 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+                    <span className="font-semibold text-xs text-slate-700 dark:text-zinc-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
                       {space.isArchived ? 'Khôi phục' : 'Lưu trữ'}
                     </span>
                   </div>
@@ -6683,13 +6682,13 @@ export default function SpacePage({
                       }
                     });
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-xl border border-transparent hover:border-rose-200 dark:hover:border-rose-900/50 bg-transparent hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer transition-all duration-150 group"
+                  className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 text-left cursor-pointer transition-colors group"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-6.5 h-6.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200/60 dark:border-rose-900/40 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5.5 h-5.5 rounded-md bg-rose-50 dark:bg-rose-950/40 group-hover:bg-rose-100 dark:group-hover:bg-rose-900/50 flex items-center justify-center text-rose-600 dark:text-rose-400 transition-colors shrink-0">
                       <Trash2 className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-bold text-xs text-rose-600 dark:text-rose-400">Xóa Space</span>
+                    <span className="font-semibold text-xs text-rose-600 dark:text-rose-400">Xóa Space</span>
                   </div>
                 </button>
               </div>
@@ -6708,7 +6707,7 @@ export default function SpacePage({
                     setSharingTargetShareSettings(space.shareSettings || {});
                     setSharingModalOpen(true);
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs shadow-xs hover:shadow-sm active:scale-[0.99] transition-all cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-xs shadow-xs hover:shadow-sm active:scale-[0.99] transition-all cursor-pointer"
                 >
                   <Shield className="w-3.5 h-3.5 text-white/90" />
                   <span>Chia sẻ và phân quyền</span>
@@ -7737,6 +7736,7 @@ export default function SpacePage({
         onEmptyTrash={async () => {
           await onEmptyTrash?.();
         }}
+        onBatchPermanentDelete={onBatchPermanentDelete}
         spaces={spaces}
       />
 

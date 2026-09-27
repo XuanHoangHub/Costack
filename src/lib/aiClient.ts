@@ -144,7 +144,15 @@ export async function callAiStreamApi(
 
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.error || `AI request failed: ${response.statusText}`);
+    let msg = errData.error || `AI request failed: ${response.statusText}`;
+    if (typeof msg === 'string') {
+      if (msg.includes('API_KEY_INVALID') || msg.includes('API key not valid')) {
+        msg = "Khóa GEMINI_API_KEY chưa hợp lệ. Vui lòng kiểm tra lại khóa API Google Gemini trong file .env.local.";
+      } else if (msg.includes('RESOURCE_EXHAUSTED')) {
+        msg = "Tài khoản Gemini API đã vượt hạn mức yêu cầu (Quota Exceeded). Vui lòng thử lại sau giây lát.";
+      }
+    }
+    throw new Error(msg);
   }
 
   if (!response.body) {

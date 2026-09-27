@@ -708,8 +708,20 @@ export function AssigneePillSelect({
             })}
 
             {filteredTeams.length === 0 && (
-              <div className="py-6 text-center text-xs text-slate-400 dark:text-slate-500">
-                {locale === 'vi' ? 'Không tìm thấy đội ngũ nào' : 'No teams found'}
+              <div className="py-7 px-3 text-center select-none">
+                <div className="w-9 h-9 mx-auto rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-500 dark:text-indigo-400 flex items-center justify-center mb-2 shadow-3xs border border-indigo-100/80 dark:border-indigo-900/50">
+                  <Building2 className="w-4.5 h-4.5" />
+                </div>
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                  {query.trim()
+                    ? (locale === 'vi' ? 'Không tìm thấy đội ngũ phù hợp' : 'No matching teams found')
+                    : (locale === 'vi' ? 'Chưa có đội ngũ nào' : 'No teams yet')}
+                </p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 max-w-[200px] mx-auto leading-relaxed">
+                  {query.trim()
+                    ? (locale === 'vi' ? 'Thử tìm kiếm với từ khóa khác' : 'Try searching with different keywords')
+                    : (locale === 'vi' ? 'Tạo đội ngũ tại mục Thành viên & Đội ngũ để phân công công việc.' : 'Create teams in Members & Teams to assign tasks.')}
+                </p>
               </div>
             )}
           </>
@@ -977,8 +989,20 @@ export function TeamPillSelect({
           );
         })}
         {filteredTeams.length === 0 && (
-          <div className="py-6 text-center text-xs text-slate-400 dark:text-slate-500">
-            {locale === 'vi' ? 'Không tìm thấy đội ngũ nào' : 'No teams found'}
+          <div className="py-7 px-3 text-center select-none">
+            <div className="w-9 h-9 mx-auto rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-500 dark:text-indigo-400 flex items-center justify-center mb-2 shadow-3xs border border-indigo-100/80 dark:border-indigo-900/50">
+              <Building2 className="w-4.5 h-4.5" />
+            </div>
+            <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
+              {query.trim()
+                ? (locale === 'vi' ? 'Không tìm thấy đội ngũ phù hợp' : 'No matching teams found')
+                : (locale === 'vi' ? 'Chưa có đội ngũ nào' : 'No teams yet')}
+            </p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 max-w-[200px] mx-auto leading-relaxed">
+              {query.trim()
+                ? (locale === 'vi' ? 'Thử tìm kiếm với từ khóa khác' : 'Try searching with different keywords')
+                : (locale === 'vi' ? 'Tạo đội ngũ tại mục Thành viên & Đội ngũ để phân công công việc.' : 'Create teams in Members & Teams to assign tasks.')}
+            </p>
           </div>
         )}
       </div>
@@ -1474,6 +1498,36 @@ export function PremiumDatePicker({
             </span>
           </div>
         )}
+
+        {/* Quick Date Presets (1-click fast date picking) */}
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-1.5 px-0.5 mt-1 border-b border-slate-100 dark:border-slate-800/80">
+          {[
+            { label: 'Hôm nay', offset: 0 },
+            { label: 'Ngày mai', offset: 1 },
+            { label: 'Cuối tuần', offset: daysToSaturday === 0 ? 7 : daysToSaturday },
+            { label: 'Tuần sau', offset: daysToMonday === 0 ? 7 : daysToMonday },
+            { label: '+2 tuần', offset: 14 },
+          ].map(preset => (
+            <button
+              key={preset.label}
+              type="button"
+              onClick={() => selectPreset(preset.offset)}
+              className="shrink-0 px-2.5 py-1 rounded-lg text-[10.5px] font-bold bg-slate-100/80 hover:bg-blue-50 hover:text-blue-600 dark:bg-slate-900 dark:hover:bg-blue-950/50 dark:hover:text-blue-400 text-slate-600 dark:text-slate-300 transition-all cursor-pointer border border-transparent hover:border-blue-200 dark:hover:border-blue-800"
+            >
+              {preset.label}
+            </button>
+          ))}
+          {(activeTab === 'start' ? localStartDate : localDueDate) && (
+            <button
+              type="button"
+              onClick={() => clearActiveDate(activeTab)}
+              className="shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all cursor-pointer ml-auto"
+              title="Xóa ngày đã chọn"
+            >
+              Xóa
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="px-3 pb-2 flex-1">
@@ -1769,13 +1823,13 @@ export function PremiumDatePicker({
             <div className="py-2.5 space-y-2">
               {/* Tab 1: Đặt Giờ */}
               {activeSubPanel === 'time' && (
-                <div className="space-y-2.5">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between px-1">
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
                       <Clock className="w-3.5 h-3.5 text-blue-500" />
                       Thời gian thực hiện
                     </span>
-                    {currentTimePart && (
+                    {currentTimePart ? (
                       <button
                         type="button"
                         onClick={() => applyTime('')}
@@ -1783,56 +1837,44 @@ export function PremiumDatePicker({
                       >
                         Xoá giờ
                       </button>
+                    ) : (
+                      <span className="text-[10px] text-slate-400 font-medium">Cả ngày</span>
                     )}
                   </div>
 
-                  {/* Clean, styled direct time input */}
-                  <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl px-3 py-2 shadow-xs focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
-                    <Clock className="w-4 h-4 text-blue-500 shrink-0" />
-                    <input
-                      type="time"
-                      value={currentTimePart}
-                      onChange={(e) => applyTime(e.target.value)}
-                      className="w-full text-sm font-bold text-slate-800 dark:text-slate-100 bg-transparent border-none outline-none p-0 focus:ring-0 appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-inner-spin-button]:hidden cursor-pointer tracking-wider"
-                    />
+                  {/* Quick Hour Chips */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {[
+                      { label: '09:00', time: '09:00' },
+                      { label: '12:00', time: '12:00' },
+                      { label: '14:00', time: '14:00' },
+                      { label: '17:00', time: '17:00' },
+                      { label: '20:00', time: '20:00' },
+                    ].map(chip => (
+                      <button
+                        key={chip.label}
+                        type="button"
+                        onClick={() => applyTime(chip.time)}
+                        className={`flex-1 min-w-[50px] py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer text-center border ${
+                          currentTimePart === chip.time
+                            ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                            : 'bg-slate-50 dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-850'
+                        }`}
+                      >
+                        {chip.label}
+                      </button>
+                    ))}
                   </div>
 
-                  {/* Clean Quick Hour / Minute Selectors */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 rounded-xl px-2.5 py-1.5 shadow-xs">
-                      <span className="text-[10px] font-semibold text-slate-400">Giờ:</span>
-                      <select
-                        value={currentTimePart ? currentTimePart.split(':')[0] : ''}
-                        onChange={(e) => {
-                          const h = e.target.value;
-                          const currentM = currentTimePart ? currentTimePart.split(':')[1] || '00' : '00';
-                          applyTime(h ? `${h}:${currentM}` : '');
-                        }}
-                        className="text-xs font-bold text-slate-800 dark:text-slate-100 bg-transparent border-none outline-none cursor-pointer"
-                      >
-                        <option value="">Chọn giờ</option>
-                        {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
-                          <option key={h} value={h}>{h}:00</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 rounded-xl px-2.5 py-1.5 shadow-xs">
-                      <span className="text-[10px] font-semibold text-slate-400">Phút:</span>
-                      <select
-                        value={currentTimePart ? currentTimePart.split(':')[1] : ''}
-                        onChange={(e) => {
-                          const m = e.target.value;
-                          const currentH = currentTimePart ? currentTimePart.split(':')[0] || '09' : '09';
-                          applyTime(`${currentH}:${m}`);
-                        }}
-                        className="text-xs font-bold text-slate-800 dark:text-slate-100 bg-transparent border-none outline-none cursor-pointer"
-                      >
-                        {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map(m => (
-                          <option key={m} value={m}>{m} phút</option>
-                        ))}
-                      </select>
-                    </div>
+                  {/* Direct Time Input & Custom Picker */}
+                  <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
+                    <span className="text-[11px] font-semibold text-slate-500">Giờ tuỳ chỉnh:</span>
+                    <input
+                      type="time"
+                      value={currentTimePart || ''}
+                      onChange={(e) => applyTime(e.target.value)}
+                      className="px-2.5 py-1 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-blue-500 cursor-pointer"
+                    />
                   </div>
                 </div>
               )}

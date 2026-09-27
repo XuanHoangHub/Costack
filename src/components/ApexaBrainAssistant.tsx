@@ -8,7 +8,7 @@ import {
   Mic, MicOff, Globe, Volume2, VolumeX, Copy, RotateCcw, ChevronDown, Calendar,
   Flame, Trash2, Plus, Search, Clock, Sparkle, ExternalLink, Maximize2, Minimize2,
   Command, Terminal, RefreshCw, PanelRight, FileText, CheckCircle2, ChevronRight,
-  Layers, ArrowUpRight
+  Layers, ArrowUpRight, Zap
 } from 'lucide-react';
 import { Task, Document, User, Priority } from '../types';
 import { callAiApi, callAiStreamApi, isAiAccessError } from '@/lib/aiClient';
@@ -108,6 +108,7 @@ interface ApexaBrainAssistantProps {
   onUpdateTask: (updatedTask: Task) => void;
   onAddTask?: (task: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress' | 'comments'>) => void;
   onAddSyncLog: (action: string) => void;
+  triggerToast?: (type: 'assignment' | 'deadline' | 'comment' | 'success' | 'info' | 'message' | 'chat_message', title: string, message: string, options?: any) => void;
 }
 
 type TabType = 'query' | 'subtasks' | 'generate-tasks';
@@ -178,7 +179,278 @@ function MarkdownTable({ rows }: { rows: string[][] }) {
   );
 }
 
-function RenderRichMarkdown({ text, isStreaming }: { text: string; isStreaming?: boolean }) {
+function AgentActionCard({
+  code,
+  onAddTask,
+  onUpdateTask,
+  tasks,
+  triggerToast,
+  locale
+}: {
+  code: string;
+  onAddTask?: (task: any) => void;
+  onUpdateTask?: (task: any) => void;
+  tasks?: Task[];
+  triggerToast?: (type: any, title: string, message: string, options?: any) => void;
+  locale?: string;
+}) {
+  const [applied, setApplied] = useState(false);
+  const isVi = locale === 'vi';
+
+  let actionData: any = null;
+  try {
+    actionData = JSON.parse(code.trim());
+  } catch {
+    return <CodeBlock code={code} lang="action" />;
+  }
+
+  if (!actionData || typeof actionData !== 'object') {
+    return <CodeBlock code={code} lang="action" />;
+  }
+
+  // Handle single task creation
+  if (actionData.action === 'create_task' || actionData.type === 'create_task') {
+    const title = actionData.title || (isVi ? 'Công việc mới từ AI Agent' : 'New Task from AI Agent');
+    const priority = actionData.priority || 'medium';
+    const dueDate = actionData.dueDate;
+    const subtasks = Array.isArray(actionData.subtasks) ? actionData.subtasks : [];
+
+    const handleExecute = () => {
+      if (!onAddTask) return;
+      onAddTask({
+        title,
+        description: actionData.description || '',
+        priority: priority as Priority,
+        status: 'todo',
+        dueDate,
+        subtasks: subtasks.map((st: string, idx: number) => ({
+          id: `st-${Date.now()}-${idx}`,
+          title: st,
+          completed: false
+        }))
+      });
+      setApplied(true);
+      triggerToast?.('success', isVi ? 'Đã tạo công việc' : 'Task Created', title);
+    };
+
+    return (
+      <div className="my-3 p-3.5 rounded-2xl bg-indigo-50/90 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 shadow-xs space-y-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs shadow-xs">
+              <Zap className="w-3.5 h-3.5" />
+            </div>
+            <span className="text-[10px] font-black uppercase text-indigo-700 dark:text-sky-300 tracking-wider">
+              {isVi ? 'Costack AI Agent · Đề xuất hành động' : 'Costack AI Agent · Proposed Action'}
+            </span>
+          </div>
+          {applied ? (
+            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+              <Check className="w-3 h-3 stroke-[3]" />
+              {isVi ? 'Đã thực thi' : 'Executed'}
+            </span>
+          ) : (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-sky-300">
+              {isVi ? 'Sẵn sàng' : 'Ready'}
+            </span>
+          )}
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="text-xs font-black text-slate-900 dark:text-white truncate">{title}</h4>
+            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              {priority}
+            </span>
+          </div>
+          {dueDate && (
+            <div className="text-[10px] text-slate-500 flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              <span>{isVi ? `Hạn chót: ${dueDate}` : `Due: ${dueDate}`}</span>
+            </div>
+          )}
+          {subtasks.length > 0 && (
+            <div className="text-[10px] text-slate-500 pt-1 border-t border-slate-100 dark:border-slate-800">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">{isVi ? `Gồm ${subtasks.length} việc phụ:` : `Includes ${subtasks.length} subtasks:`}</span>
+              <ul className="list-disc pl-4 mt-0.5 space-y-0.5">
+                {subtasks.slice(0, 3).map((st: string, idx: number) => (
+                  <li key={idx} className="truncate">{st}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 pt-0.5">
+          <button
+            type="button"
+            disabled={applied || !onAddTask}
+            onClick={handleExecute}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-xs ${
+              applied
+                ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white active:scale-95'
+            }`}
+          >
+            {applied ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <Zap className="w-3.5 h-3.5" />}
+            <span>{applied ? (isVi ? 'Đã tạo công việc' : 'Task Created') : (isVi ? 'Tạo công việc ngay' : 'Create Task Now')}</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle batch task creation
+  if ((actionData.action === 'create_multiple_tasks' || actionData.type === 'create_multiple_tasks') && Array.isArray(actionData.tasks)) {
+    const taskList = actionData.tasks;
+    const handleExecuteAll = () => {
+      if (!onAddTask) return;
+      taskList.forEach((t: any) => {
+        onAddTask({
+          title: t.title || 'Công việc từ AI Agent',
+          description: t.description || '',
+          priority: (t.priority || 'medium') as Priority,
+          status: 'todo',
+          dueDate: t.dueDate,
+          subtasks: []
+        });
+      });
+      setApplied(true);
+      triggerToast?.('success', isVi ? 'Đã tạo nhiều việc' : 'Batch Created', isVi ? `Đã tạo ${taskList.length} công việc.` : `Created ${taskList.length} tasks.`);
+    };
+
+    return (
+      <div className="my-3 p-3.5 rounded-2xl bg-indigo-50/90 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 shadow-xs space-y-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs shadow-xs">
+              <Zap className="w-3.5 h-3.5" />
+            </div>
+            <span className="text-[10px] font-black uppercase text-indigo-700 dark:text-sky-300 tracking-wider">
+              {isVi ? `Costack AI Agent · Lập kế hoạch (${taskList.length} công việc)` : `Costack AI Agent · Batch Plan (${taskList.length} tasks)`}
+            </span>
+          </div>
+          {applied && (
+            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+              <Check className="w-3 h-3 stroke-[3]" />
+              {isVi ? 'Đã tạo tất cả' : 'Created all'}
+            </span>
+          )}
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 max-h-48 overflow-y-auto">
+          {taskList.map((t: any, idx: number) => (
+            <div key={idx} className="py-1.5 flex items-center justify-between text-xs gap-2">
+              <span className="font-bold text-slate-800 dark:text-slate-200 truncate flex-1">{idx + 1}. {t.title}</span>
+              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                {t.priority || 'medium'}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 pt-0.5">
+          <button
+            type="button"
+            disabled={applied || !onAddTask}
+            onClick={handleExecuteAll}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-xs ${
+              applied
+                ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white active:scale-95'
+            }`}
+          >
+            {applied ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <Zap className="w-3.5 h-3.5" />}
+            <span>{applied ? (isVi ? 'Đã tạo thành công' : 'Tasks Created') : (isVi ? `Tạo tất cả ${taskList.length} việc` : `Create all ${taskList.length} tasks`)}</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle task status update
+  if ((actionData.action === 'update_task' || actionData.type === 'update_task') && tasks) {
+    const targetTask = tasks.find(t => t.id === actionData.taskId || t.title.toLowerCase().includes(String(actionData.taskId || actionData.title || '').toLowerCase()));
+    const newStatus = actionData.status;
+
+    const handleUpdate = () => {
+      if (!targetTask || !onUpdateTask) return;
+      onUpdateTask({
+        ...targetTask,
+        status: newStatus || targetTask.status
+      });
+      setApplied(true);
+      triggerToast?.('success', isVi ? 'Đã cập nhật công việc' : 'Task Updated', targetTask.title);
+    };
+
+    return (
+      <div className="my-3 p-3.5 rounded-2xl bg-indigo-50/90 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 shadow-xs space-y-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs shadow-xs">
+              <Zap className="w-3.5 h-3.5" />
+            </div>
+            <span className="text-[10px] font-black uppercase text-indigo-700 dark:text-sky-300 tracking-wider">
+              {isVi ? 'Costack AI Agent · Cập nhật công việc' : 'Costack AI Agent · Update Task'}
+            </span>
+          </div>
+          {applied && (
+            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+              <Check className="w-3 h-3 stroke-[3]" />
+              {isVi ? 'Đã cập nhật' : 'Updated'}
+            </span>
+          )}
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-1">
+          <h4 className="text-xs font-black text-slate-900 dark:text-white truncate">
+            {targetTask ? targetTask.title : (actionData.title || actionData.taskId)}
+          </h4>
+          <div className="text-[11px] text-slate-500">
+            {isVi ? 'Chuyển sang trạng thái: ' : 'Change status to: '}
+            <strong className="text-indigo-600 dark:text-sky-400 uppercase">{newStatus}</strong>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 pt-0.5">
+          <button
+            type="button"
+            disabled={applied || !targetTask || !onUpdateTask}
+            onClick={handleUpdate}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-xs ${
+              applied
+                ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white active:scale-95'
+            }`}
+          >
+            {applied ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <Zap className="w-3.5 h-3.5" />}
+            <span>{applied ? (isVi ? 'Đã áp dụng' : 'Applied') : (isVi ? 'Cập nhật ngay' : 'Apply Update')}</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return <CodeBlock code={code} lang="action" />;
+}
+
+function RenderRichMarkdown({
+  text,
+  isStreaming,
+  onAddTask,
+  onUpdateTask,
+  tasks,
+  triggerToast,
+  locale
+}: {
+  text: string;
+  isStreaming?: boolean;
+  onAddTask?: (task: any) => void;
+  onUpdateTask?: (task: any) => void;
+  tasks?: Task[];
+  triggerToast?: (type: any, title: string, message: string, options?: any) => void;
+  locale?: string;
+}) {
   if (!text) return null;
 
   // Pre-process fenced code blocks
@@ -205,7 +477,22 @@ function RenderRichMarkdown({ text, isStreaming }: { text: string; isStreaming?:
     if (trimmed.startsWith('```')) {
       if (inCode) {
         // End code block
-        parts.push(<CodeBlock key={`code-${index}`} code={codeBuffer.join('\n')} lang={codeLang} />);
+        const langLower = codeLang.toLowerCase();
+        if (langLower === 'action' || langLower === 'json:action') {
+          parts.push(
+            <AgentActionCard
+              key={`action-${index}`}
+              code={codeBuffer.join('\n')}
+              onAddTask={onAddTask}
+              onUpdateTask={onUpdateTask}
+              tasks={tasks}
+              triggerToast={triggerToast}
+              locale={locale}
+            />
+          );
+        } else {
+          parts.push(<CodeBlock key={`code-${index}`} code={codeBuffer.join('\n')} lang={codeLang} />);
+        }
         codeBuffer = [];
         codeLang = '';
         inCode = false;
@@ -381,7 +668,8 @@ export default function ApexaBrainAssistant({
   isOffline,
   onUpdateTask,
   onAddTask,
-  onAddSyncLog
+  onAddSyncLog,
+  triggerToast
 }: ApexaBrainAssistantProps) {
   const { locale } = useTranslation();
   const appActiveTab = useUiStore((s) => s.activeTab);
@@ -972,7 +1260,7 @@ Based on current workspace data:
   return (
     <>
       {/* PERSISTENT FLOATING BUTTON (Aura Glow + Hotkey Hint) */}
-      <div className={`fixed right-4 sm:right-6 ${appActiveTab === 'chat' ? 'bottom-20 sm:bottom-24' : 'bottom-4 sm:bottom-6'} z-40 transition-all duration-300`}>
+      <div className={`fixed right-4 sm:right-6 ${appActiveTab === 'chat' ? 'hidden pointer-events-none' : 'bottom-4 sm:bottom-6'} z-40 transition-all duration-300`}>
         <motion.button
           id="btn_apexa_ai_float"
           onClick={() => {
@@ -1035,7 +1323,7 @@ Based on current workspace data:
               }`}
             >
               {/* Top Header */}
-              <div className="p-3.5 sm:p-4 bg-white/70 dark:bg-slate-900/80 backdrop-blur-md flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800/80 relative shrink-0 select-none">
+              <div className="p-3.5 sm:p-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800/80 relative z-30 shrink-0 select-none">
                 <div className="flex items-center gap-2.5">
                   <div className="relative">
                     <ApexaAiAvatar size="sm" showGlow={true} />
@@ -1048,7 +1336,7 @@ Based on current workspace data:
                       </h2>
 
                       {/* Model Selector Pill */}
-                      <div className="relative">
+                      <div className="relative z-40">
                         <button
                           type="button"
                           onClick={() => setShowModelMenu(!showModelMenu)}
@@ -1063,7 +1351,7 @@ Based on current workspace data:
                         {showModelMenu && (
                           <>
                             <div className="fixed inset-0 z-40" onClick={() => setShowModelMenu(false)} />
-                            <div className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                            <div className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
                               <div className="px-2.5 py-1.5 border-b border-slate-100 dark:border-slate-800 text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center justify-between">
                                 <span>{locale === 'vi' ? 'Chọn mô hình Gemini' : 'Select Gemini Model'}</span>
                                 <span className="text-sky-500 font-bold">{AI_MODELS.length} models</span>
@@ -1327,8 +1615,16 @@ Based on current workspace data:
                                         </div>
                                       </div>
 
-                                      {/* Rich Markdown Output */}
-                                      <RenderRichMarkdown text={msg.text} isStreaming={streamingMessageId === msg.id} />
+                                      {/* Rich Markdown Output with Agent Action execution */}
+                                      <RenderRichMarkdown
+                                        text={msg.text}
+                                        isStreaming={streamingMessageId === msg.id}
+                                        onAddTask={onAddTask}
+                                        onUpdateTask={onUpdateTask}
+                                        tasks={tasks}
+                                        triggerToast={triggerToast}
+                                        locale={locale}
+                                      />
 
                                       {/* Follow-up Question Chips */}
                                       {msg.followUps && msg.followUps.length > 0 && (

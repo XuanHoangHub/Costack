@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { ArrowRight, ArrowUp, Mail, ShieldCheck, Zap } from 'lucide-react';
+import { ArrowRight, Mail } from 'lucide-react';
 import { useTranslation } from '@/contexts/TranslationContext';
 import s from './landing.module.css';
 
@@ -84,18 +84,10 @@ export default function LandingFooter({ onSignUp }: LandingFooterProps) {
             </a>
             <p>
               {choose(
-                'Một không gian làm việc số thống nhất cho công việc, tài liệu, tài chính và trợ lý AI thông minh. Giúp bạn và đội ngũ giải phóng thời gian để tập trung vào điều quan trọng nhất.',
-                'A unified digital workspace for tasks, docs, finances, and AI assistant. Empowering teams to streamline operations and focus on what truly matters.'
+                'Costack hợp nhất công việc, tài liệu, tài chính và AI trong một không gian làm việc. Đội ngũ phối hợp rõ ràng hơn, giảm thao tác rời rạc và tập trung vào kết quả.',
+                'Bring tasks, docs, finance, and AI into one workspace. Keep ownership clear, reduce tool switching, and help your team focus on meaningful outcomes.'
               )}
             </p>
-            <div className={s.footerSystemStatus}>
-              <span className={s.statusPulsingDot} />
-              <span>{choose('Tất cả hệ thống hoạt động ổn định · 99.9% Uptime', 'All systems operational · 99.9% Uptime')}</span>
-            </div>
-            <div className={s.footerAvaxaCopyright}>
-              <ShieldCheck size={13} className="text-sky-500 shrink-0" />
-              <span>{choose('Ứng dụng chính thức thuộc bản quyền của Avaxa', 'Official application copyrighted by Avaxa')}</span>
-            </div>
             <button type="button" className={s.textButton} onClick={onSignUp}>
               {choose('Tạo workspace miễn phí trọn đời', 'Create your free workspace')}
               <ArrowRight size={15} />
@@ -180,23 +172,7 @@ export default function LandingFooter({ onSignUp }: LandingFooterProps) {
         {/* Footer Bottom Bar */}
         <div className={s.footerBottom}>
           <div className={s.footerBottomLeft}>
-            <span>© {new Date().getFullYear()} Costack · {choose('Ứng dụng thuộc bản quyền của Avaxa. Bảo lưu mọi quyền.', 'Application copyrighted by Avaxa. All rights reserved.')}</span>
-            <span className={s.footerDivider}>•</span>
-            <span>{choose('Công việc rõ ràng. Đội ngũ bứt phá.', 'Clear work. Connected momentum.')}</span>
-          </div>
-          <div className={s.footerBottomRight}>
-            <span className="flex items-center gap-1.5 text-xs text-slate-500">
-              <ShieldCheck size={13} className="text-emerald-500" />
-              {choose('Bảo vệ bởi Row Level Security', 'Secured with RLS')}
-            </span>
-            <span className="flex items-center gap-1.5 text-xs text-slate-500">
-              <Zap size={13} className="text-amber-500" />
-              PayOS VietQR
-            </span>
-            <a href="#top" className={s.backToTopBtn}>
-              {choose('Lên đầu trang', 'Back to top')}
-              <ArrowUp size={13} />
-            </a>
+            <strong>© {new Date().getFullYear()} Costack · {choose('Ứng dụng thuộc bản quyền của Avaxa. Bảo lưu mọi quyền.', 'Application copyrighted by Avaxa. All rights reserved.')}</strong>
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createClient } from '@supabase/supabase-js';
+import { checkRateLimit, pruneRateLimitBuckets } from '@/lib/rateLimit';
 
 type CalendarOperation = 'list' | 'create' | 'update' | 'delete';
 
@@ -148,6 +149,21 @@ async function readGoogleError(response: Response) {
 
 export async function POST(request: Request) {
   try {
+    pruneRateLimitBuckets();
+    const rateLimit = checkRateLimit(request, 'google-calendar', 40, 60_000);
+    if (!rateLimit.allowed) {
+      throw new CalendarHttpError(
+        429,
+        'Quá nhiều yêu cầu đến Google Calendar. Vui lòng thử lại sau giây lát.',
+        'RATE_LIMITED',
+      );
+    }
+
+    const contentLength = Number(request.headers.get('content-length') || 0);
+    if (contentLength > 256_000) {
+      throw new CalendarHttpError(413, 'Nội dung yêu cầu vượt quá giới hạn 256KB.', 'PAYLOAD_TOO_LARGE');
+    }
+
     await requireUser(request);
     const body = await request.json() as CalendarRequestBody;
     const { operation, providerToken, providerRefreshToken } = body;
@@ -173,8 +189,8 @@ export async function POST(request: Request) {
       url = `${url}?${query.toString()}`;
     } else {
       if (operation === 'update' || operation === 'delete') {
-        if (!body.eventId || body.eventId.length > 1024) {
-          throw new CalendarHttpError(400, 'Event id is required.', 'INVALID_EVENT_ID');
+        if (!body.eventId || typeof body.eventId !== 'string' || body.eventId.length > 512 || !/^[a-zA-Z0-9_\-.:]+$/.test(body.eventId)) {
+          throw new CalendarHttpError(400, 'Event id is invalid or required.', 'INVALID_EVENT_ID');
         }
         url = `${url}/${encodeURIComponent(body.eventId)}`;
       }

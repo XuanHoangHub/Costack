@@ -149,7 +149,7 @@ export function useSupabaseSync() {
             if (!myDbProfile.department && session.user.user_metadata?.department) { updatedFields.department = session.user.user_metadata.department; myDbProfile.department = session.user.user_metadata.department; needsUpdate = true; }
             if (!myDbProfile.bio && session.user.user_metadata?.bio) { updatedFields.bio = session.user.user_metadata.bio; myDbProfile.bio = session.user.user_metadata.bio; needsUpdate = true; }
             if (!myDbProfile.joined_date && session.user.user_metadata?.joinedDate) { updatedFields.joined_date = session.user.user_metadata.joinedDate; myDbProfile.joined_date = session.user.user_metadata.joinedDate; needsUpdate = true; }
-            if (googleAvatar && (!myDbProfile.avatar || myDbProfile.avatar.includes('api.dicebear.com') || myDbProfile.avatar !== googleAvatar)) { 
+            if (googleAvatar && (!myDbProfile.avatar || myDbProfile.avatar.includes('api.dicebear.com'))) { 
               updatedFields.avatar = googleAvatar; 
               myDbProfile.avatar = googleAvatar; 
               needsUpdate = true; 
