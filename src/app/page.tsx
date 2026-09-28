@@ -35,6 +35,8 @@ import { resolveAppRole } from '@/lib/authRole';
 import { isApexaSuperAdmin } from '@/lib/admin/constants';
 
 import { NavItem } from '@/components/ui';
+import { UnreadChatHoverCard, type UnreadChatSender } from '@/components/chat/UnreadChatHoverCard';
+import { playChatChimeSound, playClickSound } from '@/lib/soundEffects';
 import { ApexaAiIcon } from '@/components/ApexaAiIcon';
 import { Select } from '@/components/ui/Select';
 import { renderSpaceIcon } from '@/components/RenderSpaceIcon';
@@ -42,6 +44,7 @@ import SignedImage from '../components/SignedImage';
 import GlobalToaster from '../components/GlobalToaster';
 import AppDocumentTitle from '../components/header/AppDocumentTitle';
 import ThemeSwitch from '../components/ThemeSwitch';
+import { executeThemeTransition } from '@/lib/themeTransition';
 import LanguageDropdown from '../components/LanguageDropdown';
 import { useTranslation } from '@/contexts/TranslationContext';
 import type { PromptModalConfig } from '../components/PromptModal';
@@ -50,6 +53,7 @@ import GlobalTimerPill from '../components/timer/GlobalTimerPill';
 import { useGlobalTimerStore } from '@/store/globalTimerStore';
 import TabErrorBoundary from '../components/TabErrorBoundary';
 import dynamic from 'next/dynamic';
+import { buildDmChannelId, resolveUserAuthId } from '@/lib/chatUtils';
 
 const ComponentLoading = () => (
   <div className="w-full h-full p-4 md:p-6 space-y-4 animate-pulse cu-page-enter">
@@ -1443,85 +1447,16 @@ export default function App() {
   const unreadNotificationsCount = useMemo(() => {
     const now = Date.now();
     const unreadNotifs = notificationsList.filter(
-      n => (!n.workspaceId || n.workspaceId === activeWorkspaceId) && !n.read && !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= now)
+      n => (!n.workspaceId || n.workspaceId === activeWorkspaceId) && !n.read && !n.isRead && !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= now)
     ).length;
-    const unreadInvites = workspaceInvitations?.length || 0;
+    const myWorkspaceIds = new Set(workspaces.map(w => w.id));
+    const unreadInvites = workspaceInvitations?.filter(
+      inv => inv.status === 'pending' && !myWorkspaceIds.has(inv.workspaceId)
+    )?.length || 0;
     return unreadNotifs + unreadInvites;
-  }, [notificationsList, workspaceInvitations, activeWorkspaceId]);
+  }, [notificationsList, workspaceInvitations, activeWorkspaceId, workspaces]);
 
-  const sidebarItemsMeta = useMemo<Record<string, { label: string; icon: React.ComponentType<any>; count?: number; badge?: string; shortcut?: string; description?: string; disabled?: boolean; disabledTooltip?: string }>>(() => {
-    const meta: Record<string, { label: string; icon: React.ComponentType<any>; count?: number; badge?: string; shortcut?: string; description?: string; disabled?: boolean; disabledTooltip?: string }> = {
-      dashboard: { 
-        label: t('homeOverview') || 'Home Overview', 
-        icon: LayoutDashboard,
-        description: locale === 'vi' ? 'Tổng quan dự án & tiến độ chung' : 'Workspace overview & metrics',
-      },
-      inbox: { 
-        label: t('inbox') || 'Inbox', 
-        icon: Inbox, 
-        count: unreadNotificationsCount,
-        description: locale === 'vi' ? 'Thông báo công việc & lời mời' : 'Notifications & updates',
-      },
-      tasks: { 
-        label: t('space') || 'Space', 
-        icon: LayoutGrid,
-        description: locale === 'vi' ? 'Không gian làm việc & danh sách việc' : 'Spaces, lists & task tracking',
-      },
-      calendar: { 
-        label: t('calendarView') || 'Calendar', 
-        icon: CalendarDays,
-        description: locale === 'vi' ? 'Lịch trình, mốc thời gian & deadline' : 'Calendar & milestone deadlines',
-      },
-      finance: { 
-        label: locale === 'vi' ? 'Tài chính & Kế toán' : 'Finance & Accounting', 
-        icon: Landmark, 
-        description: locale === 'vi' ? 'Thu chi, hóa đơn & báo cáo tài chính' : 'Finance invoicing & accounting',
-      },
-      chat: { 
-        label: t('chat') || 'Chat', 
-        icon: MessageSquare,
-        description: locale === 'vi' ? 'Kênh thảo luận & tin nhắn tức thời' : 'Channels & instant messaging',
-      },
-      team: { 
-        label: locale === 'vi' ? 'Đội nhóm' : 'Team', 
-        icon: Users,
-        description: locale === 'vi' ? 'Danh bạ thành viên & phân quyền' : 'Team directory & workspace roles',
-      },
-    };
 
-    return meta;
-  }, [locale, unreadNotificationsCount, t]);
-
-  const orderedItems = useMemo(() => {
-    const defaultOrder = DEFAULT_SIDEBAR_ORDER;
-    const currentOrder = [...sidebarOrder];
-    defaultOrder.forEach((id) => {
-      if (!currentOrder.includes(id)) {
-        currentOrder.push(id);
-      }
-    });
-    return currentOrder
-      .filter((id) => id in sidebarItemsMeta)
-      .map((id) => {
-        const meta = sidebarItemsMeta[id as keyof typeof sidebarItemsMeta] as any;
-        return {
-          id,
-          label: meta.label,
-          icon: meta.icon,
-          count: meta.count,
-          badge: meta.badge,
-          shortcut: meta.shortcut,
-          description: meta.description,
-          disabled: Boolean(meta?.disabled),
-          disabledTooltip: meta?.disabledTooltip as string | undefined,
-        };
-      });
-  }, [sidebarOrder, sidebarItemsMeta]);
-
-  const rootOrderedItems = useMemo(() => {
-    const zoneItemIds = new Set((sidebarZones || []).flatMap(z => z.itemIds));
-    return orderedItems.filter(item => !zoneItemIds.has(item.id));
-  }, [orderedItems, sidebarZones]);
 
 
 
@@ -1533,7 +1468,7 @@ export default function App() {
 
   // Dynamic Toast notification trigger function
   const triggerToast = useCallback((
-    type: 'assignment' | 'deadline' | 'comment' | 'success' | 'info' | 'message' | 'chat_message',
+    type: 'assignment' | 'deadline' | 'comment' | 'success' | 'info' | 'message' | 'chat_message' | 'error',
     title: string,
     message: string,
     options?: { taskId?: string; workspaceId?: string; persistInInbox?: boolean; action?: { label: string; onClick: () => void } }
@@ -1711,6 +1646,231 @@ export default function App() {
       action: options?.action
     });
   }, [pomodoroActive, notificationSettings, addToast, setNotificationsList, activeWorkspaceId]);
+
+  // Active channel tracking for chat
+  const activeChatChannelRef = useRef<string | null>(null);
+
+  // Unread chat senders (persistent in localStorage)
+  const [unreadChatSenders, setUnreadChatSenders] = useState<UnreadChatSender[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('costack_unread_chat_senders');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch {}
+    }
+    return [];
+  });
+
+  // Sync to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('costack_unread_chat_senders', JSON.stringify(unreadChatSenders));
+      } catch {}
+    }
+  }, [unreadChatSenders]);
+
+  // When activeTab changes away from 'chat', clear activeChatChannelRef
+  useEffect(() => {
+    if (activeTab !== 'chat') {
+      activeChatChannelRef.current = null;
+    }
+  }, [activeTab]);
+
+  // Total unread count of all incoming messages from other senders
+  const totalUnreadChatCount = useMemo(() => {
+    return unreadChatSenders.reduce((acc, s) => acc + (s.unreadCount || 0), 0);
+  }, [unreadChatSenders]);
+
+  const handleQuickReplySender = useCallback((sender: UnreadChatSender) => {
+    playClickSound();
+    setUnreadChatSenders(prev => prev.filter(s => s.senderId !== sender.senderId && s.channelId !== sender.channelId));
+    if (sender.workspaceId && sender.workspaceId !== activeWorkspaceId) {
+      setActiveWorkspaceId(sender.workspaceId);
+    }
+    if (sender.channelId) {
+      setInitialSelectedChannelId(sender.channelId);
+    }
+    setActiveTab('chat');
+  }, [activeWorkspaceId, setActiveWorkspaceId, setInitialSelectedChannelId, setActiveTab]);
+
+  const handleSendInlineReply = useCallback(async (sender: UnreadChatSender, messageText: string): Promise<boolean> => {
+    if (!messageText.trim()) return false;
+    try {
+      const newMsgId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const authId = currentUser?.userId || currentUser?.id;
+      const { error } = await supabase.from('chat_messages').insert({
+        id: newMsgId,
+        sender_id: currentUser?.id || 'user',
+        sender_name: currentUser?.name || 'User',
+        sender_avatar: currentUser?.avatar || '',
+        content: messageText.trim(),
+        timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        channel_id: sender.channelId,
+        is_ai_response: false,
+        workspace_id: sender.workspaceId || activeWorkspaceId,
+        user_id: authId,
+        attachment: null,
+        parent_id: null
+      });
+
+      if (error && error.code !== '23505') {
+        console.error('Error sending inline quick reply:', error);
+        triggerToast('info', locale === 'vi' ? 'Không gửi được' : 'Send failed', error.message);
+        return false;
+      }
+
+      setUnreadChatSenders(prev => prev.filter(s => s.senderId !== sender.senderId && s.channelId !== sender.channelId));
+      triggerToast('success', locale === 'vi' ? 'Đã phản hồi nhanh 💬' : 'Quick reply sent 💬', locale === 'vi' ? `Đã gửi tin nhắn đến ${sender.senderName}` : `Sent message to ${sender.senderName}`);
+      return true;
+    } catch (err: any) {
+      console.error('Failed to send inline reply:', err);
+      return false;
+    }
+  }, [currentUser, activeWorkspaceId, triggerToast, locale]);
+
+  const handleMarkSenderAsRead = useCallback((senderId: string, channelId: string) => {
+    playClickSound();
+    setUnreadChatSenders(prev => prev.filter(s => s.senderId !== senderId && s.channelId !== channelId));
+    if (!isOffline && channelId) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session?.user?.id) return;
+        void supabase.from('chat_read_states').upsert({
+          channel_id: channelId,
+          user_id: session.user.id,
+          last_read_at: new Date().toISOString()
+        }, { onConflict: 'channel_id,user_id' }).then(() => {});
+      });
+    }
+  }, [isOffline]);
+
+  const handleMarkAllChatAsRead = useCallback(() => {
+    playClickSound();
+    const currentList = [...unreadChatSenders];
+    setUnreadChatSenders([]);
+    if (!isOffline) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session?.user?.id) return;
+        const now = new Date().toISOString();
+        currentList.forEach(s => {
+          if (s.channelId) {
+            void supabase.from('chat_read_states').upsert({
+              channel_id: s.channelId,
+              user_id: session.user.id,
+              last_read_at: now
+            }, { onConflict: 'channel_id,user_id' }).then(() => {});
+          }
+        });
+      });
+    }
+    triggerToast('info', locale === 'vi' ? 'Đã đọc tất cả' : 'All Read', locale === 'vi' ? 'Đã đánh dấu đã đọc toàn bộ tin nhắn' : 'Marked all messages as read');
+  }, [unreadChatSenders, isOffline, triggerToast, locale]);
+
+  const handleChannelRead = useCallback((channelId: string) => {
+    activeChatChannelRef.current = channelId;
+    setUnreadChatSenders(prev => prev.filter(s => s.channelId !== channelId));
+  }, []);
+
+  const handleClearInitialSelectedChannelId = useCallback(() => {
+    setInitialSelectedChannelId(null);
+  }, []);
+
+  const unreadChatFlyout = useMemo(() => {
+    return (
+      <UnreadChatHoverCard
+        senders={unreadChatSenders}
+        onQuickReply={handleQuickReplySender}
+        onSendInlineReply={handleSendInlineReply}
+        onMarkAsRead={handleMarkSenderAsRead}
+        onMarkAllAsRead={handleMarkAllChatAsRead}
+        onOpenFullChat={() => {
+          setActiveTab('chat');
+        }}
+      />
+    );
+  }, [unreadChatSenders, handleQuickReplySender, handleSendInlineReply, handleMarkSenderAsRead, handleMarkAllChatAsRead, setActiveTab]);
+
+  const sidebarItemsMeta = useMemo<Record<string, { label: string; icon: React.ComponentType<any>; count?: number; badge?: string; badgeVariant?: 'default' | 'danger' | 'pulsing-red'; customFlyout?: React.ReactNode; shortcut?: string; description?: string; disabled?: boolean; disabledTooltip?: string }>>(() => {
+    const meta: Record<string, { label: string; icon: React.ComponentType<any>; count?: number; badge?: string; badgeVariant?: 'default' | 'danger' | 'pulsing-red'; customFlyout?: React.ReactNode; shortcut?: string; description?: string; disabled?: boolean; disabledTooltip?: string }> = {
+      dashboard: { 
+        label: t('homeOverview') || 'Home Overview', 
+        icon: LayoutDashboard,
+        description: locale === 'vi' ? 'Tổng quan dự án & tiến độ chung' : 'Workspace overview & metrics',
+      },
+      inbox: { 
+        label: t('inbox') || 'Inbox', 
+        icon: Inbox, 
+        count: unreadNotificationsCount,
+        description: locale === 'vi' ? 'Thông báo công việc & lời mời' : 'Notifications & updates',
+      },
+      tasks: { 
+        label: t('space') || 'Space', 
+        icon: LayoutGrid,
+        description: locale === 'vi' ? 'Không gian làm việc & danh sách việc' : 'Spaces, lists & task tracking',
+      },
+      calendar: { 
+        label: t('calendarView') || 'Calendar', 
+        icon: CalendarDays,
+        description: locale === 'vi' ? 'Lịch trình, mốc thời gian & deadline' : 'Calendar & milestone deadlines',
+      },
+      finance: { 
+        label: locale === 'vi' ? 'Tài chính & Kế toán' : 'Finance & Accounting', 
+        icon: Landmark, 
+        description: locale === 'vi' ? 'Thu chi, hóa đơn & báo cáo tài chính' : 'Finance invoicing & accounting',
+      },
+      chat: { 
+        label: t('chat') || 'Chat', 
+        icon: MessageSquare,
+        count: totalUnreadChatCount,
+        badgeVariant: totalUnreadChatCount > 0 ? ('pulsing-red' as const) : ('default' as const),
+        customFlyout: totalUnreadChatCount > 0 ? unreadChatFlyout : undefined,
+        description: locale === 'vi' ? 'Kênh thảo luận & tin nhắn tức thời' : 'Channels & instant messaging',
+      },
+      team: { 
+        label: locale === 'vi' ? 'Đội nhóm' : 'Team', 
+        icon: Users,
+        description: locale === 'vi' ? 'Danh bạ thành viên & phân quyền' : 'Team directory & workspace roles',
+      },
+    };
+
+    return meta;
+  }, [locale, unreadNotificationsCount, t, totalUnreadChatCount, unreadChatFlyout]);
+
+  const orderedItems = useMemo(() => {
+    const defaultOrder = DEFAULT_SIDEBAR_ORDER;
+    const currentOrder = [...sidebarOrder];
+    defaultOrder.forEach((id) => {
+      if (!currentOrder.includes(id)) {
+        currentOrder.push(id);
+      }
+    });
+    return currentOrder
+      .filter((id) => id in sidebarItemsMeta)
+      .map((id) => {
+        const meta = sidebarItemsMeta[id as keyof typeof sidebarItemsMeta] as any;
+        return {
+          id,
+          label: meta.label,
+          icon: meta.icon,
+          count: meta.count,
+          badge: meta.badge,
+          badgeVariant: meta.badgeVariant,
+          customFlyout: meta.customFlyout,
+          shortcut: meta.shortcut,
+          description: meta.description,
+          disabled: Boolean(meta?.disabled),
+          disabledTooltip: meta?.disabledTooltip as string | undefined,
+        };
+      });
+  }, [sidebarOrder, sidebarItemsMeta]);
+
+  const rootOrderedItems = useMemo(() => {
+    const zoneItemIds = new Set((sidebarZones || []).flatMap(z => z.itemIds));
+    return orderedItems.filter(item => !zoneItemIds.has(item.id));
+  }, [orderedItems, sidebarZones]);
 
   const [inviteTokenParam, setInviteTokenParam] = useState<string | null>(null);
   const hasHandledParamsRef = useRef(false);
@@ -1928,6 +2088,112 @@ export default function App() {
     }
   }, [activeTab, setActiveTab]);
 
+  // Query initial unread direct messages from Supabase on mount
+  useEffect(() => {
+    if (!currentUser || isOffline) return;
+    let active = true;
+
+    const fetchInitialUnreadDms = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const authId = session?.user?.id || currentUser?.userId || currentUser?.id;
+        if (!authId) return;
+
+        // Fetch user read states
+        const { data: readStates } = await supabase
+          .from('chat_read_states')
+          .select('channel_id, last_read_at')
+          .eq('user_id', authId);
+
+        const readsMap: Record<string, string> = {};
+        (readStates || []).forEach((row: any) => {
+          if (row.channel_id && row.last_read_at) {
+            readsMap[row.channel_id] = row.last_read_at;
+          }
+        });
+
+        // Query recent messages to identify unread direct messages
+        const { data: recentMsgs } = await supabase
+          .from('chat_messages')
+          .select('id, sender_id, sender_name, sender_avatar, content, timestamp, channel_id, workspace_id, user_id, is_ai_response, attachment, created_at')
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        if (!active) return;
+        if (!recentMsgs || recentMsgs.length === 0) {
+          setUnreadChatSenders([]);
+          try { localStorage.removeItem('costack_unread_chat_senders'); } catch {}
+          return;
+        }
+
+        const myIdentities = [currentUser.id, currentUser.userId, authId].filter(
+          (id): id is string => Boolean(id && id !== 'user')
+        );
+        const sendersMap = new Map<string, UnreadChatSender>();
+
+        recentMsgs.forEach((msg: any) => {
+          if (isSelfChatMessage(msg, currentUser, authId)) return;
+          const chanId = msg.channel_id || '';
+          const isDm = chanId.includes(':dm-');
+
+          if (isDm) {
+            if (myIdentities.length > 0) {
+              const involvesMe = myIdentities.some(id => chanId.includes(id));
+              if (!involvesMe) return;
+            } else if (!chanId.includes('user')) {
+              return;
+            }
+          } else {
+            // For channels/groups, only consider messages in current workspace
+            if (msg.workspace_id && msg.workspace_id !== activeWorkspaceId) return;
+          }
+
+          const lastRead = readsMap[chanId];
+          if (lastRead && msg.created_at && new Date(msg.created_at) <= new Date(lastRead)) {
+            return;
+          }
+
+          const senderId = (msg.sender_id || msg.user_id || 'peer').trim();
+          const senderName = msg.sender_name || (locale === 'vi' ? 'Người dùng' : 'Team Member');
+          const senderAvatar = msg.sender_avatar || '';
+          const preview = msg.content
+            ? msg.content.length > 60 ? msg.content.slice(0, 60) + '…' : msg.content
+            : msg.attachment ? (locale === 'vi' ? '📎 Tệp đính kèm' : '📎 Attachment') : (locale === 'vi' ? 'Tin nhắn mới' : 'New message');
+
+          if (!sendersMap.has(senderId)) {
+            sendersMap.set(senderId, {
+              senderId,
+              senderName,
+              senderAvatar,
+              channelId: chanId,
+              workspaceId: msg.workspace_id,
+              lastMessage: preview,
+              timestamp: msg.timestamp || new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+              unreadCount: 1,
+              isDm
+            });
+          } else {
+            const existing = sendersMap.get(senderId)!;
+            existing.unreadCount += 1;
+          }
+        });
+
+        if (active) {
+          const validSenders = Array.from(sendersMap.values());
+          setUnreadChatSenders(validSenders);
+          if (validSenders.length === 0) {
+            try { localStorage.removeItem('costack_unread_chat_senders'); } catch {}
+          }
+        }
+      } catch (e) {
+        console.warn('Initial unread chats sync failed:', e);
+      }
+    };
+
+    fetchInitialUnreadDms();
+    return () => { active = false; };
+  }, [currentUser, isOffline, locale, activeWorkspaceId]);
+
   useEffect(() => {
     if (!currentUser || isOffline) return;
 
@@ -1940,18 +2206,76 @@ export default function App() {
           if (!msg) return;
           // Loại trừ triệt để tin nhắn của chính bản thân người dùng và AI
           if (isSelfChatMessage(msg, currentUser)) return;
-          // Bỏ qua nếu đang xem tab Chat (ChatRoom sẽ tự xử lý thông báo kênh/inbox riêng)
-          if (activeTabRef.current === 'chat') return;
+          // Bỏ qua nếu đang xem tab Chat và đang xem đúng kênh đó
+          if (activeTabRef.current === 'chat' && activeChatChannelRef.current === msg.channel_id) return;
+
+          const isDm = Boolean(msg.channel_id && msg.channel_id.includes(':dm-'));
+          const myIdentities = [currentUser.id, currentUser.userId].filter(
+            (id): id is string => Boolean(id && id !== 'user')
+          );
+
+          if (isDm) {
+            if (myIdentities.length > 0) {
+              const involvesMe = myIdentities.some(id => msg.channel_id?.includes(id));
+              if (!involvesMe) return;
+            } else if (!msg.channel_id?.includes('user')) {
+              return;
+            }
+          } else {
+            if (msg.workspace_id && msg.workspace_id !== activeWorkspaceId) return;
+          }
+
+          // Phát âm thanh chuông chime thông báo nổi bật ngay lập tức
+          playChatChimeSound();
 
           const senderName = msg.sender_name || (locale === 'vi' ? 'Người dùng' : 'Team Member');
+          const senderAvatar = msg.sender_avatar || '';
           const preview = msg.content
             ? msg.content.length > 60 ? msg.content.slice(0, 60) + '…' : msg.content
             : msg.attachment ? (locale === 'vi' ? '📎 Tệp đính kèm' : '📎 Attachment') : (locale === 'vi' ? 'Tin nhắn mới' : 'New message');
 
+          const senderId = (msg.sender_id || msg.user_id || 'peer').trim();
+          const formattedTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+          const newSenderItem: UnreadChatSender = {
+            senderId,
+            senderName,
+            senderAvatar,
+            channelId: msg.channel_id,
+            workspaceId: msg.workspace_id,
+            lastMessage: preview,
+            timestamp: formattedTime,
+            unreadCount: 1,
+            isDm
+          };
+
+          // Cập nhật danh sách người nhắn chưa đọc
+          setUnreadChatSenders(prev => {
+            const existingIdx = prev.findIndex(s => s.senderId === senderId || (isDm && s.channelId === msg.channel_id));
+            if (existingIdx >= 0) {
+              const updated = [...prev];
+              updated[existingIdx] = {
+                ...updated[existingIdx],
+                senderName: senderName || updated[existingIdx].senderName,
+                senderAvatar: senderAvatar || updated[existingIdx].senderAvatar,
+                lastMessage: preview,
+                timestamp: formattedTime,
+                unreadCount: (updated[existingIdx].unreadCount || 0) + 1,
+                channelId: msg.channel_id,
+                workspaceId: msg.workspace_id || updated[existingIdx].workspaceId,
+                isDm
+              };
+              const [item] = updated.splice(existingIdx, 1);
+              return [item, ...updated];
+            } else {
+              return [newSenderItem, ...prev];
+            }
+          });
+
           let channelLabel = '';
           if (msg.channel_id) {
-            if (msg.channel_id.includes(':dm-')) {
-              channelLabel = locale === 'vi' ? ' (Tin nhắn riêng)' : ' (Direct Message)';
+            if (isDm) {
+              channelLabel = locale === 'vi' ? ' (Tin nhắn trực tiếp)' : ' (Direct Message)';
             } else {
               const rawName = msg.channel_id.split(':').pop();
               if (rawName) {
@@ -1962,15 +2286,9 @@ export default function App() {
 
           triggerToast('chat_message', `💬 ${senderName}${channelLabel}`, preview, {
             action: {
-              label: locale === 'vi' ? 'Mở chat' : 'Open Chat',
+              label: locale === 'vi' ? 'Trả lời ngay' : 'Reply Now',
               onClick: () => {
-                if (msg.channel_id) {
-                  setInitialSelectedChannelId(msg.channel_id);
-                }
-                if (msg.workspace_id && msg.workspace_id !== activeWorkspaceId) {
-                  setActiveWorkspaceId(msg.workspace_id);
-                }
-                setActiveTab('chat');
+                handleQuickReplySender(newSenderItem);
               }
             }
           });
@@ -1990,13 +2308,7 @@ export default function App() {
               });
               notif.onclick = () => {
                 window.focus();
-                if (msg.channel_id) {
-                  setInitialSelectedChannelId(msg.channel_id);
-                }
-                if (msg.workspace_id && msg.workspace_id !== activeWorkspaceId) {
-                  setActiveWorkspaceId(msg.workspace_id);
-                }
-                setActiveTab('chat');
+                handleQuickReplySender(newSenderItem);
               };
             } catch {}
           }
@@ -2007,7 +2319,7 @@ export default function App() {
     return () => {
       supabase.removeChannel(sub);
     };
-  }, [currentUser, isOffline, triggerToast, setInitialSelectedChannelId, setActiveWorkspaceId, setActiveTab, activeWorkspaceId, locale]);
+  }, [currentUser, isOffline, triggerToast, handleQuickReplySender, locale]);
 
   const accountPresenceStatus = isOffline
     ? 'offline'
@@ -5254,6 +5566,7 @@ export default function App() {
           return (
             <NavItem
               key={item.id}
+              id={item.id}
               icon={item.icon}
               label={item.label}
               shortLabel={getShortLabel(item.label)}
@@ -5262,6 +5575,8 @@ export default function App() {
               isActive={isActive}
               count={item.count}
               badge={item.badge}
+              badgeVariant={(item as any).badgeVariant}
+              customFlyout={(item as any).customFlyout}
               disabled={item.disabled}
               disabledTooltip={item.disabledTooltip}
               collapsed={collapsed}
@@ -6238,7 +6553,7 @@ export default function App() {
                               type="button"
                               onClick={() => {
                                 const activeIds = activeNotifications.map(n => n.id);
-                                setNotificationsList(prev => prev.map(n => activeIds.includes(n.id) ? { ...n, cleared: true } : n));
+                                setNotificationsList(prev => prev.map(n => activeIds.includes(n.id) ? { ...n, cleared: true, read: true, isRead: true } : n));
                                 (window as any).playSystemSound?.('delete');
                               }}
                               className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors cursor-pointer"
@@ -6618,10 +6933,12 @@ export default function App() {
                       {/* Quick Dark/Light Mode Switcher */}
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
                           const nextTheme = isDarkMode ? 'light' : 'dark';
-                          setThemePreference(nextTheme);
                           (window as any).playSystemSound?.('pop');
+                          executeThemeTransition(nextTheme, e, () => {
+                            setThemePreference(nextTheme);
+                          });
                         }}
                         className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/70 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer group"
                       >
@@ -6750,12 +7067,14 @@ export default function App() {
                   return (
                     <NavItem
                       key={`mobile-${item.id}`}
+                      id={item.id}
                       icon={item.icon}
                       label={item.label}
                       shortLabel={getShortLabel(item.label)}
                       isActive={isActive}
                       count={item.count}
                       badge={item.badge}
+                      badgeVariant={(item as any).badgeVariant}
                       disabled={item.disabled}
                       disabledTooltip={item.disabledTooltip}
                       onClick={() => handleNavItemClick(item.id, item.label, item.disabled)}
@@ -6869,7 +7188,7 @@ export default function App() {
                       ? 'overflow-hidden' 
                       : activeTab === 'dashboard'
                         ? 'apexa-route-scroll overflow-y-auto custom-scrollbar'
-                        : 'apexa-route-scroll overflow-y-auto p-2.5 pb-12 sm:p-3 md:p-4 lg:p-6 custom-scrollbar'
+                        : 'apexa-route-scroll overflow-y-auto p-2.5 pb-12 sm:p-3 md:p-4 lg:p-6 xl:p-7 custom-scrollbar'
                   }`}
                 >
                   <TabErrorBoundary
@@ -7065,12 +7384,12 @@ export default function App() {
                       currentUser={currentUser}
                       onSendWorkspaceInvites={handleSendWorkspaceInvites}
                       onStartChat={(memberId) => {
-                        const currentUserId = currentUser?.id || 'user';
-                        const sortedIds = [currentUserId, memberId].sort();
-                        const dmChannelId = `${activeWorkspaceId || 'w1'}:dm-${sortedIds[0]}-${sortedIds[1]}`;
+                        const targetMember = currentWorkspaceMembers.find(m => m.id === memberId || m.userId === memberId);
+                        const myId = resolveUserAuthId(currentUser);
+                        const peerId = targetMember ? resolveUserAuthId(targetMember) : memberId;
+                        const dmChannelId = buildDmChannelId(activeWorkspaceId, myId, peerId);
                         setInitialSelectedChannelId(dmChannelId);
                         setActiveTab('chat');
-                        const targetMember = currentWorkspaceMembers.find(m => m.id === memberId);
                         triggerToast('info', 'Chat đội nhóm', targetMember ? `Đang mở cuộc trò chuyện với ${targetMember.name}.` : 'Đang chuyển đến kênh trò chuyện.');
                       }}
                     />
@@ -7085,7 +7404,8 @@ export default function App() {
                       triggerToast={triggerToast}
                       activeTab={activeTab}
                       initialSelectedChannelId={initialSelectedChannelId}
-                      onClearInitialSelectedChannelId={() => setInitialSelectedChannelId(null)}
+                      onClearInitialSelectedChannelId={handleClearInitialSelectedChannelId}
+                      onChannelRead={handleChannelRead}
                       workspaceId={activeWorkspaceId}
                       spaces={spaces.filter(s => s.workspaceId === activeWorkspaceId)}
                       onSaveSpaces={handleSaveSpaces}

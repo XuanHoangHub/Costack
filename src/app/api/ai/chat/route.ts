@@ -3,7 +3,7 @@ import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, readAiJ
 
 export async function POST(request: Request) {
   try {
-    const { message, history, context, model, temperature, googleSearch, stream: wantStream } = await readAiJson<any>(request);
+    const { message, history, context, taskContext, model, temperature, googleSearch, stream: wantStream } = await readAiJson<any>(request);
     const client = await getAuthorizedGeminiClient(request, 512_000);
 
     let systemPrompt = `You are Costack AI Agent, an autonomous productivity assistant integrated into Costack OS. You are fluent in English and Vietnamese, professional, helpful, concise, and structured. Always respond in the same language that the user uses or requests.
@@ -22,7 +22,10 @@ When asked to create tasks, organize sprints, plan projects, or update statuses,
 \`\`\`
 The Costack UI will automatically convert this block into an interactive 1-click execution card for the user.`;
 
-    if (context && typeof context === 'object') {
+    const stringContext = taskContext || (typeof context === 'string' ? context : null);
+    if (stringContext) {
+      systemPrompt += `\n\nBỐI CẢNH CÔNG VIỆC/SPACE ĐANG LÀM VIỆC:\n${stringContext}`;
+    } else if (context && typeof context === 'object') {
       systemPrompt += `\n\nTHÔNG TIN BỐI CẢNH DỰ ÁN THỜI GIAN THỰC CỦA NGƯỜI DÙNG:
 - Tổng số công việc: ${context.totalTasks ?? 'Chưa rõ'}
 - Việc đến hạn hôm nay: ${context.dueTodayCount ?? 0}

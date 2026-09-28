@@ -365,24 +365,27 @@ html.dark, html.dark body {
   color-scheme: dark;
 }
 
-/* ── Modern Number & Monospace Typography ── */
+/* ── Modern Clean Sans-Serif Number Typography (No Serif / Foot on digits) ── */
+.font-numeric,
+.tabular-nums,
+[data-numeric] {
+  font-family: var(--font-numeric), var(--font-sans), -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", sans-serif !important;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1;
+}
+
 .font-mono,
 [data-font-mono] {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-}
-
-.font-numeric {
-  font-family: var(--font-numeric);
+  font-family: var(--font-numeric), var(--font-sans), -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", sans-serif !important;
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum" 1;
 }
 
-.tabular-nums {
-  font-family: var(--font-numeric);
-  font-variant-numeric: tabular-nums lining-nums;
-  font-feature-settings: "tnum" 1;
+/* Ensure code blocks retain monospaced formatting while numbers in UI remain clean sans-serif */
+pre code,
+code.code-block,
+pre {
+  font-family: var(--font-mono) !important;
 }
 
 /* Accessible keyboard entry point shared by the public site and product shell. */
@@ -567,32 +570,32 @@ button,
 
 
 
-/* Settings → Interface Depth controls every glass surface consistently, while keeping modal backdrops soft and natural. */
-html[data-blur-intensity='soft'] [class*='backdrop-blur']:not(.modal-backdrop):not([data-modal-backdrop]) {
+/* Settings → Interface Depth controls subtle surface depth, strictly excluding all modal backdrops/overlays to eliminate frosted glass */
+html[data-blur-intensity='soft'] [class*='backdrop-blur']:not(.modal-backdrop):not([data-modal-backdrop]):not(.modal-backdrop-blur):not(.fixed):not(.absolute) {
   -webkit-backdrop-filter: blur(4px) !important;
   backdrop-filter: blur(4px) !important;
 }
 
-html[data-blur-intensity='default'] [class*='backdrop-blur']:not(.modal-backdrop):not([data-modal-backdrop]) {
-  -webkit-backdrop-filter: blur(12px) !important;
-  backdrop-filter: blur(12px) !important;
+html[data-blur-intensity='default'] [class*='backdrop-blur']:not(.modal-backdrop):not([data-modal-backdrop]):not(.modal-backdrop-blur):not(.fixed):not(.absolute) {
+  -webkit-backdrop-filter: blur(6px) !important;
+  backdrop-filter: blur(6px) !important;
 }
 
-html[data-blur-intensity='immersive'] [class*='backdrop-blur']:not(.modal-backdrop):not([data-modal-backdrop]) {
-  -webkit-backdrop-filter: blur(20px) saturate(1.1) !important;
-  backdrop-filter: blur(20px) saturate(1.1) !important;
+html[data-blur-intensity='immersive'] [class*='backdrop-blur']:not(.modal-backdrop):not([data-modal-backdrop]):not(.modal-backdrop-blur):not(.fixed):not(.absolute) {
+  -webkit-backdrop-filter: blur(10px) !important;
+  backdrop-filter: blur(10px) !important;
 }
 
 .ios27-glass, .liquid-glass {
-  background-color: rgba(248, 250, 252, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .dark .ios27-glass, .dark .liquid-glass {
-  background-color: rgba(20, 22, 34, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background-color: rgba(20, 22, 34, 0.95);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .glass-panel, .ios27-card {
@@ -607,21 +610,31 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur']:not(.modal-backdr
   box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.45);
 }
 
-/* Modern frosted modal backdrop: smooth glass blur with refined dark tint */
+/* Clean Crisp Modal Backdrop: Zero frosted glass blur across the entire application */
 .modal-backdrop,
 [data-modal-backdrop],
-.modal-backdrop-blur {
+.modal-backdrop-blur,
+.modal-backdrop-none {
   background-color: rgba(15, 23, 42, 0.45) !important;
-  backdrop-filter: blur(10px) saturate(1.2) !important;
-  -webkit-backdrop-filter: blur(10px) saturate(1.2) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .dark .modal-backdrop,
 .dark [data-modal-backdrop],
-.dark .modal-backdrop-blur {
+.dark .modal-backdrop-blur,
+.dark .modal-backdrop-none {
   background-color: rgba(0, 0, 0, 0.65) !important;
-  backdrop-filter: blur(12px) saturate(1.2) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(1.2) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Global suppression of frosted glass blur on any modal overlays, dialogs, drawers */
+.fixed.inset-0:where([class*='bg-slate-9'], [class*='bg-black'], [class*='bg-slate-8']),
+.absolute.inset-0:where([class*='bg-slate-9'], [class*='bg-black'], [class*='bg-slate-8']),
+div:has(> [role='dialog']):where(.fixed.inset-0) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 /* ── Modern Motion & Spring Easing Curves ── */
@@ -3876,5 +3889,41 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   -webkit-text-fill-color: transparent;
 }
 
+/* Circular Reveal Ripple Theme Transition */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 9999;
+}
+.dark::view-transition-old(root) {
+  z-index: 1;
+}
+.dark::view-transition-new(root) {
+  z-index: 9999;
+}
 
+/* ── Modern Universal Text Box & Input Refinements ── */
+input[type="text"],
+input[type="search"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+textarea {
+  transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+/* Prevent unwanted focus rings on inputs inside custom styled containers */
+:where(.space-quick-create, .space-list-search, [data-no-focus-outline="true"]) input,
+input[data-no-focus-outline="true"] {
+  outline: none !important;
+  box-shadow: none !important;
+}
 

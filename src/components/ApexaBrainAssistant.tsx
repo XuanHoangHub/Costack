@@ -1306,7 +1306,7 @@ Based on current workspace data:
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 cursor-default transition-all"
+              className="fixed inset-0 bg-black/40 z-50 cursor-default transition-all"
             />
 
             {/* AI Assistant Container */}
@@ -1319,7 +1319,7 @@ Based on current workspace data:
               className={`fixed z-50 flex flex-col bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-slate-100 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xl overflow-hidden ${
                 viewMode === 'drawer'
                   ? 'right-0 top-0 bottom-0 w-full sm:w-[540px] md:w-[600px] border-l'
-                  : 'inset-2 sm:inset-6 md:inset-10 max-w-4xl m-auto h-[90vh] sm:h-[85vh] rounded-3xl'
+                  : 'inset-2 sm:inset-6 md:inset-10 max-w-5xl 2xl:max-w-6xl m-auto h-[90vh] sm:h-[85vh] rounded-3xl'
               }`}
             >
               {/* Top Header */}

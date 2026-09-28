@@ -1,10 +1,10 @@
 "use client";
 
-import { validateFieldDefinition, migrateTaskCustomField, isEmptyFieldValue, customFieldDefault } from "@/lib/customFields";
-import { getStoredColumnNames, saveColumnNames, saveStatuses, savePriorities, getStoredStatuses, getStoredPriorities } from "@/utils/fieldConfig";
+import { validateFieldDefinition, migrateTaskCustomField, isEmptyFieldValue, customFieldDefault, RESERVED_FIELD_NAMES } from "@/lib/customFields";
+import { getStoredColumnNames, saveColumnNames, saveStatuses, savePriorities, getStoredStatuses, getStoredPriorities, COLOR_PALETTE, getColorOption } from "@/utils/fieldConfig";
 import { useSpaceStore } from "@/store/spaceStore";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -41,9 +41,10 @@ import {
   Info,
   ArrowUpDown,
   ListChecks,
-  CheckCircle2
+  CheckCircle2,
+  ArrowLeft
 } from 'lucide-react';
-import { Task } from '../../types';
+import { Task, CustomFieldDefinition } from '../../types';
 import { useTranslation } from '../../contexts/TranslationContext';
 import FieldSettingsModal, { ALL_FIELD_TYPES } from './FieldSettingsModal';
 
@@ -113,6 +114,685 @@ const FIELD_CATEGORY_META: Record<string, { category: 'popular' | 'metrics' | 'c
   member: { category: 'popular', tags: ['Phân công', 'Thành viên', 'Avatar'], tagsEn: ['Assignee', 'Members', 'Avatar'] }
 };
 
+function QuickFieldSetupForm({
+  config,
+  onChange,
+  onSave,
+  onCancel,
+  onAdvanced,
+  onDelete,
+  existingFields,
+  isVi,
+  locale,
+  onClose
+}: {
+  config: any;
+  onChange: React.Dispatch<React.SetStateAction<any>>;
+  onSave: () => void;
+  onCancel: () => void;
+  onAdvanced: () => void;
+  onDelete?: () => void;
+  existingFields: CustomFieldDefinition[];
+  isVi: boolean;
+  locale: string;
+  onClose?: () => void;
+}) {
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const [newOptionText, setNewOptionText] = useState('');
+  const [activeColorPickerId, setActiveColorPickerId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (nameInputRef.current) {
+        nameInputRef.current.focus();
+        nameInputRef.current.select();
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [config.id]);
+
+  const fieldMeta = ALL_FIELD_TYPES.find(f => f.id === config.type) || ALL_FIELD_TYPES[0];
+  const IconComp = fieldMeta.icon;
+
+  const trimmedName = config.name?.trim() || '';
+  const isDuplicate = existingFields.some(
+    f => f.id !== config.id && f.name.trim().toLowerCase() === trimmedName.toLowerCase()
+  );
+  const isReserved = RESERVED_FIELD_NAMES.has(trimmedName.toLowerCase());
+  const nameError = !trimmedName
+    ? (isVi ? 'Vui lòng nhập tên trường' : 'Field name is required')
+    : isDuplicate
+    ? (isVi ? 'Tên trường đã tồn tại trong Space' : 'Field name already exists')
+    : isReserved
+    ? (isVi ? 'Tên trường được hệ thống sử dụng' : 'Field name is reserved')
+    : null;
+
+  const handleFormSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (nameError) {
+      nameInputRef.current?.focus();
+      return;
+    }
+    onSave();
+  };
+
+  const handleAddOption = () => {
+    const val = newOptionText.trim();
+    if (!val) return;
+    const currentOptions = config.options || [];
+    const palette = ['blue', 'emerald', 'amber', 'purple', 'rose', 'cyan', 'indigo', 'orange'];
+    const nextColor = palette[currentOptions.length % palette.length];
+    const newOpt = {
+      id: `opt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      label: val,
+      color: nextColor
+    };
+    onChange((prev: any) => ({
+      ...prev,
+      options: [...(prev.options || []), newOpt]
+    }));
+    setNewOptionText('');
+  };
+
+  const handleRemoveOption = (id: string) => {
+    onChange((prev: any) => ({
+      ...prev,
+      options: (prev.options || []).filter((opt: any) => opt.id !== id)
+    }));
+  };
+
+  const handleUpdateOptionColor = (id: string, color: string) => {
+    onChange((prev: any) => ({
+      ...prev,
+      options: (prev.options || []).map((opt: any) => opt.id === id ? { ...opt, color } : opt)
+    }));
+    setActiveColorPickerId(null);
+  };
+
+  const handleUpdateOptionLabel = (id: string, label: string) => {
+    onChange((prev: any) => ({
+      ...prev,
+      options: (prev.options || []).map((opt: any) => opt.id === id ? { ...opt, label } : opt)
+    }));
+  };
+
+  return (
+    <form onSubmit={handleFormSubmit} className="flex flex-col h-full overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="w-6 h-6 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+            title={isVi ? 'Quay lại danh sách' : 'Back to types'}
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+          </button>
+
+          <div className="w-6 h-6 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+            <IconComp className="w-3.5 h-3.5 stroke-[2]" />
+          </div>
+
+          <div className="min-w-0">
+            <h3 className="text-xs font-bold text-slate-800 dark:text-zinc-100 truncate leading-tight flex items-center gap-1.5">
+              <span>{isVi ? 'Cài đặt:' : 'Setup:'} {isVi ? fieldMeta.label.split('(')[0].trim() : fieldMeta.labelEn}</span>
+              <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.2 rounded-md shrink-0">
+                {config.isNew ? (isVi ? 'Tạo nhanh' : 'Quick add') : (isVi ? 'Chỉnh sửa' : 'Edit')}
+              </span>
+            </h3>
+            <p className="text-[10px] text-slate-400 dark:text-zinc-400 truncate">
+              {isVi ? fieldMeta.desc : ((fieldMeta as any).descEn || fieldMeta.desc)}
+            </p>
+          </div>
+        </div>
+
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-6 h-6 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+            title={isVi ? 'Đóng (Esc)' : 'Close (Esc)'}
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-3.5 space-y-3.5">
+        {/* Field Name Input */}
+        <div className="space-y-1">
+          <label className="text-[11px] font-bold text-slate-700 dark:text-zinc-300 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Tag className="w-3 h-3 text-blue-500" />
+              <span>{isVi ? 'Tên trường dữ liệu' : 'Field Name'} <span className="text-rose-500">*</span></span>
+            </span>
+            <span className="text-[9.5px] font-normal text-slate-400">
+              {isVi ? 'Enter để tạo' : 'Enter to save'}
+            </span>
+          </label>
+          <div className="relative">
+            <input
+              ref={nameInputRef}
+              type="text"
+              value={config.name || ''}
+              onChange={e => onChange((prev: any) => ({ ...prev, name: e.target.value }))}
+              placeholder={isVi ? 'VD: Doanh thu, Khách hàng, Trạng thái...' : 'Enter field name...'}
+              className={`w-full px-3 py-1.5 text-xs font-bold rounded-xl border bg-slate-50/60 dark:bg-zinc-800/80 text-slate-800 dark:text-zinc-100 outline-none transition-all ${
+                nameError
+                  ? 'border-rose-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20'
+                  : 'border-slate-200/90 dark:border-zinc-700 focus:border-blue-500 focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-blue-500/20'
+              }`}
+            />
+            {config.name && (
+              <button
+                type="button"
+                onClick={() => onChange((prev: any) => ({ ...prev, name: '' }))}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 text-xs"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          {nameError && (
+            <p className="text-[10px] font-semibold text-rose-500 flex items-center gap-1 pt-0.5">
+              <span>⚠</span> {nameError}
+            </p>
+          )}
+        </div>
+
+        {/* Type Specific Quick Controls */}
+        {config.type === 'number' && (
+          <div className="p-2.5 rounded-xl bg-slate-50/80 dark:bg-zinc-850/60 border border-slate-200/70 dark:border-zinc-800 space-y-2.5">
+            <div className="space-y-1">
+              <span className="text-[10.5px] font-bold text-slate-600 dark:text-zinc-300">
+                {isVi ? 'Định dạng số' : 'Number Format'}
+              </span>
+              <div className="grid grid-cols-3 gap-1">
+                {[
+                  { id: 'normal', label: '1,234', title: isVi ? 'Số thường' : 'Normal' },
+                  { id: 'percent', label: '%', title: isVi ? 'Phần trăm' : 'Percent' },
+                  { id: 'currency', label: isVi ? '₫ Tiền' : '$ Currency', title: isVi ? 'Tiền tệ' : 'Currency' }
+                ].map(fmt => (
+                  <button
+                    key={fmt.id}
+                    type="button"
+                    onClick={() => onChange((prev: any) => ({
+                      ...prev,
+                      numberFormat: fmt.id,
+                      numberUnit: fmt.id === 'percent' ? '%' : fmt.id === 'currency' ? (isVi ? '₫' : '$') : ''
+                    }))}
+                    className={`py-1 px-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      config.numberFormat === fmt.id
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border border-slate-200/80 dark:border-zinc-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {fmt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <span className="text-[10.5px] font-bold text-slate-600 dark:text-zinc-300">
+                  {isVi ? 'Chữ số thập phân' : 'Decimals'}
+                </span>
+                <div className="flex items-center gap-1">
+                  {[0, 1, 2].map(prec => (
+                    <button
+                      key={prec}
+                      type="button"
+                      onClick={() => onChange((prev: any) => ({ ...prev, numberPrecision: prec }))}
+                      className={`flex-1 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                        config.numberPrecision === prec
+                          ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-500 text-blue-600 dark:text-blue-400 font-extrabold'
+                          : 'bg-white dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-400'
+                      }`}
+                    >
+                      {prec}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-[10.5px] font-bold text-slate-600 dark:text-zinc-300">
+                  {isVi ? 'Đơn vị đo' : 'Unit'}
+                </span>
+                <input
+                  type="text"
+                  value={config.numberUnit || ''}
+                  onChange={e => onChange((prev: any) => ({ ...prev, numberUnit: e.target.value }))}
+                  placeholder={isVi ? 'VD: kg, cái, h' : 'e.g. kg, pcs, h'}
+                  className="w-full px-2.5 py-1 text-xs rounded-lg border border-slate-200/80 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 outline-none focus:border-blue-500 font-medium"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {config.type === 'money' && (
+          <div className="p-2.5 rounded-xl bg-slate-50/80 dark:bg-zinc-850/60 border border-slate-200/70 dark:border-zinc-800 space-y-2.5">
+            <div className="space-y-1">
+              <span className="text-[10.5px] font-bold text-slate-600 dark:text-zinc-300">
+                {isVi ? 'Ký hiệu tiền tệ' : 'Currency Symbol'}
+              </span>
+              <div className="grid grid-cols-4 gap-1">
+                {[
+                  { sym: '₫', pos: 'suffix', label: '₫ VNĐ' },
+                  { sym: '$', pos: 'prefix', label: '$ USD' },
+                  { sym: '€', pos: 'prefix', label: '€ EUR' },
+                  { sym: '¥', pos: 'prefix', label: '¥ JPY' }
+                ].map(curr => (
+                  <button
+                    key={curr.sym}
+                    type="button"
+                    onClick={() => onChange((prev: any) => ({
+                      ...prev,
+                      currencySymbol: curr.sym,
+                      currencyPosition: curr.pos
+                    }))}
+                    className={`py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      config.currencySymbol === curr.sym
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border border-slate-200/80 dark:border-zinc-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {curr.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-zinc-800">
+              <span className="text-[10.5px] font-bold text-slate-600 dark:text-zinc-300">
+                {isVi ? 'Vị trí hiển thị' : 'Position'}
+              </span>
+              <div className="flex items-center gap-1 bg-white dark:bg-zinc-800 p-0.5 rounded-lg border border-slate-200/80 dark:border-zinc-700">
+                <button
+                  type="button"
+                  onClick={() => onChange((prev: any) => ({ ...prev, currencyPosition: 'prefix' }))}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                    config.currencyPosition === 'prefix'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-slate-600 dark:text-zinc-400'
+                  }`}
+                >
+                  {isVi ? 'Trước ($10)' : 'Prefix ($10)'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChange((prev: any) => ({ ...prev, currencyPosition: 'suffix' }))}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                    config.currencyPosition === 'suffix'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-slate-600 dark:text-zinc-400'
+                  }`}
+                >
+                  {isVi ? 'Sau (10₫)' : 'Suffix (10₫)'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {(config.type === 'dropdown' || config.type === 'labels') && (
+          <div className="p-2.5 rounded-xl bg-slate-50/80 dark:bg-zinc-850/60 border border-slate-200/70 dark:border-zinc-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10.5px] font-bold text-slate-600 dark:text-zinc-300">
+                {isVi ? 'Danh sách lựa chọn' : 'Options'} ({config.options?.length || 0})
+              </span>
+              <span className="text-[9.5px] text-slate-400">
+                {config.type === 'labels' ? (isVi ? 'Chọn nhiều' : 'Multi-select') : (isVi ? 'Chọn một' : 'Single select')}
+              </span>
+            </div>
+
+            <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1 custom-scrollbar">
+              {(config.options || []).map((opt: any) => {
+                const colorMeta = getColorOption(opt.color);
+                const isPickerOpen = activeColorPickerId === opt.id;
+                return (
+                  <div key={opt.id} className="relative">
+                    <div className="flex items-center gap-1.5 p-1 bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-700/80 rounded-lg">
+                      <button
+                        type="button"
+                        onClick={() => setActiveColorPickerId(isPickerOpen ? null : opt.id)}
+                        className={`w-5 h-5 rounded-md ${colorMeta.badge} border flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105 transition-transform`}
+                        title={isVi ? 'Đổi màu' : 'Change color'}
+                      >
+                        <span className={`w-2 h-2 rounded-full ${colorMeta.dot}`} />
+                      </button>
+
+                      <input
+                        type="text"
+                        value={opt.label || ''}
+                        onChange={e => handleUpdateOptionLabel(opt.id, e.target.value)}
+                        className="flex-1 min-w-0 px-1 py-0.5 text-xs bg-transparent text-slate-800 dark:text-zinc-100 font-bold outline-none"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveOption(opt.id)}
+                        className="w-5 h-5 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                        title={isVi ? 'Xóa' : 'Remove'}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+
+                    {isPickerOpen && (
+                      <div className="absolute left-0 top-full mt-1 p-1.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl z-30 grid grid-cols-6 gap-1 w-48">
+                        {COLOR_PALETTE.slice(0, 12).map(cp => (
+                          <button
+                            key={cp.id}
+                            type="button"
+                            onClick={() => handleUpdateOptionColor(opt.id, cp.id)}
+                            className={`w-6 h-6 rounded-md ${cp.badge} flex items-center justify-center cursor-pointer hover:scale-110 transition-transform ${opt.color === cp.id ? 'ring-2 ring-blue-500' : ''}`}
+                            title={isVi ? cp.nameVi : cp.name}
+                          >
+                            <span className={`w-2 h-2 rounded-full ${cp.dot}`} />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center gap-1.5 pt-1">
+              <input
+                type="text"
+                value={newOptionText}
+                onChange={e => setNewOptionText(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddOption();
+                  }
+                }}
+                placeholder={isVi ? 'Thêm lựa chọn mới...' : 'Add new option...'}
+                className="flex-1 px-2.5 py-1 text-xs rounded-lg border border-slate-200/80 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 outline-none focus:border-blue-500 font-medium"
+              />
+              <button
+                type="button"
+                onClick={handleAddOption}
+                disabled={!newOptionText.trim()}
+                className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 font-bold text-xs disabled:opacity-40 cursor-pointer transition-colors shrink-0"
+              >
+                + {isVi ? 'Thêm' : 'Add'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {config.type === 'date' && (
+          <div className="p-2.5 rounded-xl bg-slate-50/80 dark:bg-zinc-850/60 border border-slate-200/70 dark:border-zinc-800 space-y-2">
+            <div className="space-y-1">
+              <span className="text-[10.5px] font-bold text-slate-600 dark:text-zinc-300">
+                {isVi ? 'Định dạng ngày' : 'Date Format'}
+              </span>
+              <div className="grid grid-cols-3 gap-1">
+                {['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'].map(df => (
+                  <button
+                    key={df}
+                    type="button"
+                    onClick={() => onChange((prev: any) => ({ ...prev, dateFormat: df }))}
+                    className={`py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                      config.dateFormat === df
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border border-slate-200/80 dark:border-zinc-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {df}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5 pt-1 border-t border-slate-200/60 dark:border-zinc-800">
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={!!config.includeTime}
+                  onChange={e => onChange((prev: any) => ({ ...prev, includeTime: e.target.checked }))}
+                  className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                />
+                <span>{isVi ? 'Bao gồm giờ phút' : 'Include time'}</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={!!config.defaultToToday}
+                  onChange={e => onChange((prev: any) => ({ ...prev, defaultToToday: e.target.checked }))}
+                  className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                />
+                <span>{isVi ? 'Mặc định ngày hôm nay' : 'Default to today'}</span>
+              </label>
+            </div>
+          </div>
+        )}
+
+        {config.type === 'checkbox' && (
+          <div className="p-2.5 rounded-xl bg-slate-50/80 dark:bg-zinc-850/60 border border-slate-200/70 dark:border-zinc-800 space-y-2">
+            <div className="space-y-1">
+              <span className="text-[10.5px] font-bold text-slate-600 dark:text-zinc-300">
+                {isVi ? 'Nhãn ghi chú hộp kiểm (tùy chọn)' : 'Checkbox Label (optional)'}
+              </span>
+              <input
+                type="text"
+                value={config.checkboxLabel || ''}
+                onChange={e => onChange((prev: any) => ({ ...prev, checkboxLabel: e.target.value }))}
+                placeholder={isVi ? 'VD: Đã hoàn tất, Đã kiểm tra...' : 'e.g. Completed, Verified...'}
+                className="w-full px-2.5 py-1 text-xs rounded-lg border border-slate-200/80 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 outline-none focus:border-blue-500 font-medium"
+              />
+            </div>
+          </div>
+        )}
+
+        {config.type === 'rating' && (
+          <div className="p-2.5 rounded-xl bg-slate-50/80 dark:bg-zinc-850/60 border border-slate-200/70 dark:border-zinc-800 space-y-2">
+            <div className="space-y-1">
+              <span className="text-[10.5px] font-bold text-slate-600 dark:text-zinc-300">
+                {isVi ? 'Biểu tượng đánh giá' : 'Rating Icon'}
+              </span>
+              <div className="grid grid-cols-4 gap-1">
+                {[
+                  { id: 'star', label: '⭐ Sao' },
+                  { id: 'heart', label: '❤️ Tim' },
+                  { id: 'flame', label: '🔥 Lửa' },
+                  { id: 'thumb', label: '👍 Thích' }
+                ].map(r => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => onChange((prev: any) => ({ ...prev, ratingIcon: r.id }))}
+                    className={`py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      config.ratingIcon === r.id
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border border-slate-200/80 dark:border-zinc-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1 pt-1 border-t border-slate-200/60 dark:border-zinc-800">
+              <span className="text-[10.5px] font-bold text-slate-600 dark:text-zinc-300">
+                {isVi ? 'Mức tối đa' : 'Maximum'}
+              </span>
+              <div className="flex items-center gap-1">
+                {[3, 5, 10].map(cnt => (
+                  <button
+                    key={cnt}
+                    type="button"
+                    onClick={() => onChange((prev: any) => ({ ...prev, ratingMax: cnt }))}
+                    className={`flex-1 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                      config.ratingMax === cnt
+                        ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-500 text-blue-600 dark:text-blue-400 font-extrabold'
+                        : 'bg-white dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-400'
+                    }`}
+                  >
+                    {cnt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {config.type === 'progress_manual' && (
+          <div className="p-2.5 rounded-xl bg-slate-50/80 dark:bg-zinc-850/60 border border-slate-200/70 dark:border-zinc-800 space-y-1.5">
+            <span className="text-[10.5px] font-bold text-slate-600 dark:text-zinc-300">
+              {isVi ? 'Mức tối đa' : 'Max Scale'}
+            </span>
+            <div className="flex items-center gap-1">
+              {[100, 10, 50].map(val => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => onChange((prev: any) => ({ ...prev, progressMax: val }))}
+                  className={`flex-1 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                    config.progressMax === val
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-400'
+                  }`}
+                >
+                  {val === 100 ? '100%' : val}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {config.type === 'people' && (
+          <div className="p-2.5 rounded-xl bg-slate-50/80 dark:bg-zinc-850/60 border border-slate-200/70 dark:border-zinc-800">
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-zinc-300">
+              <input
+                type="checkbox"
+                checked={!!config.allowMultiple}
+                onChange={e => onChange((prev: any) => ({ ...prev, allowMultiple: e.target.checked }))}
+                className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+              />
+              <span>{isVi ? 'Cho phép chọn nhiều người phụ trách' : 'Allow multiple assignees'}</span>
+            </label>
+          </div>
+        )}
+
+        {['text', 'textarea', 'email', 'phone', 'website'].includes(config.type) && (
+          <div className="space-y-1">
+            <label className="text-[10.5px] font-bold text-slate-600 dark:text-zinc-300">
+              {isVi ? 'Gợi ý hiển thị (Placeholder)' : 'Placeholder'}
+            </label>
+            <input
+              type="text"
+              value={config.placeholder || ''}
+              onChange={e => onChange((prev: any) => ({ ...prev, placeholder: e.target.value }))}
+              placeholder={isVi ? 'Gợi ý hiển thị khi ô trống...' : 'Hint shown when empty...'}
+              className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200/80 dark:border-zinc-700 bg-white dark:bg-zinc-850 text-slate-800 dark:text-zinc-100 outline-none focus:border-blue-500 font-medium"
+            />
+          </div>
+        )}
+
+        {config.type === 'formula' && (
+          <div className="space-y-1">
+            <label className="text-[10.5px] font-bold text-slate-600 dark:text-zinc-300">
+              {isVi ? 'Biểu thức công thức' : 'Formula Expression'}
+            </label>
+            <input
+              type="text"
+              value={config.formulaExpression || ''}
+              onChange={e => onChange((prev: any) => ({ ...prev, formulaExpression: e.target.value }))}
+              placeholder="VD: field('Số lượng') * field('Đơn giá')"
+              className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200/80 dark:border-zinc-700 bg-white dark:bg-zinc-850 text-slate-800 dark:text-zinc-100 outline-none focus:border-blue-500 font-mono text-[11px]"
+            />
+          </div>
+        )}
+
+        {config.type === 'button' && (
+          <div className="space-y-1">
+            <label className="text-[10.5px] font-bold text-slate-600 dark:text-zinc-300">
+              {isVi ? 'Nhãn nút bấm' : 'Button Label'}
+            </label>
+            <input
+              type="text"
+              value={config.buttonText || ''}
+              onChange={e => onChange((prev: any) => ({ ...prev, buttonText: e.target.value }))}
+              placeholder={isVi ? 'VD: Bấm vào đây' : 'e.g. Click here'}
+              className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200/80 dark:border-zinc-700 bg-white dark:bg-zinc-850 text-slate-800 dark:text-zinc-100 outline-none focus:border-blue-500 font-medium"
+            />
+          </div>
+        )}
+
+        {/* GENERAL TOGGLE: REQUIRED */}
+        <div className="pt-1">
+          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-zinc-300 select-none">
+            <input
+              type="checkbox"
+              checked={!!config.isRequired}
+              onChange={e => onChange((prev: any) => ({ ...prev, isRequired: e.target.checked }))}
+              className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+            />
+            <span>{isVi ? 'Bắt buộc nhập dữ liệu' : 'Required field'}</span>
+          </label>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="px-3.5 py-2.5 border-t border-slate-100 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-900/80 flex items-center justify-between gap-2 shrink-0">
+        <div>
+          <button
+            type="button"
+            onClick={onAdvanced}
+            className="text-[11px] font-bold text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+          >
+            <SlidersHorizontal className="w-3 h-3" />
+            <span>{isVi ? 'Nâng cao...' : 'Advanced...'}</span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="px-2.5 py-1 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors cursor-pointer"
+            >
+              {isVi ? 'Xóa' : 'Delete'}
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-2.5 py-1 text-xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-200/70 dark:hover:bg-zinc-800 rounded-xl transition-colors cursor-pointer"
+          >
+            {isVi ? 'Hủy' : 'Cancel'}
+          </button>
+
+          <button
+            type="submit"
+            disabled={!!nameError}
+            className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:hover:bg-blue-600 text-white text-xs font-bold cursor-pointer transition-all shadow-xs flex items-center gap-1.5 group/btn"
+          >
+            <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>{config.isNew ? (isVi ? 'Tạo trường' : 'Create Field') : (isVi ? 'Lưu' : 'Save')}</span>
+            <kbd className="hidden sm:inline-block px-1 py-0.2 rounded bg-blue-700/80 text-[9px] font-mono text-blue-100 ml-0.5">
+              ↵
+            </kbd>
+          </button>
+        </div>
+      </div>
+    </form>
+  );
+}
+
 export default function CustomFieldsManagerModal({
   isOpen,
   onClose,
@@ -137,12 +817,22 @@ export default function CustomFieldsManagerModal({
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [editingFieldConfig, setEditingFieldConfig] = useState<any>(null);
+  const [quickConfig, setQuickConfig] = useState<any | null>(null);
+
+  // Reset state when closed
+  useEffect(() => {
+    if (!isOpen) {
+      setQuickConfig(null);
+      setEditingFieldConfig(null);
+      setSearch('');
+    }
+  }, [isOpen]);
 
   // Compute dropdown position to stay within viewport
   const dropdownStyle = useMemo(() => {
     if (!anchorPosition) return {};
     const popupW = 380;
-    const popupH = 480;
+    const popupH = 520;
     let left = anchorPosition.x;
     let top = anchorPosition.y + 4;
     // Prevent going off-screen right
@@ -164,13 +854,19 @@ export default function CustomFieldsManagerModal({
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !editingFieldConfig) {
-        onClose();
+      if (e.key === 'Escape') {
+        if (editingFieldConfig) {
+          setEditingFieldConfig(null);
+        } else if (quickConfig) {
+          setQuickConfig(null);
+        } else {
+          onClose();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, editingFieldConfig, onClose]);
+  }, [isOpen, editingFieldConfig, quickConfig, onClose]);
 
   // Standard properties defined by system
   interface PropertyListItem {
@@ -250,19 +946,45 @@ export default function CustomFieldsManagerModal({
     return filteredProperties.filter(p => p.isStandard);
   }, [filteredProperties]);
 
-  // Handle open creation studio
+  // Handle open creation studio (Quick Setup)
   const handleOpenCreateStudio = (fieldMeta: typeof ALL_FIELD_TYPES[0]) => {
-    setEditingFieldConfig({
+    const baseName = isVi ? fieldMeta.label.split('(')[0].trim() : fieldMeta.labelEn;
+    let uniqueName = baseName;
+    let counter = 1;
+    while (customFields.some(cf => cf.name?.trim().toLowerCase() === uniqueName.toLowerCase())) {
+      counter++;
+      uniqueName = `${baseName} ${counter}`;
+    }
+
+    setQuickConfig({
       id: `cf-${Date.now()}`,
-      name: isVi ? fieldMeta.label.split('(')[0].trim() : fieldMeta.labelEn,
+      name: uniqueName,
       type: fieldMeta.id,
       isNew: true,
       isStandard: false,
+      placeholder: '',
+      isRequired: false,
+      numberFormat: 'normal',
+      numberPrecision: 0,
+      numberUnit: '',
+      currencySymbol: isVi ? '₫' : '$',
+      currencyPosition: isVi ? 'suffix' : 'prefix',
       options: (fieldMeta.id === 'dropdown' || fieldMeta.id === 'labels') ? [
         { id: 'opt-1', label: isVi ? 'Kế hoạch' : 'Planning', color: 'blue' },
         { id: 'opt-2', label: isVi ? 'Đang làm' : 'In Progress', color: 'amber' },
         { id: 'opt-3', label: isVi ? 'Hoàn thành' : 'Completed', color: 'emerald' }
-      ] : undefined
+      ] : undefined,
+      dateFormat: 'DD/MM/YYYY',
+      includeTime: false,
+      defaultToToday: false,
+      ratingMax: 5,
+      ratingIcon: 'star',
+      checkboxLabel: '',
+      progressMax: 100,
+      allowMultiple: true,
+      buttonText: isVi ? 'Bấm vào đây' : 'Click here',
+      buttonColor: 'blue',
+      formulaExpression: ''
     });
   };
 
@@ -280,109 +1002,169 @@ export default function CustomFieldsManagerModal({
     } else {
       const cf = prop.rawConfig || customFields.find(f => f.name === prop.key);
       if (cf) {
-        setEditingFieldConfig({
+        setQuickConfig({
           id: cf.id || `cf-${Date.now()}`,
           name: cf.name,
           type: cf.type || 'text',
           isStandard: false,
           isNew: false,
-          options: cf.options,
-          placeholder: cf.placeholder,
-          description: cf.description,
-          isRequired: cf.isRequired,
-          currencySymbol: cf.currencySymbol,
-          currencyPosition: cf.currencyPosition,
-          numberFormat: cf.numberFormat,
+          options: cf.options ? [...cf.options] : undefined,
+          placeholder: cf.placeholder || '',
+          description: cf.description || '',
+          isRequired: !!cf.isRequired,
+          currencySymbol: cf.currencySymbol || (isVi ? '₫' : '$'),
+          currencyPosition: cf.currencyPosition || (isVi ? 'suffix' : 'prefix'),
+          numberFormat: cf.numberFormat || 'normal',
           numberMin: cf.numberMin,
           numberMax: cf.numberMax,
-          numberPrecision: cf.numberPrecision,
-          numberUnit: cf.numberUnit,
-          dateFormat: cf.dateFormat,
-          includeTime: cf.includeTime,
-          defaultToToday: cf.defaultToToday,
-          ratingMax: cf.ratingMax,
-          ratingIcon: cf.ratingIcon,
-          checkboxLabel: cf.checkboxLabel,
-          progressMax: cf.progressMax,
-          allowMultiple: cf.allowMultiple,
-          defaultValue: cf.defaultValue
+          numberPrecision: cf.numberPrecision ?? 0,
+          numberUnit: cf.numberUnit || '',
+          dateFormat: cf.dateFormat || 'DD/MM/YYYY',
+          includeTime: !!cf.includeTime,
+          defaultToToday: !!cf.defaultToToday,
+          ratingMax: cf.ratingMax ?? 5,
+          ratingIcon: cf.ratingIcon || 'star',
+          checkboxLabel: cf.checkboxLabel || '',
+          progressMax: cf.progressMax ?? 100,
+          allowMultiple: cf.allowMultiple ?? true,
+          defaultValue: cf.defaultValue,
+          buttonText: cf.buttonText || '',
+          buttonColor: cf.buttonColor || 'blue',
+          buttonAction: cf.buttonAction || '',
+          formulaExpression: cf.formulaExpression || '',
+          rollupTargetField: cf.rollupTargetField || '',
+          relationshipTargetSpace: cf.relationshipTargetSpace || '',
+          votingMax: cf.votingMax ?? 9999
         });
       }
     }
   };
 
+  // Core save method for both quick setup and full modal
+  const saveFieldDefinition = (fieldData: any) => {
+    if (!fieldData || !fieldData.name?.trim()) {
+      triggerToast?.('warning', isVi ? 'Lỗi' : 'Error', isVi ? 'Tên trường không được để trống' : 'Field name cannot be empty');
+      return false;
+    }
+
+    if (fieldData.isStandard) {
+      saveColumnNames({ ...getStoredColumnNames(), [fieldData.id]: fieldData.name });
+      if (fieldData.id === 'status' && fieldData.options) saveStatuses(fieldData.options);
+      if (fieldData.id === 'priority' && fieldData.options) savePriorities(fieldData.options);
+      window.dispatchEvent(new Event('apexa-field-config-changed'));
+      triggerToast?.('success', isVi ? 'Đã lưu' : 'Saved', fieldData.name);
+      return true;
+    }
+
+    const previous = customFields.find(field => field.id === fieldData.id);
+    const field: CustomFieldDefinition = {
+      ...previous,
+      ...fieldData,
+      id: fieldData.id,
+      name: fieldData.name.trim()
+    };
+
+    const message = validateFieldDefinition(field, customFields, locale);
+    if (message) {
+      triggerToast?.('warning', isVi ? 'Không thể lưu trường' : 'Cannot save field', message);
+      return false;
+    }
+
+    const isNew = fieldData.isNew ?? (!previous);
+    const next = isNew
+      ? [...customFields, field]
+      : customFields.map(item => item.id === field.id ? field : item);
+
+    setCustomFields(next);
+    if (activeSpace) {
+      activeSpace.customFields = next;
+    }
+
+    const targetSpaceId = activeSpace?.id || 'default-space';
+    const currentStoreSpaces = useSpaceStore.getState().spaces;
+    const spaceInStore = currentStoreSpaces.find(s => s.id === targetSpaceId);
+    const updatedSpace = {
+      ...(spaceInStore || activeSpace || {}),
+      id: targetSpaceId,
+      customFields: next
+    };
+    useSpaceStore.getState().updateSpace(updatedSpace);
+
+    const existsInSpaces = spaces.some(s => s.id === targetSpaceId);
+    const updatedSpaces = existsInSpaces
+      ? spaces.map(s => s.id === targetSpaceId ? { ...s, customFields: next } : s)
+      : [...spaces, updatedSpace];
+
+    if (onSaveSpaces) {
+      onSaveSpaces(updatedSpaces);
+    }
+
+    if (isNew) {
+      setVisibleFields([...new Set([...visibleFields, field.name])]);
+      // Update all tasks in this space so the new custom field is created and persisted in the database
+      const defaultValue = customFieldDefault(field);
+      tasks.forEach(task => {
+        if (!targetSpaceId || task.spaceId === targetSpaceId || !task.spaceId) {
+          const currentCustom = task.custom_fields || {};
+          if (currentCustom[field.name] === undefined) {
+            const nextTask = {
+              ...task,
+              custom_fields: {
+                ...currentCustom,
+                [field.name]: defaultValue ?? ''
+              }
+            };
+            onUpdateTask(nextTask);
+          }
+        }
+      });
+    } else if (previous) {
+      setVisibleFields(visibleFields.map(name => name === previous.name ? field.name : name));
+      tasks.forEach(task => {
+        const nextTask = migrateTaskCustomField(task, activeSpace?.id || targetSpaceId, previous, field);
+        if (nextTask !== task) onUpdateTask(nextTask);
+      });
+    }
+
+    window.dispatchEvent(new Event('apexa-field-config-changed'));
+    triggerToast?.(
+      'success',
+      isVi ? (isNew ? 'Đã tạo trường dữ liệu' : 'Đã cập nhật trường dữ liệu') : (isNew ? 'Field created' : 'Field updated'),
+      isVi ? `Trường “${field.name}” đã sẵn sàng sử dụng.` : `Field "${field.name}" is ready.`
+    );
+    return true;
+  };
+
   // Save changes from FieldSettingsModal
   const handleSaveFieldFromModal = (updated: any) => {
     if (!editingFieldConfig) return false;
-    if (editingFieldConfig.isStandard) {
-      saveColumnNames({ ...getStoredColumnNames(), [editingFieldConfig.id]: updated.name });
-      if (editingFieldConfig.id === 'status' && updated.options) saveStatuses(updated.options);
-      if (editingFieldConfig.id === 'priority' && updated.options) savePriorities(updated.options);
-    } else {
-      const previous = customFields.find(field => field.id === editingFieldConfig.id);
-      const field = { ...previous, ...updated, id: editingFieldConfig.id, name: updated.name.trim() };
-      const message = validateFieldDefinition(field, customFields, locale);
-      if (message) {
-        triggerToast?.('warning', isVi ? 'Không thể lưu trường' : 'Cannot save field', message);
-        return false;
-      }
-      const next = editingFieldConfig.isNew ? [...customFields, field] : customFields.map(item => item.id === field.id ? field : item);
-      setCustomFields(next);
-      if (activeSpace) {
-        activeSpace.customFields = next;
-      }
+    const success = saveFieldDefinition({ ...editingFieldConfig, ...updated });
+    if (success) {
+      setActiveTab('manage');
+      setEditingFieldConfig(null);
+    }
+    return success;
+  };
 
-      const targetSpaceId = activeSpace?.id || 'default-space';
-      const currentStoreSpaces = useSpaceStore.getState().spaces;
-      const spaceInStore = currentStoreSpaces.find(s => s.id === targetSpaceId);
-      const updatedSpace = {
-        ...(spaceInStore || activeSpace || {}),
-        id: targetSpaceId,
-        customFields: next
-      };
-      useSpaceStore.getState().updateSpace(updatedSpace);
-
-      const existsInSpaces = spaces.some(s => s.id === targetSpaceId);
-      const updatedSpaces = existsInSpaces
-        ? spaces.map(s => s.id === targetSpaceId ? { ...s, customFields: next } : s)
-        : [...spaces, updatedSpace];
-
-      if (onSaveSpaces) {
-        onSaveSpaces(updatedSpaces);
-      }
-
-      if (editingFieldConfig.isNew) {
-        setVisibleFields([...new Set([...visibleFields, field.name])]);
-        // Update all tasks in this space so the new custom field is created and persisted in the database
-        const defaultValue = customFieldDefault(field);
-        tasks.forEach(task => {
-          if (!targetSpaceId || task.spaceId === targetSpaceId || !task.spaceId) {
-            const currentCustom = task.custom_fields || {};
-            if (currentCustom[field.name] === undefined) {
-              const nextTask = {
-                ...task,
-                custom_fields: {
-                  ...currentCustom,
-                  [field.name]: defaultValue ?? ''
-                }
-              };
-              onUpdateTask(nextTask);
-            }
-          }
-        });
-      } else if (previous) {
-        setVisibleFields(visibleFields.map(name => name === previous.name ? field.name : name));
-        tasks.forEach(task => {
-          const nextTask = migrateTaskCustomField(task, activeSpace?.id || targetSpaceId, previous, field);
-          if (nextTask !== task) onUpdateTask(nextTask);
-        });
+  // Save changes from QuickFieldSetupForm
+  const handleSaveQuickConfig = (configToSave = quickConfig) => {
+    if (!configToSave) return false;
+    const success = saveFieldDefinition(configToSave);
+    if (success) {
+      setQuickConfig(null);
+      if (isDropdown) {
+        onClose();
+      } else {
+        setActiveTab('manage');
       }
     }
-    window.dispatchEvent(new Event('apexa-field-config-changed'));
-    triggerToast?.('success', isVi ? 'Đã lưu trường dữ liệu' : 'Field saved', updated.name);
-    setActiveTab('manage');
-    setEditingFieldConfig(null);
-    return true;
+    return success;
+  };
+
+  const handleOpenAdvancedFromQuick = () => {
+    if (!quickConfig) return;
+    setEditingFieldConfig({ ...quickConfig });
+    setQuickConfig(null);
   };
 
   // Reorder custom fields
@@ -535,10 +1317,25 @@ export default function CustomFieldsManagerModal({
                 style={{
                   left: `${dropdownStyle.left}px`,
                   top: `${dropdownStyle.top}px`,
-                  width: `${dropdownStyle.width || 360}px`,
-                  maxHeight: 'min(520px, 85vh)'
+                  width: `${dropdownStyle.width || 380}px`,
+                  maxHeight: 'min(540px, 90vh)'
                 }}
               >
+                {quickConfig ? (
+                  <QuickFieldSetupForm
+                    config={quickConfig}
+                    onChange={setQuickConfig}
+                    onSave={() => handleSaveQuickConfig()}
+                    onCancel={() => setQuickConfig(null)}
+                    onAdvanced={handleOpenAdvancedFromQuick}
+                    onDelete={!quickConfig.isNew ? () => { handleDeleteField(quickConfig.name); setQuickConfig(null); } : undefined}
+                    existingFields={customFields}
+                    isVi={isVi}
+                    locale={locale}
+                    onClose={onClose}
+                  />
+                ) : (
+                  <>
           {/* Header */}
           <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shrink-0">
             <div className="flex items-center gap-2">
@@ -799,6 +1596,8 @@ export default function CustomFieldsManagerModal({
               </div>
             )}
           </div>
+                  </>
+                )}
 
           {/* Sub-modal studio */}
           {editingFieldConfig && (
@@ -831,7 +1630,7 @@ export default function CustomFieldsManagerModal({
           >
             {/* Backdrop - Clean dark overlay */}
             <div 
-              className="fixed inset-0 bg-black/40 dark:bg-black/65 transition-opacity cursor-pointer modal-backdrop-blur"
+              className="fixed inset-0 bg-black/40 dark:bg-black/65 transition-opacity cursor-pointer modal-backdrop"
               onClick={onClose}
               aria-hidden="true"
             />
@@ -845,8 +1644,25 @@ export default function CustomFieldsManagerModal({
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.94, y: 16, opacity: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 28 }}
-              className="relative w-full max-w-4xl max-h-[88vh] bg-white dark:bg-[#0a0b10] border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden z-10"
+              className={`relative w-full ${quickConfig ? 'max-w-lg' : 'max-w-4xl'} max-h-[88vh] bg-white dark:bg-[#0a0b10] border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden z-10 transition-all duration-200`}
             >
+              {quickConfig ? (
+                <div className="w-full h-full max-h-[85vh] flex flex-col overflow-hidden">
+                  <QuickFieldSetupForm
+                    config={quickConfig}
+                    onChange={setQuickConfig}
+                    onSave={() => handleSaveQuickConfig()}
+                    onCancel={() => setQuickConfig(null)}
+                    onAdvanced={handleOpenAdvancedFromQuick}
+                    onDelete={!quickConfig.isNew ? () => { handleDeleteField(quickConfig.name); setQuickConfig(null); } : undefined}
+                    existingFields={customFields}
+                    isVi={isVi}
+                    locale={locale}
+                    onClose={onClose}
+                  />
+                </div>
+              ) : (
+                <>
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-100 dark:border-white/10 bg-white dark:bg-[#0a0b10] shrink-0">
             <div className="flex items-center gap-3">
@@ -1333,6 +2149,8 @@ export default function CustomFieldsManagerModal({
               {isVi ? 'Hoàn tất' : 'Done'}
             </button>
           </div>
+                </>
+              )}
             </motion.div>
 
             {/* Field Settings Studio Sub-modal */}

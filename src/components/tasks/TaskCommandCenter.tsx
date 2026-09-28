@@ -471,7 +471,7 @@ export default function TaskCommandCenter({
   return (
     <section className="task-center flex h-full min-h-0 flex-col overflow-hidden bg-[#f6f7fb] text-slate-950 dark:bg-[#0b0d12] dark:text-white">
       <header className="task-center-header shrink-0 border-b border-slate-200/80 bg-white/95 px-3 pt-3 backdrop-blur-xl dark:border-white/[0.08] dark:bg-[#111318]/95 sm:px-5 sm:pt-4">
-        <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-3">
+        <div className="mx-auto flex w-full max-w-[1960px] flex-col gap-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400">
@@ -592,7 +592,7 @@ export default function TaskCommandCenter({
       </header>
 
       <div className="task-center-content custom-scrollbar min-h-0 flex-1 overflow-auto p-2.5 sm:p-4">
-        <div className="mx-auto h-full min-h-[320px] w-full max-w-[1800px]">{renderView()}</div>
+        <div className="mx-auto h-full min-h-[320px] w-full max-w-[1960px]">{renderView()}</div>
       </div>
 
       <AnimatePresence>

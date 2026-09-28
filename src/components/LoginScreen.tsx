@@ -646,7 +646,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
               exit={{ opacity: 0 }}
               transition={{ duration: 0.25 }}
               onClick={closeAuth}
-              className="fixed inset-0 bg-slate-950/60 dark:bg-black/80 backdrop-blur-xl cursor-pointer"
+              className="fixed inset-0 bg-slate-950/60 dark:bg-black/80 cursor-pointer"
             />
 
             {/* Ambient Lighting Spots */}

@@ -239,7 +239,7 @@ export function SidebarOrderModal({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.18 }}
               onClick={onClose}
-              className="absolute inset-0 bg-black/40 dark:bg-black/80 backdrop-blur-xs cursor-pointer"
+              className="absolute inset-0 bg-black/40 dark:bg-black/80 cursor-pointer"
             />
 
             {/* Modal Container */}

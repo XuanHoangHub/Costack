@@ -139,7 +139,7 @@ export default function ContactFormModal({
           >
             <div
               onClick={onClose}
-              className="absolute inset-0 modal-backdrop-blur cursor-pointer"
+              className="absolute inset-0 modal-backdrop bg-black/50 dark:bg-black/70 cursor-pointer"
             />
 
             <motion.div

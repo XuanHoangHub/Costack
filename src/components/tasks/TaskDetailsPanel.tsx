@@ -395,14 +395,14 @@ export default function TaskDetailsPanel({
 
   // Layout styles mapping
   const overlayClass = 
-    modalLayout === 'modal' ? 'fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 md:p-6 bg-slate-950/45 dark:bg-black/60 backdrop-blur-md backdrop-saturate-150 transition-all duration-200 cursor-pointer' :
-    modalLayout === 'fullscreen' ? 'fixed inset-0 z-[100] flex items-stretch justify-stretch p-0 bg-slate-950/40 backdrop-blur-xs transition-all duration-200' :
-    'fixed inset-0 z-[100] flex items-stretch justify-end p-0 bg-slate-950/25 dark:bg-black/40 backdrop-blur-sm transition-all duration-200 cursor-pointer';
+    modalLayout === 'modal' ? 'fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 md:p-6 bg-slate-950/45 dark:bg-black/60 transition-all duration-200 cursor-pointer' :
+    modalLayout === 'fullscreen' ? 'fixed inset-0 z-[100] flex items-stretch justify-stretch p-0 bg-slate-950/40 transition-all duration-200' :
+    'fixed inset-0 z-[100] flex items-stretch justify-end p-0 bg-slate-950/30 dark:bg-black/50 transition-all duration-200 cursor-pointer';
 
   const panelClass =
-    modalLayout === 'modal' ? 'relative w-full sm:w-[92vw] max-w-[1240px] h-full sm:h-[88vh] sm:max-h-[920px] bg-white dark:bg-[var(--cu-surface)] border-none sm:border border-slate-200/90 dark:border-slate-800/80 rounded-none sm:rounded-[26px] flex flex-col overflow-hidden card-bevel-edge shadow-[0_32px_96px_-12px_rgba(15,23,42,0.28)] dark:shadow-[0_36px_100px_-12px_rgba(0,0,0,0.7)] ring-1 ring-black/5 dark:ring-white/[0.05] pointer-events-auto cursor-default outline-none focus:outline-none ring-0' :
+    modalLayout === 'modal' ? 'relative w-full sm:w-[92vw] max-w-[1360px] h-full sm:h-[88vh] sm:max-h-[920px] bg-white dark:bg-[var(--cu-surface)] border-none sm:border border-slate-200/90 dark:border-slate-800/80 rounded-none sm:rounded-[26px] flex flex-col overflow-hidden card-bevel-edge shadow-[0_32px_96px_-12px_rgba(15,23,42,0.28)] dark:shadow-[0_36px_100px_-12px_rgba(0,0,0,0.7)] ring-1 ring-black/5 dark:ring-white/[0.05] pointer-events-auto cursor-default outline-none focus:outline-none ring-0' :
     modalLayout === 'fullscreen' ? 'relative w-full h-full bg-white dark:bg-[var(--cu-bg)] flex flex-col overflow-hidden shadow-2xl pointer-events-auto cursor-default outline-none focus:outline-none ring-0' :
-    `relative w-full ${isSidebarExpanded ? 'max-w-[1100px] xl:max-w-[80vw]' : 'max-w-[680px] lg:max-w-[740px]'} h-full bg-white dark:bg-[var(--cu-surface)] border-l border-slate-200/90 dark:border-slate-800/80 rounded-none sm:rounded-l-[26px] flex flex-col overflow-hidden shadow-[-24px_0_70px_rgba(15,23,42,0.25)] dark:shadow-[-24px_0_70px_rgba(0,0,0,0.7)] pointer-events-auto cursor-default outline-none focus:outline-none ring-0`;
+    `relative w-full ${isSidebarExpanded ? 'max-w-[1180px] xl:max-w-[82vw]' : 'max-w-[720px] lg:max-w-[780px]'} h-full bg-white dark:bg-[var(--cu-surface)] border-l border-slate-200/90 dark:border-slate-800/80 rounded-none sm:rounded-l-[26px] flex flex-col overflow-hidden shadow-[-24px_0_70px_rgba(15,23,42,0.25)] dark:shadow-[-24px_0_70px_rgba(0,0,0,0.7)] pointer-events-auto cursor-default outline-none focus:outline-none ring-0`;
 
   const panelAnimation: any =
     modalLayout === 'modal' ? {
@@ -3431,7 +3431,7 @@ export default function TaskDetailsPanel({
                   </div>
 
                   {/* Ask Brain Prompt Bar */}
-                  <div className="my-3 max-w-[620px]">
+                  <div className="my-3 max-w-[760px]">
                     <div 
                       onClick={() => setIsAiPanelOpen(true)}
                       className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-slate-100/70 dark:bg-white/[0.04] hover:bg-slate-200/60 dark:hover:bg-white/[0.07] border border-slate-200/80 dark:border-white/[0.08] transition-all cursor-pointer shadow-3xs group"
@@ -3454,7 +3454,7 @@ export default function TaskDetailsPanel({
                   </div>
 
                   {/* Core Properties Vertical Table (ClickUp 3.0 Layout from Image 1) */}
-                  <div className="my-3 space-y-1 text-xs select-none max-w-[620px]">
+                  <div className="my-3 space-y-1 text-xs select-none max-w-[760px]">
                     {/* Status */}
                     <div className="flex items-center min-h-[34px] py-0.5">
                       <div className="w-28 sm:w-32 flex items-center gap-2 text-slate-500 dark:text-zinc-400 font-semibold shrink-0">
@@ -3716,7 +3716,7 @@ export default function TaskDetailsPanel({
                   </div>
 
                   {/* Fields Section Accordion (from Image 1) */}
-                  <div className="my-3 select-none max-w-[620px]">
+                  <div className="my-3 select-none max-w-[760px]">
                     <button
                       type="button"
                       onClick={() => setFieldsExpanded(prev => !prev)}
@@ -3782,7 +3782,7 @@ export default function TaskDetailsPanel({
                   </div>
 
                   {/* Next Actions (Add subtask, Relate items, Create checklist, Attach file) */}
-                  <div className="my-5 pt-3 border-t border-slate-200/80 dark:border-white/[0.08] space-y-1 text-xs max-w-[620px]">
+                  <div className="my-5 pt-3 border-t border-slate-200/80 dark:border-white/[0.08] space-y-1 text-xs max-w-[760px]">
                     <button
                       type="button"
                       onClick={() => {

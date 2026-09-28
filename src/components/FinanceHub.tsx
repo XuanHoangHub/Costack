@@ -26,8 +26,10 @@ import { DebtDetailModal } from "@/components/finance/DebtDetailModal";
 import { DebtFormModal, type DebtFormData } from "@/components/finance/DebtFormModal";
 import { DebtPaymentModal, type PaymentSubmitPayload } from "@/components/finance/DebtPaymentModal";
 import ConfirmModal from "@/components/ConfirmModal";
+import { FinanceOverviewDashboard } from "@/components/finance/FinanceOverviewDashboard";
+import { FinanceReportsDashboard } from "@/components/finance/FinanceReportsDashboard";
 import { useTranslation } from "@/contexts/TranslationContext";
-import { callAiApi } from "@/lib/aiClient";
+import { callAiApi, categorizeExpenseWithAi } from "@/lib/aiClient";
 import { getCleanChannel, supabase } from "@/lib/supabaseClient";
 
 interface FinanceHubProps {
@@ -238,7 +240,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
   // Biểu đồ settings
   const [overviewChartType, setOverviewChartType] = useState<"area" | "bar" | "line">("area");
   const [overviewPeriod, setOverviewPeriod] = useState<"6m" | "12m" | "all">("6m");
-  const [reportsChartTab, setReportsChartTab] = useState<"pl" | "expense" | "income" | "budget" | "debt">("pl");
+  const [reportsChartTab, setReportsChartTab] = useState<"pl" | "expense" | "income" | "budget" | "debt" | "simulator">("pl");
 
   // Quản lý tài khoản & lọc
   const [accountToEdit, setAccountToEdit] = useState<BankAccount | null>(null);
@@ -376,8 +378,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
       groups.set(month, row);
     });
     const sorted = [...groups.values()].sort((a, b) => a.month.localeCompare(b.month));
-    const sliceCount = overviewPeriod === "6m" ? 6 : overviewPeriod === "12m" ? 12 : sorted.length;
-    return sorted.slice(-sliceCount).map(r => {
+    return sorted.map(r => {
       const net = r.income - r.expense;
       return {
         ...r,
@@ -386,7 +387,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
         profitMargin: r.income > 0 ? ((net / r.income) * 100).toFixed(1) : "0",
       };
     });
-  }, [overviewPeriod, transactions]);
+  }, [transactions]);
 
   // Cơ cấu chi phí theo danh mục (Pie/Donut chart)
   const expenseBreakdown = useMemo(() => {
@@ -726,9 +727,9 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
     }
   };
 
-  const openTransaction = (transaction?: Transaction) => {
+  const openTransaction = (transaction?: Transaction, forcedType?: "income" | "expense") => {
     setEditingTransaction(transaction || null);
-    setTransactionType(transaction?.type || "income");
+    setTransactionType(forcedType || transaction?.type || "income");
     setTxForm(transaction ? {
       accountId: transaction.accountId,
       date: transaction.date,
@@ -1164,74 +1165,34 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
 
       <main className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-6">
         {/* TAB 1: TỔNG QUAN */}
-        {activeTab === "overview" && <div className="mx-auto max-w-[1500px] space-y-4">
-          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">{metricCards.map(card => { const Icon = card.icon; return <Card key={card.label} padding="md"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--cu-text-tertiary)]">{card.label}</p><p className="mt-2 truncate text-xl font-black tracking-tight text-[var(--cu-text-primary)]">{formatMoney(card.value)}</p><p className="mt-1 text-[11px] font-medium text-[var(--cu-text-tertiary)]">{card.helper}</p></div><div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${card.iconClass}`}><Icon className="h-4 w-4" /></div></div></Card>; })}</section>
-          
-          <Card padding="none" className="overflow-hidden">
-            <SectionHeader title="Dự báo thanh khoản 30 ngày" subtitle="Tính từ số dư hiện tại và các khoản công nợ đến hạn; không dùng dữ liệu giả" aside={<Badge variant={forecast.projectedCash >= 0 ? "success" : "danger"}>{forecast.projectedCash >= 0 ? "Dòng tiền an toàn" : "Cần bổ sung thanh khoản"}</Badge>} />
-            <div className="grid divide-y divide-[var(--cu-border)] sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-5">
-              <ForecastMetric label="Dự kiến thu" value={formatMoney(forecast.inflow)} tone="text-emerald-500" />
-              <ForecastMetric label="Dự kiến chi" value={formatMoney(forecast.outflow)} tone="text-rose-500" />
-              <ForecastMetric label="Số dư dự kiến" value={formatMoney(forecast.projectedCash)} tone={forecast.projectedCash >= 0 ? "text-indigo-500" : "text-amber-500"} />
-              <ForecastMetric label="Khả năng trả nợ" value={forecast.liquidityCoverage === null ? "Không có nợ phải trả" : `${forecast.liquidityCoverage.toFixed(2)}×`} tone={forecast.liquidityCoverage === null || forecast.liquidityCoverage >= 1 ? "text-emerald-500" : "text-amber-500"} />
-              <ForecastMetric label="Dùng ngân sách" value={forecast.budgetUsage === null ? "Chưa lập ngân sách" : `${forecast.budgetUsage.toFixed(1)}%`} tone={forecast.budgetUsage !== null && forecast.budgetUsage > 100 ? "text-rose-500" : "text-[var(--cu-text-primary)]"} />
-            </div>
-          </Card>
-
-          {/* DÒNG TIỀN TỔNG QUAN & PHÂN BỔ TÀI SẢN */}
-          <section className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.75fr)]">
-            <OverviewCashflowCard
-              chartData={monthlyChartData}
-              chartType={overviewChartType}
-              setChartType={setOverviewChartType}
-              period={overviewPeriod}
-              setPeriod={setOverviewPeriod}
-              formatMoney={formatMoney}
-              compactMoney={compactMoney}
-            />
-            <AccountDistributionCard
-              accounts={accountDistribution}
-              totalCash={metrics.cash}
-              formatMoney={formatMoney}
-              onAddAccount={() => setAccountToEdit({ id: "", bank: "", number: "", branch: "", balance: 0, type: "Tài khoản thanh toán", color: "#005432" })}
-            />
-          </section>
-
-          {/* CÂN ĐỐI NGHĨA VỤ & CÔNG NỢ / NGÂN SÁCH (CHỈ HIỆN KHI MODULE ĐƯỢC BẬT) */}
-          {(enabledModuleSet.has("debts") || enabledModuleSet.has("budgets")) && (
-            <section className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${
-              enabledModuleSet.has("debts") && enabledModuleSet.has("budgets") ? "lg:grid-cols-4" : enabledModuleSet.has("debts") ? "lg:grid-cols-3" : "lg:grid-cols-1"
-            }`}>
-              {enabledModuleSet.has("debts") && (
-                <>
-                  <Card padding="md" className="flex items-center gap-3.5">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500"><ArrowDownRight className="h-5 w-5" /></div>
-                    <div className="min-w-0 flex-1"><p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Nợ phải thu</p><p className="mt-0.5 truncate text-base font-black text-emerald-500">{formatMoney(metrics.receivable)}</p></div>
-                  </Card>
-                  <Card padding="md" className="flex items-center gap-3.5">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500"><ArrowUpRight className="h-5 w-5" /></div>
-                    <div className="min-w-0 flex-1"><p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Nợ phải trả</p><p className="mt-0.5 truncate text-base font-black text-rose-500">{formatMoney(metrics.payable)}</p></div>
-                  </Card>
-                  <Card padding="md" className="flex items-center gap-3.5">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500"><AlertCircle className="h-5 w-5" /></div>
-                    <div className="min-w-0 flex-1"><p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Công nợ quá hạn</p><p className="mt-0.5 truncate text-base font-black text-amber-500">{formatMoney(metrics.overdue)}</p></div>
-                  </Card>
-                </>
-              )}
-              {enabledModuleSet.has("budgets") && (
-                <Card padding="md" className="flex items-center gap-3.5">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500"><Target className="h-5 w-5" /></div>
-                  <div className="min-w-0 flex-1"><p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Ngân sách còn lại</p><p className="mt-0.5 truncate text-base font-black text-indigo-500">{formatMoney(Math.max(0, metrics.budget - metrics.spent))}</p></div>
-                </Card>
-              )}
-            </section>
-          )}
-
-          {noData && <Card padding="none"><EmptyState icon={Landmark} title="Workspace chưa có dữ liệu tài chính" description="Bắt đầu bằng một tài khoản tiền hoặc ngân hàng. Costack không tạo số liệu mẫu; mọi số liệu hiển thị đến trực tiếp từ cơ sở dữ liệu." action={<Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setAccountToEdit({ id: "", bank: "", number: "", branch: "", balance: 0, type: "Tài khoản thanh toán", color: "#005432" })}>Thêm tài khoản đầu tiên</Button>} /></Card>}
-        </div>}
+        {activeTab === "overview" && (
+          <FinanceOverviewDashboard
+            accounts={accounts}
+            transactions={transactions}
+            debts={debts}
+            budgets={budgets}
+            invoices={invoices}
+            metrics={metrics}
+            monthlyData={monthlyChartData}
+            accountDistribution={accountDistribution}
+            expenseBreakdown={expenseBreakdown}
+            incomeBreakdown={incomeBreakdown}
+            forecast={forecast}
+            formatMoney={formatMoney}
+            compactMoney={compactMoney}
+            currency={profile.currency}
+            workspaceName={profile.displayName}
+            enabledModules={enabledModuleSet}
+            onOpenTransaction={(type) => openTransaction(undefined, type)}
+            onOpenReceiptScan={() => setModal("receipt-scan")}
+            onOpenAddAccount={() => setAccountToEdit({ id: "", bank: "", number: "", branch: "", balance: 0, type: "Tài khoản thanh toán", color: "#005432" })}
+            onNavigateToTab={(tab) => setActiveTab(tab)}
+            triggerToast={triggerToast}
+          />
+        )}
 
         {/* TAB 2: SỔ THU CHI */}
-        {activeTab === "cashbook" && <div className="mx-auto max-w-[1500px] space-y-4">
+        {activeTab === "cashbook" && <div className="mx-auto max-w-[1720px] space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {accounts.map(a => {
               const isSelected = selectedAccountFilter === a.id;
@@ -1371,7 +1332,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
 
         {/* TAB 4: CÔNG NỢ */}
         {activeTab === "debts" && (
-          <div className="mx-auto max-w-[1400px] space-y-4">
+          <div className="mx-auto max-w-[1680px] space-y-4">
             {/* KPI Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {/* Phải thu */}
@@ -1644,7 +1605,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
 
 
         {/* TAB 5: NGÂN SÁCH */}
-        {activeTab === "budgets" && <div className="mx-auto max-w-[1300px] space-y-4">
+        {activeTab === "budgets" && <div className="mx-auto max-w-[1560px] space-y-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="text-lg font-black text-[var(--cu-text-primary)]">Ngân sách phòng ban</h2>
@@ -1676,7 +1637,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
 
         {/* TAB 6: BÁO CÁO & BIỂU ĐỒ CHUYÊN SÂU */}
         {activeTab === "reports" && (
-          <ReportsAnalyticsDashboard
+          <FinanceReportsDashboard
             metrics={metrics}
             transactions={transactions}
             monthlyData={monthlyChartData}
@@ -1684,11 +1645,18 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
             incomeBreakdown={incomeBreakdown}
             budgetComparison={budgetComparisonData}
             debtAgingData={debtAgingData}
+            debts={debts}
+            budgets={budgets}
+            accounts={accounts}
+            invoices={invoices}
             formatMoney={formatMoney}
             compactMoney={compactMoney}
+            currency={profile.currency}
+            workspaceName={profile.displayName}
             activeSubTab={reportsChartTab}
             setActiveSubTab={setReportsChartTab}
             enabledTabs={profile.enabledTabs || DEFAULT_TABS_BY_ENTITY[profile.entityType]}
+            triggerToast={triggerToast}
           />
         )}
 
@@ -1912,202 +1880,9 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
   );
 }
 
-// -------------------------------------------------------------
-// COMPONENT BIỂU ĐỒ DÒNG TIỀN TỔNG QUAN (Overview Cashflow Card)
-// -------------------------------------------------------------
-function OverviewCashflowCard({
-  chartData,
-  chartType,
-  setChartType,
-  period,
-  setPeriod,
-  formatMoney,
-  compactMoney,
-}: {
-  chartData: Array<{ month: string; label: string; income: number; expense: number; net: number; profitMargin: string }>;
-  chartType: "area" | "bar" | "line";
-  setChartType: (t: "area" | "bar" | "line") => void;
-  period: "6m" | "12m" | "all";
-  setPeriod: (p: "6m" | "12m" | "all") => void;
-  formatMoney: (amount: number) => string;
-  compactMoney: (amount: number) => string;
-}) {
-  return (
-    <Card padding="none" className="min-h-[280px] sm:min-h-[360px] overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--cu-border)] px-5 py-4">
-        <div>
-          <h2 className="text-sm font-black text-[var(--cu-text-primary)]">Dòng tiền & Lợi nhuận</h2>
-          <p className="mt-0.5 text-[11px] text-[var(--cu-text-tertiary)]">Tổng hợp theo chu kỳ giao dịch đã duyệt</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Chuyển loại biểu đồ */}
-          <div className="flex rounded-xl bg-[var(--cu-surface-2)] p-1 text-xs">
-            <button
-              onClick={() => setChartType("area")}
-              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${chartType === "area" ? "bg-indigo-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"}`}
-            >
-              Vùng
-            </button>
-            <button
-              onClick={() => setChartType("bar")}
-              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${chartType === "bar" ? "bg-indigo-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"}`}
-            >
-              Cột
-            </button>
-            <button
-              onClick={() => setChartType("line")}
-              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${chartType === "line" ? "bg-indigo-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"}`}
-            >
-              Đường
-            </button>
-          </div>
 
-          {/* Chuyển kỳ thời gian */}
-          <Select
-            ariaLabel="Kỳ thời gian"
-            value={period}
-            onChange={v => setPeriod(v as typeof period)}
-            className="w-32 text-xs"
-            options={[
-              { value: "6m", label: "6 kỳ gần nhất" },
-              { value: "12m", label: "12 kỳ gần nhất" },
-              { value: "all", label: "Tất cả các kỳ" },
-            ]}
-          />
-        </div>
-      </div>
 
-      {chartData.length ? (
-        <div className="h-[220px] sm:h-[280px] px-3 pb-3 pt-5">
-          <ResponsiveContainer width="100%" height="100%">
-            {chartType === "area" ? (
-              <AreaChart data={chartData} margin={{ top: 8, right: 16, left: -8, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="flowIncome" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.28} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="flowExpense" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="flowNet" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--cu-border)" />
-                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
-                <YAxis axisLine={false} tickLine={false} width={62} tickFormatter={compactMoney} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
-                <Tooltip content={<CustomFinanceTooltip formatMoney={formatMoney} />} />
-                <Area type="monotone" dataKey="income" name="Thu" stroke="#10b981" strokeWidth={2.5} fill="url(#flowIncome)" />
-                <Area type="monotone" dataKey="expense" name="Chi" stroke="#f43f5e" strokeWidth={2.5} fill="url(#flowExpense)" />
-                <Area type="monotone" dataKey="net" name="Ròng" stroke="#6366f1" strokeWidth={2} fill="url(#flowNet)" strokeDasharray="3 3" />
-              </AreaChart>
-            ) : chartType === "bar" ? (
-              <BarChart data={chartData} margin={{ top: 8, right: 16, left: -8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--cu-border)" />
-                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
-                <YAxis axisLine={false} tickLine={false} width={62} tickFormatter={compactMoney} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
-                <Tooltip content={<CustomFinanceTooltip formatMoney={formatMoney} />} />
-                <Bar dataKey="income" name="Thu" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={30} />
-                <Bar dataKey="expense" name="Chi" fill="#f43f5e" radius={[6, 6, 0, 0]} maxBarSize={30} />
-                <Bar dataKey="net" name="Ròng" fill="#6366f1" radius={[6, 6, 0, 0]} maxBarSize={20} />
-              </BarChart>
-            ) : (
-              <LineChart data={chartData} margin={{ top: 8, right: 16, left: -8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--cu-border)" />
-                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
-                <YAxis axisLine={false} tickLine={false} width={62} tickFormatter={compactMoney} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
-                <Tooltip content={<CustomFinanceTooltip formatMoney={formatMoney} />} />
-                <Line type="monotone" dataKey="income" name="Thu" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                <Line type="monotone" dataKey="expense" name="Chi" stroke="#f43f5e" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                <Line type="monotone" dataKey="net" name="Ròng" stroke="#6366f1" strokeWidth={2.5} strokeDasharray="4 4" dot={{ r: 3 }} />
-              </LineChart>
-            )}
-          </ResponsiveContainer>
-        </div>
-      ) : (
-        <EmptyState icon={BarChart3} title="Chưa có biểu đồ dòng tiền" description="Ghi nhận khoản thu hoặc chi đầu tiên để xem xu hướng thực tế." />
-      )}
-    </Card>
-  );
-}
 
-// -------------------------------------------------------------
-// COMPONENT PHÂN BỔ TÀI KHOẢN NGÂN HÀNG (Account Distribution Donut)
-// -------------------------------------------------------------
-function AccountDistributionCard({
-  accounts,
-  totalCash,
-  formatMoney,
-  onAddAccount,
-}: {
-  accounts: Array<{ name: string; number: string; balance: number; value: number; percent: string; color: string }>;
-  totalCash: number;
-  formatMoney: (amount: number) => string;
-  onAddAccount: () => void;
-}) {
-  const hasAccounts = accounts.length > 0;
-  return (
-    <Card padding="none" className="flex flex-col overflow-hidden">
-      <SectionHeader title="Cơ cấu tài sản & Quỹ" subtitle="Tỷ trọng số dư các tài khoản" />
-      {hasAccounts ? (
-        <div className="flex min-h-[220px] sm:min-h-[280px] flex-col justify-between p-4">
-          <div className="relative h-[180px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={accounts}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={52}
-                  outerRadius={78}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {accounts.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} stroke="var(--cu-surface)" strokeWidth={2} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomPieTooltip formatMoney={formatMoney} />} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--cu-text-tertiary)]">Tổng tiền</span>
-              <span className="max-w-[120px] truncate text-xs font-black text-[var(--cu-text-primary)]">{formatMoney(totalCash)}</span>
-            </div>
-          </div>
-
-          <div className="max-h-36 space-y-2 overflow-y-auto divide-y divide-[var(--cu-border)] border-t border-[var(--cu-border)] pt-2.5">
-            {accounts.map(acc => (
-              <div key={acc.number} className="flex items-center justify-between pt-2 text-xs">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <AccountBankIcon bank={acc.name} color={acc.color} size="sm" />
-                  <div className="min-w-0">
-                    <p className="truncate font-bold text-[var(--cu-text-primary)]">{acc.name}</p>
-                    <p className="text-[10px] text-[var(--cu-text-tertiary)] font-mono">···{acc.number.slice(-4)}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="font-black text-[var(--cu-text-secondary)]">{formatMoney(acc.balance)}</span>
-                  <span className="text-[10px] font-bold text-[var(--cu-text-tertiary)]">({acc.percent}%)</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <EmptyState
-          icon={Wallet}
-          title="Chưa có tài khoản"
-          description="Thêm tài khoản để phân tích tỷ trọng tài sản."
-          action={<Button size="sm" onClick={onAddAccount} leftIcon={<Plus className="h-3.5 w-3.5" />}>Thêm tài khoản</Button>}
-        />
-      )}
-    </Card>
-  );
-}
 
 // -------------------------------------------------------------
 // TRUNG TÂM BÁO CÁO & PHÂN TÍCH TÀI CHÍNH (Reports Dashboard)
@@ -2160,7 +1935,7 @@ function ReportsAnalyticsDashboard({
   }, [subTabs, activeSubTab, setActiveSubTab]);
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-4">
+    <div className="mx-auto max-w-[1720px] space-y-4">
       {/* Thanh điều hướng phân hệ báo cáo */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--cu-border)] bg-[var(--cu-surface)] p-2">
         <div className="flex flex-wrap gap-1">
@@ -2459,7 +2234,7 @@ function TransactionTable({ rows, formatMoney, saving, onEdit, onDelete }: { row
   return <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0"><table className="w-full min-w-[980px] text-left"><thead><tr className="border-b border-[var(--cu-border)] bg-[var(--cu-surface-2)]/60 text-[10px] font-black uppercase tracking-wider text-[var(--cu-text-tertiary)] whitespace-nowrap"><th className="px-5 py-3 whitespace-nowrap">Chứng từ</th><th className="px-4 py-3 whitespace-nowrap">Hạng mục</th><th className="px-4 py-3 whitespace-nowrap">Đối tác</th><th className="px-4 py-3 whitespace-nowrap">Tài khoản</th><th className="px-4 py-3 whitespace-nowrap">Ngày</th><th className="px-4 py-3 text-right whitespace-nowrap">Số tiền</th><th className="px-5 py-3 text-right whitespace-nowrap">Thao tác</th></tr></thead><tbody className="divide-y divide-[var(--cu-border)]">{rows.map(t => <tr key={t.id} className="hover:bg-[var(--cu-surface-2)]/50"><td className="px-5 py-3"><div className="flex items-center gap-2"><div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${t.type === "income" ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"}`}>{t.type === "income" ? <ArrowDownRight className="h-3.5 w-3.5 shrink-0" /> : <ArrowUpRight className="h-3.5 w-3.5 shrink-0" />}</div><div className="min-w-0"><p className="text-xs font-black text-[var(--cu-text-primary)] whitespace-nowrap">{t.code}</p><p className="text-[10px] text-[var(--cu-text-tertiary)] whitespace-nowrap">{t.status === "approved" ? "Đã duyệt" : t.status}</p></div></div></td><td className="max-w-60 px-4 py-3 min-w-0"><p className="truncate text-xs font-semibold text-[var(--cu-text-primary)]">{t.category}</p><p className="truncate text-[10px] text-[var(--cu-text-tertiary)]">{t.note || "Không có ghi chú"}</p></td><td className="max-w-44 px-4 py-3 text-xs text-[var(--cu-text-secondary)] min-w-0"><p className="truncate">{t.partner || "—"}</p></td><td className="max-w-48 px-4 py-3 text-xs text-[var(--cu-text-secondary)] min-w-0"><p className="truncate">{t.account}</p></td><td className="px-4 py-3 text-xs text-[var(--cu-text-secondary)] whitespace-nowrap">{new Date(`${t.date}T00:00:00`).toLocaleDateString("vi-VN")}</td><td className={`px-4 py-3 text-right text-sm font-black whitespace-nowrap tabular-nums ${t.type === "income" ? "text-emerald-500" : "text-rose-500"}`}>{t.type === "income" ? "+" : "−"}{formatMoney(t.amount)}</td><td className="px-5 py-3"><div className="flex justify-end gap-1"><button type="button" disabled={saving} onClick={() => onEdit(t)} aria-label={`Sửa giao dịch ${t.code}`} title="Sửa giao dịch" className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--cu-text-tertiary)] transition hover:bg-indigo-500/10 hover:text-indigo-500 disabled:opacity-50"><Pencil className="h-3.5 w-3.5" /></button><button type="button" disabled={saving} onClick={() => onDelete(t)} aria-label={`Xóa giao dịch ${t.code}`} title="Xóa giao dịch" className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--cu-text-tertiary)] transition hover:bg-rose-500/10 hover:text-rose-500 disabled:opacity-50"><Trash2 className="h-3.5 w-3.5" /></button></div></td></tr>)}</tbody></table></div>;
 }
 function DataList({ title, subtitle, action, empty, emptyIcon, emptyText, children }: { title: string; subtitle: string; action: React.ReactNode; empty: boolean; emptyIcon: React.ElementType; emptyText: string; children: React.ReactNode }) {
-  return <Card padding="none" className="mx-auto max-w-[1300px] overflow-hidden"><SectionHeader title={title} subtitle={subtitle} aside={action} />{empty ? <EmptyState icon={emptyIcon} title={emptyText} description="Dữ liệu mới sẽ được lưu trực tiếp và đồng bộ theo workspace." /> : <div className="divide-y divide-[var(--cu-border)]">{children}</div>}</Card>;
+  return <Card padding="none" className="mx-auto max-w-[1560px] overflow-hidden"><SectionHeader title={title} subtitle={subtitle} aside={action} />{empty ? <EmptyState icon={emptyIcon} title={emptyText} description="Dữ liệu mới sẽ được lưu trực tiếp và đồng bộ theo workspace." /> : <div className="divide-y divide-[var(--cu-border)]">{children}</div>}</Card>;
 }
 function PaymentProgressRow({ icon: Icon, title, subtitle, dueLabel, total, paid, badge, badgeVariant, stages, currentStage, action, formatMoney }: { icon: React.ElementType; title: string; subtitle: string; dueLabel: string; total: number; paid: number; badge: string; badgeVariant: "success" | "warning" | "danger"; stages: string[]; currentStage: number; action?: React.ReactNode; formatMoney: (amount: number) => string }) {
   const progress = paymentProgress(total, paid);
@@ -2474,7 +2249,7 @@ function BudgetCard({ budget, formatMoney }: { budget: BudgetCategory; formatMon
   return <Card padding="md"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold text-indigo-500">{budget.department}</p><h3 className="mt-1 text-sm font-black text-[var(--cu-text-primary)]">{budget.category}</h3><p className="mt-1 text-[11px] text-[var(--cu-text-tertiary)]">{budget.period} · {budget.manager || "Chưa có quản lý"}</p></div><Badge variant={ratio > 100 ? "danger" : ratio >= 80 ? "warning" : "success"}>{ratio.toFixed(0)}%</Badge></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-[var(--cu-surface-2)]"><div className={`h-full rounded-full ${ratio > 100 ? "bg-rose-500" : ratio >= 80 ? "bg-amber-500" : "bg-indigo-500"}`} style={{ width: `${Math.min(ratio, 100)}%` }} /></div><div className="mt-2 flex justify-between text-[11px] font-semibold text-[var(--cu-text-tertiary)]"><span>{formatMoney(budget.spentAmount)} đã chi</span><span>{formatMoney(budget.allocatedAmount)}</span></div></Card>;
 }
 function AiPanel({ messages, input, setInput, loading, onSend }: { messages: Array<{ sender: "user" | "ai"; text: string }>; input: string; setInput: (value: string) => void; loading: boolean; onSend: () => void }) {
-  return <div className="mx-auto flex h-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[var(--cu-border)] bg-[var(--cu-surface)] shadow-sm"><div className="flex items-center gap-3 border-b border-[var(--cu-border)] px-5 py-4"><div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-500 text-white"><Bot className="h-5 w-5" /></div><div><h2 className="text-sm font-black text-[var(--cu-text-primary)]">AI phân tích tài chính</h2><p className="text-[11px] text-[var(--cu-text-tertiary)]">Chỉ nhận ngữ cảnh số liệu hiện có</p></div><Badge className="ml-auto" variant="success"><ShieldCheck className="h-3 w-3" /> Dữ liệu thật</Badge></div><div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">{messages.length ? messages.map((m, i) => <div key={i} className={`flex ${m.sender === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[82%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-6 ${m.sender === "user" ? "bg-indigo-500 text-white" : "bg-[var(--cu-surface-2)] text-[var(--cu-text-secondary)]"}`}>{m.text}</div></div>) : <EmptyState icon={Sparkles} title="Hỏi về dữ liệu tài chính hiện tại" description="Ví dụ: Nhóm chi phí nào đang lớn nhất? Thanh khoản có đủ trả công nợ không?" />}{loading && <div className="flex items-center gap-2 text-xs font-bold text-indigo-500"><LoaderCircle className="h-4 w-4 animate-spin" />Đang phân tích…</div>}</div><div className="flex gap-2 border-t border-[var(--cu-border)] p-4"><input className={INPUT} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") onSend(); }} placeholder="Đặt câu hỏi về số liệu hiện tại…" /><Button aria-label="Gửi" onClick={onSend} disabled={!input.trim() || loading}><Send className="h-4 w-4" /></Button></div></div>;
+  return <div className="mx-auto flex h-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-[var(--cu-border)] bg-[var(--cu-surface)] shadow-sm"><div className="flex items-center gap-3 border-b border-[var(--cu-border)] px-5 py-4"><div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-500 text-white"><Bot className="h-5 w-5" /></div><div><h2 className="text-sm font-black text-[var(--cu-text-primary)]">AI phân tích tài chính</h2><p className="text-[11px] text-[var(--cu-text-tertiary)]">Chỉ nhận ngữ cảnh số liệu hiện có</p></div><Badge className="ml-auto" variant="success"><ShieldCheck className="h-3 w-3" /> Dữ liệu thật</Badge></div><div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">{messages.length ? messages.map((m, i) => <div key={i} className={`flex ${m.sender === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[82%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-6 ${m.sender === "user" ? "bg-indigo-500 text-white" : "bg-[var(--cu-surface-2)] text-[var(--cu-text-secondary)]"}`}>{m.text}</div></div>) : <EmptyState icon={Sparkles} title="Hỏi về dữ liệu tài chính hiện tại" description="Ví dụ: Nhóm chi phí nào đang lớn nhất? Thanh khoản có đủ trả công nợ không?" />}{loading && <div className="flex items-center gap-2 text-xs font-bold text-indigo-500"><LoaderCircle className="h-4 w-4 animate-spin" />Đang phân tích…</div>}</div><div className="flex gap-2 border-t border-[var(--cu-border)] p-4"><input className={INPUT} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") onSend(); }} placeholder="Đặt câu hỏi về số liệu hiện tại…" /><Button aria-label="Gửi" onClick={onSend} disabled={!input.trim() || loading}><Send className="h-4 w-4" /></Button></div></div>;
 }
 
 function FinanceModal({ title, onClose, maxWidth = "w-[min(95vw,576px)]", children }: { title: string; onClose: () => void; maxWidth?: string; children: React.ReactNode }) {
@@ -2705,8 +2480,101 @@ function AccountForm({ form, setForm, saving, onSubmit }: { form: AccountFormSta
 type TxFormState = { accountId: string; date: string; category: string; amount: string; partner: string; note: string };
 function TransactionForm({ form, setForm, type, setType, accounts, categories, formatMoney, saving, editing, onSubmit, onNeedAccount, onOpenCategoryManager }: { form: TxFormState; setForm: React.Dispatch<React.SetStateAction<TxFormState>>; type: "income" | "expense"; setType: (type: "income" | "expense") => void; accounts: BankAccount[]; categories: FinanceCategory[]; formatMoney: (amount: number) => string; saving: boolean; editing: boolean; onSubmit: (e: React.FormEvent) => void; onNeedAccount: () => void; onOpenCategoryManager?: () => void }) {
   const relevantCategories = useMemo(() => categories.filter(c => c.type === type || c.type === "both"), [categories, type]);
+  const [isAiCategorizing, setIsAiCategorizing] = useState(false);
+  const [aiCategorizeHint, setAiCategorizeHint] = useState<string | null>(null);
 
-  return <form onSubmit={onSubmit} className="space-y-4"><div className="grid grid-cols-2 gap-2 rounded-xl bg-[var(--cu-surface-2)] p-1"><button type="button" onClick={() => setType("income")} className={`h-9 rounded-lg text-xs font-black ${type === "income" ? "bg-emerald-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)]"}`}>Khoản thu</button><button type="button" onClick={() => setType("expense")} className={`h-9 rounded-lg text-xs font-black ${type === "expense" ? "bg-rose-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)]"}`}>Khoản chi</button></div>{accounts.length ? <><div className="grid grid-cols-2 gap-3"><Field label="Tài khoản thanh toán"><Select className="w-full" ariaLabel="Tài khoản" value={form.accountId} onChange={v => setForm(f => ({ ...f, accountId: v }))} placeholder="Chọn tài khoản" menuWidth={360} options={accounts.map(a => ({ value: a.id, label: `${a.bank} · ···${a.number.slice(-4)} (${formatMoney(a.balance)})` }))} /></Field><Field label="Ngày"><input className={INPUT} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} required /></Field><div><div className="mb-1.5 flex items-center justify-between"><span className={LABEL}>Hạng mục</span>{onOpenCategoryManager && <button type="button" onClick={onOpenCategoryManager} className="text-[10px] font-bold text-indigo-500 hover:underline">+ Quản lý danh mục</button>}</div><div className="relative"><input className={INPUT} list="tx-category-datalist" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="Chọn hoặc nhập..." required /><datalist id="tx-category-datalist">{relevantCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</datalist></div></div><Field label="Số tiền"><input className={INPUT} type="number" min="0.01" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required /></Field></div><Field label={type === "income" ? "Khách hàng / Người nộp" : "Đối tác / Người nhận"}><input className={INPUT} value={form.partner} onChange={e => setForm(f => ({ ...f, partner: e.target.value }))} /></Field><Field label="Ghi chú"><textarea className={`${INPUT} h-20 py-2.5`} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></Field>{editing && <p className="rounded-xl bg-indigo-500/10 px-3 py-2 text-[11px] leading-5 text-indigo-600 dark:text-indigo-300">Khi đổi loại, số tiền hoặc tài khoản, hệ thống sẽ tự hoàn nguyên bút toán cũ và cập nhật số dư mới trong cùng một giao dịch.</p>}<SaveActions saving={saving} label={editing ? "Lưu thay đổi" : type === "income" ? "Ghi nhận khoản thu" : "Ghi nhận khoản chi"} /></> : <EmptyState icon={Landmark} title="Cần có tài khoản trước" description="Thêm tài khoản để ghi thu chi và cập nhật số dư chính xác." action={<Button type="button" onClick={onNeedAccount}>Thêm tài khoản</Button>} />}</form>;
+  const handleAiCategorize = async () => {
+    const textToAnalyze = (form.note || form.partner || form.category || "").trim();
+    if (!textToAnalyze) return;
+    setIsAiCategorizing(true);
+    setAiCategorizeHint(null);
+    try {
+      const res = await categorizeExpenseWithAi(textToAnalyze, form.amount ? Number(form.amount) : undefined);
+      if (res) {
+        if (res.type && (res.type === "income" || res.type === "expense")) {
+          setType(res.type);
+        }
+        if (res.category) {
+          const matched = categories.find(c => c.name.toLowerCase() === res.category.toLowerCase()) ||
+                          categories.find(c => c.name.toLowerCase().includes(res.category.toLowerCase()) || res.category.toLowerCase().includes(c.name.toLowerCase()));
+          setForm(f => ({ ...f, category: matched ? matched.name : res.category }));
+        }
+        setAiCategorizeHint(`AI đề xuất: ${res.type === "income" ? "Khoản thu" : "Khoản chi"} · ${res.category} (Độ tin cậy: ${Math.round((res.confidence || 0.9) * 100)}%)`);
+      }
+    } catch {
+      setAiCategorizeHint("Chưa thể phân tích danh mục qua AI lúc này.");
+    } finally {
+      setIsAiCategorizing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div className="grid grid-cols-2 gap-2 rounded-xl bg-[var(--cu-surface-2)] p-1">
+        <button type="button" onClick={() => setType("income")} className={`h-9 rounded-lg text-xs font-black ${type === "income" ? "bg-emerald-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)]"}`}>Khoản thu</button>
+        <button type="button" onClick={() => setType("expense")} className={`h-9 rounded-lg text-xs font-black ${type === "expense" ? "bg-rose-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)]"}`}>Khoản chi</button>
+      </div>
+      {accounts.length ? (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Tài khoản thanh toán">
+              <Select className="w-full" ariaLabel="Tài khoản" value={form.accountId} onChange={v => setForm(f => ({ ...f, accountId: v }))} placeholder="Chọn tài khoản" menuWidth={360} options={accounts.map(a => ({ value: a.id, label: `${a.bank} · ···${a.number.slice(-4)} (${formatMoney(a.balance)})` }))} />
+            </Field>
+            <Field label="Ngày">
+              <input className={INPUT} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} required />
+            </Field>
+            <div>
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className={LABEL}>Hạng mục</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAiCategorize}
+                    disabled={isAiCategorizing || (!form.note.trim() && !form.partner.trim())}
+                    className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:opacity-40 transition cursor-pointer"
+                    title="Dựa vào Ghi chú / Đối tác để AI tự động nhận diện Khoản thu / Khoản chi và phân loại Hạng mục"
+                  >
+                    <Sparkles className={`h-3 w-3 ${isAiCategorizing ? "animate-spin text-amber-500" : "text-amber-500"}`} />
+                    <span>{isAiCategorizing ? "AI đang phân loại..." : "AI gợi ý danh mục"}</span>
+                  </button>
+                  {onOpenCategoryManager && (
+                    <button type="button" onClick={onOpenCategoryManager} className="text-[10px] font-bold text-slate-500 hover:underline">+ Quản lý</button>
+                  )}
+                </div>
+              </div>
+              <div className="relative">
+                <input className={INPUT} list="tx-category-datalist" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="Chọn hoặc nhập..." required />
+                <datalist id="tx-category-datalist">{relevantCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</datalist>
+              </div>
+              {aiCategorizeHint && (
+                <div className="mt-1.5 flex items-center justify-between rounded-lg bg-indigo-500/10 px-2.5 py-1 text-[10px] text-indigo-600 dark:text-indigo-300 border border-indigo-500/20">
+                  <span className="font-semibold">{aiCategorizeHint}</span>
+                  <button type="button" onClick={() => setAiCategorizeHint(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+            <Field label="Số tiền">
+              <input className={INPUT} type="number" min="0.01" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required />
+            </Field>
+          </div>
+          <Field label={type === "income" ? "Khách hàng / Người nộp" : "Đối tác / Người nhận"}>
+            <input className={INPUT} value={form.partner} onChange={e => setForm(f => ({ ...f, partner: e.target.value }))} placeholder="Ví dụ: Công ty A, Quán ăn B, Khách hàng C..." />
+          </Field>
+          <Field label="Ghi chú">
+            <div className="relative">
+              <textarea className={`${INPUT} h-20 py-2.5`} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} placeholder="Mô tả mục đích thu chi (nhập ghi chú để AI gợi ý danh mục chuẩn xác nhất)..." />
+            </div>
+          </Field>
+          {editing && <p className="rounded-xl bg-indigo-500/10 px-3 py-2 text-[11px] leading-5 text-indigo-600 dark:text-indigo-300">Khi đổi loại, số tiền hoặc tài khoản, hệ thống sẽ tự hoàn nguyên bút toán cũ và cập nhật số dư mới trong cùng một giao dịch.</p>}
+          <SaveActions saving={saving} label={editing ? "Lưu thay đổi" : type === "income" ? "Ghi nhận khoản thu" : "Ghi nhận khoản chi"} />
+        </>
+      ) : (
+        <EmptyState icon={Landmark} title="Cần có tài khoản trước" description="Thêm tài khoản để ghi thu chi và cập nhật số dư chính xác." action={<Button type="button" onClick={onNeedAccount}>Thêm tài khoản</Button>} />
+      )}
+    </form>
+  );
 }
 type InvoiceFormState = { type: "out" | "in"; partnerName: string; taxCode: string; subtotal: string; vatRate: string; date: string; dueDate: string };
 function InvoiceForm({ form, setForm, saving, onSubmit }: { form: InvoiceFormState; setForm: React.Dispatch<React.SetStateAction<InvoiceFormState>>; saving: boolean; onSubmit: (e: React.FormEvent) => void }) { return <form onSubmit={onSubmit} className="space-y-4"><div className="grid grid-cols-2 gap-3"><Field label="Loại hóa đơn"><Select className="w-full" ariaLabel="Loại hóa đơn" value={form.type} onChange={v => setForm(f => ({ ...f, type: v as "out" | "in" }))} options={[{ value: "out", label: "Bán ra" }, { value: "in", label: "Mua vào" }]} /></Field><Field label="Ngày hóa đơn"><input className={INPUT} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></Field></div><Field label="Khách hàng / Nhà cung cấp"><input className={INPUT} value={form.partnerName} onChange={e => setForm(f => ({ ...f, partnerName: e.target.value }))} required /></Field><div className="grid grid-cols-2 gap-3"><Field label="Mã số thuế"><input className={INPUT} value={form.taxCode} onChange={e => setForm(f => ({ ...f, taxCode: e.target.value }))} /></Field><Field label="Hạn thanh toán"><input className={INPUT} type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} /></Field><Field label="Tiền trước thuế"><input className={INPUT} type="number" min="0" step="0.01" value={form.subtotal} onChange={e => setForm(f => ({ ...f, subtotal: e.target.value }))} required /></Field><Field label="VAT (%)"><input className={INPUT} type="number" min="0" max="100" step="0.1" value={form.vatRate} onChange={e => setForm(f => ({ ...f, vatRate: e.target.value }))} /></Field></div><SaveActions saving={saving} /></form>; }

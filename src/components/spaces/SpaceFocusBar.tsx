@@ -11,7 +11,8 @@ import {
   CalendarDays, 
   ChevronDown, 
   ChevronUp, 
-  Check 
+  Check,
+  CircleDot 
 } from 'lucide-react';
 import type { Task } from '../../types';
 import { matchesSpaceFocus, type SpaceFocus } from '../../lib/spaceInsights';
@@ -70,6 +71,7 @@ export default function SpaceFocusBar({ tasks, focus, onFocusChange, userId, loc
 
   const items = [
     { id: 'all', label: vi ? 'Tất cả' : 'All', title: vi ? 'Tất cả công việc' : 'All tasks', icon: ListFilter },
+    { id: 'active', label: vi ? 'Đang làm' : 'Active', title: vi ? 'Công việc đang làm' : 'Active tasks', icon: CircleDot },
     { id: 'mine', label: vi ? 'Của tôi' : 'Mine', title: vi ? 'Giao cho tôi' : 'Assigned to me', icon: UserRound },
     { id: 'today', label: vi ? 'Hôm nay' : 'Today', title: vi ? 'Đến hạn hôm nay' : 'Due today', icon: CalendarDays },
     { id: 'overdue', label: vi ? 'Quá hạn' : 'Overdue', title: vi ? 'Quá hạn chót' : 'Overdue tasks', icon: Clock3 },

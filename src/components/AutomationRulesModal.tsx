@@ -208,7 +208,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.18 }}
               onClick={onClose}
-              className="absolute inset-0 bg-black/40 dark:bg-black/75 backdrop-blur-xs cursor-pointer"
+              className="absolute inset-0 bg-black/40 dark:bg-black/75 cursor-pointer"
             />
 
             {/* Modal Body */}
@@ -352,7 +352,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
 
         {/* Create Rule Modal Overlay */}
         {showCreateModal && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/50">
             <motion.form
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}

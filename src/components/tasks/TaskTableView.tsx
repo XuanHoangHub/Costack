@@ -123,6 +123,9 @@ interface TaskTableViewProps {
   isSearchingOrFiltering?: boolean;
   wrapText?: boolean;
   showEmptyStatuses?: boolean;
+  hideHeaderControls?: boolean;
+  tableGroupBy?: 'none' | 'status' | 'priority';
+  onTableGroupByChange?: (g: 'none' | 'status' | 'priority') => void;
 }
 
 export default function TaskTableView({
@@ -132,7 +135,8 @@ export default function TaskTableView({
   setVisibleFields, setCustomFields, openDialog, openPromptModal, triggerToast,
   activeTimerTaskId = null, onStartGlobalTimer, onStopGlobalTimer,
   totalTaskCount, isSearchingOrFiltering = false,
-  wrapText = false, showEmptyStatuses = true
+  wrapText = false, showEmptyStatuses = true,
+  hideHeaderControls = false, tableGroupBy, onTableGroupByChange
 }: TaskTableViewProps) {
   const { t, locale } = useTranslation();
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
@@ -326,12 +330,33 @@ export default function TaskTableView({
   const [quickFilter, setQuickFilter] = useState<QuickFilterType>('all');
   const [tableSearchQuery, setTableSearchQuery] = useState('');
   type GroupByType = 'none' | 'status' | 'priority';
-  const [groupBy, setGroupBy] = useState<GroupByType>('none');
+  const [internalGroupBy, setInternalGroupBy] = useState<GroupByType>('none');
+  const groupBy = tableGroupBy !== undefined ? tableGroupBy : internalGroupBy;
+  const setGroupBy = (g: GroupByType) => {
+    setInternalGroupBy(g);
+    onTableGroupByChange?.(g);
+  };
   const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
 
   const [inlineSubtaskParentId, setInlineSubtaskParentId] = useState<string | null>(null);
   const [draftSubtaskTitle, setDraftSubtaskTitle] = useState('');
   const inlineSubtaskInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleOpenInlineTask = () => {
+      if (mobileMode === 'cards' && isMobileScreen) {
+        document.getElementById('mobile-quick-task-input')?.focus();
+      } else {
+        setIsCreatingInline(true);
+        setTimeout(() => {
+          inlineTitleInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          inlineTitleInputRef.current?.focus();
+        }, 50);
+      }
+    };
+    window.addEventListener('apexa-table-add-task', handleOpenInlineTask);
+    return () => window.removeEventListener('apexa-table-add-task', handleOpenInlineTask);
+  }, [mobileMode, isMobileScreen]);
 
   const toggleGroupCollapse = (groupId: string) => {
     setCollapsedGroups(prev =>
@@ -379,6 +404,9 @@ export default function TaskTableView({
 
   // 1. Filter by Quick Filter & in-table search
   const filteredByQuickAndSearch = React.useMemo(() => {
+    if (hideHeaderControls) {
+      return filteredTasks;
+    }
     let list = filteredTasks;
 
     // Filter by quick chip
@@ -410,7 +438,7 @@ export default function TaskTableView({
     }
 
     return list;
-  }, [filteredTasks, quickFilter, tableSearchQuery]);
+  }, [filteredTasks, hideHeaderControls, quickFilter, tableSearchQuery]);
 
   // 2. Comprehensive Sort (all columns supported)
   const sortedTasks = React.useMemo(() => {
@@ -1717,9 +1745,10 @@ export default function TaskTableView({
   return (
     <div className="w-full flex-1 flex flex-col min-h-0 bg-white dark:bg-transparent select-none">
       {/* Table & View Control Toolbar */}
-      <div className="shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 border-b border-slate-200/70 dark:border-white/[0.06] bg-slate-50/50 dark:bg-white/[0.02] flex flex-wrap items-center justify-between gap-2.5">
-        {/* Left: Quick Filters & Search */}
-        <div className="flex items-center flex-wrap gap-2">
+      {!hideHeaderControls && (
+        <div className="shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 border-b border-slate-200/70 dark:border-white/[0.06] bg-slate-50/50 dark:bg-white/[0.02] flex flex-wrap items-center justify-between gap-2.5">
+          {/* Left: Quick Filters & Search */}
+          <div className="flex items-center flex-wrap gap-2">
           {/* Quick Filter Chips */}
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
             <button
@@ -1924,6 +1953,7 @@ export default function TaskTableView({
           )}
         </div>
       </div>
+      )}
 
       {mobileMode === 'cards' && isMobileScreen ? (
         /* Mobile Card View Mode */

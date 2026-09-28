@@ -14,6 +14,7 @@ import { callAiApi } from '@/lib/aiClient';
 import { restoreBulkTaskFields } from '@/lib/taskLifecycle';
 import { matchesSpaceFocus, type SpaceFocus } from '@/lib/spaceInsights';
 import SpaceFocusBar from './spaces/SpaceFocusBar';
+import ExpandableSearch from './spaces/ExpandableSearch';
 import { useTranslation } from '../contexts/TranslationContext';
 
 function Portal({ children }: { children: React.ReactNode }) {
@@ -1663,6 +1664,7 @@ export default function SpacePage({
 
   const [boardGroupBy, setBoardGroupBy] = useState<'status' | 'priority' | 'assignee'>('status');
   const [boardSwimlaneBy, setBoardSwimlaneBy] = useState<'none' | 'status' | 'priority' | 'assignee'>('none');
+  const [tableGroupBy, setTableGroupBy] = useState<'none' | 'status' | 'priority'>('none');
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [activeOverDropId, setActiveOverDropId] = useState<string | null>(null);
   const skipNextViewOptionsPersistenceRef = useRef(true);
@@ -2012,6 +2014,22 @@ export default function SpacePage({
       }
       return true;
     }), [tasks, activeSpaceId, activeListId, activeFolderId, activeSpace.lists, myTasksOnly, currentUser?.id]);
+
+  const quickFilterCounts = useMemo(() => {
+    const all = scopedTasks.length;
+    const active = scopedTasks.filter(t => t.status !== 'completed' && (t.status as string) !== 'canceled').length;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const overdue = scopedTasks.filter(t => {
+      if (!t.dueDate || t.status === 'completed') return false;
+      const due = new Date(t.dueDate.split('T')[0]);
+      due.setHours(0, 0, 0, 0);
+      return due.getTime() < now.getTime();
+    }).length;
+    const urgent = scopedTasks.filter(t => t.priority === 'urgent' || t.priority === 'high').length;
+    const completed = scopedTasks.filter(t => t.status === 'completed').length;
+    return { all, active, overdue, urgent, completed };
+  }, [scopedTasks]);
 
   const filteredTasks = useMemo(() => {
     let result = scopedTasks.filter(task => matchesSpaceFocus(task, taskFocus, currentUser?.id));
@@ -3929,133 +3947,186 @@ export default function SpacePage({
 
       {/* ── Filter / Sorter Bar (Seamless & Gentle Workspace Toolbar) ── */}
       {isTaskWorkspaceView && (
-        <div className="apexa-space-filterbar shrink-0 border-b border-slate-200/60 dark:border-white/[0.06] px-3 sm:px-5 py-1 flex items-center justify-between gap-2 bg-white/80 dark:bg-[#050508]/90 backdrop-blur-md min-h-[38px] overflow-x-auto no-scrollbar" role="search" aria-label={locale === 'vi' ? 'Tìm kiếm và lọc công việc' : 'Search and filter tasks'}>
+        <div className="apexa-space-filterbar shrink-0 border-b border-slate-200/60 dark:border-white/[0.06] px-3 sm:px-4 py-1.5 flex items-center justify-between gap-2 bg-white/80 dark:bg-[#050508]/90 backdrop-blur-md min-h-[42px] overflow-x-auto no-scrollbar flex-nowrap" role="search" aria-label={locale === 'vi' ? 'Tìm kiếm và lọc công việc' : 'Search and filter tasks'}>
           
-          {/* Left section: Search + (if Board view) Group & Swimlane */}
+          {/* Left section: Expandable Search Icon + Quick Filter Chips / View Specific Controls */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* Search task input */}
-            <div className="group flex items-center gap-1.5 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 focus-within:border-blue-500 dark:focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-500/20 shadow-3xs rounded-xl px-2.5 py-0.5 w-32 sm:w-40 lg:w-48 transition-all h-7.5">
-              <Search className="w-3.5 h-3.5 text-slate-400 group-focus-within:text-indigo-500 dark:group-focus-within:text-indigo-400 transition-colors shrink-0" />
-              <input 
-                type="text" 
-                placeholder={locale === 'vi' ? 'Tìm kiếm công việc...' : (t('searchTask') || 'Search tasks...')} 
-                aria-label={locale === 'vi' ? 'Tìm kiếm công việc...' : (t('searchTask') || 'Search tasks...')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                data-no-focus-outline="true"
-                className="apexa-search-input w-full bg-transparent text-xs font-medium text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 border-none !border-0 outline-none !outline-none focus:outline-none focus:!outline-none focus-visible:outline-none focus-visible:!outline-none focus:ring-0 focus:!ring-0 focus-visible:ring-0 focus-visible:!ring-0 shadow-none"
-              />
-              {searchQuery && (
-                <button 
-                  type="button" 
-                  onClick={() => setSearchQuery('')} 
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded-md hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
-                  title={locale === 'vi' ? 'Xóa tìm kiếm' : 'Clear search'}
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
+            {/* Expandable Search task icon */}
+            <ExpandableSearch
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder={locale === 'vi' ? 'Tìm kiếm công việc...' : (t('searchTask') || 'Search tasks...')}
+              locale={locale}
+            />
 
-            {/* Board View Specific Controls (Inline seamlessly with Search) */}
-            {activeView === 'board' && (
+            <div className="h-4 w-px bg-slate-200 dark:bg-white/10 shrink-0" />
+
+            {/* Quick Status Filters (When activeView === 'table', render the quick status chips with count badges) */}
+            {activeView === 'table' ? (
+              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
+                {[
+                  { id: 'all' as const, label: locale === 'vi' ? 'Tất cả' : 'All', count: quickFilterCounts.all },
+                  { id: 'active' as const, label: locale === 'vi' ? 'Đang làm' : 'Active', count: quickFilterCounts.active },
+                  { id: 'overdue' as const, label: locale === 'vi' ? 'Quá hạn' : 'Overdue', count: quickFilterCounts.overdue, isOverdue: true },
+                  { id: 'priority' as const, label: locale === 'vi' ? 'Khẩn cấp' : 'Urgent', count: quickFilterCounts.urgent, isUrgent: true },
+                  { id: 'completed' as const, label: locale === 'vi' ? 'Đã xong' : 'Done', count: quickFilterCounts.completed },
+                ].map(filter => {
+                  const isSelected = taskFocus === filter.id;
+                  return (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      onClick={() => setTaskFocus(filter.id)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                        isSelected
+                          ? 'bg-slate-900 text-white dark:bg-white/15 dark:text-white dark:border dark:border-white/20 shadow-xs'
+                          : 'bg-white dark:bg-white/[0.04] text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-white/[0.08] hover:bg-slate-100 dark:hover:bg-white/[0.08]'
+                      }`}
+                    >
+                      <span className={filter.isOverdue && filter.count > 0 && !isSelected ? 'text-rose-600 dark:text-rose-400' : filter.isUrgent && filter.count > 0 && !isSelected ? 'text-amber-600 dark:text-amber-400' : ''}>
+                        {filter.label}
+                      </span>
+                      {(filter.count > 0 || filter.id === 'all' || filter.id === 'active' || filter.id === 'completed') && (
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                          isSelected
+                            ? 'bg-white/20 text-white'
+                            : filter.isOverdue && filter.count > 0
+                            ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 font-extrabold'
+                            : filter.isUrgent && filter.count > 0
+                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 font-extrabold'
+                            : 'bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400'
+                        }`}>
+                          {filter.count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              /* For other views: Board controls, List controls, or SpaceFocusBar */
               <>
-                <div className="h-4 w-px bg-slate-200 dark:bg-white/10 hidden sm:block" />
+                {/* Board View Specific Controls (Inline seamlessly with Search) */}
+                {activeView === 'board' && (
+                  <>
+                    {/* Group By Selector */}
+                    <div className="flex items-center gap-1 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 rounded-xl px-2 shadow-3xs h-7.5 transition-colors">
+                      <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-semibold hidden md:inline shrink-0">
+                        {locale === 'vi' ? 'Nhóm:' : 'Group:'}
+                      </span>
+                      <Select
+                        value={boardGroupBy}
+                        onChange={(v) => {
+                          setBoardGroupBy(v as any);
+                          if (boardSwimlaneBy === v) {
+                            setBoardSwimlaneBy('none');
+                          }
+                        }}
+                        size="sm"
+                        variant="inline"
+                        ariaLabel={locale === 'vi' ? 'Nhóm theo' : 'Group by'}
+                        options={[
+                          { value: 'status', label: locale === 'vi' ? 'Trạng thái' : 'Status' },
+                          { value: 'priority', label: locale === 'vi' ? 'Mức ưu tiên' : 'Priority' },
+                          { value: 'assignee', label: locale === 'vi' ? 'Người phụ trách' : 'Assignee' },
+                        ]}
+                      />
+                    </div>
 
-                {/* Group By Selector */}
-                <div className="flex items-center gap-1 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 rounded-xl px-2 shadow-3xs h-7.5 transition-colors">
-                  <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-semibold hidden md:inline shrink-0">
-                    {locale === 'vi' ? 'Nhóm:' : 'Group:'}
-                  </span>
-                  <Select
-                    value={boardGroupBy}
-                    onChange={(v) => {
-                      setBoardGroupBy(v as any);
-                      if (boardSwimlaneBy === v) {
-                        setBoardSwimlaneBy('none');
-                      }
+                    {/* Swimlane Selector */}
+                    <div className="flex items-center gap-1 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 rounded-xl px-2 shadow-3xs h-7.5 transition-colors">
+                      <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-semibold hidden md:inline shrink-0">
+                        {locale === 'vi' ? 'Làn bơi:' : 'Swimlane:'}
+                      </span>
+                      <Select
+                        value={boardSwimlaneBy}
+                        onChange={(v) => setBoardSwimlaneBy(v as any)}
+                        size="sm"
+                        variant="inline"
+                        ariaLabel={locale === 'vi' ? 'Làn công việc' : 'Swimlane'}
+                        options={[
+                          { value: 'none', label: locale === 'vi' ? 'Không' : 'None' },
+                          ...(boardGroupBy !== 'status' ? [{ value: 'status', label: locale === 'vi' ? 'Trạng thái' : 'Status' }] : []),
+                          ...(boardGroupBy !== 'priority' ? [{ value: 'priority', label: locale === 'vi' ? 'Mức ưu tiên' : 'Priority' }] : []),
+                          ...(boardGroupBy !== 'assignee' ? [{ value: 'assignee', label: locale === 'vi' ? 'Người phụ trách' : 'Assignee' }] : []),
+                        ]}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* List View Specific Controls (Quick Empty Statuses Toggle) */}
+                {activeView === 'list' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !showEmptyStatuses;
+                      setShowEmptyStatuses(next);
+                      triggerToast?.('info', 'Chế độ xem', next ? (locale === 'vi' ? 'Đang hiển thị tất cả trạng thái' : 'Showing all statuses') : (locale === 'vi' ? 'Đã ẩn các trạng thái chưa có công việc' : 'Hidden empty statuses'));
                     }}
-                    size="sm"
-                    variant="inline"
-                    ariaLabel={locale === 'vi' ? 'Nhóm theo' : 'Group by'}
-                    options={[
-                      { value: 'status', label: locale === 'vi' ? 'Trạng thái' : 'Status' },
-                      { value: 'priority', label: locale === 'vi' ? 'Mức ưu tiên' : 'Priority' },
-                      { value: 'assignee', label: locale === 'vi' ? 'Người phụ trách' : 'Assignee' },
-                    ]}
-                  />
-                </div>
+                    className={`h-7.5 px-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-3xs ${
+                      !showEmptyStatuses
+                        ? 'bg-blue-50/90 dark:bg-blue-500/15 border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-300 font-bold'
+                        : 'bg-slate-50/90 dark:bg-white/[0.04] border-slate-200/80 dark:border-white/[0.08] text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                    title={locale === 'vi'
+                      ? (showEmptyStatuses ? 'Đang hiện nhóm trạng thái trống — Nhấp để ẩn các trạng thái chưa có việc' : 'Đang ẩn các trạng thái chưa có việc — Nhấp để hiện tất cả')
+                      : (showEmptyStatuses ? 'Showing empty statuses — Click to hide' : 'Hiding empty statuses — Click to show all')
+                    }
+                  >
+                    {showEmptyStatuses ? <Eye className="w-3.5 h-3.5 shrink-0" /> : <EyeOff className="w-3.5 h-3.5 shrink-0" />}
+                    <span className="hidden md:inline">
+                      {locale === 'vi' ? (showEmptyStatuses ? 'Hiện nhóm trống' : 'Ẩn nhóm trống') : (showEmptyStatuses ? 'Empty: Show' : 'Empty: Hide')}
+                    </span>
+                  </button>
+                )}
 
-                {/* Swimlane Selector */}
-                <div className="flex items-center gap-1 bg-slate-50/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15 rounded-xl px-2 shadow-3xs h-7.5 transition-colors">
-                  <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-semibold hidden md:inline shrink-0">
-                    {locale === 'vi' ? 'Làn bơi:' : 'Swimlane:'}
-                  </span>
-                  <Select
-                    value={boardSwimlaneBy}
-                    onChange={(v) => setBoardSwimlaneBy(v as any)}
-                    size="sm"
-                    variant="inline"
-                    ariaLabel={locale === 'vi' ? 'Làn công việc' : 'Swimlane'}
-                    options={[
-                      { value: 'none', label: locale === 'vi' ? 'Không' : 'None' },
-                      ...(boardGroupBy !== 'status' ? [{ value: 'status', label: locale === 'vi' ? 'Trạng thái' : 'Status' }] : []),
-                      ...(boardGroupBy !== 'priority' ? [{ value: 'priority', label: locale === 'vi' ? 'Mức ưu tiên' : 'Priority' }] : []),
-                      ...(boardGroupBy !== 'assignee' ? [{ value: 'assignee', label: locale === 'vi' ? 'Người phụ trách' : 'Assignee' }] : []),
-                    ]}
-                  />
-                </div>
-              </>
-            )}
-
-            {/* List View Specific Controls (Quick Empty Statuses Toggle) */}
-            {activeView === 'list' && (
-              <>
-                <div className="h-4 w-px bg-slate-200 dark:bg-white/10 hidden sm:block" />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = !showEmptyStatuses;
-                    setShowEmptyStatuses(next);
-                    triggerToast?.('info', 'Chế độ xem', next ? (locale === 'vi' ? 'Đang hiển thị tất cả trạng thái' : 'Showing all statuses') : (locale === 'vi' ? 'Đã ẩn các trạng thái chưa có công việc' : 'Hidden empty statuses'));
-                  }}
-                  className={`h-7.5 px-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-3xs ${
-                    !showEmptyStatuses
-                      ? 'bg-blue-50/90 dark:bg-blue-500/15 border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-300 font-bold'
-                      : 'bg-slate-50/90 dark:bg-white/[0.04] border-slate-200/80 dark:border-white/[0.08] text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                  title={locale === 'vi'
-                    ? (showEmptyStatuses ? 'Đang hiện nhóm trạng thái trống — Nhấp để ẩn các trạng thái chưa có việc' : 'Đang ẩn các trạng thái chưa có việc — Nhấp để hiện tất cả')
-                    : (showEmptyStatuses ? 'Showing empty statuses — Click to hide' : 'Hiding empty statuses — Click to show all')
-                  }
-                >
-                  {showEmptyStatuses ? <Eye className="w-3.5 h-3.5 shrink-0" /> : <EyeOff className="w-3.5 h-3.5 shrink-0" />}
-                  <span className="hidden md:inline">
-                    {locale === 'vi' ? (showEmptyStatuses ? 'Hiện nhóm trống' : 'Ẩn nhóm trống') : (showEmptyStatuses ? 'Empty: Show' : 'Empty: Hide')}
-                  </span>
-                </button>
+                {/* Middle section: SpaceFocusBar for non-table views */}
+                {TASK_WORKSPACE_VIEWS.has(activeView) && (
+                  <>
+                    <div className="h-4 w-px bg-slate-200 dark:bg-white/10 shrink-0 mx-1 hidden md:block" />
+                    <SpaceFocusBar 
+                      variant="inline"
+                      tasks={scopedTasks} 
+                      focus={taskFocus} 
+                      onFocusChange={setTaskFocus}
+                      userId={currentUser?.id} 
+                      locale={locale} 
+                      resultCount={filteredTasks.length} 
+                    />
+                  </>
+                )}
               </>
             )}
           </div>
 
-          {/* Middle section: Focus Pills (Integrated cleanly on the same row) */}
-          {TASK_WORKSPACE_VIEWS.has(activeView) && (
-            <>
-              <div className="h-4 w-px bg-slate-200 dark:bg-white/10 shrink-0 mx-1 hidden md:block" />
-              <SpaceFocusBar 
-                variant="inline"
-                tasks={scopedTasks} 
-                focus={taskFocus} 
-                onFocusChange={setTaskFocus}
-                userId={currentUser?.id} 
-                locale={locale} 
-                resultCount={filteredTasks.length} 
-              />
-            </>
-          )}
-
-          {/* Right section: Filters, Sorter, Card Size/Covers, AI, Add Board */}
+          {/* Right section: Filters, Sorter, Card Size/Covers, AI, Add Board / Task */}
           <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+            {/* Table View: Group By Selector */}
+            {activeView === 'table' && (
+              <div className="flex items-center gap-0.5 bg-slate-100/70 dark:bg-white/[0.04] border border-slate-200/70 dark:border-white/[0.08] rounded-xl p-0.5 text-xs h-8 shrink-0">
+                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 pl-1.5 pr-1 hidden lg:flex items-center gap-1">
+                  <Layers className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                  <span>{locale === 'vi' ? 'Nhóm:' : 'Group:'}</span>
+                </span>
+                {(['none', 'status', 'priority'] as const).map(g => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setTableGroupBy(g)}
+                    className={`px-2 py-0.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      tableGroupBy === g
+                        ? 'bg-white dark:bg-white/15 text-indigo-600 dark:text-indigo-300 shadow-xs border border-slate-200/60 dark:border-white/10'
+                        : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-white'
+                    }`}
+                    title={locale === 'vi' ? `Nhóm theo: ${{ none: 'Không', status: 'Trạng thái', priority: 'Ưu tiên' }[g]}` : `Group by: ${{ none: 'None', status: 'Status', priority: 'Priority' }[g]}`}
+                  >
+                    {{ none: locale === 'vi' ? 'Không' : 'None', status: locale === 'vi' ? 'Trạng thái' : 'Status', priority: locale === 'vi' ? 'Ưu tiên' : 'Priority' }[g]}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Customize View Button (ClickUp style) */}
             <button 
               type="button"
@@ -4325,6 +4396,21 @@ export default function SpacePage({
                   {timerRunning ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
                 </button>
               </div>
+            )}
+
+            {/* Table View: Add Task Primary Button */}
+            {activeView === 'table' && (
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('apexa-table-add-task'));
+                }}
+                className="h-8 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs hover:shadow cursor-pointer active:scale-95 transition-all shrink-0"
+                title={locale === 'vi' ? 'Thêm công việc mới vào bảng' : 'Add task to table'}
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span className="hidden sm:inline">{locale === 'vi' ? 'Thêm việc' : 'Add Task'}</span>
+              </button>
             )}
           </div>
         </div>
@@ -4730,6 +4816,9 @@ export default function SpacePage({
             openPromptModal={openPromptModal}
             wrapText={wrapText}
             showEmptyStatuses={showEmptyStatuses}
+            hideHeaderControls={true}
+            tableGroupBy={tableGroupBy}
+            onTableGroupByChange={setTableGroupBy}
           />
         )}
 
@@ -7808,7 +7897,7 @@ export default function SpacePage({
               transition={{ duration: 0.18 }}
               className="fixed inset-0 z-[120] flex items-center justify-center p-4"
             >
-              <div className="absolute inset-0 bg-slate-950/60 modal-backdrop-blur cursor-pointer" onClick={() => setTemplatesModalOpen(false)} />
+              <div className="absolute inset-0 bg-slate-950/60 cursor-pointer" onClick={() => setTemplatesModalOpen(false)} />
               <motion.div
                 key="templates-modal-card"
                 initial={{ scale: 0.94, y: 16, opacity: 0 }}

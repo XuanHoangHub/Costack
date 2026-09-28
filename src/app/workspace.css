@@ -71,11 +71,22 @@
 .apexa-app-shell.apexa-design-system .apexa-route-canvas :where(p, td, [contenteditable="true"]) { user-select: text; }
 
 /* Clean Sans-Serif Numbers (Apple style, no bottom foot/serif on digit 1) */
-.apexa-app-shell.apexa-design-system :where(.tabular-nums, .font-numeric, [data-numeric]),
-.apexa-app-shell.apexa-design-system .apexa-dashboard :where(.font-mono, .font-numeric, .tabular-nums) {
+:where(.tabular-nums, .font-numeric, [data-numeric], .font-mono, [data-font-mono]),
+.apexa-app-shell :where(.tabular-nums, .font-numeric, [data-numeric], .font-mono, [data-font-mono]),
+.apexa-task-dialog :where(.tabular-nums, .font-numeric, [data-numeric], .font-mono, [data-font-mono]) {
   font-family: var(--font-numeric), var(--font-sans), -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", sans-serif !important;
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum" 1;
+}
+
+/* Ensure modal overlays throughout the workspace never use frosted glass blur */
+.apexa-app-shell .modal-backdrop,
+.apexa-app-shell [data-modal-backdrop],
+.apexa-app-shell .modal-backdrop-blur,
+.fixed.inset-0[class*='backdrop-blur'],
+.absolute.inset-0[class*='backdrop-blur'] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 .apexa-app-shell.apexa-design-system :where(button, select, textarea, a, summary):focus-visible,
 .apexa-app-shell.apexa-design-system input:not([data-no-focus-outline="true"]):not(.border-none):not(.outline-none):not(.apexa-search-input):focus-visible {
@@ -239,7 +250,7 @@
 .liquid-blob { display: none !important; }
 
 /* Overview: Apple content-first, airy rhythm, zero card enclosure. */
-.apexa-app-shell.apexa-design-system .apexa-dashboard { max-width: 1480px; padding: 28px 32px 64px; gap: 28px; }
+.apexa-app-shell.apexa-design-system .apexa-dashboard { max-width: 1720px; padding: 28px 32px 64px; gap: 28px; }
 .apexa-app-shell.apexa-design-system .apexa-dashboard > * { margin-block: 0; }
 .apexa-app-shell.apexa-design-system .apexa-dashboard-hero { border-radius: 0; padding: 0 0 16px 0; background: transparent; box-shadow: none; border: none; gap: 14px; }
 .apexa-app-shell.apexa-design-system .apexa-dashboard-hero > .pointer-events-none { display: none; }

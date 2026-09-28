@@ -9,7 +9,7 @@ import {
   Flame, ArrowLeft,
   CreditCard, Copy, Layers, SlidersHorizontal,
   AlertTriangle, ShieldCheck,
-  Award, Mail
+  Award, Mail, RefreshCw
 } from 'lucide-react';
 import { Task, User, Workspace, WorkspaceInvitation, TaskStatus, Priority } from '../types';
 import TaskDetailsPanel from './tasks/TaskDetailsPanel';
@@ -89,6 +89,53 @@ export default function InboxView({
   const [aiGenerating, setAiGenerating] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [aiSummary, setAiSummary] = useState('');
+
+  // AI Executive Digest States
+  const [aiDigest, setAiDigest] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('costack_inbox_ai_digest') || null;
+    }
+    return null;
+  });
+  const [isGeneratingDigest, setIsGeneratingDigest] = useState(false);
+  const [showDigestCard, setShowDigestCard] = useState(true);
+
+  const handleGenerateDigest = async () => {
+    if (!currentUser?.isPremium) {
+      onUpgradePremium();
+      return;
+    }
+    setIsGeneratingDigest(true);
+    try {
+      const res = await callAiApi('/api/ai/inbox-digest', {
+        userName: currentUser?.name || currentUser?.email?.split('@')[0] || (isVietnamese ? 'Bạn' : 'User'),
+        notifications: filteredNotifications.slice(0, 25).map(n => ({
+          title: n.title,
+          message: n.message,
+          type: n.type,
+          time: n.time
+        })),
+        tasksCount: tasks.length,
+      });
+      const data = await res.json();
+      if (data.success && data.digest) {
+        setAiDigest(data.digest);
+        setShowDigestCard(true);
+        try {
+          localStorage.setItem('costack_inbox_ai_digest', data.digest);
+        } catch {}
+        triggerToast?.('success', isVietnamese ? 'Bản tin AI đã sẵn sàng ✨' : 'AI Digest Ready ✨', isVietnamese ? 'Đã tổng hợp tình trạng hộp thư và nhiệm vụ của bạn.' : 'Executive inbox digest prepared.');
+        onAddSyncLog(isVietnamese ? 'Đã tạo bản tin Hộp thư bằng Costack AI' : 'Generated inbox digest via Costack AI');
+      } else {
+        triggerToast?.('error', isVietnamese ? 'Chưa thể tạo bản tin' : 'Could not generate digest', data.error || (isVietnamese ? 'Vui lòng thử lại sau.' : 'Please try again.'));
+      }
+    } catch (err: any) {
+      console.error('Inbox digest error:', err);
+      triggerToast?.('error', isVietnamese ? 'Lỗi kết nối AI' : 'AI Connection Error', isVietnamese ? 'Không thể kết nối dịch vụ AI.' : 'Failed to reach AI service.');
+    } finally {
+      setIsGeneratingDigest(false);
+    }
+  };
 
   // Close dropdowns on click outside
   useEffect(() => {
@@ -419,7 +466,7 @@ export default function InboxView({
 
   const handleClear = useCallback((id: string) => {
     setNotificationsList(prev => prev.map(n => 
-      n.id === id ? { ...n, cleared: true } : n
+      n.id === id ? { ...n, cleared: true, read: true, isRead: true } : n
     ));
     if (selectedNotificationId === id) {
       setSelectedNotificationId(null);
@@ -464,7 +511,7 @@ export default function InboxView({
   const handleClearAllVisible = () => {
     setNotificationsList(prev => prev.map(n => {
       const isInCurrentTab = filteredNotifications.some(fn => fn.id === n.id);
-      return isInCurrentTab ? { ...n, cleared: true } : n;
+      return isInCurrentTab ? { ...n, cleared: true, read: true, isRead: true } : n;
     }));
     setSelectedNotificationId(null);
     triggerToast?.('success', isVietnamese ? 'Dọn sạch hộp thư' : 'Cleared', isVietnamese ? 'Các thông báo hiển thị đã chuyển vào lưu trữ.' : 'Visible notifications archived.');
@@ -474,7 +521,7 @@ export default function InboxView({
     if (olderReadNotifications.length === 0) return;
     const idsToArchive = olderReadNotifications.map(n => n.id);
     setNotificationsList(prev => prev.map(n => 
-      idsToArchive.includes(n.id) ? { ...n, cleared: true } : n
+      idsToArchive.includes(n.id) ? { ...n, cleared: true, read: true, isRead: true } : n
     ));
     if (selectedNotificationId && idsToArchive.includes(selectedNotificationId)) {
       setSelectedNotificationId(null);
@@ -545,7 +592,7 @@ export default function InboxView({
 
   const handleClearSelected = () => {
     setNotificationsList(prev => prev.map(n => 
-      selectedNotifIds.includes(n.id) ? { ...n, cleared: true } : n
+      selectedNotifIds.includes(n.id) ? { ...n, cleared: true, read: true, isRead: true } : n
     ));
     if (selectedNotificationId && selectedNotifIds.includes(selectedNotificationId)) {
       setSelectedNotificationId(null);
@@ -844,6 +891,18 @@ export default function InboxView({
 
             {/* Top Toolbar Actions */}
             <div className="flex items-center gap-1 shrink-0">
+              {/* AI Executive Digest Button */}
+              <button
+                type="button"
+                onClick={handleGenerateDigest}
+                disabled={isGeneratingDigest}
+                className="h-7 px-2 rounded-lg border border-purple-200/80 dark:border-purple-800/60 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/40 dark:to-indigo-950/40 text-purple-700 dark:text-purple-300 hover:from-purple-100 hover:to-indigo-100 text-[11px] font-bold transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 disabled:opacity-50"
+                title={isVietnamese ? 'Tạo bản tin tóm tắt Hộp thư đầu ngày bằng Costack AI' : 'Generate Daily Inbox Digest with Costack AI'}
+              >
+                <Sparkles className={`w-3 h-3 ${isGeneratingDigest ? 'animate-spin text-purple-600 dark:text-purple-400' : 'text-purple-600 dark:text-purple-400'}`} />
+                <span className="hidden xs:inline">{isGeneratingDigest ? (isVietnamese ? 'Đang tạo...' : 'Generating...') : (isVietnamese ? 'Bản tin AI' : 'AI Digest')}</span>
+              </button>
+
               {/* Workspace Scope Toggle */}
               <button
                 onClick={() => setWorkspaceScope(prev => prev === 'current' ? 'all' : 'current')}
@@ -1275,6 +1334,55 @@ export default function InboxView({
         {/* Notification Stream Feed */}
         <div className="flex-1 overflow-y-auto p-3 space-y-3.5 custom-scrollbar min-h-0">
           
+          {/* AI Executive Daily Digest Card */}
+          {showDigestCard && aiDigest && (
+            <div className="rounded-2xl border border-purple-200/80 dark:border-purple-800/60 bg-gradient-to-br from-purple-50/80 via-indigo-50/40 to-sky-50/50 dark:from-purple-950/40 dark:via-indigo-950/20 dark:to-sky-950/20 p-3.5 text-left shadow-2xs space-y-2">
+              <div className="flex items-center justify-between gap-2 border-b border-purple-200/60 dark:border-purple-800/40 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-3xs">
+                    <Sparkles className="w-3 h-3" />
+                  </div>
+                  <span className="text-xs font-black text-purple-900 dark:text-purple-200 tracking-tight">
+                    {isVietnamese ? 'Bản tin Hộp thư Costack AI' : 'Costack AI Executive Digest'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(aiDigest);
+                      triggerToast?.('success', isVietnamese ? 'Đã sao chép' : 'Copied', isVietnamese ? 'Bản tin đã được sao chép vào bộ nhớ tạm.' : 'Digest copied to clipboard.');
+                    }}
+                    className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/60 transition cursor-pointer"
+                    title={isVietnamese ? 'Sao chép bản tin' : 'Copy digest'}
+                  >
+                    <Copy className="w-3 h-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleGenerateDigest}
+                    disabled={isGeneratingDigest}
+                    className="p-1 rounded-md text-slate-400 hover:text-purple-600 dark:hover:text-purple-300 hover:bg-white/60 dark:hover:bg-slate-800/60 transition cursor-pointer disabled:opacity-50"
+                    title={isVietnamese ? 'Làm mới bản tin' : 'Refresh digest'}
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isGeneratingDigest ? 'animate-spin' : ''}`} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDigestCard(false)}
+                    className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/60 transition cursor-pointer"
+                    title={isVietnamese ? 'Ẩn bản tin' : 'Dismiss'}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-300 font-medium whitespace-pre-wrap">
+                {aiDigest}
+              </p>
+            </div>
+          )}
+
           {/* Workspace Invitations Banner */}
           {workspaceInvitations.length > 0 && (activeTab === 'important' || activeTab === 'all') && (
             <div className="space-y-2 border-b border-slate-200/80 dark:border-slate-800/80 pb-3">
@@ -1853,7 +1961,7 @@ export default function InboxView({
 
                   {/* Inspector Body: Full-bleed Responsive Multi-Column Canvas */}
                   <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto custom-scrollbar text-left bg-white dark:bg-slate-950">
-                    <div className="w-full max-w-7xl mx-auto">
+                    <div className="w-full max-w-[1560px] mx-auto">
                       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
                         
                         {/* Left / Main Workspace Content (8 cols) */}

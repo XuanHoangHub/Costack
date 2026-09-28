@@ -956,7 +956,7 @@ export default function SettingsPanel({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setMobileNavigationOpen(false)}
-            className="fixed inset-0 z-40 bg-black/50 md:hidden cursor-pointer backdrop-blur-xs"
+            className="fixed inset-0 z-40 bg-black/50 md:hidden cursor-pointer"
           />
         )}
       </AnimatePresence>
@@ -1169,7 +1169,7 @@ export default function SettingsPanel({
               animate={{ opacity: 1, y: 0 }} 
               exit={{ opacity: 0, y: -4 }} 
               transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }} 
-              className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6 md:p-8 pb-24"
+              className="mx-auto max-w-5xl 2xl:max-w-6xl space-y-6 p-4 sm:p-6 md:p-8 pb-24"
             >
               
               {/* ── TAB 1: GENERAL (WORKSPACE) ── */}

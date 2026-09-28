@@ -10,7 +10,6 @@ import {
   UserRound,
   ArrowUpRight,
   WifiOff,
-  Layers,
   FileText
 } from 'lucide-react';
 import { useTranslation } from '@/contexts/TranslationContext';
@@ -90,11 +89,6 @@ export default function DashboardHeader({
         <div className="space-y-2 min-w-0 flex-1">
           {/* Status pill row */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-[11px] font-semibold text-neutral-600 dark:text-zinc-200 bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.09] shadow-xs backdrop-blur-md">
-              <Layers className="h-3 w-3 text-[#0071e3] dark:text-sky-400" />
-              <span className="truncate max-w-[200px]">{workspaceName || 'Costack Workspace'}</span>
-            </span>
-
             {isOffline && (
               <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-medium tracking-wide bg-amber-50 text-amber-700 border border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60">
                 <WifiOff className="h-3 w-3 animate-pulse" />
@@ -126,7 +120,7 @@ export default function DashboardHeader({
         </div>
 
         {/* Right column: Scope toggle & Quick Action buttons */}
-        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center lg:flex-col lg:items-end shrink-0">
+        <div className="flex shrink-0 flex-col gap-2.5 sm:flex-row sm:items-center lg:flex-row lg:items-center lg:justify-end">
           
           {/* Scope Segmented Control */}
           <div className="w-full sm:w-auto">
@@ -134,7 +128,6 @@ export default function DashboardHeader({
               value={dashboardScope}
               onChange={onScopeChange}
               size="sm"
-              fullWidth
               layoutIdPrefix="apexa-dashboard-scope"
               className="bg-black/[0.04] dark:bg-black/40 border border-black/[0.04] dark:border-white/[0.08] p-0.5 rounded-xl shadow-none"
               options={[
@@ -155,7 +148,7 @@ export default function DashboardHeader({
           </div>
 
           {/* Quick Actions buttons */}
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => onNavigate('tasks')}

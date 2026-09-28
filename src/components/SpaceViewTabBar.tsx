@@ -1023,7 +1023,7 @@ export default function SpaceViewTabBar({
         {showAddMenu && (
           <Portal>
             <div
-              className="fixed inset-0 z-50 bg-black/20 backdrop-blur-2xs"
+              className="fixed inset-0 z-50 bg-black/20"
               onClick={() => setShowAddMenu(false)}
             />
             <motion.div

@@ -120,7 +120,7 @@ export default function AddFolderModal({
               exit={{ opacity: 0 }} 
               transition={{ duration: 0.18 }}
               onClick={onClose} 
-              className="absolute inset-0 modal-backdrop bg-black/35 dark:bg-black/65 backdrop-blur-xs cursor-pointer" 
+              className="absolute inset-0 modal-backdrop bg-black/35 dark:bg-black/65 cursor-pointer" 
             />
 
             <motion.div 

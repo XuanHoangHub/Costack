@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { en, vi, Translations } from '../locales';
+import { executeLanguageTransition } from '@/lib/languageTransition';
+import LanguageToastHUD from '@/components/LanguageToastHUD';
 
 export type LocaleType = 'vi' | 'en';
 export type LocaleMode = 'vi' | 'en' | 'system';
@@ -10,7 +12,7 @@ export interface TranslationContextValue {
   t: (key: string, ...args: unknown[]) => string;
   locale: LocaleType;
   localeMode: LocaleMode;
-  setLocale: (locale: string) => void;
+  setLocale: (locale: string, event?: React.MouseEvent | MouseEvent) => void;
   isVietnamese: boolean;
   isEnglish: boolean;
   localize: (vietnamese: string, english: string) => string;
@@ -106,23 +108,25 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     };
   }, []);
 
-  const setLocale = useCallback((newLocale: string) => {
+  const setLocale = useCallback((newLocale: string, event?: React.MouseEvent | MouseEvent) => {
     const validMode = normalizeLocaleMode(newLocale);
     const effectiveLocale = getEffectiveLocale(validMode);
 
-    setLocaleMode(validMode);
-    setLocaleState(effectiveLocale);
+    executeLanguageTransition(validMode, event, () => {
+      setLocaleMode(validMode);
+      setLocaleState(effectiveLocale);
 
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('apexa_locale_mode', validMode);
-        localStorage.setItem('apexa_locale', effectiveLocale);
-        applyDocumentLocale(effectiveLocale, validMode);
-        window.dispatchEvent(new CustomEvent('apexa-locale-changed', { detail: { locale: effectiveLocale, mode: validMode } }));
-      } catch {
-        // Ignore storage error
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('apexa_locale_mode', validMode);
+          localStorage.setItem('apexa_locale', effectiveLocale);
+          applyDocumentLocale(effectiveLocale, validMode);
+          window.dispatchEvent(new CustomEvent('apexa-locale-changed', { detail: { locale: effectiveLocale, mode: validMode } }));
+        } catch {
+          // Ignore storage error
+        }
       }
-    }
+    });
   }, []);
 
   const t = useCallback((key: string, ...args: unknown[]): string => {
@@ -249,6 +253,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
 
   return (
     <TranslationContext.Provider value={contextValue}>
+      <LanguageToastHUD />
       {children}
     </TranslationContext.Provider>
   );

@@ -1,6 +1,6 @@
 import type { Task } from '../types';
 
-export type SpaceFocus = 'all' | 'mine' | 'overdue' | 'today' | 'upcoming' | 'unassigned' | 'completed' | 'priority';
+export type SpaceFocus = 'all' | 'active' | 'mine' | 'overdue' | 'today' | 'upcoming' | 'unassigned' | 'completed' | 'priority';
 
 // Date-only deadlines last through the local calendar day, not UTC midnight.
 export function taskDueTime(value?: string): number {
@@ -11,6 +11,7 @@ export function taskDueTime(value?: string): number {
 
 export function matchesSpaceFocus(task: Task, focus: SpaceFocus, userId?: string, now = new Date()): boolean {
   if (focus === 'all') return true;
+  if (focus === 'active') return task.status !== 'completed' && (task.status as string) !== 'canceled';
   if (focus === 'completed') return task.status === 'completed';
   if (focus === 'mine') return Boolean(userId && (task.assigneeId === userId || task.assigneeIds?.includes(userId)));
   if (task.status === 'completed') return false;

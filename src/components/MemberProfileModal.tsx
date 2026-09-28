@@ -21,6 +21,7 @@ import { getLocalizedOptionLabel } from '@/utils/fieldConfig';
 import { uiStatusToPresence, presenceDotClass } from '@/lib/presence';
 import { User, Task } from '@/types';
 import { createPortal } from 'react-dom';
+import { buildDmChannelId, resolveUserAuthId } from '@/lib/chatUtils';
 
 function Portal({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -389,9 +390,9 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
       setActiveTab('profile');
       return;
     }
-    const currentUserId = currentUser?.id || 'user';
-    const sortedIds = [currentUserId, member.id].sort();
-    const dmChannelId = `${activeWorkspaceId || 'w1'}:dm-${sortedIds[0]}-${sortedIds[1]}`;
+    const myId = resolveUserAuthId(currentUser);
+    const peerId = resolveUserAuthId(member);
+    const dmChannelId = buildDmChannelId(activeWorkspaceId || 'w1', myId, peerId);
     setInitialSelectedChannelId(dmChannelId);
     setActiveTab('chat');
   };
@@ -421,7 +422,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="absolute inset-0 modal-backdrop bg-black/40 dark:bg-black/75 backdrop-blur-md cursor-pointer" 
+            className="absolute inset-0 modal-backdrop bg-black/40 dark:bg-black/75 cursor-pointer" 
             onClick={onClose} 
           />
 
@@ -486,7 +487,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_80%,_rgba(6,182,212,0.4),_transparent_50%)]" />
                 <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-cyan-400/20 blur-2xl" />
                 <div className="absolute -bottom-12 -left-12 w-48 h-48 rounded-full bg-indigo-500/30 blur-2xl" />
-                <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px]" />
+                <div className="absolute inset-0 bg-black/10" />
                 <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
               </>
             )}

@@ -630,7 +630,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 onClose();
                 setSearchQuery('');
               }}
-              className="absolute inset-0 modal-backdrop bg-black/40 dark:bg-black/75 backdrop-blur-xs cursor-pointer"
+              className="absolute inset-0 modal-backdrop bg-black/40 dark:bg-black/75 cursor-pointer"
             />
 
             {/* Modal Body (Raycast / Linear Command Bar) */}

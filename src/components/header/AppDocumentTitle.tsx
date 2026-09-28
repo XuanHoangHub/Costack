@@ -2,7 +2,6 @@
 
 import { useEffect, memo } from 'react';
 import { usePomodoroStore } from '@/store/pomodoroStore';
-import { useNotificationStore } from '@/store/notificationStore';
 import { Space, User } from '@/types';
 
 interface AppDocumentTitleProps {
@@ -16,7 +15,7 @@ interface AppDocumentTitleProps {
 
 const TAB_LABELS: Record<string, { vi: string; en: string }> = {
   dashboard: { vi: 'Tổng quan', en: 'Dashboard' },
-  tasks: { vi: 'Công việc', en: 'Tasks' },
+  tasks: { vi: 'Không gian làm việc', en: 'Tasks' },
   'my-tasks': { vi: 'Việc của tôi', en: 'My Tasks' },
   inbox: { vi: 'Hộp thư đến', en: 'Inbox' },
   finance: { vi: 'Tài chính & Thu chi', en: 'Finance' },
@@ -34,6 +33,7 @@ const TAB_LABELS: Record<string, { vi: string; en: string }> = {
 /**
  * Isolated browser document.title manager.
  * Isolates high-frequency Pomodoro countdown re-renders (1Hz) from the root App component.
+ * Keeps browser tabs clean, branded, and legible without cluttering tab prefixes.
  */
 export const AppDocumentTitle = memo(function AppDocumentTitle({
   currentUser,
@@ -46,13 +46,14 @@ export const AppDocumentTitle = memo(function AppDocumentTitle({
   const pomodoroTime = usePomodoroStore((s) => s.pomodoroTime);
   const pomodoroActive = usePomodoroStore((s) => s.pomodoroActive);
   const pomodoroMode = usePomodoroStore((s) => s.pomodoroMode);
-  const unreadCount = useNotificationStore((s) => (s.notificationsList || []).filter((n: any) => !n.isRead && !n.read).length);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     if (!currentUser) {
-      document.title = 'Costack · Không gian làm việc thông minh & Trợ lý AI';
+      document.title = locale === 'vi'
+        ? 'Costack · Không gian làm việc thông minh & Trợ lý AI'
+        : 'Costack · Smart Workspace & AI Assistant';
       return;
     }
 
@@ -68,7 +69,22 @@ export const AppDocumentTitle = memo(function AppDocumentTitle({
       return;
     }
 
-    // 2. Tab title based on activeTab
+    const wsName = workspaceName && workspaceName !== 'U' ? workspaceName.trim() : 'Costack';
+    const isDefaultWorkspace = wsName.toLowerCase() === 'costack';
+
+    // 2. Main Dashboard (Home Overview) -> Clean brand title first so browser tabs display "Costack"
+    if (activeTab === 'dashboard') {
+      if (isDefaultWorkspace) {
+        document.title = locale === 'vi'
+          ? 'Costack · Không gian làm việc thông minh & Trợ lý AI'
+          : 'Costack · Smart Workspace & AI Assistant';
+      } else {
+        document.title = `${wsName} · Costack`;
+      }
+      return;
+    }
+
+    // 3. Tab title based on activeTab
     const tabLabel = TAB_LABELS[activeTab];
     let titlePart = tabLabel ? (locale === 'vi' ? tabLabel.vi : tabLabel.en) : 'Workspace';
 
@@ -76,24 +92,19 @@ export const AppDocumentTitle = memo(function AppDocumentTitle({
     if (activeTab === 'tasks' && activeSpaceId) {
       const activeSpace = spaces.find((sp) => sp.id === activeSpaceId);
       if (activeSpace?.name) {
-        titlePart = `${activeSpace.name} · ${locale === 'vi' ? 'Công việc' : 'Tasks'}`;
+        titlePart = `${activeSpace.name} · ${locale === 'vi' ? 'Không gian' : 'Space'}`;
       }
     }
 
-    // Unread notifications badge prefix e.g. (3)
-    const badgePrefix = unreadCount > 0 ? `(${unreadCount}) ` : '';
-    const wsName = workspaceName && workspaceName !== 'U' ? workspaceName.trim() : 'Costack';
-
-    if (wsName.toLowerCase() === 'costack') {
-      document.title = `${badgePrefix}${titlePart} · Costack`;
-    } else if (wsName.toLowerCase().includes('costack')) {
-      document.title = `${badgePrefix}${titlePart} · ${wsName}`;
+    if (isDefaultWorkspace) {
+      document.title = `${titlePart} · Costack`;
     } else {
-      document.title = `${badgePrefix}${titlePart} · ${wsName} · Costack`;
+      document.title = `${titlePart} · ${wsName} · Costack`;
     }
-  }, [currentUser, activeTab, activeSpaceId, spaces, workspaceName, pomodoroActive, pomodoroMode, pomodoroTime, unreadCount, locale]);
+  }, [currentUser, activeTab, activeSpaceId, spaces, workspaceName, pomodoroActive, pomodoroMode, pomodoroTime, locale]);
 
   return null;
 });
 
 export default AppDocumentTitle;
+

@@ -1240,7 +1240,7 @@ export default function CalendarView({
         <button
           aria-label="Đóng bộ lọc lịch"
           onClick={() => setIsSidebarOpen(false)}
-          className="absolute inset-0 z-20 bg-slate-950/40 backdrop-blur-[1px] lg:hidden"
+          className="absolute inset-0 z-20 bg-slate-950/40 lg:hidden"
         />
       )}
 
@@ -1827,7 +1827,7 @@ export default function CalendarView({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowAiModal(false)}
-              className="absolute inset-0 bg-slate-950/60 backdrop-blur-md transition-all"
+              className="absolute inset-0 bg-slate-950/60 transition-all cursor-pointer"
             />
             <motion.div
               initial={{ scale: 0.92, y: 20, opacity: 0 }}
@@ -1904,7 +1904,7 @@ export default function CalendarView({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedTask(null)}
-              className="absolute inset-0 bg-slate-950/60 backdrop-blur-md transition-all"
+              className="absolute inset-0 bg-slate-950/60 transition-all cursor-pointer"
             />
             
             <motion.div 
@@ -1912,7 +1912,7 @@ export default function CalendarView({
               animate={{ scale: 1, y: 0, opacity: 1 }} 
               exit={{ scale: 0.92, y: 20, opacity: 0 }} 
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-              className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200/80 dark:border-[var(--cu-border)] bg-white/95 dark:bg-[var(--cu-surface)]/95 shadow-[0_32px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl p-6 sm:p-7 text-left"
+              className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200/80 dark:border-[var(--cu-border)] bg-white dark:bg-[var(--cu-surface)] shadow-[0_32px_80px_rgba(0,0,0,0.35)] p-6 sm:p-7 text-left"
             >
               <div className="flex justify-between items-start mb-4">
                 <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${
@@ -2118,7 +2118,7 @@ export default function CalendarView({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowAddModal(false)}
-              className="absolute inset-0 bg-slate-950/60 backdrop-blur-md transition-all"
+              className="absolute inset-0 bg-slate-950/60 transition-all cursor-pointer"
             />
 
             {/* Modal Card */}

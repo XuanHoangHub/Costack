@@ -226,6 +226,7 @@ export default function TaskModal({
   const [createAnother, setCreateAnother] = useState(false);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [isAutofillingAi, setIsAutofillingAi] = useState(false);
+  const [isSuggestingTags, setIsSuggestingTags] = useState(false);
   const [aiAutofillHint, setAiAutofillHint] = useState<string | null>(null);
   const [validationError, setValidationError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -752,6 +753,36 @@ export default function TaskModal({
     }
   };
 
+  const handleAiSuggestTags = async () => {
+    if (!title.trim() && !description.trim()) {
+      titleInputRef.current?.focus();
+      return;
+    }
+    try {
+      setIsSuggestingTags(true);
+      const res = await callAiApi('/api/ai/suggest-tags', {
+        title: title.trim(),
+        description: description.trim(),
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.tags) && data.tags.length > 0) {
+        setTags(prev => Array.from(new Set([...prev, ...data.tags])));
+        setAiAutofillHint(
+          isVietnamese
+            ? `AI đã gợi ý ${data.tags.length} nhãn: ${data.tags.join(', ')}`
+            : `AI suggested ${data.tags.length} tags: ${data.tags.join(', ')}`
+        );
+      }
+    } catch (err: any) {
+      console.error('AI suggest tags error:', err);
+      setAiAutofillHint(
+        isVietnamese ? `Lỗi gợi ý thẻ: ${err.message || 'Thử lại'}` : `AI tag error: ${err.message || 'Try again'}`
+      );
+    } finally {
+      setIsSuggestingTags(false);
+    }
+  };
+
   const handleAiGenerateSubtasks = async () => {
     if (!title.trim()) { titleInputRef.current?.focus(); return; }
     try {
@@ -815,7 +846,7 @@ export default function TaskModal({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onClick={requestClose}
-              className="fixed inset-0 modal-backdrop bg-black/40 dark:bg-black/75 backdrop-blur-md cursor-pointer"
+              className="fixed inset-0 modal-backdrop bg-black/40 dark:bg-black/75 cursor-pointer"
             />
 
             {/* ════════════════════════════════════════ */}
@@ -829,7 +860,7 @@ export default function TaskModal({
               transition={{ type: 'spring', stiffness: 420, damping: 32 }}
           ref={createDialogRef}
           role="dialog" aria-modal="true" aria-label={isVietnamese ? (isEditMode ? 'Chỉnh sửa công việc' : 'Tạo công việc mới') : (isEditMode ? 'Edit task' : 'Create task')}
-          className="task-create-studio relative z-10 w-full max-w-2xl bg-white dark:bg-[#0a0b10] border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] outline-none"
+          className="task-create-studio relative z-10 w-full max-w-3xl bg-white dark:bg-[#0a0b10] border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] outline-none"
           style={{ boxShadow: '0 0 0 1px rgba(255,255,255,0.08) inset, 0 25px 60px -15px rgba(0,0,0,0.35)' }}
         >
           {/* Top Accent Bar */}
@@ -1383,6 +1414,83 @@ export default function TaskModal({
                               className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-3 text-xs font-medium text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 placeholder:text-slate-300 dark:placeholder:text-slate-600"
                             />
                           </div>
+                        </div>
+                      </div>
+
+                      {/* Tags Section */}
+                      <div className="space-y-2.5 p-3 rounded-xl bg-slate-50/70 dark:bg-white/[0.02] border border-slate-200/60 dark:border-slate-800/60">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <Tag className="w-3.5 h-3.5 text-indigo-500" />
+                            <span>{isVietnamese ? 'Nhãn / Thẻ (Tags)' : 'Tags'}</span>
+                            {tags.length > 0 && (
+                              <span className="px-1.5 py-0.2 rounded-md bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 text-[10px] font-bold">
+                                {tags.length}
+                              </span>
+                            )}
+                          </label>
+
+                          <button
+                            type="button"
+                            onClick={handleAiSuggestTags}
+                            disabled={isSuggestingTags || (!title.trim() && !description.trim())}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:opacity-40 cursor-pointer"
+                            title={isVietnamese ? 'AI gợi ý nhãn phù hợp với nội dung' : 'AI suggest tags'}
+                          >
+                            {isSuggestingTags ? (
+                              <RefreshCw className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Sparkles className="w-3 h-3" />
+                            )}
+                            <span>{isSuggestingTags ? (isVietnamese ? 'Đang gợi ý...' : 'Suggesting...') : (isVietnamese ? 'AI gợi ý thẻ' : 'AI Suggest')}</span>
+                          </button>
+                        </div>
+
+                        {/* Tag list */}
+                        {tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {tags.map(tag => (
+                              <span
+                                key={tag}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300 text-xs font-medium border border-indigo-200/60 dark:border-indigo-800/40"
+                              >
+                                #{tag}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveTag(tag)}
+                                  className="hover:text-indigo-900 dark:hover:text-indigo-100 cursor-pointer ml-0.5"
+                                  title={isVietnamese ? 'Xóa thẻ' : 'Remove tag'}
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Add tag input */}
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={newTagInput}
+                            onChange={e => setNewTagInput(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddTag();
+                              }
+                            }}
+                            placeholder={isVietnamese ? 'Thêm thẻ (nhấn Enter hoặc dấu phẩy)...' : 'Add tag (press Enter or comma)...'}
+                            className="flex-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:border-indigo-400"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleAddTag()}
+                            disabled={!newTagInput.trim()}
+                            className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold disabled:opacity-40 cursor-pointer transition-colors"
+                          >
+                            {isVietnamese ? 'Thêm' : 'Add'}
+                          </button>
                         </div>
                       </div>
 

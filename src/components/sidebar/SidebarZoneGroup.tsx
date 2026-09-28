@@ -24,6 +24,8 @@ export interface SidebarZoneGroupProps {
     badge?: string;
     shortcut?: string;
     description?: string;
+    badgeVariant?: 'default' | 'danger' | 'pulsing-red';
+    customFlyout?: React.ReactNode;
   }>;
   draggedItemId: string | null;
   dragOverItemId: string | null;
@@ -264,9 +266,18 @@ function SidebarZoneGroupComponent({
                       <Icon size={14} className="shrink-0 text-zinc-400" />
                       <span className="text-xs truncate flex-1">{meta.label}</span>
                       {meta.count !== undefined && meta.count > 0 && (
-                        <span className="min-w-[15px] h-[15px] px-1 rounded-full bg-rose-500 text-white font-bold text-[8px] flex items-center justify-center">
-                          {meta.count}
-                        </span>
+                        meta.badgeVariant === 'pulsing-red' ? (
+                          <span className="relative flex items-center justify-center">
+                            <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-rose-500 opacity-75" />
+                            <span className="relative min-w-[15px] h-[15px] px-1 rounded-full bg-gradient-to-r from-rose-500 to-red-600 text-white font-black text-[8px] flex items-center justify-center ring-1 ring-white dark:ring-[#121318]">
+                              {meta.count}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="min-w-[15px] h-[15px] px-1 rounded-full bg-rose-500 text-white font-bold text-[8px] flex items-center justify-center">
+                            {meta.count}
+                          </span>
+                        )
                       )}
                     </button>
                   );
@@ -533,6 +544,7 @@ function SidebarZoneGroupComponent({
                   return (
                     <NavItem
                       key={itemId}
+                      id={itemId}
                       icon={meta.icon}
                       label={meta.label}
                       shortLabel={getShortLabel(meta.label)}
@@ -541,6 +553,8 @@ function SidebarZoneGroupComponent({
                       isActive={isActive}
                       count={meta.count}
                       badge={meta.badge}
+                      badgeVariant={meta.badgeVariant}
+                      customFlyout={meta.customFlyout}
                       disabled={(meta as any).disabled}
                       disabledTooltip={(meta as any).disabledTooltip}
                       collapsed={false}

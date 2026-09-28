@@ -242,7 +242,7 @@ export default function AcceptInviteModal({
                 cleanUrlToken();
                 onClose();
               }}
-              className="absolute inset-0 modal-backdrop-blur bg-slate-950/60 cursor-pointer"
+              className="absolute inset-0 modal-backdrop bg-slate-950/60 cursor-pointer"
             />
 
             {/* Modal Container */}

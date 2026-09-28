@@ -620,7 +620,7 @@ export default function WorkspaceSettingsModal({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.18 }}
-              className="absolute inset-0 bg-black/40 dark:bg-black/75 backdrop-blur-xs cursor-pointer"
+              className="absolute inset-0 bg-black/40 dark:bg-black/75 cursor-pointer"
               onClick={onClose}
             />
 

@@ -225,7 +225,7 @@ export default function TaskFilterDrawer({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 backdrop-blur-xs p-3 sm:p-4"
+        className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-3 sm:p-4 cursor-pointer"
         onClick={onClose}
       >
         <motion.div

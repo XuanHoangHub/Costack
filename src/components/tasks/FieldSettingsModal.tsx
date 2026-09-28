@@ -384,7 +384,7 @@ export default function FieldSettingsModal({
         className="fixed inset-0 z-[400] flex items-center justify-center p-3 sm:p-4 font-sans select-none"
       >
         <div 
-          className="absolute inset-0 bg-black/40 dark:bg-black/65 modal-backdrop-blur cursor-pointer" 
+          className="absolute inset-0 bg-black/40 dark:bg-black/65 modal-backdrop cursor-pointer" 
           onClick={onClose} 
         />
         

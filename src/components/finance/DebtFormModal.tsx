@@ -61,7 +61,7 @@ export function DebtFormModal({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 modal-backdrop-blur"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 modal-backdrop"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <motion.div

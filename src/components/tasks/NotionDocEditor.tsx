@@ -33,7 +33,8 @@ import {
   Hash, 
   Type, 
   AlignLeft,
-  ChevronDown
+  ChevronDown,
+  Globe
 } from 'lucide-react';
 import { callAiApi } from '@/lib/aiClient';
 import { useTranslation } from '../../contexts/TranslationContext';
@@ -263,7 +264,7 @@ export default function NotionDocEditor({
   };
 
   // AI Prompt Helpers
-  const handleRunAiAction = async (actionType: 'continue' | 'summarize' | 'improve' | 'table' | 'checklist') => {
+  const handleRunAiAction = async (actionType: 'continue' | 'summarize' | 'improve' | 'table' | 'checklist' | 'brainstorm' | 'translate_en' | 'translate_vi') => {
     setIsAiLoading(true);
     setAiMenuOpen(false);
 
@@ -281,11 +282,17 @@ export default function NotionDocEditor({
       prompt = `${taskContext} Hãy tạo một bảng Markdown tổng hợp các tiêu chí kỹ thuật / tiêu chí nghiệm thu (Acceptance Criteria) cho công việc này. ${currentDoc}`;
     } else if (actionType === 'checklist') {
       prompt = `${taskContext} Hãy trích xuất và tạo danh sách checklist các bước thực hiện chi tiết theo định dạng \`- [ ] Bước...\` cho công việc này. ${currentDoc}`;
+    } else if (actionType === 'brainstorm') {
+      prompt = `${taskContext} Hãy đóng vai trò Cố vấn Sản phẩm & Kiến trúc sư Giải pháp: Đề xuất 4-5 ý tưởng đột phá, tính năng mở rộng và giải pháp kỹ thuật tối ưu liên quan đến nội dung tài liệu này. Định dạng Markdown có cấu trúc rõ ràng. ${currentDoc}`;
+    } else if (actionType === 'translate_en') {
+      prompt = `Hãy dịch toàn bộ nội dung tài liệu sau sang Tiếng Anh chuyên nghiệp, tự nhiên, giữ nguyên cấu trúc Markdown: ${currentDoc}`;
+    } else if (actionType === 'translate_vi') {
+      prompt = `Hãy dịch toàn bộ nội dung tài liệu sau sang Tiếng Việt lưu loát, tự nhiên và chuẩn thuật ngữ công nghệ, giữ nguyên cấu trúc Markdown: ${currentDoc}`;
     }
 
     try {
       const res = await callAiApi('/api/ai/chat', {
-        message: `Bạn là chuyên gia soạn thảo tài liệu kỹ thuật và quản trị sản phẩm. Trả lời bằng Tiếng Việt, dùng Markdown rõ ràng và có thể áp dụng ngay.\n\n${prompt}`,
+        message: `Bạn là chuyên gia soạn thảo tài liệu kỹ thuật và quản trị sản phẩm Costack AI. Sử dụng Markdown rõ ràng và có thể áp dụng ngay.\n\n${prompt}`,
         history: []
       });
 
@@ -293,7 +300,7 @@ export default function NotionDocEditor({
         const data = await res.json();
         const text = data.text || data.reply || '';
         if (text && text.trim()) {
-          if (actionType === 'improve') {
+          if (actionType === 'improve' || actionType === 'translate_en' || actionType === 'translate_vi') {
             onChange(text.trim());
           } else {
             onChange(value ? `${value}\n\n${text.trim()}` : text.trim());
@@ -436,6 +443,35 @@ export default function NotionDocEditor({
                     >
                       <CheckSquare className="w-3.5 h-3.5 text-emerald-500" />
                       <span>✅ Bẻ nhỏ thành checklist chi tiết</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleRunAiAction('brainstorm')}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 transition-colors cursor-pointer text-left"
+                    >
+                      <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                      <span>💡 Phát triển ý tưởng & giải pháp mở rộng</span>
+                    </button>
+
+                    <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
+
+                    <button
+                      type="button"
+                      onClick={() => handleRunAiAction('translate_en')}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 transition-colors cursor-pointer text-left"
+                    >
+                      <Globe className="w-3.5 h-3.5 text-purple-500" />
+                      <span>🌐 Dịch sang Tiếng Anh chuyên nghiệp</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleRunAiAction('translate_vi')}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 transition-colors cursor-pointer text-left"
+                    >
+                      <Globe className="w-3.5 h-3.5 text-rose-500" />
+                      <span>🇻🇳 Dịch sang Tiếng Việt chuẩn mực</span>
                     </button>
                   </motion.div>
                 </>

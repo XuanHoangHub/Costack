@@ -737,7 +737,7 @@ export default function TeamDirectory({
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto px-1 sm:px-2 pb-12">
+    <div className="space-y-6 max-w-[1560px] mx-auto px-1 sm:px-2 pb-12">
       
       {/* 1. TOP HEADER: Modern Neu-SaaS Header with Pulse & Actions */}
       <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 p-6 shadow-sm">

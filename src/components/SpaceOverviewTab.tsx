@@ -170,7 +170,42 @@ export default function SpaceOverviewTab({ space, tasks, members, docs = [], onO
                 })}
                 {!queueTasks.length && <div className="space-empty-focus"><div className="space-empty-art"><span /><span /><span /><CheckCircle2 size={30} /></div><h3>{spaceTasks.length === 0 ? tr('Bắt đầu điều gì đó tuyệt vời', 'Make room for great work') : tr('Mọi thứ đã gọn gàng', 'You’re all clear here')}</h3><p>{spaceTasks.length === 0 ? tr('Thêm công việc đầu tiên. Chia nhỏ mục tiêu, cùng nhau tiến lên.', 'Add your first task. Break down a goal and move it forward.') : tr('Không có công việc trong nhóm này. Chọn nhóm khác hoặc tạo việc mới.', 'No tasks in this group. Explore another group or start something new.')}</p><button className="space-button space-button-soft" onClick={createTask}><Plus size={15} />{tr('Thêm công việc', 'Add a task')}</button></div>}
               </div>
-              <form className="space-quick-create" onSubmit={addQuickTask}><div><Plus size={16} /><input ref={quickInput} value={quickTitle} onChange={event => setQuickTitle(event.target.value)} aria-label={tr('Tên công việc mới', 'New task title')} placeholder={tr('Bạn muốn hoàn thành điều gì?', 'What would you like to get done?')} maxLength={500} /></div><div>{lists.length > 0 && <select aria-label={tr('Danh sách nhận công việc', 'Task destination list')} value={quickList || lists[0]?.id || ''} onChange={event => setQuickList(event.target.value)}>{lists.map(list => <option key={list.id} value={list.id}>{list.name}</option>)}</select>}<button type="submit" disabled={!quickTitle.trim()} className="space-quick-submit" aria-label={tr('Tạo nhanh công việc', 'Quick create task')}><ArrowRight size={17} /></button></div></form>
+              <form className="space-quick-create" onSubmit={addQuickTask}>
+                <div className="flex-1 flex items-center gap-2.5 min-w-0">
+                  <Plus size={16} className="text-slate-400 shrink-0" />
+                  <input
+                    ref={quickInput}
+                    value={quickTitle}
+                    onChange={event => setQuickTitle(event.target.value)}
+                    aria-label={tr('Tên công việc mới', 'New task title')}
+                    placeholder={tr('Bạn muốn hoàn thành điều gì?', 'What would you like to get done?')}
+                    maxLength={500}
+                    data-no-focus-outline="true"
+                    className="w-full bg-transparent border-none outline-none ring-0 shadow-none text-xs sm:text-sm font-medium placeholder-slate-400 dark:placeholder-slate-500 text-slate-800 dark:text-slate-100 p-0"
+                  />
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {lists.length > 0 && (
+                    <select
+                      aria-label={tr('Danh sách nhận công việc', 'Task destination list')}
+                      value={quickList || lists[0]?.id || ''}
+                      onChange={event => setQuickList(event.target.value)}
+                    >
+                      {lists.map(list => (
+                        <option key={list.id} value={list.id}>{list.name}</option>
+                      ))}
+                    </select>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={!quickTitle.trim()}
+                    className="space-quick-submit"
+                    aria-label={tr('Tạo nhanh công việc', 'Quick create task')}
+                  >
+                    <ArrowRight size={16} />
+                  </button>
+                </div>
+              </form>
             </section>
 
             <section className="space-panel">

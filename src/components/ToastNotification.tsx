@@ -14,7 +14,7 @@ import { useTranslation } from '@/contexts/TranslationContext';
 
 export interface Toast {
   id: string;
-  type: 'assignment' | 'deadline' | 'comment' | 'success' | 'info' | 'message' | 'chat_message';
+  type: 'assignment' | 'deadline' | 'comment' | 'success' | 'info' | 'message' | 'chat_message' | 'error';
   title: string;
   message: string;
   duration?: number;
@@ -97,6 +97,12 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
           icon: <MessageSquare className="w-5 h-5 text-pink-500 dark:text-pink-400" />,
           accentClass: 'bg-pink-500 dark:bg-pink-400',
           bgClass: 'border-pink-100/50 shadow-pink-500/10 dark:border-pink-500/20 dark:shadow-pink-500/20'
+        };
+      case 'error':
+        return {
+          icon: <AlertTriangle className="w-5 h-5 text-rose-500 dark:text-rose-400" />,
+          accentClass: 'bg-rose-600 dark:bg-rose-500',
+          bgClass: 'border-rose-200/50 shadow-rose-500/10 dark:border-rose-500/20 dark:shadow-rose-500/20'
         };
       case 'info':
       default:

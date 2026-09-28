@@ -19,7 +19,9 @@ import {
   MessageSquare,
   Phone,
   Plus,
+  RefreshCw,
   Send,
+  Sparkles,
   Trash2,
   User,
   X,
@@ -27,6 +29,7 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { useTranslation } from "@/contexts/TranslationContext";
+import { callAiApi } from "@/lib/aiClient";
 
 export interface DebtRecord {
   id: string;
@@ -101,6 +104,9 @@ export function DebtDetailModal({
 
   const defaultAccount = accounts[0];
 
+  const [customAiReminder, setCustomAiReminder] = useState<string | null>(null);
+  const [isGeneratingAiReminder, setIsGeneratingAiReminder] = useState(false);
+
   // Tạo nội dung tin nhắn nhắc nợ
   const generateReminderMessage = () => {
     const formattedDue = dueDateObj.toLocaleDateString(isVietnamese ? "vi-VN" : "en-US");
@@ -130,9 +136,36 @@ export function DebtDetailModal({
     return `Kính gửi ${debt.partnerName}, chúng tôi xin thông báo số dư công nợ hiện tại là ${remainingStr}, thời hạn thanh toán là ${formattedDue}. Bạn vui lòng kiểm tra và hỗ trợ thanh toán.${bankInfoStr}\nXin chân thành cảm ơn!`;
   };
 
+  const handleAiGenerateReminder = async () => {
+    setIsGeneratingAiReminder(true);
+    try {
+      const formattedDue = dueDateObj.toLocaleDateString(isVietnamese ? "vi-VN" : "en-US");
+      const remainingStr = formatMoney(debt.remainingAmount);
+      const bankInfoStr = defaultAccount
+        ? `Ngân hàng: ${defaultAccount.bank}, Số tài khoản: ${defaultAccount.number}`
+        : "";
+      const prompt = `Hãy soạn một thông điệp nhắc nợ ${reminderTone === "friendly" ? "thân thiện, nhẹ nhàng và tôn trọng" : reminderTone === "urgent" ? "khẩn cấp, kiên quyết và rõ ràng" : "tiêu chuẩn, lịch sự và chuyên nghiệp"} cho đối tác "${debt.partnerName}".
+Số tiền công nợ còn lại: ${remainingStr}.
+Hạn thanh toán: ${formattedDue} (${diffDays < 0 ? `đã quá hạn ${Math.abs(diffDays)} ngày` : diffDays === 0 ? "hôm nay là hạn chót" : `còn ${diffDays} ngày nữa`}).
+Thông tin tài khoản nhận thanh toán: ${bankInfoStr || "Vui lòng liên hệ lại để nhận thông tin STK"}.
+Yêu cầu: Viết bằng ${isVietnamese ? "tiếng Việt" : "tiếng Anh"}, dung lượng ngắn gọn (dưới 80 từ), lịch thiệp, dễ đọc trên Zalo/SMS/Email. Không dùng cú pháp Markdown tiêu đề.`;
+
+      const res = await callAiApi("/api/ai/chat", { message: prompt, history: [] });
+      const data = await res.json();
+      if (data.success && data.text) {
+        setCustomAiReminder(data.text.trim());
+      }
+    } catch (err) {
+      console.error("AI reminder generation failed:", err);
+    } finally {
+      setIsGeneratingAiReminder(false);
+    }
+  };
+
   const handleCopyReminder = async () => {
     try {
-      await navigator.clipboard.writeText(generateReminderMessage());
+      const textToCopy = customAiReminder || generateReminderMessage();
+      await navigator.clipboard.writeText(textToCopy);
       setCopiedReminder(true);
       setTimeout(() => setCopiedReminder(false), 2000);
     } catch {
@@ -167,7 +200,7 @@ export function DebtDetailModal({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 modal-backdrop-blur"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 modal-backdrop"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <motion.div
@@ -386,53 +419,84 @@ export function DebtDetailModal({
           {/* Công cụ sinh mẫu tin nhắn nhắc nợ (cho nợ phải thu) */}
           {debt.type === "receivable" && debt.remainingAmount > 0 && (
             <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/[0.04] p-4 space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-black text-indigo-500 flex items-center gap-1.5">
                   <MessageSquare className="h-3.5 w-3.5" />
                   {l("Mẫu tin nhắn nhắc nợ (Gửi qua Zalo / SMS / Email)", "Payment reminder template (Zalo / SMS / Email)")}
                 </span>
-                <div className="flex gap-1">
+                <div className="flex items-center gap-1.5">
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => { setReminderTone("friendly"); setCustomAiReminder(null); }}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition ${
+                        reminderTone === "friendly"
+                          ? "bg-indigo-500 text-white"
+                          : "bg-[var(--cu-surface)] text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"
+                      }`}
+                    >
+                      {l("Nhẹ nhàng", "Friendly")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setReminderTone("standard"); setCustomAiReminder(null); }}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition ${
+                        reminderTone === "standard"
+                          ? "bg-indigo-500 text-white"
+                          : "bg-[var(--cu-surface)] text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"
+                      }`}
+                    >
+                      {l("Tiêu chuẩn", "Standard")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setReminderTone("urgent"); setCustomAiReminder(null); }}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition ${
+                        reminderTone === "urgent"
+                          ? "bg-rose-500 text-white"
+                          : "bg-[var(--cu-surface)] text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"
+                      }`}
+                    >
+                      {l("Khẩn cấp", "Urgent")}
+                    </button>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setReminderTone("friendly")}
-                    className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition ${
-                      reminderTone === "friendly"
-                        ? "bg-indigo-500 text-white"
-                        : "bg-[var(--cu-surface)] text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"
-                    }`}
+                    onClick={handleAiGenerateReminder}
+                    disabled={isGeneratingAiReminder}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white text-[10px] font-bold shadow-xs cursor-pointer transition disabled:opacity-50"
+                    title="Dùng Costack AI để soạn thông điệp nhắc nợ gãy gọn, tinh tế theo ngữ cảnh"
                   >
-                    {l("Nhẹ nhàng", "Friendly")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setReminderTone("standard")}
-                    className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition ${
-                      reminderTone === "standard"
-                        ? "bg-indigo-500 text-white"
-                        : "bg-[var(--cu-surface)] text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"
-                    }`}
-                  >
-                    {l("Tiêu chuẩn", "Standard")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setReminderTone("urgent")}
-                    className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition ${
-                      reminderTone === "urgent"
-                        ? "bg-rose-500 text-white"
-                        : "bg-[var(--cu-surface)] text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"
-                    }`}
-                  >
-                    {l("Khẩn cấp", "Urgent")}
+                    <Sparkles className={`h-3 w-3 ${isGeneratingAiReminder ? "animate-spin text-amber-300" : "text-amber-300"}`} />
+                    <span>{isGeneratingAiReminder ? l("AI đang soạn...", "AI writing...") : l("AI soạn thảo ✨", "AI Draft ✨")}</span>
                   </button>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-[var(--cu-border)] bg-[var(--cu-surface)] p-3 text-xs text-[var(--cu-text-secondary)] whitespace-pre-wrap leading-relaxed">
-                {generateReminderMessage()}
+              <div className="relative rounded-xl border border-[var(--cu-border)] bg-[var(--cu-surface)] p-3 text-xs text-[var(--cu-text-secondary)] whitespace-pre-wrap leading-relaxed">
+                {customAiReminder ? (
+                  <>
+                    <div className="mb-1.5 flex items-center justify-between border-b border-[var(--cu-border)] pb-1">
+                      <span className="text-[10px] font-bold text-indigo-500 flex items-center gap-1">
+                        <Sparkles className="h-3 w-3 text-amber-500" />
+                        {l("Soạn bởi Costack AI", "Drafted by Costack AI")}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCustomAiReminder(null)}
+                        className="text-[10px] font-medium text-slate-400 hover:text-slate-600 hover:underline"
+                      >
+                        {l("Về bản gốc", "Reset")}
+                      </button>
+                    </div>
+                    {customAiReminder}
+                  </>
+                ) : (
+                  generateReminderMessage()
+                )}
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
                 <Button
                   size="sm"
                   variant="secondary"

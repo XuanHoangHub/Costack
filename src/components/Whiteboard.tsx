@@ -8,7 +8,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { motion, AnimatePresence } from 'motion/react';
-import { WhiteboardTool, WhiteboardElement, User, TeamMemberCursor, Task, ShareRole } from '../types';
+import { WhiteboardTool, WhiteboardElement, User, TeamMemberCursor, Task, SubTask, ShareRole } from '../types';
 import ShareSettingsModal from './ShareSettingsModal';
 import { supabase, getCleanChannel } from '../supabaseClient';
 import { 
@@ -610,6 +610,12 @@ export default function Whiteboard({
     if (aiGeneratedTasks.length === 0 || !onAddTask) return;
 
     aiGeneratedTasks.forEach(t => {
+      const formattedSubtasks: SubTask[] = (t.subtasks || []).map((st: any, idx: number) => ({
+        id: `st-wb-${Date.now()}-${idx}`,
+        title: typeof st === 'string' ? st : (st?.title || 'Công việc phụ'),
+        completed: false
+      }));
+
       onAddTask({
         title: t.title,
         description: t.description,
@@ -619,7 +625,7 @@ export default function Whiteboard({
         dueDate: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().split('T')[0],
         status: 'todo',
         assigneeId: members[0]?.id || '',
-        subtasks: t.subtasks || []
+        subtasks: formattedSubtasks
       });
     });
 

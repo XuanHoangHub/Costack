@@ -54,6 +54,48 @@ export default function DashboardAiReport({
     ? Math.min(100, Math.round((Math.min(totalLoggedHours, totalEstimatedHours) / Math.max(totalLoggedHours, totalEstimatedHours)) * 100))
     : 0;
 
+  const getProductivityData = () => {
+    if (typeof window === 'undefined') return { focusSessions: [], habits: [] };
+    try {
+      let focusSessions: any[] = [];
+      let habits: any[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        if (key.startsWith('apexa_productivity_focus_sessions')) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > focusSessions.length) {
+              focusSessions = parsed;
+            }
+          }
+        } else if (key.startsWith('apexa_productivity_habits')) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > habits.length) {
+              habits = parsed;
+            }
+          }
+        }
+      }
+      return {
+        focusSessions: focusSessions
+          .filter((s: any) => s && (s.completed || Number(s.durationMinutes) > 0))
+          .slice(0, 120)
+          .map((s: any) => ({ durationMinutes: s.durationMinutes, type: s.type, timestamp: s.timestamp })),
+        habits: habits.slice(0, 50).map((h: any) => ({
+          name: h.name,
+          streak: h.streak || 0,
+          checkIns: h.history ? Object.keys(h.history).length : 0,
+        })),
+      };
+    } catch {
+      return { focusSessions: [], habits: [] };
+    }
+  };
+
   const handleGenerateReport = async () => {
     if (!isPremium) {
       onUpgradePremium?.();
@@ -62,7 +104,8 @@ export default function DashboardAiReport({
     setIsGenerating(true);
     setReportError('');
     try {
-      const response = await callAiApi('/api/ai/productivity-report', { tasks, members });
+      const productivity = getProductivityData();
+      const response = await callAiApi('/api/ai/productivity-report', { tasks, members, productivity });
       const data = await response.json();
       if (data.success) {
         setReportText(data.text);

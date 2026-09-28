@@ -1,16 +1,18 @@
 "use client";
 
-import React from "react";
-import { motion } from "motion/react";
+import React, { useState, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "@/contexts/TranslationContext";
 
 interface NavItemProps {
+  id?: string;
   icon: React.ComponentType<{ size?: number; weight?: string; className?: string; strokeWidth?: number }>;
   label: string;
   shortLabel?: string;
   isActive?: boolean;
   count?: number;
   badge?: string;
+  badgeVariant?: 'default' | 'danger' | 'pulsing-red';
   shortcut?: string;
   description?: string;
   collapsed?: boolean;
@@ -26,15 +28,18 @@ interface NavItemProps {
   style?: React.CSSProperties;
   dragIndicator?: React.ReactNode;
   showFlyout?: boolean;
+  customFlyout?: React.ReactNode;
 }
 
 function NavItemComponent({
+  id,
   icon: Icon,
   label,
   shortLabel,
   isActive = false,
   count,
   badge,
+  badgeVariant = 'default',
   shortcut,
   description,
   collapsed = false,
@@ -50,16 +55,42 @@ function NavItemComponent({
   style,
   dragIndicator,
   showFlyout = true,
+  customFlyout,
 }: NavItemProps) {
   const { isVietnamese } = useTranslation();
+  const [isFlyoutOpen, setIsFlyoutOpen] = useState(false);
+  const flyoutTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = () => {
+    if (flyoutTimerRef.current) {
+      clearTimeout(flyoutTimerRef.current);
+      flyoutTimerRef.current = null;
+    }
+    if (customFlyout) {
+      setIsFlyoutOpen(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (flyoutTimerRef.current) {
+      clearTimeout(flyoutTimerRef.current);
+    }
+    flyoutTimerRef.current = setTimeout(() => {
+      setIsFlyoutOpen(false);
+    }, 280);
+  };
+
   const displayText = collapsed ? shortLabel || label : label;
   const effectiveIsActive = !disabled && isActive;
   const tooltipText = disabled ? (disabledTooltip || (isVietnamese ? 'Tính năng đang phát triển' : 'Feature under development')) : label;
+  const isPulsingRed = badgeVariant === 'pulsing-red' || (id === 'chat' && count !== undefined && count > 0);
 
   if (collapsed) {
     return (
       <div 
         className="relative my-0.5 flex w-full items-center justify-center"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
@@ -96,13 +127,22 @@ function NavItemComponent({
 
           {/* Unread / Count Badge */}
           {!disabled && count !== undefined && count > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-rose-500 text-white font-bold text-[8.5px] flex items-center justify-center ring-2 ring-white dark:ring-[#121318] z-30 shadow-xs tabular-nums">
-              {count > 99 ? "99+" : count}
-            </span>
+            isPulsingRed ? (
+              <span className="absolute -top-1 -right-1 z-30 flex items-center justify-center">
+                <span className="animate-ping absolute inline-flex h-3.5 w-3.5 rounded-full bg-rose-500 opacity-75" />
+                <span className="relative min-w-[17px] h-[17px] px-1 rounded-full bg-gradient-to-r from-rose-500 to-red-600 text-white font-black text-[8.5px] flex items-center justify-center ring-2 ring-white dark:ring-[#121318] shadow-md shadow-rose-500/40 tabular-nums">
+                  {count > 99 ? "99+" : count}
+                </span>
+              </span>
+            ) : (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-rose-500 text-white font-bold text-[8.5px] flex items-center justify-center ring-2 ring-white dark:ring-[#121318] z-30 shadow-xs tabular-nums">
+                {count > 99 ? "99+" : count}
+              </span>
+            )
           )}
 
-          {/* Rich Floating Flyout Card on Hover: ClickUp / Notion SaaS Popover */}
-          {showFlyout && (
+          {/* Rich Floating Flyout Card on Hover: ClickUp / Notion SaaS Popover (when no customFlyout) */}
+          {showFlyout && !customFlyout && (
             <div className="pointer-events-none absolute left-full top-1/2 z-[120] ml-2.5 flex -translate-y-1/2 min-w-[190px] max-w-[250px] flex-col gap-1 rounded-xl border border-slate-200/90 bg-white p-2.5 text-left opacity-0 shadow-xl transition-all duration-150 delay-250 group-hover:opacity-100 group-focus-visible:opacity-100 scale-95 group-hover:scale-100 origin-left dark:border-white/[0.12] dark:bg-[#121318] dark:shadow-[0_12px_32px_rgba(0,0,0,0.7)]">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
@@ -142,6 +182,19 @@ function NavItemComponent({
             </div>
           )}
         </button>
+
+        {/* Custom Interactive Flyout in Collapsed Rail */}
+        <AnimatePresence>
+          {isFlyoutOpen && customFlyout && (
+            <div
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              className="absolute left-full top-1/2 -translate-y-1/2 ml-3 z-[160]"
+            >
+              {customFlyout}
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -150,6 +203,8 @@ function NavItemComponent({
   return (
     <div 
       className="relative w-full my-0.5"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
@@ -225,14 +280,23 @@ function NavItemComponent({
 
         {/* Count Badge */}
         {!disabled && count !== undefined && count > 0 && (
-          <span className={[
-            "font-bold flex items-center justify-center shrink-0 tabular-nums transition-all ml-auto min-w-[17px] h-[17px] px-1 rounded-full text-[9px] border",
-            effectiveIsActive
-              ? "bg-blue-600 text-white border-blue-600 dark:bg-sky-400 dark:text-slate-950 dark:border-sky-400"
-              : "bg-slate-100 text-slate-600 border-slate-200/80 dark:bg-white/[0.08] dark:text-slate-300 dark:border-white/10",
-          ].join(" ")}>
-            {count > 99 ? "99+" : count}
-          </span>
+          isPulsingRed ? (
+            <span className="relative ml-auto shrink-0 flex items-center justify-center">
+              <span className="animate-ping absolute inline-flex h-3.5 w-3.5 rounded-full bg-rose-500 opacity-75" />
+              <span className="relative min-w-[19px] h-[19px] px-1.5 rounded-full bg-gradient-to-r from-rose-500 to-red-600 text-white font-extrabold text-[9.5px] flex items-center justify-center ring-2 ring-white dark:ring-[#121318] shadow-md shadow-rose-500/40 tabular-nums">
+                {count > 99 ? "99+" : count}
+              </span>
+            </span>
+          ) : (
+            <span className={[
+              "font-bold flex items-center justify-center shrink-0 tabular-nums transition-all ml-auto min-w-[17px] h-[17px] px-1 rounded-full text-[9px] border",
+              effectiveIsActive
+                ? "bg-blue-600 text-white border-blue-600 dark:bg-sky-400 dark:text-slate-950 dark:border-sky-400"
+                : "bg-slate-100 text-slate-600 border-slate-200/80 dark:bg-white/[0.08] dark:text-slate-300 dark:border-white/10",
+            ].join(" ")}>
+              {count > 99 ? "99+" : count}
+            </span>
+          )
         )}
 
         {/* Shortcut Chip (Reveals subtly on hover) */}
@@ -253,6 +317,19 @@ function NavItemComponent({
           </span>
         )}
       </div>
+
+      {/* Custom Interactive Flyout in Expanded Sidebar */}
+      <AnimatePresence>
+        {isFlyoutOpen && customFlyout && (
+          <div
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            className="absolute left-full top-0 ml-3 z-[160]"
+          >
+            {customFlyout}
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
