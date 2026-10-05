@@ -1398,10 +1398,10 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
                 <ThemeSwitch size="sm" />
               </div>
               <button type="button" className={s.signin} onClick={() => { closeMenu(); onSignIn(); }}>
-                {choose('Đăng nhập', 'Log in')}
+                {choose('Đăng nhập', 'Sign in')}
               </button>
               <GsapMagneticButton className={`${s.primaryButton} ${s.headerCta}`} onClick={signup}>
-                {choose('Bắt đầu miễn phí', 'Get Started Free')}
+                {choose('Đăng ký miễn phí', 'Sign up for free')}
                 <ArrowUpRight size={16} />
               </GsapMagneticButton>
               <button
@@ -1443,10 +1443,10 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
                 </div>
                 <div className={s.mobileAuth}>
                   <button type="button" className={s.secondaryButton} onClick={() => { closeMenu(); onSignIn(); }}>
-                    {choose('Đăng nhập', 'Log in')}
+                    {choose('Đăng nhập', 'Sign in')}
                   </button>
                   <button type="button" className={s.primaryButton} onClick={signup}>
-                    {choose('Tạo tài khoản miễn phí', 'Start for free')}
+                    {choose('Đăng ký miễn phí', 'Sign up for free')}
                     <ArrowRight size={15} />
                   </button>
                 </div>

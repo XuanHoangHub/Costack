@@ -24,7 +24,7 @@ import ModernAuthInput from './auth/ModernAuthInput';
 import PasswordStrengthMeter, { calculatePasswordStrength } from './auth/PasswordStrengthMeter';
 import SocialAuthButtons from './auth/SocialAuthButtons';
 import AuthStoryPanel from './auth/AuthStoryPanel';
-import { formatAuthError } from '../lib/authError';
+import { formatAuthError, type FormattedAuthError } from '../lib/authError';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: { id: string; name: string; email: string; avatar: string; role: 'admin' | 'member'; status: 'online' | 'busy' | 'offline' }, rememberMe: boolean) => void;
@@ -50,7 +50,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [error, setError] = useState('');
+  const [error, setError] = useState<FormattedAuthError | null>(null);
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -76,7 +76,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
   useEffect(() => {
     if (!registrationEnabled && authMode === 'signup') {
       setAuthMode('signin');
-      setError(isVietnamese ? 'Đăng ký mới hiện đang tạm khóa.' : 'New account registration is currently disabled.');
+      setError(formatAuthError('signup is disabled', isVietnamese));
     }
   }, [authMode, isVietnamese, registrationEnabled]);
 
@@ -97,8 +97,8 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     forgotPassword: 'Quên mật khẩu?',
     remember: 'Ghi nhớ đăng nhập trên thiết bị này',
     rememberSubtitle: 'Duy trì phiên làm việc an toàn trong 30 ngày',
-    submitSignin: 'Đăng nhập vào Costack',
-    submitSignup: 'Tạo tài khoản',
+    submitSignin: 'Đăng nhập',
+    submitSignup: 'Đăng ký',
     processing: 'Đang xử lý…',
     termsPrefix: 'Tôi đồng ý với ',
     termsLink: 'Điều khoản sử dụng',
@@ -109,7 +109,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     backToSignin: 'Quay lại đăng nhập',
     securePortal: 'Cổng truy cập an toàn',
     forgotTitle: 'Khôi phục mật khẩu',
-    signupTitle: 'Bắt đầu với Costack',
+    signupTitle: 'Tạo tài khoản Costack',
     signinTitle: 'Chào mừng trở lại!',
     forgotDescription: 'Nhập địa chỉ email đã đăng ký để nhận liên kết đặt lại mật khẩu an toàn.',
     signupDescription: 'Tạo tài khoản để bắt đầu sắp xếp công việc hiệu quả.',
@@ -131,8 +131,8 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     forgotPassword: 'Forgot password?',
     remember: 'Stay signed in on this device',
     rememberSubtitle: 'Keep session securely active for 30 days',
-    submitSignin: 'Sign in to Costack',
-    submitSignup: 'Create account',
+    submitSignin: 'Sign in',
+    submitSignup: 'Sign up',
     processing: 'Processing…',
     termsPrefix: 'I agree to Costack’s ',
     termsLink: 'Terms of Use',
@@ -143,7 +143,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     backToSignin: 'Back to sign in',
     securePortal: 'Secure access portal',
     forgotTitle: 'Reset your password',
-    signupTitle: 'Get started with Costack',
+    signupTitle: 'Create a Costack account',
     signinTitle: 'Welcome back!',
     forgotDescription: 'Enter your registered email address to receive a password reset link.',
     signupDescription: 'Create an account to start organizing your work efficiently.',
@@ -165,7 +165,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsAuthActive(false);
-        setError('');
+        setError(null);
         setSuccess('');
         setFieldErrors({});
         window.requestAnimationFrame(() => previousFocusRef.current?.focus());
@@ -219,9 +219,13 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
         oauthCompletionRef.current = true;
         setIsAuthActive(true);
         setLoading(false);
-        setError(locale === 'vi'
-          ? 'Tài khoản mạng xã hội chưa cung cấp địa chỉ email. Vui lòng cấp quyền truy cập email rồi thử lại.'
-          : 'Your social account did not provide an email address. Allow email access and try again.');
+        setError({
+          title: locale === 'vi' ? 'Thiếu địa chỉ email' : 'Email Address Unavailable',
+          description: locale === 'vi'
+            ? 'Tài khoản mạng xã hội chưa cung cấp địa chỉ email. Vui lòng cấp quyền truy cập email rồi thử lại.'
+            : 'Your social account did not provide an email address. Allow email access and try again.',
+          type: 'generic',
+        });
         cleanOAuthParams();
         return;
       }
@@ -271,9 +275,13 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
         if (!isActive) return;
         setIsAuthActive(true);
         setLoading(false);
-        setError(locale === 'vi'
-          ? 'Không thể đăng nhập bằng tài khoản mạng xã hội. Vui lòng thử lại.'
-          : 'Could not sign in with your social account. Please try again.');
+        setError({
+          title: locale === 'vi' ? 'Không thể đăng nhập' : 'Sign-In Failed',
+          description: locale === 'vi'
+            ? 'Không thể đăng nhập bằng tài khoản mạng xã hội. Vui lòng thử lại.'
+            : 'Could not sign in with your social account. Please try again.',
+          type: 'generic',
+        });
         cleanOAuthParams();
       });
       return;
@@ -304,7 +312,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
   const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(value));
 
   const clearFieldError = (field: FieldName) => {
-    setError('');
+    setError(null);
     setFieldErrors((current) => {
       if (!current[field]) return current;
       const next = { ...current };
@@ -314,7 +322,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
   };
 
   const clearFeedback = () => {
-    setError('');
+    setError(null);
     setSuccess('');
     setFieldErrors({});
   };
@@ -389,8 +397,8 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     return Object.keys(nextErrors).length === 0;
   };
 
-  const getAuthErrorMessage = (caughtError: unknown) => {
-    return formatAuthError(caughtError, isVietnamese).description;
+  const getFormattedAuthError = (caughtError: unknown) => {
+    return formatAuthError(caughtError, isVietnamese);
   };
 
   const openAuth = (signUp: boolean) => {
@@ -398,7 +406,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     setIsAuthActive(true);
     switchAuthMode(signUp && registrationEnabled ? 'signup' : 'signin');
     if (signUp && !registrationEnabled) {
-      setError(isVietnamese ? 'Đăng ký mới hiện đang tạm khóa. Vui lòng đăng nhập bằng tài khoản hiện có.' : 'New registration is currently disabled. Sign in with an existing account.');
+      setError(formatAuthError('signup is disabled', isVietnamese));
     }
   };
 
@@ -435,12 +443,12 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
 
       setSuccess(
         locale === 'vi'
-          ? 'Đã gửi liên kết khôi phục! Vui lòng kiểm tra hộp thư đến (và cả mục thư rác) của bạn.'
-          : 'Reset link sent! Please check your inbox (including your spam folder).'
+          ? 'Nếu email này có tài khoản, Costack sẽ gửi hướng dẫn đặt lại mật khẩu. Vui lòng kiểm tra hộp thư đến và thư rác.'
+          : 'If an account exists for this email, we’ll send password reset instructions. Check your inbox and spam folder.'
       );
     } catch (caughtError: unknown) {
       console.error('Password reset error:', caughtError);
-      setError(getAuthErrorMessage(caughtError));
+      setError(getFormattedAuthError(caughtError));
     } finally {
       setLoading(false);
     }
@@ -465,8 +473,8 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
 
         if (!signUpData.session || !signUpData.user) {
           setSuccess(isVietnamese
-            ? 'Tài khoản đã được tạo thành công! Vui lòng kiểm tra email để xác nhận tài khoản trước khi đăng nhập.'
-            : 'Account created successfully! Check your email to confirm your account before signing in.');
+            ? 'Nếu có thể tạo tài khoản bằng email này, Costack sẽ gửi liên kết xác minh. Vui lòng kiểm tra hộp thư đến và thư rác để tiếp tục.'
+            : 'If this email address can be used to create an account, we’ll send a verification link. Check your inbox and spam folder to continue.');
           setAuthMode('signin');
           setPassword('');
           setConfirmPassword('');
@@ -517,7 +525,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
       }
     } catch (caughtError: unknown) {
       console.warn('Auth notification:', caughtError instanceof Error ? caughtError.message : caughtError);
-      setError(getAuthErrorMessage(caughtError));
+      setError(getFormattedAuthError(caughtError));
     } finally {
       setLoading(false);
     }
@@ -532,11 +540,11 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
       setMfaChallengeId(challenge.id);
       setMfaCode('');
       setChallengeRefreshed(true);
-      setError('');
+      setError(null);
       window.setTimeout(() => setChallengeRefreshed(false), 4000);
       mfaInputRef.current?.focus();
     } catch (err) {
-      setError(getAuthErrorMessage(err));
+      setError(getFormattedAuthError(err));
     } finally {
       setRefreshingChallenge(false);
     }
@@ -549,7 +557,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     const code = (typeof eventOrCode === 'string' ? eventOrCode : mfaCode).trim();
     if (!mfaPendingUser || !/^\d{6}$/.test(code)) return;
     setLoading(true);
-    setError('');
+    setError(null);
     try {
       const { error: verifyError } = await supabase.auth.mfa.verify({ factorId: mfaFactorId, challengeId: mfaChallengeId, code });
       if (verifyError) throw verifyError;
@@ -563,7 +571,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
         status: 'online'
       }, mfaRememberMe);
     } catch (caughtError) {
-      setError(getAuthErrorMessage(caughtError));
+      setError(getFormattedAuthError(caughtError));
       setMfaCode('');
       const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
       if (!challengeError && challenge) {
@@ -584,7 +592,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     setMfaChallengeId('');
     setMfaCode('');
     setChallengeRefreshed(false);
-    setError('');
+    setError(null);
   };
 
   const handleOAuthLogin = async (provider: 'google' | 'facebook') => {
@@ -620,7 +628,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
       console.warn(`${provider} OAuth error:`, caughtError instanceof Error ? caughtError.message : caughtError);
       sessionStorage.removeItem('apexa_oauth_remember_me');
       setSuccess('');
-      setError(getAuthErrorMessage(caughtError));
+      setError(getFormattedAuthError(caughtError));
       setLoading(false);
     }
   };
@@ -666,18 +674,17 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
               aria-labelledby="auth-dialog-title"
               ref={dialogRef}
               onClick={(e) => e.stopPropagation()}
-              className="apexa-auth-dialog relative z-10 my-auto grid max-h-[calc(100vh-20px)] w-full max-w-[980px] overflow-hidden rounded-2xl sm:rounded-[32px] border border-slate-200/90 dark:border-white/10 bg-white dark:bg-[#07090e]/95 backdrop-blur-2xl shadow-[0_25px_80px_-15px_rgba(15,23,42,0.2)] dark:shadow-[0_25px_100px_-15px_rgba(0,0,0,0.95),0_0_80px_rgba(6,182,212,0.08)] lg:grid-cols-[430px_1fr]"
+              className="apexa-auth-dialog relative z-10 my-auto grid max-h-[calc(100vh-20px)] w-full max-w-[980px] overflow-hidden rounded-2xl sm:rounded-[32px] border border-slate-200/90 dark:border-cyan-300/10 bg-white dark:bg-[#080b12]/95 backdrop-blur-2xl shadow-[0_25px_80px_-15px_rgba(15,23,42,0.2)] dark:shadow-[0_25px_100px_-15px_rgba(0,0,0,0.95),0_0_80px_rgba(6,182,212,0.12)] lg:grid-cols-[430px_1fr]"
             >
               {/* Desktop Left Story Showcase Panel */}
               <AuthStoryPanel isVietnamese={isVietnamese} />
 
               {/* Main Auth Form Interactive Section */}
-              <section className="relative max-h-[calc(100vh-20px)] space-y-4.5 overflow-x-hidden overflow-y-auto bg-[#ffffff] dark:bg-[#07090e]/90 px-6 py-6 sm:px-9 sm:py-8 text-left transition-colors duration-200">
-                {/* Ambient Soft Glow inside Form */}
-                <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-blue-500/10 dark:bg-cyan-500/10 blur-3xl" />
+              <section className="relative max-h-[calc(100vh-20px)] space-y-4.5 overflow-x-hidden overflow-y-auto bg-[#ffffff] dark:bg-[#090d15]/95 px-6 py-6 sm:px-9 sm:py-8 text-left transition-colors duration-200">
+                <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-blue-500/10 dark:bg-cyan-400/[0.08] blur-3xl" />
 
                 {/* Top Action Header (ThemeSwitch + LanguageSwitch + Close) */}
-                <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-white/5">
+                <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-white/[0.08]">
                   <div className="flex items-center gap-2 lg:hidden">
                     <img src="/logo.png" alt="Costack Logo" className="w-8 h-8 rounded-xl object-contain drop-shadow-xs shrink-0" />
                     <span className="font-black text-slate-900 dark:text-white text-base tracking-tight font-display">
@@ -689,7 +696,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                     <button
                       type="button"
                       onClick={closeAuth}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/[0.05] text-slate-500 dark:text-slate-400 shadow-xs hover:rotate-90 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white active:scale-90 transition-all duration-200 cursor-pointer"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/[0.05] text-slate-500 dark:text-slate-400 shadow-xs hover:rotate-90 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 transition-all duration-200 cursor-pointer"
                       aria-label={isVietnamese ? 'Đóng cửa sổ' : 'Close dialog'}
                     >
                       <X className="w-4 h-4" />
@@ -727,12 +734,12 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                   <div
                     role="tablist"
                     aria-label={isVietnamese ? 'Chọn phương thức đăng nhập hoặc đăng ký' : 'Choose sign in or sign up'}
-                    className="relative p-1 bg-slate-100 dark:bg-white/[0.05] rounded-2xl border border-slate-200/90 dark:border-white/10 grid grid-cols-2 select-none"
+                    className="relative p-1 bg-slate-100 dark:bg-[#0d121b] rounded-2xl border border-slate-200/90 dark:border-white/[0.09] grid grid-cols-2 select-none"
                   >
                     {/* Sliding Indicator */}
                     <div
                       aria-hidden="true"
-                      className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-xl bg-white dark:bg-white/10 border border-slate-200/80 dark:border-white/15 shadow-sm dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)] transition-all duration-200 ease-out pointer-events-none ${
+                      className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-xl bg-white dark:bg-[#17212d] border border-slate-200/80 dark:border-cyan-300/20 shadow-sm dark:shadow-[0_2px_14px_rgba(0,0,0,0.4),0_0_14px_rgba(34,211,238,0.06)] transition-all duration-200 ease-out pointer-events-none ${
                         isSignUp ? 'left-[calc(50%+2px)]' : 'left-1'
                       }`}
                     />
@@ -743,9 +750,9 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                       role="tab"
                       aria-selected={!isSignUp}
                       onClick={() => switchAuthMode('signin')}
-                      className={`relative z-10 flex min-h-10 items-center justify-center gap-1.5 rounded-xl py-1.5 text-xs sm:text-[13px] font-bold transition-colors duration-150 cursor-pointer ${
+                      className={`relative z-10 flex min-h-10 items-center justify-center gap-1.5 rounded-xl py-1.5 text-xs sm:text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 cursor-pointer ${
                         !isSignUp
-                          ? 'text-blue-600 dark:text-white font-black'
+                          ? 'text-blue-600 dark:text-cyan-100 font-black'
                           : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                       }`}
                     >
@@ -758,9 +765,9 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                       role="tab"
                       aria-selected={isSignUp}
                       onClick={() => switchAuthMode('signup')}
-                      className={`relative z-10 flex min-h-10 items-center justify-center gap-1.5 rounded-xl py-1.5 text-xs sm:text-[13px] font-bold transition-colors duration-150 cursor-pointer ${
+                      className={`relative z-10 flex min-h-10 items-center justify-center gap-1.5 rounded-xl py-1.5 text-xs sm:text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 cursor-pointer ${
                         isSignUp
-                          ? 'text-blue-600 dark:text-white font-black'
+                          ? 'text-blue-600 dark:text-cyan-100 font-black'
                           : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                       }`}
                     >
@@ -784,7 +791,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                 {/* MFA Verification Screen */}
                 {mfaPendingUser ? (
                   <form onSubmit={handleMfaVerify} className="space-y-4 text-left" noValidate>
-                    <div className="rounded-2xl border border-blue-200/80 bg-blue-50/70 dark:border-cyan-900/40 dark:bg-cyan-950/20 p-4 text-center">
+                    <div className="rounded-2xl border border-blue-200/80 bg-blue-50/70 dark:border-cyan-400/15 dark:bg-gradient-to-br dark:from-cyan-950/35 dark:to-slate-950/50 p-4 text-center">
                       <div className="w-11 h-11 mx-auto rounded-full bg-blue-600/10 dark:bg-cyan-400/15 flex items-center justify-center text-blue-600 dark:text-cyan-300 mb-2.5">
                         <ShieldCheck className="w-6 h-6" />
                       </div>
@@ -806,7 +813,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                           value={mfaCode}
                           onChange={(val) => {
                             setMfaCode(val);
-                            if (error) setError('');
+                            if (error) setError(null);
                           }}
                           onComplete={(code) => handleMfaVerify(code)}
                           disabled={loading}
@@ -824,7 +831,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                     <AuthErrorAlert
                       error={error}
                       isVietnamese={isVietnamese}
-                      onClose={() => setError('')}
+                      onClose={() => setError(null)}
                       onRefresh={handleRefreshMfaChallenge}
                       isRefreshing={refreshingChallenge}
                       isRefreshed={challengeRefreshed}
@@ -834,7 +841,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                     <button
                       type="submit"
                       disabled={loading || mfaCode.length !== 6}
-                      className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs disabled:opacity-50 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+                      className="w-full h-12 bg-blue-600 hover:bg-blue-700 dark:bg-cyan-500 dark:hover:bg-cyan-400 text-white dark:text-slate-950 text-xs sm:text-sm font-bold rounded-xl shadow-xs dark:shadow-[0_8px_24px_-12px_rgba(34,211,238,0.7)] disabled:opacity-50 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#090d15]"
                     >
                       {loading ? (
                         <div className="w-4.5 h-4.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -879,7 +886,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                     <AuthErrorAlert
                       error={error}
                       isVietnamese={isVietnamese}
-                      onClose={() => setError('')}
+                      onClose={() => setError(null)}
                     />
 
                     {success && (
@@ -888,9 +895,9 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                         animate={{ opacity: 1, y: 0 }}
                         role="status"
                         aria-live="polite"
-                        className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/70 dark:border-emerald-900/50 text-emerald-800 dark:text-emerald-300 text-xs font-semibold"
+                        className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-emerald-50 dark:bg-gradient-to-br dark:from-emerald-950/55 dark:to-[#071710] border border-emerald-200/70 dark:border-emerald-400/20 text-emerald-800 dark:text-emerald-200 text-xs font-semibold shadow-sm dark:shadow-[0_8px_24px_-16px_rgba(52,211,153,0.45)]"
                       >
-                        <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                        <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 dark:text-emerald-300 shrink-0 mt-0.5" />
                         <span className="leading-snug">{success}</span>
                       </motion.div>
                     )}
@@ -899,7 +906,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                       type="submit"
                       disabled={loading}
                       aria-busy={loading}
-                      className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                      className="w-full h-12 bg-blue-600 hover:bg-blue-700 dark:bg-cyan-500 dark:hover:bg-cyan-400 text-white dark:text-slate-950 text-xs sm:text-sm font-bold rounded-xl shadow-xs dark:shadow-[0_8px_24px_-12px_rgba(34,211,238,0.7)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-cyan-300/70 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#090d15] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {loading ? (
                         <div className="flex items-center gap-2">
@@ -1001,7 +1008,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                               key={domain}
                               type="button"
                               onClick={() => handleSelectDomain(domain)}
-                              className="px-2 py-0.5 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100/80 hover:bg-blue-50 dark:bg-white/[0.05] dark:hover:bg-cyan-500/15 text-slate-600 hover:text-blue-600 dark:text-slate-300 dark:hover:text-cyan-300 transition-colors cursor-pointer"
+                              className="px-2 py-0.5 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100/80 hover:bg-blue-50 dark:bg-white/[0.05] dark:hover:bg-cyan-500/15 text-slate-600 hover:text-blue-600 dark:text-slate-300 dark:hover:text-cyan-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 transition-colors cursor-pointer"
                             >
                               {domain}
                             </button>
@@ -1035,7 +1042,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
                             disabled={loading}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:text-slate-400 dark:hover:text-cyan-100 hover:bg-slate-100 dark:hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 transition-colors cursor-pointer"
                             aria-label={showPassword ? copy.hidePassword : copy.showPassword}
                           >
                             {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -1095,7 +1102,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                                 type="button"
                                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                 disabled={loading}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:text-slate-400 dark:hover:text-cyan-100 hover:bg-slate-100 dark:hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 transition-colors cursor-pointer"
                                 aria-label={showConfirmPassword ? copy.hidePassword : copy.showPassword}
                               >
                                 {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -1177,7 +1184,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                         aria-label={copy.remember}
                         disabled={loading}
                         onClick={() => !loading && setRememberMe(!rememberMe)}
-                        className="group flex min-h-[50px] w-full cursor-pointer select-none items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3 text-left transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-white/20 dark:hover:bg-white/[0.05]"
+                        className="group flex min-h-[50px] w-full cursor-pointer select-none items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3 text-left transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 dark:border-white/[0.09] dark:bg-white/[0.035] dark:hover:border-cyan-300/25 dark:hover:bg-cyan-300/[0.045] dark:focus-visible:ring-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         <div className="flex min-w-0 items-center gap-2.5">
                           <div
@@ -1225,7 +1232,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                         <AuthErrorAlert
                           error={error}
                           isVietnamese={isVietnamese}
-                          onClose={() => setError('')}
+                          onClose={() => setError(null)}
                         />
                         {!isSignUp && registrationEnabled && (
                           <div className="flex items-center gap-2 pt-0.5 pl-1">
@@ -1247,9 +1254,9 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                         animate={{ opacity: 1, y: 0 }}
                         role="status"
                         aria-live="polite"
-                        className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/70 dark:border-emerald-900/50 text-emerald-800 dark:text-emerald-300 text-xs font-semibold"
+                        className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-emerald-50 dark:bg-gradient-to-br dark:from-emerald-950/55 dark:to-[#071710] border border-emerald-200/70 dark:border-emerald-400/20 text-emerald-800 dark:text-emerald-200 text-xs font-semibold shadow-sm dark:shadow-[0_8px_24px_-16px_rgba(52,211,153,0.45)]"
                       >
-                        <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                        <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 dark:text-emerald-300 shrink-0 mt-0.5" />
                         <span className="leading-snug">{success}</span>
                       </motion.div>
                     )}
@@ -1259,7 +1266,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                       type="submit"
                       disabled={loading}
                       aria-busy={loading}
-                      className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                      className="w-full h-12 bg-blue-600 hover:bg-blue-700 dark:bg-cyan-500 dark:hover:bg-cyan-400 text-white dark:text-slate-950 text-xs sm:text-sm font-bold rounded-xl shadow-xs dark:shadow-[0_8px_24px_-12px_rgba(34,211,238,0.7)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-cyan-300/70 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#090d15] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {loading ? (
                         <div className="flex items-center gap-2">

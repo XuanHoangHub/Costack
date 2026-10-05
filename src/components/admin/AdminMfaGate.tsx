@@ -9,7 +9,7 @@ import {
 import { supabase } from '@/lib/supabaseClient';
 import { useTranslation } from '@/contexts/TranslationContext';
 import AuthErrorAlert from '@/components/auth/AuthErrorAlert';
-import { formatAuthError } from '@/lib/authError';
+import { formatAuthError, type FormattedAuthError } from '@/lib/authError';
 
 type GateMode = 'loading' | 'setup' | 'challenge' | 'success';
 
@@ -21,11 +21,11 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
   const [secret, setSecret] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<FormattedAuthError | null>(null);
   const [copied, setCopied] = useState(false);
 
   const inspectMfa = useCallback(async () => {
-    setError('');
+    setError(null);
     try {
       const [{ data: assurance, error: assuranceError }, { data: factors, error: factorsError }] = await Promise.all([
         supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
@@ -47,7 +47,7 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
       }
     } catch (mfaError) {
       setMode('setup');
-      setError(formatAuthError(mfaError, l('vi', 'en') === 'vi').description);
+      setError(formatAuthError(mfaError, l('vi', 'en') === 'vi'));
     }
   }, [onSuccess, l]);
 
@@ -57,7 +57,7 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
 
   const beginEnrollment = async () => {
     setBusy(true);
-    setError('');
+    setError(null);
     try {
       const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
       if (factorsError) throw factorsError;
@@ -75,7 +75,7 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
       setQrCode(data.totp.qr_code);
       setSecret(data.totp.secret);
     } catch (mfaError) {
-      setError(formatAuthError(mfaError, l('vi', 'en') === 'vi').description);
+      setError(formatAuthError(mfaError, l('vi', 'en') === 'vi'));
     } finally {
       setBusy(false);
     }
@@ -84,11 +84,16 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
   const verifyCode = async () => {
     const normalizedCode = code.replace(/\D/g, '').slice(0, 6);
     if (!factorId || normalizedCode.length !== 6) {
-      setError(l('Vui lòng nhập đủ mã xác thực gồm 6 chữ số.', 'Enter the complete 6-digit verification code.'));
+      const isVietnamese = l('vi', 'en') === 'vi';
+      setError({
+        title: isVietnamese ? 'Mã xác thực chưa hợp lệ' : 'Invalid Verification Code',
+        description: l('Vui lòng nhập đủ mã xác thực gồm 6 chữ số.', 'Enter the complete 6-digit verification code.'),
+        type: 'invalid',
+      });
       return;
     }
     setBusy(true);
-    setError('');
+    setError(null);
     try {
       const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId });
       if (challengeError) throw challengeError;
@@ -100,11 +105,19 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
       if (verifyError) throw verifyError;
       const { data: assurance, error: assuranceError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (assuranceError) throw assuranceError;
-      if (assurance.currentLevel !== 'aal2') throw new Error(l('Phiên chưa được nâng lên AAL2. Vui lòng thử lại.', 'The session was not upgraded to AAL2. Try again.'));
+      if (assurance.currentLevel !== 'aal2') {
+        const isVietnamese = l('vi', 'en') === 'vi';
+        setError({
+          title: isVietnamese ? 'Không thể xác minh phiên' : 'Session Verification Failed',
+          description: l('Phiên chưa được nâng lên AAL2. Vui lòng thử lại.', 'The session was not upgraded to AAL2. Try again.'),
+          type: 'generic',
+        });
+        return;
+      }
       setMode('success');
       onSuccess();
     } catch (mfaError) {
-      setError(formatAuthError(mfaError, l('vi', 'en') === 'vi').description);
+      setError(formatAuthError(mfaError, l('vi', 'en') === 'vi'));
       setCode('');
     } finally {
       setBusy(false);
@@ -285,7 +298,7 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
             <AuthErrorAlert
               error={error}
               isVietnamese={l('vi', 'en') === 'vi'}
-              onClose={() => setError('')}
+              onClose={() => setError(null)}
               onRefresh={mode === 'challenge' ? verifyCode : beginEnrollment}
               isRefreshing={busy}
               showRefreshButton={Boolean(factorId)}
