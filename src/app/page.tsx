@@ -433,9 +433,15 @@ export default function App() {
       }
 
       if (session?.provider_token) {
-        try { localStorage.setItem('costack_gcal_token', session.provider_token); } catch {}
+        try {
+          if (session.user?.app_metadata?.provider === 'facebook') {
+            localStorage.setItem('costack_fb_token', session.provider_token);
+          } else {
+            localStorage.setItem('costack_gcal_token', session.provider_token);
+          }
+        } catch {}
       }
-      if (session?.provider_refresh_token) {
+      if (session?.provider_refresh_token && session.user?.app_metadata?.provider !== 'facebook') {
         try { localStorage.setItem('costack_gcal_refresh_token', session.provider_refresh_token); } catch {}
       }
 
@@ -463,8 +469,22 @@ export default function App() {
       }
 
       const isSuper = isApexaSuperAdmin(u.id);
-      const displayName = u.user_metadata?.full_name || u.user_metadata?.name || u.user_metadata?.display_name || cachedUser?.name || u.email?.split('@')[0] || 'Costack Champion';
-      const displayAvatar = u.user_metadata?.avatar_url || u.user_metadata?.picture || u.user_metadata?.avatar || cachedUser?.avatar || '';
+      const isFacebookUser = u.app_metadata?.provider === 'facebook';
+      const displayName =
+        u.user_metadata?.full_name ||
+        u.user_metadata?.name ||
+        u.user_metadata?.display_name ||
+        cachedUser?.name ||
+        u.email?.split('@')[0] ||
+        (isFacebookUser ? 'Facebook User' : 'Costack Champion');
+      const rawPicture = u.user_metadata?.picture;
+      const parsedPicture = typeof rawPicture === 'string' ? rawPicture : rawPicture?.data?.url;
+      const displayAvatar =
+        (typeof u.user_metadata?.avatar_url === 'string' && u.user_metadata.avatar_url) ||
+        parsedPicture ||
+        (typeof u.user_metadata?.avatar === 'string' && u.user_metadata.avatar) ||
+        (typeof cachedUser?.avatar === 'string' && cachedUser.avatar) ||
+        '';
       const userObj = {
         id: u.id,
         name: displayName,

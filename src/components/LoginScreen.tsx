@@ -216,10 +216,21 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     const finalizeOAuthUser = async (sessionUser: SupabaseAuthUser, session?: any) => {
       if (!isActive || oauthCompletionRef.current) return;
 
+      const userProvider =
+        sessionUser.app_metadata?.provider ||
+        (typeof window !== 'undefined' ? sessionStorage.getItem('apexa_oauth_provider') : null) ||
+        'social';
+
       if (session?.provider_token) {
-        try { localStorage.setItem('costack_gcal_token', session.provider_token); } catch {}
+        try {
+          if (userProvider === 'facebook') {
+            localStorage.setItem('costack_fb_token', session.provider_token);
+          } else {
+            localStorage.setItem('costack_gcal_token', session.provider_token);
+          }
+        } catch {}
       }
-      if (session?.provider_refresh_token) {
+      if (session?.provider_refresh_token && userProvider !== 'facebook') {
         try { localStorage.setItem('costack_gcal_refresh_token', session.provider_refresh_token); } catch {}
       }
 
@@ -229,14 +240,28 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
         oauthCompletionRef.current = true;
         setIsAuthActive(true);
         setLoading(false);
+        const providerName = userProvider === 'facebook' ? 'Facebook' : 'mạng xã hội';
         setError(locale === 'vi'
-          ? 'Tài khoản mạng xã hội chưa cung cấp địa chỉ email. Vui lòng cấp quyền truy cập email rồi thử lại.'
-          : 'Your social account did not provide an email address. Allow email access and try again.');
+          ? `Tài khoản ${providerName} chưa cung cấp địa chỉ email. Vui lòng cấp quyền truy cập email hoặc liên kết email với tài khoản rồi thử lại.`
+          : `Your ${userProvider} account did not provide an email address. Allow email access and try again.`);
         cleanOAuthParams();
         return;
       }
 
-      const displayName = metadata.full_name || metadata.name || metadata.display_name || userEmail.split('@')[0] || 'Costack Champion';
+      const displayName =
+        metadata.full_name ||
+        metadata.name ||
+        metadata.display_name ||
+        userEmail.split('@')[0] ||
+        (userProvider === 'facebook' ? 'Facebook User' : 'Costack Champion');
+
+      const displayAvatar =
+        typeof metadata.avatar_url === 'string'
+          ? metadata.avatar_url
+          : typeof metadata.picture === 'string'
+          ? metadata.picture
+          : metadata.picture?.data?.url || metadata.avatar || '';
+
       const shouldRemember = sessionStorage.getItem('apexa_oauth_remember_me') !== 'false';
       const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (assurance?.nextLevel === 'aal2' && assurance.currentLevel !== 'aal2') {
@@ -265,7 +290,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
         id: sessionUser.id,
         name: displayName,
         email: userEmail,
-        avatar: metadata.avatar_url || metadata.picture || metadata.avatar || '',
+        avatar: displayAvatar,
         role: resolveAppRole(sessionUser),
         status: 'online',
       }, shouldRemember);
@@ -577,11 +602,19 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
       const { error: verifyError } = await supabase.auth.mfa.verify({ factorId: mfaFactorId, challengeId: mfaChallengeId, code });
       if (verifyError) throw verifyError;
       const displayName = mfaPendingUser.user_metadata?.name || mfaPendingUser.email?.split('@')[0] || 'Costack Champion';
+      const mfaMetadata = mfaPendingUser.user_metadata || {};
+      const mfaAvatar =
+        typeof mfaMetadata.avatar_url === 'string'
+          ? mfaMetadata.avatar_url
+          : typeof mfaMetadata.picture === 'string'
+          ? mfaMetadata.picture
+          : mfaMetadata.picture?.data?.url || mfaMetadata.avatar || '';
+
       onLoginSuccess({
         id: mfaPendingUser.id,
         name: displayName,
         email: mfaPendingUser.email || email,
-        avatar: mfaPendingUser.user_metadata?.avatar_url || mfaPendingUser.user_metadata?.picture || mfaPendingUser.user_metadata?.avatar || '',
+        avatar: mfaAvatar,
         role: resolveAppRole(mfaPendingUser),
         status: 'online'
       }, mfaRememberMe);
@@ -627,14 +660,16 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
       : `Redirecting to ${provider === 'facebook' ? 'Facebook' : 'Google'}…`);
 
     try {
-      const callbackUrl = new URL('/auth/callback', window.location.origin).toString();
+      const callbackUrl = new URL('/auth/callback', window.location.origin);
+      callbackUrl.searchParams.set('provider', provider);
+      sessionStorage.setItem('apexa_oauth_provider', provider);
       sessionStorage.setItem('apexa_oauth_remember_me', String(rememberMe));
 
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: callbackUrl,
-          scopes: provider === 'google' ? 'openid email profile' : 'email public_profile',
+          redirectTo: callbackUrl.toString(),
+          scopes: provider === 'google' ? 'openid email profile' : 'email,public_profile',
           queryParams: provider === 'google' ? {
             access_type: 'offline',
             prompt: 'consent',
@@ -646,6 +681,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     } catch (caughtError: unknown) {
       console.warn(`${provider} OAuth error:`, caughtError instanceof Error ? caughtError.message : caughtError);
       sessionStorage.removeItem('apexa_oauth_remember_me');
+      sessionStorage.removeItem('apexa_oauth_provider');
       setSuccess('');
       setError(getAuthErrorMessage(caughtError));
       setLoading(false);

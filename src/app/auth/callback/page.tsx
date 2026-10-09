@@ -9,7 +9,12 @@ import { isApexaSuperAdmin } from '@/lib/admin/constants';
 function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [statusMessage, setStatusMessage] = useState('Đang kết nối tài khoản Google…');
+
+  const queryProvider = searchParams.get('provider');
+  const [providerTitle, setProviderTitle] = useState(
+    queryProvider === 'facebook' ? 'Facebook' : queryProvider === 'google' ? 'Google' : 'Mạng xã hội'
+  );
+  const [statusMessage, setStatusMessage] = useState('Đang kết nối tài khoản…');
 
   useEffect(() => {
     let isCancelled = false;
@@ -18,10 +23,14 @@ function CallbackContent() {
       try {
         const error = searchParams.get('error');
         const errorDescription = searchParams.get('error_description');
+        const savedProvider =
+          queryProvider ||
+          (typeof window !== 'undefined' ? sessionStorage.getItem('apexa_oauth_provider') : null);
 
         if (error || errorDescription) {
           const message = errorDescription || error || 'OAuth authentication failed';
-          router.replace(`/auth/auth-code-error?error=${encodeURIComponent(message)}`);
+          const providerParam = savedProvider ? `&provider=${encodeURIComponent(savedProvider)}` : '';
+          router.replace(`/auth/auth-code-error?error=${encodeURIComponent(message)}${providerParam}`);
           return;
         }
 
@@ -29,7 +38,11 @@ function CallbackContent() {
         let session = null;
 
         if (code) {
-          setStatusMessage('Đang trao đổi mã xác thực với Google…');
+          setStatusMessage(
+            savedProvider === 'facebook'
+              ? 'Đang trao đổi mã xác thực với Facebook…'
+              : 'Đang trao đổi mã xác thực…'
+          );
           const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
           if (exchangeError) {
             console.warn('exchangeCodeForSession warning, checking active session:', exchangeError.message);
@@ -55,29 +68,70 @@ function CallbackContent() {
 
         if (isCancelled) return;
 
-        // Persist Google OAuth tokens if returned for Google Calendar & services
-        if (session.provider_token) {
-          try {
-            localStorage.setItem('costack_gcal_token', session.provider_token);
-          } catch {}
+        const actualProvider =
+          session.user.app_metadata?.provider ||
+          savedProvider ||
+          'social';
+
+        if (actualProvider === 'facebook') {
+          setProviderTitle('Facebook');
+        } else if (actualProvider === 'google') {
+          setProviderTitle('Google');
         }
-        if (session.provider_refresh_token) {
-          try {
-            localStorage.setItem('costack_gcal_refresh_token', session.provider_refresh_token);
-          } catch {}
+
+        // Persist Google OAuth tokens if returned for Google Calendar & services
+        if (actualProvider === 'google') {
+          if (session.provider_token) {
+            try {
+              localStorage.setItem('costack_gcal_token', session.provider_token);
+            } catch {}
+          }
+          if (session.provider_refresh_token) {
+            try {
+              localStorage.setItem('costack_gcal_refresh_token', session.provider_refresh_token);
+            } catch {}
+          }
+        } else if (actualProvider === 'facebook') {
+          if (session.provider_token) {
+            try {
+              localStorage.setItem('costack_fb_token', session.provider_token);
+            } catch {}
+          }
         }
 
         // Build authenticated user object
         const u = session.user;
         const metadata = u.user_metadata || {};
+        const userEmail = u.email || metadata.email || '';
+
+        // Handle Facebook edge-case where user account has no email or permissions unselected
+        if (!userEmail) {
+          const providerName = actualProvider === 'facebook' ? 'Facebook' : 'mạng xã hội';
+          const errMsg = `Tài khoản ${providerName} chưa cung cấp địa chỉ email. Vui lòng bật quyền truy cập email trong tài khoản hoặc liên kết email rồi thử lại.`;
+          router.replace(`/auth/auth-code-error?provider=${encodeURIComponent(actualProvider)}&error=${encodeURIComponent(errMsg)}`);
+          return;
+        }
+
         const isSuper = isApexaSuperAdmin(u.id);
-        const displayName = metadata.full_name || metadata.name || metadata.display_name || u.email?.split('@')[0] || 'Costack Champion';
-        const displayAvatar = metadata.avatar_url || metadata.picture || metadata.avatar || '';
+        const displayName =
+          metadata.full_name ||
+          metadata.name ||
+          metadata.display_name ||
+          userEmail.split('@')[0] ||
+          (actualProvider === 'facebook' ? 'Facebook User' : 'Costack Champion');
+
+        // Robust avatar parsing (Facebook returns picture as object or string)
+        const displayAvatar =
+          typeof metadata.avatar_url === 'string'
+            ? metadata.avatar_url
+            : typeof metadata.picture === 'string'
+            ? metadata.picture
+            : metadata.picture?.data?.url || metadata.avatar || '';
 
         const userObj = {
           id: u.id,
           name: displayName,
-          email: u.email || '',
+          email: userEmail,
           avatar: displayAvatar,
           role: isSuper ? ('admin' as const) : resolveAppRole(u),
           status: 'online' as const,
@@ -94,6 +148,7 @@ function CallbackContent() {
         try {
           localStorage.setItem('avaxa_session', JSON.stringify(sessionPayload));
           localStorage.setItem('apexa_session', JSON.stringify(sessionPayload));
+          sessionStorage.removeItem('apexa_oauth_provider');
         } catch {}
 
         setStatusMessage('Đăng nhập thành công! Đang chuyển hướng…');
@@ -110,7 +165,11 @@ function CallbackContent() {
         if (isCancelled) return;
         console.error('Lỗi xử lý xác thực callback:', err);
         const errorMessage = err instanceof Error ? err.message : String(err);
-        router.replace(`/auth/auth-code-error?error=${encodeURIComponent(errorMessage)}`);
+        const savedProvider =
+          queryProvider ||
+          (typeof window !== 'undefined' ? sessionStorage.getItem('apexa_oauth_provider') : null);
+        const providerParam = savedProvider ? `&provider=${encodeURIComponent(savedProvider)}` : '';
+        router.replace(`/auth/auth-code-error?error=${encodeURIComponent(errorMessage)}${providerParam}`);
       }
     };
 
@@ -119,7 +178,7 @@ function CallbackContent() {
     return () => {
       isCancelled = true;
     };
-  }, [router, searchParams]);
+  }, [router, searchParams, queryProvider]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#07090e] text-white px-4">
@@ -131,7 +190,7 @@ function CallbackContent() {
           </svg>
         </div>
         <div className="space-y-1">
-          <h2 className="text-base font-bold tracking-tight">Đăng nhập Google</h2>
+          <h2 className="text-base font-bold tracking-tight">Đăng nhập {providerTitle}</h2>
           <p className="text-xs text-slate-400">{statusMessage}</p>
         </div>
       </div>
