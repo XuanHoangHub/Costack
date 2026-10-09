@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import type { User as SupabaseAuthUser } from '@supabase/supabase-js';
@@ -198,23 +198,20 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     onLoginSuccessRef.current = onLoginSuccess;
   }, [onLoginSuccess]);
 
-  // Handle OAuth redirects & existing sessions
-  useEffect(() => {
-    let isActive = true;
+  const cleanOAuthParams = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('error');
+    url.searchParams.delete('error_code');
+    url.searchParams.delete('error_description');
+    url.searchParams.delete('code');
+    url.searchParams.delete('state');
+    url.hash = '';
+    window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
+  }, []);
 
-    const cleanOAuthParams = () => {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('error');
-      url.searchParams.delete('error_code');
-      url.searchParams.delete('error_description');
-      url.searchParams.delete('code');
-      url.searchParams.delete('state');
-      url.hash = '';
-      window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
-    };
-
-    const finalizeOAuthUser = async (sessionUser: SupabaseAuthUser, session?: any) => {
-      if (!isActive || oauthCompletionRef.current) return;
+  const finalizeOAuthUser = useCallback(async (sessionUser: SupabaseAuthUser, session?: any) => {
+    if (oauthCompletionRef.current) return;
 
       const userProvider =
         sessionUser.app_metadata?.provider ||
@@ -269,7 +266,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
         const factor = factors?.totp.find(item => item.status === 'verified');
         if (factor) {
           const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: factor.id });
-          if (!challengeError && challenge && isActive) {
+          if (!challengeError && challenge) {
             oauthCompletionRef.current = true;
             setIsAuthActive(true);
             setMfaPendingUser(sessionUser);
@@ -294,7 +291,11 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
         role: resolveAppRole(sessionUser),
         status: 'online',
       }, shouldRemember);
-    };
+  }, [cleanOAuthParams, locale]);
+
+  // Handle OAuth redirects & existing sessions
+  useEffect(() => {
+    let isActive = true;
 
     const currentUrl = new URL(window.location.href);
     const hashParams = new URLSearchParams(currentUrl.hash.replace(/^#/, ''));
@@ -344,7 +345,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
       isActive = false;
       subscription.unsubscribe();
     };
-  }, [locale]);
+  }, [cleanOAuthParams, finalizeOAuthUser, locale]);
 
   const strengthDetails = calculatePasswordStrength(password);
 

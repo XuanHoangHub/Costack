@@ -1328,6 +1328,7 @@ export const vi: Translations = {
   progressColumn: "Tiến độ",
   tagsColumn: "Nhãn",
   spaceSettingsTitle: "Cài đặt không gian",
+  spaceIcon: "Biểu tượng không gian",
   activeClickApps: "ClickApps đang bật",
   customStatuses: "Trạng thái công việc",
   addCustomStatus: "Thêm trạng thái công việc",

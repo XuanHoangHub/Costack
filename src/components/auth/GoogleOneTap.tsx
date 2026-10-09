@@ -74,7 +74,9 @@ export default function GoogleOneTap({ onSuccess }: GoogleOneTapProps) {
     <Script
       src="https://accounts.google.com/gsi/client"
       strategy="afterInteractive"
-      onReady={initializeGoogleOneTap}
+      onReady={() => {
+        void initializeGoogleOneTap();
+      }}
     />
   );
 }

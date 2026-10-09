@@ -75,6 +75,7 @@ export default function ShareSettingsModal({
   const [copiedMd, setCopiedMd] = useState(false);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
   const [copiedQr, setCopiedQr] = useState(false);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   const [embedHeight, setEmbedHeight] = useState<'450' | '600' | '800'>('600');
 
   // Tab horizontal scroll & blur overflow state

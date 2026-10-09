@@ -1328,6 +1328,7 @@ export const en = {
   progressColumn: 'Progress',
   tagsColumn: 'Tags',
   spaceSettingsTitle: 'Space settings',
+  spaceIcon: 'Space Icon',
   activeClickApps: 'Active ClickApps',
   customStatuses: 'Task statuses',
   addCustomStatus: 'Add task status',
