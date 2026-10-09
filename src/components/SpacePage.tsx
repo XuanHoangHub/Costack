@@ -3930,17 +3930,6 @@ export default function SpacePage({
                   <Lock className="w-3 h-3 text-amber-500 ml-0.5 shrink-0" />
                 )}
               </button>
-
-              {/* Solid "+ Task" button */}
-              <button
-                type="button"
-                onClick={() => activeViewProtectedRef.current ? notifyProtectedView() : setShowAddModal(true)}
-                className="h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs active:scale-95 transition-all cursor-pointer shrink-0"
-              >
-                <Plus className="w-3.5 h-3.5 stroke-[2.5px]" />
-                <span>{locale === 'vi' ? 'Công việc' : 'Task'}</span>
-              </button>
-
             </div>
           </div>
         </header>

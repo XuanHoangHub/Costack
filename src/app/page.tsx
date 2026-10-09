@@ -432,6 +432,25 @@ export default function App() {
         return;
       }
 
+      if (session?.provider_token) {
+        try { localStorage.setItem('costack_gcal_token', session.provider_token); } catch {}
+      }
+      if (session?.provider_refresh_token) {
+        try { localStorage.setItem('costack_gcal_refresh_token', session.provider_refresh_token); } catch {}
+      }
+
+      if (typeof window !== 'undefined' && (window.location.search.includes('code=') || window.location.search.includes('state='))) {
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('code');
+          url.searchParams.delete('state');
+          url.searchParams.delete('error');
+          url.searchParams.delete('error_code');
+          url.searchParams.delete('error_description');
+          window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
+        } catch {}
+      }
+
       const u = verifiedIdentity.user;
       const cachedRaw = localStorage.getItem('avaxa_session') || localStorage.getItem('apexa_session');
       let cachedUser: any = null;
@@ -7554,6 +7573,7 @@ export default function App() {
         isOffline={isOffline}
         onUpdateTask={handleUpdateTask}
         onAddTask={handleAddTask}
+        onDeleteTask={handleDeleteTask}
         onAddSyncLog={addSyncLog}
         triggerToast={triggerToast}
       />

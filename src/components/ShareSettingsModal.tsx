@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Shield, Globe, Lock, UserPlus, Trash2, X, Check, 
@@ -75,8 +75,46 @@ export default function ShareSettingsModal({
   const [copiedMd, setCopiedMd] = useState(false);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
   const [copiedQr, setCopiedQr] = useState(false);
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   const [embedHeight, setEmbedHeight] = useState<'450' | '600' | '800'>('600');
+
+  // Tab horizontal scroll & blur overflow state
+  const tabScrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkTabScroll = useCallback(() => {
+    const el = tabScrollRef.current;
+    if (!el) return;
+    const hasOverflow = el.scrollWidth > el.clientWidth + 2;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(hasOverflow && el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    checkTabScroll();
+    const handleResize = () => checkTabScroll();
+    window.addEventListener('resize', handleResize);
+    const timer = setTimeout(checkTabScroll, 80);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timer);
+    };
+  }, [isOpen, checkTabScroll, activeTab]);
+
+  const handleTabWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const el = tabScrollRef.current;
+    if (!el) return;
+    if (e.deltaY !== 0 && el.scrollWidth > el.clientWidth) {
+      el.scrollLeft += e.deltaY;
+      checkTabScroll();
+    }
+  };
+
+  const handleSelectTab = (tab: TabType, e?: React.MouseEvent<HTMLButtonElement>) => {
+    setActiveTab(tab);
+    e?.currentTarget?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  };
 
   // Sync state when props change
   useEffect(() => {
@@ -384,59 +422,86 @@ export default function ShareSettingsModal({
           </button>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="px-5 pt-3 pb-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-1.5 overflow-x-auto custom-scrollbar bg-slate-50/50 dark:bg-slate-950/30 shrink-0">
-          <button
-            type="button"
-            onClick={() => setActiveTab('access')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'access'
-                ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-sky-400 shadow-xs border border-slate-200/80 dark:border-slate-700 font-black'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
-            }`}
+        {/* Tab Navigation with Blur Overflow Masks */}
+        <div className="relative border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 shrink-0 overflow-hidden">
+          {/* Scrollable Tab Buttons Row */}
+          <div
+            ref={tabScrollRef}
+            onScroll={checkTabScroll}
+            onWheel={handleTabWheel}
+            className="px-4 sm:px-5 pt-3 pb-2 flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth select-none"
           >
-            <Shield className="w-3.5 h-3.5" />
-            <span>{isVietnamese ? 'Quyền & Thành viên' : 'Access & Members'}</span>
-          </button>
+            <button
+              type="button"
+              onClick={(e) => handleSelectTab('access', e)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                activeTab === 'access'
+                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-sky-400 shadow-xs border border-slate-200/80 dark:border-slate-700 font-black'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span>{isVietnamese ? 'Quyền & Thành viên' : 'Access & Members'}</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('qrcode')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'qrcode'
-                ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-sky-400 shadow-xs border border-slate-200/80 dark:border-slate-700 font-black'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <QrCode className="w-3.5 h-3.5" />
-            <span>{isVietnamese ? 'Mã QR' : 'QR Code'}</span>
-          </button>
+            <button
+              type="button"
+              onClick={(e) => handleSelectTab('qrcode', e)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                activeTab === 'qrcode'
+                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-sky-400 shadow-xs border border-slate-200/80 dark:border-slate-700 font-black'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              <span>{isVietnamese ? 'Mã QR' : 'QR Code'}</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('social')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'social'
-                ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-sky-400 shadow-xs border border-slate-200/80 dark:border-slate-700 font-black'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <Share2 className="w-3.5 h-3.5" />
-            <span>{isVietnamese ? 'Chia sẻ mạng xã hội' : 'Social & Apps'}</span>
-          </button>
+            <button
+              type="button"
+              onClick={(e) => handleSelectTab('social', e)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                activeTab === 'social'
+                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-sky-400 shadow-xs border border-slate-200/80 dark:border-slate-700 font-black'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>{isVietnamese ? 'Chia sẻ mạng xã hội' : 'Social & Apps'}</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('embed')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'embed'
-                ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-sky-400 shadow-xs border border-slate-200/80 dark:border-slate-700 font-black'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
+            <button
+              type="button"
+              onClick={(e) => handleSelectTab('embed', e)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                activeTab === 'embed'
+                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-sky-400 shadow-xs border border-slate-200/80 dark:border-slate-700 font-black'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <Code2 className="w-3.5 h-3.5" />
+              <span>{isVietnamese ? 'Mã nhúng Iframe' : 'Embed Code'}</span>
+            </button>
+
+            {/* Trailing spacer so the last tab button is not flush against edge when scrolled */}
+            <div className="w-6 shrink-0" aria-hidden="true" />
+          </div>
+
+          {/* Left Blur Fade Mask (appears when scrolled right) */}
+          <div
+            className={`pointer-events-none absolute left-0 top-0 bottom-0 w-10 sm:w-14 bg-gradient-to-r from-slate-50 via-slate-50/80 to-transparent dark:from-slate-900 dark:via-slate-900/80 dark:to-transparent backdrop-blur-[2.5px] transition-opacity duration-200 z-10 ${
+              canScrollLeft ? 'opacity-100' : 'opacity-0'
             }`}
-          >
-            <Code2 className="w-3.5 h-3.5" />
-            <span>{isVietnamese ? 'Mã nhúng Iframe' : 'Embed Code'}</span>
-          </button>
+            aria-hidden="true"
+          />
+
+          {/* Right Blur Fade Mask (appears when content overflows) */}
+          <div
+            className={`pointer-events-none absolute right-0 top-0 bottom-0 w-12 sm:w-16 bg-gradient-to-l from-slate-50 via-slate-50/80 to-transparent dark:from-slate-900 dark:via-slate-900/80 dark:to-transparent backdrop-blur-[2.5px] transition-opacity duration-200 z-10 ${
+              canScrollRight ? 'opacity-100' : 'opacity-0'
+            }`}
+            aria-hidden="true"
+          />
         </div>
 
         {/* Modal Body Container */}

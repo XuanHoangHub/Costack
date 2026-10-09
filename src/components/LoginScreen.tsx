@@ -24,6 +24,7 @@ import ModernAuthInput from './auth/ModernAuthInput';
 import PasswordStrengthMeter, { calculatePasswordStrength } from './auth/PasswordStrengthMeter';
 import SocialAuthButtons from './auth/SocialAuthButtons';
 import AuthStoryPanel from './auth/AuthStoryPanel';
+import GoogleOneTap from './auth/GoogleOneTap';
 import { formatAuthError } from '../lib/authError';
 
 interface LoginScreenProps {
@@ -206,12 +207,21 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
       url.searchParams.delete('error');
       url.searchParams.delete('error_code');
       url.searchParams.delete('error_description');
+      url.searchParams.delete('code');
+      url.searchParams.delete('state');
       url.hash = '';
       window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
     };
 
-    const finalizeOAuthUser = async (sessionUser: SupabaseAuthUser) => {
+    const finalizeOAuthUser = async (sessionUser: SupabaseAuthUser, session?: any) => {
       if (!isActive || oauthCompletionRef.current) return;
+
+      if (session?.provider_token) {
+        try { localStorage.setItem('costack_gcal_token', session.provider_token); } catch {}
+      }
+      if (session?.provider_refresh_token) {
+        try { localStorage.setItem('costack_gcal_refresh_token', session.provider_refresh_token); } catch {}
+      }
 
       const metadata = sessionUser.user_metadata || {};
       const userEmail = sessionUser.email || metadata.email || '';
@@ -263,17 +273,30 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
 
     const currentUrl = new URL(window.location.href);
     const hashParams = new URLSearchParams(currentUrl.hash.replace(/^#/, ''));
-    const oauthError = currentUrl.searchParams.get('error_description') || hashParams.get('error_description');
+    const oauthErrorParam = currentUrl.searchParams.get('error_description')
+      || currentUrl.searchParams.get('error')
+      || hashParams.get('error_description')
+      || hashParams.get('error');
 
-    if (oauthError) {
+    if (oauthErrorParam) {
       oauthCompletionRef.current = true;
       queueMicrotask(() => {
         if (!isActive) return;
         setIsAuthActive(true);
         setLoading(false);
-        setError(locale === 'vi'
-          ? 'Không thể đăng nhập bằng tài khoản mạng xã hội. Vui lòng thử lại.'
-          : 'Could not sign in with your social account. Please try again.');
+        const isAccessDenied =
+          oauthErrorParam.toLowerCase().includes('access_denied') ||
+          oauthErrorParam.toLowerCase().includes('cancel') ||
+          oauthErrorParam.toLowerCase().includes('hủy');
+        if (isAccessDenied) {
+          setError(locale === 'vi'
+            ? 'Bạn đã hủy đăng nhập bằng tài khoản mạng xã hội.'
+            : 'You cancelled the social sign-in process.');
+        } else {
+          setError(locale === 'vi'
+            ? `Đăng nhập không thành công: ${oauthErrorParam}`
+            : `Sign in failed: ${oauthErrorParam}`);
+        }
         cleanOAuthParams();
       });
       return;
@@ -285,11 +308,11 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
         console.warn('Unable to restore OAuth session:', sessionError.message);
         return;
       }
-      if (session?.user) void finalizeOAuthUser(session.user);
+      if (session?.user) void finalizeOAuthUser(session.user, session);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) void finalizeOAuthUser(session.user);
+      if (session?.user) void finalizeOAuthUser(session.user, session);
     });
 
     return () => {
@@ -604,14 +627,18 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
       : `Redirecting to ${provider === 'facebook' ? 'Facebook' : 'Google'}…`);
 
     try {
-      const redirectTo = new URL('/', window.location.origin).toString();
+      const callbackUrl = new URL('/auth/callback', window.location.origin).toString();
       sessionStorage.setItem('apexa_oauth_remember_me', String(rememberMe));
 
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo,
-          scopes: provider === 'facebook' ? 'email public_profile' : undefined,
+          redirectTo: callbackUrl,
+          scopes: provider === 'google' ? 'openid email profile' : 'email public_profile',
+          queryParams: provider === 'google' ? {
+            access_type: 'offline',
+            prompt: 'consent',
+          } : undefined,
         }
       });
       if (oauthError) throw oauthError;
@@ -630,6 +657,13 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
 
   return (
     <div className="apexa-auth-shell fixed inset-0 overflow-y-auto overflow-x-clip scroll-smooth bg-[#f8fafc] dark:bg-[#030304] text-slate-800 dark:text-slate-100 font-sans selection:bg-blue-100 selection:text-blue-900 dark:selection:bg-blue-900/50 dark:selection:text-blue-100">
+      <GoogleOneTap
+        onSuccess={() => {
+          supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session?.user) void finalizeOAuthUser(session.user, session);
+          });
+        }}
+      />
       <LandingPage
         onSignUp={() => openAuth(true)}
         onSignIn={() => openAuth(false)}
